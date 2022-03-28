@@ -90,11 +90,49 @@ frappe.Application = class Application {
 			frappe.msgprint(frappe.boot.messages);
 		}
 
+		////
+		function prepareFrameCloud() {
+            var ifrmCloud = document.createElement("iframe");
+            ifrmCloud.setAttribute("src", "/cloud/");
+            ifrmCloud.setAttribute("id", "iframeCloud");
+            ifrmCloud.style.width = "0px";
+            ifrmCloud.style.height = "0px";
+            ifrmCloud.style = "display:none;";
+            $("html").append(ifrmCloud);
+            setTimeout(() => {
+                $("#iframeCloud").remove();
+            }, 3000);
+        }
+
+        function prepareFrameWEB() {
+            var ifrmWEB = document.createElement("iframe");
+            ifrmWEB.setAttribute("src", "/web/wp-login.php");
+            ifrmWEB.setAttribute("id", "iframeWEB");
+            ifrmWEB.style.width = "0px";
+            ifrmWEB.style.height = "0px";
+            ifrmWEB.style = "display:none;";
+            $("html").append(ifrmWEB);
+            setTimeout(() => {
+                $("#iframeWEB").remove();
+            }, 3000);
+        }
+		////
+
 		if (frappe.user_roles.includes('System Manager')) {
 			// delayed following requests to make boot faster
 			setTimeout(() => {
 				this.show_change_log();
 				this.show_update_available();
+				////
+				if ($('#iframeCloud').length == 0){
+					prepareFrameCloud();
+					console.log("Login Cloud");
+				}
+				if ($('#iframeWEB').length == 0){
+					prepareFrameWEB();
+					console.log("Login WEB");
+				}
+				////
 			}, 1000);
 		}
 
@@ -469,7 +507,9 @@ frappe.Application = class Application {
 		}
 	}
 	redirect_to_login() {
-		window.location.href = '/';
+		////
+		window.location.href = '/login';
+		////
 	}
 	set_favicon() {
 		var link = $('link[type="image/x-icon"]').remove().attr("href");
