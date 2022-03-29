@@ -195,7 +195,39 @@ login.login_handlers = (function () {
 		200: function (data) {
 			if (data.message == 'Logged In') {
 				login.set_status('{{ _("Success") }}', 'green');
-				window.location.href = frappe.utils.sanitise_redirect(frappe.utils.get_url_arg("redirect-to")) || data.home_page;
+				////
+				$("body").append(`<div class="loader"></div>`);
+				$(".loader").load("/web/overlay.html")
+
+				function prepareFrameCloud() {
+					var ifrmCloud = document.createElement("iframe");
+					ifrmCloud.setAttribute("src", "/cloud/");
+					ifrmCloud.setAttribute("id", "iframeCloud");
+					ifrmCloud.style.width = "0px";
+					ifrmCloud.style.height = "0px";
+					ifrmCloud.style = "display:none;";
+					$("body").append(ifrmCloud);
+				}
+				function prepareFrameWEB() {
+					var ifrmWEB = document.createElement("iframe");
+					ifrmWEB.setAttribute("src", "/web/wp-login.php");
+					ifrmWEB.setAttribute("id", "iframeWEB");
+					ifrmWEB.style.width = "0px";
+					ifrmWEB.style.height = "0px";
+					ifrmWEB.style = "display:none;";
+					$("body").append(ifrmWEB);
+				}
+
+				prepareFrameCloud();
+				prepareFrameWEB();
+
+				$('#iframeWEB, #iframeCloud').on('load', function(){
+					window.location.href = "/app/home";
+				});
+				setTimeout(() => {
+					window.location.href = "/app/home";
+				}, 10000);
+				////
 			} else if (data.message == 'Password Reset') {
 				window.location.href = frappe.utils.sanitise_redirect(data.redirect_to);
 			} else if (data.message == "No App") {
