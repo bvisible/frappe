@@ -1,7 +1,7 @@
 {
  "charts": [],
  "content": "[{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Masters</b><span class=\\\"ml-2 collapse-indicator mb-1\\\" style=\\\"\\\"></span></span>\",\"col\":12}},{\"type\":\"card\",\"data\":{\"card_name\":\"Backup\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Google Services\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Authentication\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Payments\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}}]",
- "creation": "2022-03-07 17:13:58.505147",
+ "creation": "2022-03-24 17:13:58.123456",
  "docstatus": 0,
  "doctype": "Workspace",
  "for_user": "",
@@ -260,7 +260,7 @@
    "type": "Link"
   }
  ],
- "modified": "2022-03-16 18:47:56.391896",
+ "modified": "2022-03-24 18:47:56.123456",
  "modified_by": "Administrator",
  "module": "Integrations",
  "name": "Integrations",

@@ -1,7 +1,7 @@
 {
  "charts": [],
  "content": "[{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Your Shortcuts</b></span>\",\"col\":12}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"User\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Role\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Permission Manager\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"User Profile\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"User Type\",\"col\":3}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Masters</b><span class=\\\"ml-2 collapse-indicator mb-1\\\" style=\\\"\\\"></span></span>\",\"col\":12}},{\"type\":\"card\",\"data\":{\"card_name\":\"Users\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Logs\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Permissions\",\"col\":4}}]",
- "creation": "2022-03-07 17:13:45.446979",
+ "creation": "2022-03-24 17:13:45.123456",
  "docstatus": 0,
  "doctype": "Workspace",
  "for_user": "",
@@ -145,7 +145,7 @@
    "type": "Link"
   }
  ],
- "modified": "2022-03-16 18:47:31.683472",
+ "modified": "2022-03-24 18:47:31.123456",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "Users",
