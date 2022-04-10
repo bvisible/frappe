@@ -1150,8 +1150,9 @@ def get_hooks(hook=None, default=None, app_name=None):
 					append_hook(hooks, key, getattr(app_hooks, key))
 		return hooks
 
-	no_cache = conf.developer_mode or False
-
+	"""////no_cache = conf.developer_mode or False"""
+	no_cache = conf.developer_mode or True
+	
 	if app_name:
 		hooks = _dict(load_app_hooks(app_name))
 	else:
