@@ -14,6 +14,7 @@ import json
 import mimetypes
 import os
 import re
+import unicodedata
 import shutil
 import zipfile
 from io import BytesIO
@@ -64,6 +65,14 @@ class File(Document):
 		self.set_folder_name()
 		if self.file_name:
 			self.file_name = re.sub(r"/", "", self.file_name)
+			extension = self.file_name.split(".")[-1]
+			self.file_name = self.file_name[:self.file_name.rfind('.')]
+			self.file_name = re.sub("[-]\d+x\d+", '', self.file_name)
+			self.file_name = re.sub("\d+x\d+", '', self.file_name)
+			self.file_name = unicodedata.normalize('NFKD', self.file_name).encode('ascii', 'ignore').decode('ascii')
+			self.file_name = re.sub(r'[^\w\s-]', '', self.file_name.lower())
+			self.file_name = re.sub(r'[-\s]+', '-', self.file_name).strip('-_')
+			self.file_name = self.file_name + '.' + extension
 		self.content = self.get("content", None)
 		self.decode = self.get("decode", False)
 		if self.content:
@@ -135,6 +144,15 @@ class File(Document):
 
 		# Ensure correct formatting and type
 		self.file_url = unquote(self.file_url)
+		extension = self.file_url.split(".")[-1]
+		path = '/files/' if self.file_url.startswith('/files/') else '/private/files/'
+		self.file_url = (self.file_url[:self.file_url.rfind('.')]).replace(path, '')
+		self.file_url = re.sub("[-]\d+x\d+", '', self.file_url)
+		self.file_url = re.sub("\d+x\d+", '', self.file_url)
+		self.file_url = unicodedata.normalize('NFKD', self.file_url).encode('ascii', 'ignore').decode('ascii')
+		self.file_url = re.sub(r'[^\w\s-]', '', self.file_url.lower())
+		self.file_url = re.sub(r'[-\s]+', '-', self.file_url).strip('-_')
+		self.file_url = path + self.file_url + '.' + extension
 		self.is_private = cint(self.is_private)
 
 		self.handle_is_private_changed()
