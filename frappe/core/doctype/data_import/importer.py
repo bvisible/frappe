@@ -24,6 +24,7 @@ INVALID_VALUES = ("", None)
 MAX_ROWS_IN_PREVIEW = 10
 INSERT = "Insert New Records"
 UPDATE = "Update Existing Records"
+SPLIT_ROWS_AT = 100
 
 
 class Importer:
@@ -81,6 +82,8 @@ class Importer:
 
 		# parse docs from rows
 		payloads = self.import_file.get_payloads_for_import()
+		#self.data_import.db_set("payload_count", (self.data_import.db_get("payload_count") or 0) + len(payloads))
+		frappe.log_error("length", len(payloads))
 
 		# dont import if there are non-ignorable warnings
 		warnings = self.import_file.get_warnings()
@@ -110,8 +113,10 @@ class Importer:
 
 		# Do not remove rows in case of retry after an error or pending data import
 		if (
-			self.data_import.status == "Partial Success"
-			and len(import_log) >= self.data_import.payload_count
+			(self.data_import.status == "Partial Success"
+			and len(import_log) >= self.data_import.payload_count)
+			or (self.data_import.status == "Splited Import Started"
+			and len(import_log) >= self.data_import.payload_count)
 		):
 			# remove previous failures from import log only in case of retry after partial success
 			import_log = [log for log in import_log if log.get("success")]
@@ -131,12 +136,17 @@ class Importer:
 		batch_size = frappe.conf.data_import_batch_size or 1000
 
 		for batch_index, batched_payloads in enumerate(frappe.utils.create_batch(payloads, batch_size)):
+			frappe.log_error("in for loop 1")
 			for i, payload in enumerate(batched_payloads):
+				frappe.log_error("in for loop 2")
 				doc = payload.doc
 				row_indexes = [row.row_number for row in payload.rows]
+				frappe.log_error("intersect", "{0}\n{1}".format(row_indexes, imported_rows))
+				frappe.log_error("intersect", "{0}\n{1}".format(row_indexes, imported_rows))
 				current_index = (i + 1) + (batch_index * batch_size)
 
 				if set(row_indexes).intersection(set(imported_rows)):
+					frappe.log_error("skipping")
 					print("Skipping imported rows", row_indexes)
 					if total_payload_count > 5:
 						frappe.publish_realtime(
@@ -224,12 +234,23 @@ class Importer:
 
 		# set status
 		failures = [log for log in import_log if not log.get("success")]
-		if len(failures) == total_payload_count:
-			status = "Pending"
-		elif len(failures) > 0:
-			status = "Partial Success"
+		if self.data_import.db_get("last_line"):
+			if self.data_import.db_get("last_line") == self.data_import.total_lines-1:
+				if len(failures) == self.data_import.db_get("payload_count"):
+					status = "Pending"
+				elif len(failures) > 0:
+					status = "Partial Success"
+				else:
+					status = "Success"
+			else:
+				status = "Splited Import Started"
 		else:
-			status = "Success"
+			if len(failures) == total_payload_count:
+				status = "Pending"
+			elif len(failures) > 0:
+				status = "Partial Success"
+			else:
+				status = "Success"
 
 		if self.console:
 			self.print_import_log(import_log)
@@ -467,7 +488,6 @@ class ImportFile:
 			return self.read_content(content, extension)
 
 	def parse_data_from_template(self):
-		frappe.log_error(self.from_func, "from_func")
 		header = None
 		data = []
 		attributes_index  = []
@@ -557,9 +577,42 @@ class ImportFile:
 		import re
 		import unicodedata
 		regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+		split_value = SPLIT_ROWS_AT
+		if self.doctype_data.sync_with_woocommerce == 1:
+			split_value = 50
 
 		data_length = len(self.raw_data)
+		if not self.doctype_data.total_lines:
+			self.doctype_data.db_set("total_lines", data_length, update_modified=False)
+
+		if self.doctype_data.db_get("last_line"):
+			start_line = self.doctype_data.db_get("last_line") + 1
+		else:
+			start_line = 0
+
+		if self.from_func == "start_import":
+			stop_enum = start_line + split_value +1
+			frappe.log_error()
+		else:
+			stop_enum = data_length-1
+
 		for i, row in enumerate(self.raw_data):
+			if (i == start_line + split_value+1) and self.from_func == "start_import":
+				self.doctype_data.db_set("last_line", i-1)
+				break
+
+			#if self.from_func == "start_import":
+			#	frappe.log_error("condition", str(i == start_line + split_value) +" "+ str(i) +" "+str(start_line + split_value))
+			#	frappe.log_error("{}".format(i))
+
+			if i > 0 and i < start_line:
+				if self.from_func == "start_import":
+					frappe.log_error("continue")
+					continue
+
+			if ((i < data_length-1 and i == start_line + split_value) or (i == data_length-1 and i > split_value)) and self.from_func == "start_import":
+				self.doctype_data.db_set("last_line", i, update_modified=False)
+
 			if all(v in INVALID_VALUES for v in row):
 				# empty row
 				continue
@@ -840,7 +893,7 @@ class ImportFile:
 			else:
 				add_row_in_data = True
 				if self.doctype_data.import_source == "Woocommerce" and self.from_func == "start_import":
-					if self.doctype == "File":
+					'''if self.doctype == "File":
 						from frappe.utils import get_files_path
 						if row[images_field_index]:
 							item_image = row[images_field_index].split('|')
@@ -848,17 +901,22 @@ class ImportFile:
 							for index,image in enumerate(item_image):
 								if index > 5:
 									break
-								image_name = image.split('/')[-1]
-								extension = image_name.split(".")[-1]
-								image_name = image_name[:image_name.rfind('.')]
-								image_name = re.sub("[-]\d+x\d+", '', image_name)
-								image_name = re.sub("\d+x\d+", '', image_name)
-								image_name = unicodedata.normalize('NFKD', image_name).encode('ascii', 'ignore').decode('ascii')
-								image_name = re.sub(r'[^\w\s-]', '', image_name.lower())
-								image_name = re.sub(r'[-\s]+', '-', image_name).strip('-_')
-								image_name = image_name + '.' + extension
-								if not frappe.get_all("File", filters={"file_name":image_name}):
+								image_data = requests.get(image).content
+								image_hash = get_content_hash(image_data)
+								file_list = frappe.get_all("File", filters={"hash_content":image_hash})
+								if not file_list:
+									image_name = image.split('/')[-1]
+									extension = image_name.split(".")[-1]
+									image_name = image_name[:image_name.rfind('.')]
+									image_name = re.sub("[-]\d+x\d+", '', image_name)
+									image_name = re.sub("\d+x\d+", '', image_name)
+									image_name = unicodedata.normalize('NFKD', image_name).encode('ascii', 'ignore').decode('ascii')
+									image_name = re.sub(r'[^\w\s-]', '', image_name.lower())
+									image_name = re.sub(r'[-\s]+', '-', image_name).strip('-_')
+									image_name = image_name + '.' + extension
+								
 									image_data = requests.get(image).content
+									image_hash = get_content_hash(image_data)
 									file_path = get_files_path(is_private=0)
 									# write the file
 									with open(os.path.join(file_path.encode('utf-8'), image_name), 'wb+') as f:
@@ -870,6 +928,15 @@ class ImportFile:
 										new_row = deepcopy.copy(row)
 										new_row[-1]= "/files/"+image_name
 										new_row[-2]= image_name
+								else:
+									link_file = frappe.get_doc("File", file_list[0])
+									if index == 0:
+										row[-1]= link_file.file_url
+										row[-2]= link_file_name
+									else:
+										new_row = deepcopy.copy(row)
+										new_row[-1]= "/files/"+image_name
+										new_row[-2]= image_name'''
 
 					if self.doctype == "Item":
 						attributes_value = []
@@ -882,24 +949,24 @@ class ImportFile:
 
 						tree = row[category_index].split(">")
 						if tree[-1] not in created_cats:
-							for i in range(len(tree)):
-								if tree[i] not in created_cats:
-									if(i == 0):
+							for index in range(len(tree)):
+								if tree[index] not in created_cats:
+									if(index == 0):
 										parent = "Ecommerce"
 									else:
-										parent = tree[i-1]
+										parent = tree[index-1]
 									#frappe.msgprint(str(frappe.db.exists("Item Group", {"parent_item_group": parent, "item_group_name": tree[i]})))
-									if not frappe.db.exists("Item Group", {"name": tree[i]}):
-										created_cats.append(tree[i])
+									if not frappe.db.exists("Item Group", {"name": tree[index]}):
+										created_cats.append(tree[index])
 										cat_doc = frappe.get_doc({
 											"doctype": "Item Group",
-											"item_group_name": tree[i],
+											"item_group_name": tree[index],
 											"parent_item_group": parent,
 											"is_group": 1
 										})
 										cat_doc.insert()
 										frappe.db.commit()
-										created_cats.append(tree[i])
+										created_cats.append(tree[index])
 									'''elif not frappe.db.exists("Item Group", {"name": parent + ' - ' + tree[i]}):
 										created_cats.append(tree[i])
 										cat_doc = frappe.get_doc({
@@ -951,11 +1018,11 @@ class ImportFile:
 
 						row.extend([None, None, None, None, None, None])
 						if row[images_field_index]:
+							item_image = []
 							item_image = row[images_field_index].split('|')
-							for index,image in enumerate(item_image):
-								if index > 5:
-									break
-								image_name = image.split('/')[-1]
+							len_item_image = len(item_image)
+							if len_item_image == 1:
+								image_name = item_image[0].split('/')[-1]
 								extension = image_name.split(".")[-1]
 								image_name = image_name[:image_name.rfind('.')]
 								image_name = re.sub("[-]\d+x\d+", '', image_name)
@@ -964,9 +1031,10 @@ class ImportFile:
 								image_name = re.sub(r'[^\w\s-]', '', image_name.lower())
 								image_name = re.sub(r'[-\s]+', '-', image_name).strip('-_')
 								image_name = image_name + '.' + extension
-								if not frappe.get_all("File", filters={"file_name":image_name}):
+								found_files = frappe.get_all("File", filters={"file_name": image_name})
+								if not found_files:
+									image_data = requests.get(item_image[0]).content
 									try:
-										image_data = requests.get(image).content
 										file_doc = frappe.get_doc({
 											"doctype": "File",
 											"file_name": image_name,
@@ -975,23 +1043,71 @@ class ImportFile:
 										})
 										file_doc.insert()
 										frappe.db.commit()
+										image_url = frappe.db.get_value("File", file_doc.name, "file_url")
+										row[image_index] = image_url
 									except:
-										pass
-								if index == 0:
-									row[image_index] = "/files/{0}".format(image_name)
+										frappe.log_error(f"file {image_name} not inserted")
 								else:
-									row[image_index+index] = "/files/{0}".format(image_name)
+									link_file = frappe.get_doc("File", found_files[0].name)
+									row[image_index] = link_file.file_url
 
+							elif len_item_image > 1:
+								for index,image in enumerate(item_image):
+									if index > 5:
+										break
+									image_name = image.split('/')[-1]
+									extension = image_name.split(".")[-1]
+									image_name = image_name[:image_name.rfind('.')]
+									image_name = re.sub("[-]\d+x\d+", '', image_name)
+									image_name = re.sub("\d+x\d+", '', image_name)
+									image_name = unicodedata.normalize('NFKD', image_name).encode('ascii', 'ignore').decode('ascii')
+									image_name = re.sub(r'[^\w\s-]', '', image_name.lower())
+									image_name = re.sub(r'[-\s]+', '-', image_name).strip('-_')
+									image_name = image_name + '.' + extension
+									found_files = frappe.get_all("File", filters={"file_name": image_name})
+									if not found_files:
+										image_data = requests.get(image).content
+										try:
+											frappe.log_error(f"try inserting file {image_name}")
+											file_doc = frappe.get_doc({
+												"doctype": "File",
+												"file_name": image_name,
+												"content": image_data,
+												"is_private": 0
+											})
+											file_doc.insert()
+											frappe.db.commit()
+											image_url = frappe.db.get_value("File", file_doc.name, "file_url")
+											if index == 0:
+												row[image_index] = image_url
+											else:
+												row[image_index+index] = image_url
+											frappe.log_error(f"file {image_name} inserted")
+										except:
+											frappe.log_error(f"file {image_name} not inserted")
+									else:
+										frappe.log_error(f"file {image_name} already inserted")
+										link_file = frappe.get_doc("File", found_files[0].name)
+										if index == 0:
+											row[image_index] = link_file.file_url
+										else:
+											row[image_index+index] = link_file.file_url
 						if not row[sku_index]:
 							#error_msg += f"Your file line {i} has not SKU provided. The value is mandatory\n"
 							row[sku_index] = sku_prefix + str(sku_suffix)
 							sku_suffix += 1
+
 						if row[parent_id_index] == 0:
 							parent_sku = None
 						else:
 							parent_sku = list_of_parents.get(row[parent_id_index], "error")
+							if parent_sku == "error":
+								parent_list = frappe.get_all("Item", filters={"import_id": row[parent_id_index]})
+								if parent_list:
+									parent_sku = parent_list[0].name
+
 						if parent_sku == "error":
-							error_msg += f"Can't find parent product with ID {item} or your file isn't ordered by ID\n"
+							error_msg += f"Can't find parent product with ID {item}\n"
 						#product_category = ((row[category_index]).split('>'))[-1]
 
 						is_parent = True if (row[type_index] == "variable" and row[parent_id_index] == 0) else False
@@ -1004,10 +1120,11 @@ class ImportFile:
 								stock = 0
 							else:
 								stock = 0 if row[stock_index] < 0 else int(row[stock_index])
+								
 						price = row[selling_price_index]
 						if not price:
 							price = row[other_selling_price_index]
-
+							
 						if len(attributes_value) > 1:
 							new_row = copy.deepcopy(row)
 
@@ -1015,13 +1132,16 @@ class ImportFile:
 							row.extend([manage_stock, is_parent, parent_sku, None, None, self.doctype_data.sync_with_woocommerce, self.doctype_data.warehouse, row[category_index], row[category_index],
 							default_company, self.doctype_data.warehouse, stock, valuation_rate, price])
 						else:
-							row.extend([manage_stock, is_parent, parent_sku, attributes_name[0], attributes_value[0], self.doctype_data.sync_with_woocommerce, self.doctype_data.warehouse, row[category_index], row[category_index],
-							default_company, self.doctype_data.warehouse, stock, valuation_rate, price])
-						if index == data_length-1:
+							attribute_value = attributes_value[0]
+							if row[parent_id_index] == 0:
+								attribute_value = None
+							row.extend([manage_stock, is_parent, parent_sku, attributes_name[0], attribute_value, self.doctype_data.sync_with_woocommerce, self.doctype_data.warehouse, row[category_index], row[category_index],
+							default_company, self.doctype_data.warehouse, stock, valuation_rate, price]) 
+
+						if index % 100 == 0 or index == data_length - 1:
 							import subprocess, time
-							command = "su neoffice; php /home/neoffice/frappe-bench/sites/web/wp-content/plugins/bulk-media-register-add-on-wpcron/lib/bmrcroncli.php"
-							ret = subprocess.run(command, capture_output=True, shell=True)
-							time.sleep(60)
+							command = "php /home/neoffice/frappe-bench/sites/web/wp-content/plugins/bulk-media-register-add-on-wpcron/lib/bmrcroncli.php"
+							subprocess.run(command, capture_output=False, shell=True)
 
 					elif self.doctype == "Contact":
 						if not row[firstname_index] and not row[billing_company_index] and not row[shipping_company_index]:
@@ -1411,15 +1531,20 @@ class ImportFile:
 							parent_sku = None
 						else:
 							parent_sku = list_of_parents.get(row[parent_id_index], "error")
+							if parent_sku == "error":
+								parent_list = frappe.get_all("Item", filters={"import_id": row[parent_id_index]})
+								if parent_list:
+									parent_sku = parent_list[0].name
+
 						if parent_sku == "error":
-							error_msg += f"Can't find parent product with ID {item} or your file isn't ordered by ID\n"
-						for i in range(1, len(attributes_value)):
+							error_msg += f"Can't find parent product with ID {item}\n"
+						for index in range(1, len(attributes_value)):
 							added_lines += 1
 							new_row = [None] * len(new_row)
 							#new_row[-5] = attributes_name[i]
 							#new_row[-4] = attributes_value[i]
 							#new_row[-3] = 1 if has_ecommerce else 0
-							new_row.extend([None, None, None, attributes_name[i], attributes_value[i], None, None, None, None,
+							new_row.extend([None, None, None, attributes_name[index], attributes_value[index], None, None, None, None,
 							None, None, None, None, None])
 							row_obj = Row(i+added_lines, new_row, self.doctype, header, self.import_type)
 							data.append(row_obj)
@@ -1456,12 +1581,17 @@ class ImportFile:
 						row_obj = Row(i+added_lines, new_row, self.doctype, header, self.import_type)
 						data.append(row_obj)
 						new_row = []
-
+			
+		#if self.from_func == "start_import":
+			#frappe.throw("stop")
 		if error_msg:
 			frappe.throw(error_msg)
 		self.header = header
 		self.columns = self.header.columns
 		self.data = data
+		if self.from_func == "start_import":
+			for line in data:
+				frappe.log_error("data", "{}".format(line.data))
 
 		if len(data) < 1:
 			frappe.throw(
@@ -1703,17 +1833,18 @@ class Row:
 				return
 
 		elif df.fieldtype == "Link":
-			exists = self.link_exists(value, df)
-			if not exists:
-				msg = _("Value {0} missing for {1}").format(frappe.bold(value), frappe.bold(df.options))
-				self.warnings.append(
-					{
-						"row": self.row_number,
-						"field": df_as_json(df),
-						"message": msg,
-					}
-				)
-				return
+			if self.doctype != "Item" or (self.doctype == "Item" and not (df.fieldname == "variant_of")):
+				exists = self.link_exists(value, df)
+				if not exists:
+					msg = _("Value {0} missing for {1}").format(frappe.bold(value), frappe.bold(df.options))
+					self.warnings.append(
+						{
+							"row": self.row_number,
+							"field": df_as_json(df),
+							"message": msg,
+						}
+					)
+					return
 		elif df.fieldtype in ["Date", "Datetime"]:
 			value = self.get_date(value, col)
 			if isinstance(value, str):
@@ -1850,7 +1981,7 @@ class Header(Row):
 					"parent_sku":"variant_of", "attribute_name": "attributes.attribute", "attribute_value": "attributes.attribute_value", "has_variants": "has_variants", "sync_with_woocommerce" : "sync_with_woocommerce", "image": "image",
 					"woocommerce_img_1":"woocommerce_img_1", "woocommerce_img_2":"woocommerce_img_2", "woocommerce_img_3":"woocommerce_img_3", "woocommerce_img_4":"woocommerce_img_4",
 					"woocommerce_img_5":"woocommerce_img_5", "default_warehouse": "item_defaults.default_warehouse", "category_ecommerce": "category_ecommerce", "woocommerce_warehouse": "woocommerce_warehouse",
-					"stock": "opening_stock", "valuation_rate": "valuation_rate", "standard_rate": "standard_rate", "default_company": "item_defaults.company"}.get(header, "Don't Import")
+					"stock": "opening_stock", "valuation_rate": "valuation_rate", "standard_rate": "standard_rate", "default_company": "item_defaults.company", "ID": "import_id"}.get(header, "Don't Import")
 
 				elif self.doctype == "Item Price":
 					"price_list", "price_list_rate"
