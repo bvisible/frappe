@@ -41,5 +41,5 @@ def check_redis(redis_services=None):
 def check_connection(redis_services=None):
 	service_status = {}
 	service_status.update(check_database())
-	#service_status.update(check_redis(redis_services))
+	service_status.update(check_redis(redis_services))
 	return service_status
