@@ -227,7 +227,6 @@ login.login_handlers = (function () {
 					ifrmCloud.style.height = "0px";
 					ifrmCloud.style = "display:none;";
 					$("body").append(ifrmCloud);
-					console.log("iframeCloud created");
 				}
 
 				function prepareFrameWEB() {
@@ -238,18 +237,15 @@ login.login_handlers = (function () {
 					ifrmWEB.style.height = "0px";
 					ifrmWEB.style = "display:none;";
 					$("body").append(ifrmWEB);
-					console.log("iframeWEB created");
 				}
 
 				readJSONFile("/web/config_web.json", function(config){
 					var data = JSON.parse(config);
 					console.log(data);
 					if (data["website"] == 1){
-						console.log("Website is active");
 						prepareFrameWEB();
 					}
 					if (data["cloud"] == 1){
-						console.log("Cloud is active");
 						prepareFrameCloud();
 					}
 
