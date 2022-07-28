@@ -949,15 +949,16 @@ class ImportFile:
 												cat_doc.insert()
 												frappe.db.commit()
 												created_cats.append(tree[index])
+							cat_name = frappe.get_all("Item Group", filters={"group_tree": self.doctype_data.root_category + ">" + ">".join(group_tree)})[0].name
 							if index == 0:
-								row[category_index] = tree[-1]
+								row[category_index] = cat_name
 							elif index == 1:
-								additional_cat = tree[-1]
+								additional_cat = cat_name
 							else:
-								additional_categories.append(tree[-1])
+								additional_categories.append(cat_name)
 								if not new_row:
 									new_row = deepcopy.copy(row)
-						
+
 						if row[type_index] == "variable" and row[parent_id_index] == 0:
 							list_of_parents[row[id_index]] = row[sku_index]
 							for (index, item) in enumerate(row):
@@ -1297,7 +1298,7 @@ class ImportFile:
 
 					if self.doctype == "Item":
 						if row[category_index] and row[category_index] not in created_cats:
-							parent = self.doctype_data.root_category
+							'''parent = self.doctype_data.root_category
 							if not frappe.db.exists("Item Group", {"name": row[category_index]}):
 								cat_doc = frappe.get_doc({
 									"doctype": "Item Group",
@@ -1307,8 +1308,47 @@ class ImportFile:
 								})
 								cat_doc.insert()
 								frappe.db.commit()
-								created_cats.append(row[category_index])
-						item_group = row[category_index] if row[category_index] else self.doctype_data.root_category
+								created_cats.append(row[category_index])'''
+
+							current_cat = row[category_index]
+							parent = self.doctype_data.root_category
+							parent_tree = parent
+
+							group_tree = parent_tree + ">" + current_cat
+							filtered_groups = frappe.get_all("Item Group", filters={"group_tree": group_tree})
+							if not filtered_groups:
+								if not frappe.db.exists("Item Group", {"name": current_cat}):
+									created_cats.append(current_cat)
+									cat_doc = frappe.get_doc({
+										"doctype": "Item Group",
+										"item_group_name": current_cat,
+										"parent_item_group": parent,
+										"is_group": 1,
+										"group_tree": group_tree
+									})
+									cat_doc.insert()
+									frappe.db.commit()
+									created_cats.append(current_cat)
+								else:
+									index_to_append = 1
+									while frappe.db.exists("Item Group", {"name": current_cat + " " + str(index_to_append)}):
+										index_to_append += 1
+									created_cats.append(current_cat)
+									cat_doc = frappe.get_doc({
+										"doctype": "Item Group",
+										"item_group_name": current_cat + " " + str(index_to_append),
+										"parent_item_group": parent,
+										"is_group": 1,
+										"group_tree": group_tree
+									})
+									cat_doc.insert()
+									frappe.db.commit()
+									created_cats.append(current_cat)
+						if row[category_index]:
+							cat_name = frappe.get_all("Item Group", filters={"group_tree": self.doctype_data.root_category + ">" + row[category_index]})[0].name
+						else:
+							cat_name = self.doctype_data.root_category
+						item_group = cat_name
 						if self.doctype_data.manage_stock:
 							manage_stock = 1
 							stock = 0 if row[stock_index] < 0 else int(row[stock_index])
