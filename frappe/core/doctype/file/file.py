@@ -61,6 +61,9 @@ class File(Document):
 		self.set_file_name()
 		self.validate_attachment_limit()
 
+		if self.is_folder:
+			return
+
 		#////
 		if self.file_name:
 			self.file_name = re.sub(r"/", "", self.file_name)
@@ -73,9 +76,6 @@ class File(Document):
 			self.file_name = re.sub(r'[-\s]+', '-', self.file_name).strip('-_')
 			self.file_name = self.file_name + '.' + extension
 		#////
-
-		if self.is_folder:
-			return
 
 		if self.is_remote_file:
 			self.validate_remote_file()
