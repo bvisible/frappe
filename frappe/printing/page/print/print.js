@@ -415,6 +415,9 @@ frappe.ui.form.PrintView = class {
 		if (print_format.print_format_builder_beta) {
 			this.print_wrapper.find('.print-preview-wrapper').hide();
 			this.print_wrapper.find('.preview-beta-wrapper').show();
+			//// 
+			this.print_wrapper.find('.preview-beta-wrapper iframe').css("height","100vh");
+			////
 			this.preview_beta();
 			return;
 		}
