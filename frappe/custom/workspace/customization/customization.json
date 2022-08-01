@@ -1,7 +1,7 @@
 {
  "charts": [],
- "content": "[{\"type\":\"onboarding\",\"data\":{\"onboarding_name\":\"Customization\",\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Your Shortcuts</b></span>\",\"col\":12}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customize Form\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Custom Role\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Client Script\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Server Script\",\"col\":3}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports & Masters</b></span>\",\"col\":12}},{\"type\":\"card\",\"data\":{\"card_name\":\"Dashboards\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Form Customization\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Other\",\"col\":4}}]",
- "creation": "2020-03-02 15:15:03.839594",
+ "content": "[{\"type\":\"onboarding\",\"data\":{\"onboarding_name\":\"Customization\",\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Your Shortcuts</b></span>\",\"col\":12}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customize Form\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Custom Role\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Client Script\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Server Script\",\"col\":3}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Masters</b><span class=\\\"ml-2 collapse-indicator mb-1\\\" style=\\\"\\\"></span></span>\",\"col\":12}},{\"type\":\"card\",\"data\":{\"card_name\":\"Dashboards\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Form Customization\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Other\",\"col\":4}}]",
+ "creation": "2022-03-07 17:13:52.263978",
  "docstatus": 0,
  "doctype": "Workspace",
  "for_user": "",
@@ -123,16 +123,16 @@
    "type": "Link"
   }
  ],
- "modified": "2022-01-13 17:28:08.345794",
+ "modified": "2022-04-12 14:09:03.732150",
  "modified_by": "Administrator",
  "module": "Custom",
  "name": "Customization",
  "owner": "Administrator",
- "parent_page": "",
+ "parent_page": "Setup",
  "public": 1,
  "restrict_to_domain": "",
  "roles": [],
- "sequence_id": 8.0,
+ "sequence_id": 31.0,
  "shortcuts": [
   {
    "label": "Customize Form",

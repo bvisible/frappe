@@ -196,7 +196,90 @@ login.login_handlers = (function () {
 			if (data.message == 'Logged In') {
 				login.set_status('{{ _("Success") }}', 'green');
 				document.body.innerHTML = `{% include "templates/includes/splash_screen.html" %}`;
-				window.location.href = frappe.utils.sanitise_redirect(frappe.utils.get_url_arg("redirect-to")) || data.home_page;
+				////
+				function redirectAfterLogin() {
+					window.location.href = frappe.utils.sanitise_redirect(frappe.utils.get_url_arg("redirect-to")) || data.home_page;
+				}
+
+				/**
+				 * It takes a file name and a callback function as parameters. It then makes an AJAX request to the
+				 * file and when it's ready, it calls the callback function and passes the file's contents to it
+				 * @param file - The file to be read.
+				 * @param callback - The function that will be called when the file is loaded.
+				 */
+				function readJSONFile(file, callback) {
+					var rawFile = new XMLHttpRequest();
+					rawFile.overrideMimeType("application/json");
+					rawFile.open("GET", file, true);
+					rawFile.onreadystatechange = function() {
+						if (rawFile.readyState === 4 && rawFile.status == "200") {
+							callback(rawFile.responseText);
+						}
+					}
+					rawFile.send(null);
+				}
+
+				function prepareFrameCloud() {
+					var ifrmCloud = document.createElement("iframe");
+					ifrmCloud.setAttribute("src", "/cloud/");
+					ifrmCloud.setAttribute("id", "iframeCloud");
+					ifrmCloud.style.width = "0px";
+					ifrmCloud.style.height = "0px";
+					ifrmCloud.style = "display:none;";
+					$("body").append(ifrmCloud);
+				}
+
+				function prepareFrameWEB() {
+					var ifrmWEB = document.createElement("iframe");
+					ifrmWEB.setAttribute("src", "/web/wp-login.php");
+					ifrmWEB.setAttribute("id", "iframeWEB");
+					ifrmWEB.style.width = "0px";
+					ifrmWEB.style.height = "0px";
+					ifrmWEB.style = "display:none;";
+					$("body").append(ifrmWEB);
+				}
+
+				readJSONFile("/web/config_web.json", function(config){
+					var data = JSON.parse(config);
+					console.log(data);
+					if (data["website"] == 1){
+						prepareFrameWEB();
+					}
+					if (data["cloud"] == 1){
+						prepareFrameCloud();
+					}
+
+					if(data["cloud"] == 1 && data["website"] == 1){
+						$('#iframeWEB, #iframeCloud').on('load', function(){
+							redirectAfterLogin();
+						});
+					}
+
+					if(data["cloud"] == 0 && data["website"] == 1){
+						$('#iframeWEB').on('load', function(){
+							redirectAfterLogin();
+						});
+					}
+
+					if(data["cloud"] == 1 && data["website"] == 0){
+						$('#iframeCloud').on('load', function(){
+							redirectAfterLogin();
+						});
+					}
+
+					if(data["cloud"] == 0 && data["website"] == 0){
+						setTimeout(() => {
+							redirectAfterLogin();
+						}, 2000);
+					}
+
+				});
+
+				setTimeout(() => {
+					redirectAfterLogin();
+				}, 10000);
+
+				////
 			} else if (data.message == 'Password Reset') {
 				window.location.href = frappe.utils.sanitise_redirect(data.redirect_to);
 			} else if (data.message == "No App") {

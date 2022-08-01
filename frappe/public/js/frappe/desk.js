@@ -472,7 +472,9 @@ frappe.Application = class Application {
 		}
 	}
 	redirect_to_login() {
-		window.location.href = '/';
+        ////
+        window.location.href = '/login';
+        ////
 	}
 	set_favicon() {
 		var link = $('link[type="image/x-icon"]').remove().attr("href");

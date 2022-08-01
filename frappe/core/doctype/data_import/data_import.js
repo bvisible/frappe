@@ -266,6 +266,7 @@ frappe.ui.form.on('Data Import', {
 			.html(__('Loading import file...'))
 			.appendTo(frm.get_field('import_preview').$wrapper);
 
+		frappe.msgprint('<img src="https://cdn.futura-sciences.com/buildsv6/images/mediumoriginal/6/5/2/652a7adb1b_98148_01-intro-773.jpg">')
 		frm
 			.call({
 				method: 'get_preview_from_template',
@@ -285,6 +286,58 @@ frappe.ui.form.on('Data Import', {
 				frm.events.show_import_preview(frm, preview_data);
 				frm.events.show_import_warnings(frm, preview_data);
 			});
+	},
+
+	sync_with_woocommerce(frm) {
+		if (frm.doc.sync_with_woocommerce == 1) {
+			frm.doc.root_category = '';
+			frm.fields_dict.root_category.refresh()
+			frm.set_query('root_category', () => {
+				return {
+					filters: {
+						custom_root: ['in', "Ecommerce"]
+					}
+				};
+			});
+		} else {
+			frm.set_query('root_category', () => {
+				return
+			});
+		}
+	},
+
+	convert(frm) {
+		if(frm.doc.import_file_data.split('.').pop() == 'csv' || frm.doc.import_file_data.split('.').pop() == 'xls'){
+			frappe.call({
+				method: 'neoffice_archive.events.create_doc_xlsx',
+				args: {
+					file_path: frm.doc.import_file_data,
+				},
+				callback: function(data) {
+					if(data.message){
+						frm.doc.import_file = data.message;
+						frm.fields_dict.import_file.refresh()
+						frm.trigger('import_file');
+					}
+				}
+			});
+		}
+	},
+
+	import_file_data(frm) {
+		if(frm.doc.import_file_data.split('.').pop() == 'csv' || frm.doc.import_file_data.split('.').pop() == 'xls'){
+			frappe.call({
+				method: 'neoffice_archive.events.convert_file_to_xlsx',
+				args: {
+					file_path: frm.doc.import_file_data,
+				},
+				callback: function(data) {
+					if(data.message){
+						frm.import_file = data.message;
+					}
+				}
+			});
+		}
 	},
 
 	show_import_preview(frm, preview_data) {

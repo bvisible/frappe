@@ -6,6 +6,7 @@ from functools import wraps
 from json import dumps, loads
 
 import frappe
+from frappe.permissions import get_role_permissions
 from frappe import DoesNotExistError, ValidationError, _, _dict
 from frappe.boot import get_allowed_pages, get_allowed_reports
 from frappe.cache_manager import (
@@ -289,14 +290,17 @@ class Workspace:
 	def get_quick_lists(self):
 		items = []
 		quick_lists = self.doc.quick_lists
-
+		user = frappe.session.user
 		for item in quick_lists:
-			new_item = item.as_dict().copy()
+			permissions = get_role_permissions(item.document_type, user=user)
+			view_doctype = permissions.get("read", 0)
+			if view_doctype:
+				new_item = item.as_dict().copy()
 
-			# Translate label
-			new_item["label"] = _(item.label) if item.label else _(item.document_type)
+				# Translate label
+				new_item["label"] = _(item.label) if item.label else _(item.document_type)
 
-			items.append(new_item)
+				items.append(new_item)
 
 		return items
 

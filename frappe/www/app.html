@@ -15,7 +15,48 @@
 		<meta name="apple-mobile-web-app-capable" content="yes">
 		<meta name="apple-mobile-web-app-status-bar-style" content="white">
 		<meta name="mobile-web-app-capable" content="yes">
-		<title>Frappe</title>
+		<!-- //// -->
+		<title>Neoffice Gestion</title>
+		<script src="https://support.neoffice.io/js/min/jquery.min.js"></script>
+		<script id="sbinit" src="https://support.neoffice.io/js/main.js"></script>
+		<script>
+			jQuery(document).on("SBReady", function () {
+				SBF.getActiveUser(true, () => {
+					setTimeout(() => {
+						let neo_user_email = user_email;
+						if (!SBF.activeUser() || (SBF.activeUser().email != neo_user_email)) {
+							function isEmpty(value){
+								return (typeof value === "undefined" || value === null || value === '' || value === ' ');
+							}
+							let first_name = user_fullname.substring(0, user_fullname.indexOf(' '));
+							let last_name = user_fullname.substring(user_fullname.indexOf(' ') + 1);
+							if(isEmpty(first_name)){
+								first_name = neo_user_email.substring(0, neo_user_email.indexOf('@'));
+							}
+							if(isEmpty(last_name)){
+								last_name = neo_user_email.substring(0, neo_user_email.indexOf('@'));
+							}
+							SBF.ajax({
+								function: "add-user-and-login",
+								settings: { profile_image: "https://board.support/media/docs/user.png", first_name: first_name, last_name: last_name, email: neo_user_email, password: window.localStorage.getItem('metadata_version') },
+								settings_extra: { company: [frappe.defaults.get_user_default("company"), "company"], instance: [window.location.hostname, "Instance"]}
+							}, (response) => {
+								if (!SBF.errorValidation(response)) {
+									SBF.loginCookie(response[1]);
+									SBF.activeUser(new SBUser(response[0]));
+									SBChat.initChat();
+								} else if (response[1] == "duplicate-email") {
+									SBF.login(neo_user_email, window.localStorage.getItem('metadata_version'), "", "", () => { SBChat.initChat(); });
+								} else console.log(response);
+							});
+						} else {
+							SBChat.initChat();
+						}
+					}, 500);
+				});
+			});
+		</script>
+		<!-- //// -->
 		<link rel="shortcut icon"
 			href="{{ favicon or "/assets/frappe/images/frappe-favicon.svg" }}" type="image/x-icon">
 		<link rel="icon"
@@ -29,6 +70,13 @@
 		{% include "templates/includes/splash_screen.html" %}
 		<div class="main-section">
 			<header></header>
+			<!-- //// -->
+			<div id="app-access">
+				<h4 class="title-quick-access"></h4>
+				<ul class="navbar-nav-speed">
+				</ul>
+			</div>
+			<!-- //// -->
 			<div id="body"></div>
 			<footer></footer>
 		</div>

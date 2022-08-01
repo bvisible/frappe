@@ -305,7 +305,7 @@ class User(Document):
 			.where(user_doctype.docstatus < 2)
 			.where(user_doctype.enabled == 1)
 			.where(user_role_doctype.parent == user_doctype.name)
-			.where(user_role_doctype.parent.notin(["Administrator", self.name]))
+			# //// .where(user_role_doctype.parent.notin(["Administrator", self.name]))
 			.limit(1)
 			.distinct()
 		).run()

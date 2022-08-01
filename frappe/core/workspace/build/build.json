@@ -1,7 +1,7 @@
 {
  "charts": [],
  "content": "[{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Your Shortcuts</b></span>\",\"col\":12}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"DocType\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Workspace\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Report\",\"col\":3}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Elements</b></span>\",\"col\":12}},{\"type\":\"card\",\"data\":{\"card_name\":\"Modules\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Models\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Views\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Scripting\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Packages\",\"col\":4}}]",
- "creation": "2021-01-02 10:51:16.579957",
+ "creation": "2022-03-24 17:13:45.123456",
  "docstatus": 0,
  "doctype": "Workspace",
  "for_user": "",
@@ -222,16 +222,16 @@
    "type": "Link"
   }
  ],
- "modified": "2022-01-13 17:26:02.736366",
+ "modified": "2022-03-24 18:47:40.123456",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "Build",
  "owner": "Administrator",
- "parent_page": "",
+ "parent_page": "Setup",
  "public": 1,
  "restrict_to_domain": "",
  "roles": [],
- "sequence_id": 5.0,
+ "sequence_id": 40.0,
  "shortcuts": [
   {
    "doc_view": "",
