@@ -78,7 +78,8 @@ export default class GridRowForm {
 			</div>`;
 
 			$(template).appendTo(this.wrapper);
-			this.form_area = this.wrapper.find(".form-area");
+			////this.form_area = this.wrapper.find(".form-area");
+			this.form_area = this.wrapper.find(".form-area").addClass(this.row.doc.item_name);
 			this.row.set_row_index();
 			this.set_form_events();
 		}
