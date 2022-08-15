@@ -392,6 +392,10 @@ export default class Grid {
 		this.refresh_remove_rows_button();
 
 		this.wrapper.trigger("change");
+		
+		//// Add gestion for freeline and subtotal
+		this.wrapper.find('[data-name="Freeline"]').parents(".data-row").addClass("freeline");
+		this.wrapper.find('[data-name="Subtotal"]').parents(".data-row").addClass("subtotal");
 	}
 
 	render_result_rows($rows, append_row) {
