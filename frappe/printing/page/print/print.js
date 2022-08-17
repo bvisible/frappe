@@ -62,8 +62,9 @@ frappe.ui.form.PrintView = class {
 	}
 
 	setup_toolbar() {
-		this.page.set_primary_action(__("Print"), () => this.printit(), "printer");
-
+		/* ////this.page.set_primary_action(__("Print"), () => this.printit(), "printer");*/
+		this.page.set_primary_action(__("Print"), () => this.render_pdf();
+		
 		this.page.add_button(__("Full Page"), () => this.render_page("/printview?"), {
 			icon: "full-page",
 		});
