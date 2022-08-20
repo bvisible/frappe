@@ -48,6 +48,9 @@ def create_notification_settings(user):
 
 
 def toggle_notifications(user: str, enable: bool = False):
+	# ////
+	create_notification_settings(user)
+	# ////
 	try:
 		settings = frappe.get_doc("Notification Settings", user)
 	except frappe.DoesNotExistError:
