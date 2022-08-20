@@ -18,7 +18,7 @@ from frappe.integrations.offsite_backup_utils import (
 from frappe.model.document import Document
 from frappe.utils import cint
 from frappe.utils.background_jobs import enqueue
-import zipfile
+import zipfile # ////
 
 
 class S3BackupSettings(Document):
@@ -109,6 +109,7 @@ def notify():
 
 
 def backup_to_s3():
+	# ////
 	from neoffice_theme.events import delete_backups
 	def zip_directory(folder_path, zip_path):
 		with zipfile.ZipFile(zip_path, mode='w') as zipf:
@@ -158,7 +159,7 @@ def backup_to_s3():
 		rootDir = path if os.path.isdir(path) else os.path.dirname(path)
 		zipDirHelper(path, rootDir, zf, ignoreDir, ignoreExt)
 		pass
-
+	# ////
 	from frappe.utils import get_backups_path
 	from frappe.utils.backups import new_backup
 
@@ -205,14 +206,14 @@ def backup_to_s3():
 
 	folder = os.path.basename(db_filename)[:15] + "/"
 	# for adding datetime to folder name
-	
+	# ////
 	base_file_path = os.path.join(get_backups_path(), os.path.basename(db_filename)[:15])
 	theZipFile_cloud = zipfile.ZipFile(base_file_path + '_cloud.zip', 'w')
 	ZipDir('/mnt/neoffice/data', theZipFile_cloud, ignoreDir=[], ignoreExt=[".log"])
 	zip_directory('/mnt/neoffice/data', base_file_path + '_cloud.zip')
 	upload_file_to_s3(base_file_path + '_cloud.zip', folder, conn, bucket)
 	#os.remove(base_file_path + '_cloud.zip')
-
+	# ////
 	upload_file_to_s3(db_filename, folder, conn, bucket)
 	upload_file_to_s3(site_config, folder, conn, bucket)
 
@@ -222,14 +223,16 @@ def backup_to_s3():
 
 		if files_filename:
 			upload_file_to_s3(files_filename, folder, conn, bucket)
-
+	# ////
 	delete_backups()
-
+	# ////
 
 def upload_file_to_s3(filename, folder, conn, bucket):
+	# //// destpath = os.path.join(folder, os.path.basename(filename))
 	domain = frappe.db.get_value("Neoffice Woocommerce Settings", "Neoffice Woocommerce Settings", "woocommerce_server_url")
 	frappe.log_error("parsed json", domain)
 	destpath = domain.replace('https://', '').replace('/web', '') + " - " + frappe.db.get_single_value('Global Defaults', 'default_company') + "/" + os.path.join(folder, os.path.basename(filename))
+	# ////
 	try:
 		print("Uploading file:", filename)
 		conn.upload_file(filename, bucket, destpath)  # Requires PutObject permission
