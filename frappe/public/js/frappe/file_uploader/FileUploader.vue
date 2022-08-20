@@ -320,7 +320,7 @@ export default {
 						request_succeeded: false,
 						error_message: null,
 						uploading: false,
-						private: true
+						private: is_image ? false : true ////
 					};
 				});
 
