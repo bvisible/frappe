@@ -146,6 +146,11 @@ def rename_doc(
 	force = sbool(force)
 	merge = sbool(merge)
 	meta = frappe.get_meta(doctype)
+	
+	#////
+	if doctype == "Item":
+		old_item_name = frappe.db.get_value(doctype, old, "item_name")
+	#////
 
 	if validate:
 		old_doc = doc or frappe.get_doc(doctype, old)
@@ -162,6 +167,11 @@ def rename_doc(
 			ignore_if_exists=ignore_if_exists,
 		)
 
+	#////
+	if doctype == "Item":
+		frappe.db.set_value(doctype, old, "item_name", old_item_name)
+	#////
+	
 	if not merge:
 		rename_parent_and_child(doctype, old, new, meta)
 	else:
