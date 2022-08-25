@@ -17,8 +17,6 @@ from frappe.website.utils import can_cache, get_home_page
 
 
 class PathResolver:
-	__slots__ = ("path",)
-
 	def __init__(self, path):
 		self.path = path.strip("/ ")
 
@@ -38,11 +36,6 @@ class PathResolver:
 			return frappe.flags.redirect_location, RedirectPage(self.path)
 
 		endpoint = resolve_path(self.path)
-
-		# WARN: Hardcoded for better performance
-		if endpoint == "app":
-			return endpoint, TemplatePage(endpoint, 200)
-
 		custom_renderers = self.get_custom_page_renderers()
 		renderers = custom_renderers + [
 			StaticPage,
@@ -105,10 +98,19 @@ def resolve_redirect(path, query_string=None):
 	        ]
 	"""
 	redirects = frappe.get_hooks("website_redirects")
-	redirects += frappe.get_all("Website Route Redirect", ["source", "target"], order_by=None)
+	redirects += frappe.db.get_all("Website Route Redirect", ["source", "target"])
 
 	if not redirects:
 		return
+
+	#////
+	if query_string.decode("utf-8") == "iframe=true" and path:
+		roles = frappe.get_roles(frappe.session.user)
+		if "all-products" in path and "Access shop b2b" not in roles:
+			pass
+		else:
+			return
+	#////
 
 	redirect_to = frappe.cache().hget("website_redirects", path)
 
