@@ -251,19 +251,25 @@ login.login_handlers = (function () {
 
 					if(data["cloud"] == 1 && data["website"] == 1){
 						$('#iframeWEB, #iframeCloud').on('load', function(){
-							redirectAfterLogin();
+							setTimeout(() => {
+								redirectAfterLogin();
+							}, 2000);
 						});
 					}
 
 					if(data["cloud"] == 0 && data["website"] == 1){
 						$('#iframeWEB').on('load', function(){
-							redirectAfterLogin();
+							setTimeout(() => {
+								redirectAfterLogin();
+							}, 2000);
 						});
 					}
 
 					if(data["cloud"] == 1 && data["website"] == 0){
 						$('#iframeCloud').on('load', function(){
-							redirectAfterLogin();
+							setTimeout(() => {
+								redirectAfterLogin();
+							}, 2000);
 						});
 					}
 
