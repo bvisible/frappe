@@ -365,7 +365,7 @@ def get_formatted_html(
 	logo_path = frappe.db.get_value("Company", company_name, "company_logo")
 	logo_url = get_url(logo_path)
 
-	rendered_email = frappe.get_template("neoffice_theme/templates/emails/standard.html").render({
+	rendered_email = frappe.get_template("templates/emails/standard.html").render({
 		"brand_logo": logo_url,#get_brand_logo(email_account) if with_container or header else None,
 		"with_container": with_container,
 		"site_url": domain,
