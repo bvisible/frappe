@@ -359,6 +359,10 @@ def get_formatted_html(
 	frappe.log_error("get_formatted_html basic")
 	email_account = email_account or EmailAccount.find_outgoing(match_by_email=sender)
 
+	signature = None
+	if "<!-- signature-included -->" not in message:
+		signature = get_signature(email_account)
+
 	#////
 	domain = get_url()
 	company_name = frappe.db.get_single_value('Global Defaults', 'default_company')
