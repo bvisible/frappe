@@ -356,22 +356,42 @@ def get_formatted_html(
 	sender=None,
 	with_container=False,
 ):
-
+	frappe.log_error("get_formatted_html basic")
 	email_account = email_account or EmailAccount.find_outgoing(match_by_email=sender)
 
-	rendered_email = frappe.get_template("templates/emails/standard.html").render(
-		{
-			"brand_logo": get_brand_logo(email_account) if with_container or header else None,
-			"with_container": with_container,
-			"site_url": get_url(),
-			"header": get_header(header),
-			"content": message,
-			"footer": get_footer(email_account, footer),
-			"title": subject,
-			"print_html": print_html,
-			"subject": subject,
-		}
-	)
+	#////
+	domain = get_url()
+	company_name = frappe.db.get_single_value('Global Defaults', 'default_company')
+	logo_path = frappe.db.get_value("Company", company_name, "company_logo")
+	logo_url = get_url(logo_path)
+
+	rendered_email = frappe.get_template("neoffice_theme/templates/emails/standard.html").render({
+		"brand_logo": logo_url,#get_brand_logo(email_account) if with_container or header else None,
+		"with_container": with_container,
+		"site_url": domain,
+		"header": get_header(header),
+		"content": message,
+		"signature": signature,
+		"footer": get_footer(email_account, footer),
+		"title": subject,
+		"print_html": print_html,
+		"subject": subject,
+		"company": company_name,
+	})
+	#rendered_email = frappe.get_template("templates/emails/standard.html").render(
+	#	{
+	#		"brand_logo": get_brand_logo(email_account) if with_container or header else None,
+	#		"with_container": with_container,
+	#		"site_url": get_url(),
+	#		"header": get_header(header),
+	#		"content": message,
+	#		"footer": get_footer(email_account, footer),
+	#		"title": subject,
+	#		"print_html": print_html,
+	#		"subject": subject,
+	#	}
+	#)
+	#////
 
 	html = scrub_urls(rendered_email)
 
