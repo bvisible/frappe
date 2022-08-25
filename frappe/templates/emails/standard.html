@@ -1,65 +1,205 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html
+	PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
+<html>
 
 <head>
-	<meta name="viewport" content="width=device-width" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 	<title>{{ subject or "" }}</title>
+	<style>
+		@media only screen and (max-width: 820px) {
+			table.body h1 {
+				font-size: 28px !important;
+				margin-bottom: 10px !important;
+			}
+
+			table.body p,
+			table.body ul,
+			table.body ol,
+			table.body td,
+			table.body span,
+			table.body a {
+				font-size: 16px !important;
+			}
+
+			table.body .wrapper,
+			table.body .article {
+				padding: 10px !important;
+			}
+
+			table.body .content {
+				padding: 0 !important;
+			}
+
+			table.body .container {
+				padding: 0 !important;
+				width: 100% !important;
+			}
+
+			table.body .main {
+				border-left-width: 0 !important;
+				border-radius: 0 !important;
+				border-right-width: 0 !important;
+			}
+
+			table.body .btn table {
+				width: 100% !important;
+			}
+
+			table.body .btn a {
+				width: 100% !important;
+			}
+
+			table.body .img-responsive {
+				height: auto !important;
+				max-width: 100% !important;
+				width: auto !important;
+			}
+		}
+
+		@media all {
+			.ExternalClass {
+				width: 100%;
+			}
+
+			.ExternalClass,
+			.ExternalClass p,
+			.ExternalClass span,
+			.ExternalClass font,
+			.ExternalClass td,
+			.ExternalClass div {
+				line-height: 100%;
+			}
+
+			.apple-link a {
+				color: inherit !important;
+				font-family: inherit !important;
+				font-size: inherit !important;
+				font-weight: inherit !important;
+				line-height: inherit !important;
+				text-decoration: none !important;
+			}
+
+			#MessageViewBody a {
+				color: inherit;
+				text-decoration: none;
+				font-size: inherit;
+				font-family: inherit;
+				font-weight: inherit;
+				line-height: inherit;
+			}
+
+			.btn-primary table td:hover {
+				background-color: #34495e !important;
+			}
+
+			.btn-primary a:hover {
+				background-color: #34495e !important;
+				border-color: #34495e !important;
+			}
+		}
+	</style>
 </head>
 
-<body>
-	<table class="body-table {% if header or with_container %} with-container {% endif %}" cellpadding="0" cellspacing="0">
+<body class=""
+	style="background-color: #f6f6f6; font-family: sans-serif; -webkit-font-smoothing: antialiased; font-size: 14px; line-height: 1.4; margin: 0; padding: 0; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%;">
+	<span class="preheader"
+		style="color: transparent; display: none; height: 0; max-height: 0; max-width: 0; opacity: 0; overflow: hidden; mso-hide: all; visibility: hidden; width: 0;">{{ subject or "" }}</span>
+	<table role="presentation" border="0" cellpadding="0" cellspacing="0" class="body"
+		style="border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; background-color: #f6f6f6; width: 100%;"
+		width="100%" bgcolor="#f6f6f6">
 		<tr>
-			<td class="body-content" align="center" valign="top">
-				<table class="email-container" border="0" cellpadding="0" cellspacing="0"
-					width="{% if header %} 600 {% else %} 100% {% endif %}">
-					{% if brand_logo %}
-					<tr>
-						<td width="40" align="left" valign="middle">
-							<a href="{{ site_url or 'https://frappeframework.com' }}">
-								<img
-									src="{{ brand_logo or '/assets/frappe/images/frappe-framework-logo.png' }}"
-									height="40"
-									class="brand-logo"
-								/>
-							</a>
-						</td>
-					</tr>
-					{% endif %}
-					<tr>
-						<td valign="top">
-							{{ header or "" }}
-						</td>
-					</tr>
-					<tr>
-						<td valign="top">
-							<table class="email-body" border="0" cellpadding="0" cellspacing="0" width="100%">
-								<tr>
-									<td valign="top">
-										<p>{{ content }}</p>
-									</td>
-								</tr>
-							</table>
-						</td>
-					</tr>
-					<tr>
-						<td valign="top">
-							<table class="email-footer" border="0" cellpadding="0" cellspacing="0" width="100%">
-								<tr>
-									<td valign="top" data-email-footer="true">
-										{{ footer }}
-									</td>
-								</tr>
-								<tr>
-									<td valign="top">
-										<div class="print-html">{{ print_html or "" }}</div>
-									</td>
-								</tr>
-							</table>
-						</td>
-					</tr>
-				</table>
+			<td style="font-family: sans-serif; font-size: 14px; vertical-align: top;" valign="top">&nbsp;</td>
+			<td class="container"
+				style="font-family: sans-serif; font-size: 14px; vertical-align: top; display: block; max-width: 780px; padding: 10px; width: 780px; margin: 0 auto;"
+				width="780" valign="top">
+				<div class="content"
+					style="box-sizing: border-box; display: block; margin: 0 auto; max-width: 780px; padding: 10px;">
+
+					<!-- START CENTERED WHITE CONTAINER -->
+					<a href="{{ site_url or 'https://www.neoffice.io'}}"><img
+							style="max-width:200px; max-height: 100px; margin-left:auto;margin-right:auto;display:block;margin-bottom:20px;margin-top:50px;"
+							src="{{ brand_logo or 'https://www.neoffice.io/wp-content/uploads/logo-neoffice.png'}}"></a>
+					<table role="presentation" class="main"
+						style="border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; background: #ffffff; border-radius:3px;-webkit-box-shadow:0 6px 18px 0 rgba(0,0,0,.06);-moz-box-shadow:0 6px 18px 0 rgba(0,0,0,.06);box-shadow:0 6px 18px 0 rgba(0,0,0,.06); width: 100%;"
+						width="100%">
+						<tr>
+							<td style="font-family: sans-serif; font-size: 20px; vertical-align: top; background: #00BFFF; border-radius:3px 3px 0 0; color: #ffffff; text-align: center; width:100%; padding:15px;"
+								valign="top">
+								<span>{{ subject or "" }}</span>
+							</td>
+						</tr>
+						<!-- START MAIN CONTENT AREA -->
+						<tr>
+							<td class="wrapper"
+								style="font-family: sans-serif; font-size: 14px; vertical-align: top; box-sizing: border-box; padding: 20px;"
+								valign="top">
+								<table role="presentation" border="0" cellpadding="0" cellspacing="0"
+									style="border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: 100%;"
+									width="100%">
+									<tr>
+										<td style="font-family: sans-serif; font-size: 14px; vertical-align: top;"
+											valign="top">
+											<p
+												style="font-family: sans-serif; font-size: 14px; font-weight: normal; margin: 0; margin-bottom: 30px;">
+												{{ content }}</p>
+											<p
+												style="font-family: sans-serif; font-size: 14px; font-weight: normal; margin: 0; margin-bottom: 15px;">
+												{{ signature }}</p>
+										</td>
+									</tr>
+								</table>
+							</td>
+						</tr>
+
+						<!-- END MAIN CONTENT AREA -->
+					</table>
+					<!-- END CENTERED WHITE CONTAINER -->
+
+					<!-- START FOOTER -->
+					<div class="footer" style="clear: both; margin-top: 10px; text-align: center; width: 100%;">
+						<table role="presentation" border="0" cellpadding="0" cellspacing="0"
+							style="border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: 100%;"
+							width="100%">
+							<tr>
+								<td class="content-block powered-by"
+									style="font-family: sans-serif; vertical-align: top; padding-bottom: 0px; padding-top: 0px; color: #999999; font-size: 12px; text-align: center;"
+									valign="top" align="center">
+									{{ footer }}
+								</td>
+							</tr>
+							<tr>
+								<td class="content-block powered-by"
+									style="font-family: sans-serif; vertical-align: top; padding-bottom: 0px; padding-top: 5px; color: #999999; font-size: 12px; text-align: center;"
+									valign="top" align="center">
+									Email de <a href="{{ site_url }}"
+										style="color: #999999; font-size: 12px; text-align: center; text-decoration: none;">{{ company }}</a>
+								</td>
+							</tr>
+							<tr>
+								<td class="content-block"
+									style="font-family: sans-serif; vertical-align: top; padding-bottom: 10px; padding-top: 10px; color: #999999; font-size: 12px; text-align: center;"
+									valign="top" align="center">
+									<span class="apple-link"
+										style="color: #999999; font-size: 12px; text-align: center;">{{ print_html or "" }}</span>
+								</td>
+							</tr>
+							<tr>
+								<td class="content-block powered-by"
+									style="font-family: sans-serif; vertical-align: top; padding-bottom: 10px; padding-top: 10px; color: #999999; font-size: 10px; text-align: center;"
+									valign="top" align="center">
+									Powered by <a href="http://neoffice.io"
+										style="color: #999999; font-size: 12px; text-align: center; text-decoration: none;">Neoffice.io</a>
+								</td>
+							</tr>
+						</table>
+					</div>
+					<!-- END FOOTER -->
+
+				</div>
 			</td>
+			<td style="font-family: sans-serif; font-size: 14px; vertical-align: top;" valign="top">&nbsp;</td>
 		</tr>
 	</table>
 </body>
