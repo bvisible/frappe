@@ -1,0 +1,5 @@
+{% for provider in provider_logins %}
+	{% if provider.name == "wordpress" %}
+		<meta http-equiv="refresh" content="0; url={{ provider.auth_url }}" /> 
+	{% endif %}
+{% endfor %}
