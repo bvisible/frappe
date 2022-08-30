@@ -356,7 +356,6 @@ def get_formatted_html(
 	sender=None,
 	with_container=False,
 ):
-	frappe.log_error("get_formatted_html basic")
 	email_account = email_account or EmailAccount.find_outgoing(match_by_email=sender)
 
 	signature = None
