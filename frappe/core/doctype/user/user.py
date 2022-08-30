@@ -1086,7 +1086,8 @@ def create_contact(user, ignore_links=False, ignore_mandatory=False):
 		return
 
 	contact_name = get_contact_name(user.email)
-	if not contact_name:
+	#////
+	"""if not contact_name:
 		contact = frappe.get_doc(
 			{
 				"doctype": "Contact",
@@ -1107,8 +1108,8 @@ def create_contact(user, ignore_links=False, ignore_mandatory=False):
 			contact.add_phone(user.mobile_no, is_primary_mobile_no=True)
 		contact.insert(
 			ignore_permissions=True, ignore_links=ignore_links, ignore_mandatory=ignore_mandatory
-		)
-	else:
+		)"""
+	if contact_name:#else: #////
 		contact = frappe.get_doc("Contact", contact_name)
 		contact.first_name = user.first_name
 		contact.last_name = user.last_name
