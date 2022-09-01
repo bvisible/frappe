@@ -1,5 +1,263 @@
-{% for provider in provider_logins %}
-	{% if provider.name == "wordpress" %}
-		<meta http-equiv="refresh" content="0; url={{ provider.auth_url }}" /> 
-	{% endif %}
-{% endfor %}
+<style>
+	body {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		min-height: 100vh;
+		background: #f9fafa;
+	  }
+	  
+	  .card {
+		max-width: 350px;
+		width: 100%;
+		padding: 30px;
+		border: 1px solid #d9d9d9;
+		border-radius: 10px;
+		background-color: #fff;
+	  }
+	  
+	  .card .header {
+		display: flex;
+		align-items: center;
+	  }
+	  
+	  .card .header .img {
+		position: relative;
+		width: 70px;
+		height: 70px;
+		background: #d9d9d9;
+		border-radius: 50%;
+		overflow: hidden;
+	  }
+	  
+	  .header .details {
+		margin-left: 20px;
+	  }
+	  
+	  .details span {
+		position: relative;
+		display: block;
+		background: #d9d9d9;
+		border-radius: 10px;
+		overflow: hidden;
+	  }
+	  
+	  .details .name {
+		width: 100px;
+		height: 15px;
+	  }
+	  
+	  .details .about {
+		width: 150px;
+		height: 15px;
+		margin-top: 10px;
+	  }
+	  
+	  .card .content {
+		margin: 25px 0;
+	  }
+	  
+	  .content .line {
+		position: relative;
+		height: 13px;
+		margin: 10px 0;
+		border-radius: 10px;
+		background: #d9d9d9;
+		overflow: hidden;
+	  }
+	  
+	  .content .line-3 {
+		width: calc(100% - 40%);
+	  }
+	  
+	  .card .btns {
+		display: flex;
+	  }
+	  
+	  .card .btns .btn {
+		position: relative;
+		width: 100%;
+		height: 40px;
+		background: #d9d9d9;
+		border-radius: 25px;
+		overflow: hidden;
+	  }
+	  
+	  .btns .btn-1 {
+		margin-right: 8px;
+	  }
+	  
+	  .btns .btn-2 {
+		margin-left: 8px;
+	  }
+	  
+	  .card .header .img::before,
+	  .details span::before,
+	  .content .line::before,
+	  .btns .btn::before {
+		content: "";
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		background-image: linear-gradient(
+		  to right,
+		  #d9d9d9 0%,
+		  #888b94 20%,
+		  #d9d9d9 40%,
+		  #d9d9d9 100%
+		);
+		background-size: 450px 400px;
+		background-repeat: no-repeat;
+		animation: shimmer 1.4s linear infinite;
+	  }
+	  
+	  .details span::before,
+	  .btns .btn-2::before {
+		animation-delay: 0.29s;
+	  }
+	  
+	  @keyframes shimmer {
+		0% {
+		  background-position: -450px 0px;
+		}
+		100% {
+		  background-position: 450px 0px;
+		}
+	  }
+	  
+</style>
+<div class="card">
+    <div class="header">
+      <div class="img"></div>
+      <div class="details">
+        <span class="name"></span>
+        <span class="about"></span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="line"></div>
+      <div class="line"></div>
+      <div class="line line-3"></div>
+    </div>
+    <div class="btns">
+      <div class="btn btn-1"></div>
+      <div class="btn btn-2"></div>
+    </div>
+</div>
+<script type="text/javascript">
+function inIframe () {
+	try {
+		return window.self !== window.top;
+	} catch (e) {
+		return true;
+	}
+}
+if (!inIframe()) {
+	window.location.href = "/web/my-account";
+}
+/*
+var user_is_logeed_in = false;
+if (document.cookie.indexOf('wp_user_logged_in') !== -1) {
+	//do something when user logged in
+	user_is_logeed_in = true;
+} else {
+	//do something when user logged out
+	user_is_logeed_in = false;
+}*/
+const queryString = window.location.search;
+const urlParams = new URLSearchParams(queryString);
+const view = urlParams.get('view');
+const redirect = urlParams.get('redirect');
+</script>
+
+{% if user == "Guest" %}
+	{% for provider in provider_logins %}
+		{% if provider.name == "wordpress" %}
+			<script type="text/javascript">
+				function prepareFrame() {
+					var ifrm = document.createElement("iframe");
+					ifrm.setAttribute("src", "{{ provider.auth_url }}");
+					ifrm.style.width = "0px";
+					ifrm.style.height = "0px";
+					ifrm.style.display = "none";
+					document.body.appendChild(ifrm);
+				}
+				prepareFrame();
+				setTimeout(function() {
+					switch (view) {
+						case "orders":
+							console.log("orders");
+							window.location.href = "/orders?iframe=true";
+							break;
+						case "invoices":
+							console.log("invoices");
+							window.location.href = "/invoices?iframe=true";
+							break;
+						case "quotations":
+							console.log("quotations");
+							window.location.href = "/quotations?iframe=true";
+							break;
+						case "shipments":
+							console.log("shipments");
+							window.location.href = "/shipments?iframe=true";
+							break;
+						case "issues":
+							console.log("issues");
+							window.location.href = "/issues?iframe=true";
+							break;
+						case "project":
+							console.log("project");
+							window.location.href = "/project?iframe=true";
+							break;
+						default:
+							console.log("default");
+							if (redirect == "false"){
+								//nothing
+							} else {
+								window.parent.location.href = "/web/my-account";
+							}
+					}
+				}, 3000);
+			</script>
+		{% endif %}
+	{% endfor %}
+{% else %}
+<script type="text/javascript">
+	if(redirect == "true") {
+		switch (view) {
+			case "orders":
+				console.log("orders");
+				window.location.href = "/orders?iframe=true";
+				break;
+			case "invoices":
+				console.log("invoices");
+				window.location.href = "/invoices?iframe=true";
+				break;
+			case "quotations":
+				console.log("quotations");
+				window.location.href = "/quotations?iframe=true";
+				break;
+			case "shipments":
+				console.log("shipments");
+				window.location.href = "/shipments?iframe=true";
+				break;
+			case "issues":
+				console.log("issues");
+				window.location.href = "/issues?iframe=true";
+				break;
+			case "project":
+				console.log("project");
+				window.location.href = "/project?iframe=true";
+				break;
+			default:
+				console.log("default");
+				window.location.href = "/web/my-account";
+		}
+	} else if (redirect == "false"){
+		//nothing
+	}else {
+		window.parent.location.href = "/web/my-account";
+	}
+	//alert("You are logged in as {{ user }}");
+</script> 
+{% endif %}
