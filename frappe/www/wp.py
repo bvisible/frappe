@@ -25,25 +25,14 @@ no_cache = True
 def get_context(context):
 	redirect_to = frappe.local.request.args.get("redirect-to")
 
-	if frappe.session.user != "Guest":
-		if not redirect_to:
-			if frappe.session.data.user_type == "Website User":
-				redirect_to = get_home_page()
-			else:
-				redirect_to = "/app"
-
-		if redirect_to != "login":
-			frappe.local.flags.redirect_location = redirect_to
-			raise frappe.Redirect
-
 	context.no_header = True
-	context.for_test = "login.html"
-	context["title"] = "Login"
+	context.for_test = "wp.html"
+	context["title"] = "WP"
 	context["provider_logins"] = []
 	context["disable_signup"] = frappe.utils.cint(frappe.get_website_settings("disable_signup"))
 	context["logo"] = frappe.get_website_settings("app_logo") or frappe.get_hooks("app_logo_url")[-1]
 	context["app_name"] = (
-		frappe.get_website_settings("app_name") or frappe.get_system_settings("app_name") or _("Frappe")
+		frappe.get_website_settings("app_name") or frappe.get_system_settings("app_name") or _("Neoffice")
 	)
 
 	signup_form_template = frappe.get_hooks("signup_form_template")
