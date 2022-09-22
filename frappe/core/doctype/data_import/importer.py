@@ -473,9 +473,10 @@ class ImportFile:
 		data = []
 
 		#////
+
 		attributes_index  = []
 		parent_id_index = None
-		added_lines = 0
+		added_lines = self.doctype_data.db_get("added_lines") if self.doctype_data.db_get("added_lines") else 0
 		type_index = None
 		id_index = None
 		sku_index = None
@@ -495,7 +496,6 @@ class ImportFile:
 		billing_state_index = None
 		billing_country_index = None
 		billing_phone_index = None
-		shipping_email_index = None
 		shipping_firstname_index = None
 		shipping_lastname_index = None
 		shipping_address_1_index = None
@@ -514,6 +514,7 @@ class ImportFile:
 
 		address_id_index = None
 		description_index = None
+		short_description_index = None
 		quantity_index = None
 		price_index = None
 		units_index = None
@@ -540,6 +541,9 @@ class ImportFile:
 		other_selling_price_index = None
 		manage_stock_index = None
 		additional_cat = None
+		taxable_index = None
+		tax_rate_index = None
+		brand_index = None
 
 
 		last_archive_no = None
@@ -553,32 +557,28 @@ class ImportFile:
 		default_company = frappe.defaults.get_global_default("company")
 		valuation_rate = 0
 
+		base_row_length = len(self.raw_data[0])
+
 		from neoffice_theme.events import get_customer_config
 		customer_config = get_customer_config()
 		has_ecommerce = customer_config.get('ecommerce')
-		import pycountry
 		import copy
 		import re
 		import unicodedata
 		regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
 		split_value = SPLIT_ROWS_AT
 		if self.doctype_data.sync_with_woocommerce == 1:
-			split_value = 50
+			split_value = WC_SPLIT_ROWS_AT
 
 		data_length = len(self.raw_data)
 		if not self.doctype_data.total_lines:
 			self.doctype_data.db_set("total_lines", data_length, update_modified=False)
-
-		if self.doctype_data.db_get("last_line"):
-			start_line = self.doctype_data.db_get("last_line") + 1
+		
+		last_line = self.doctype_data.db_get("last_line")
+		if last_line and last_line > 0:
+			start_line = self.doctype_data.db_get("last_line") +1
 		else:
 			start_line = 0
-
-		if self.from_func == "start_import":
-			stop_enum = start_line + split_value +1
-			frappe.log_error()
-		else:
-			stop_enum = data_length-1
 		#////
 
 		for i, row in enumerate(self.raw_data):
@@ -589,11 +589,11 @@ class ImportFile:
 
 			if i > 0 and i < start_line:
 				if self.from_func == "start_import":
-					frappe.log_error("continue")
+					#frappe.log_error("continue")
 					continue
 
-			if ((i < data_length-1 and i == start_line + split_value) or (i == data_length-1 and i > split_value)) and self.from_func == "start_import":
-				self.doctype_data.db_set("last_line", i, update_modified=False)
+			if ((i < data_length-1 and i == start_line + split_value) or (i == data_length-1)) and self.from_func == "start_import":
+				self.doctype_data.db_set("last_line", i)
 			#////
 
 			if all(v in INVALID_VALUES for v in row):
@@ -605,36 +605,44 @@ class ImportFile:
 				if self.doctype_data.import_source == "Woocommerce" and self.from_func == "start_import":
 					if self.doctype == "Item":
 						row.extend(["image", "woocommerce_img_1", "woocommerce_img_2", "woocommerce_img_3", "woocommerce_img_4", "woocommerce_img_5", "maintain_stock","has_variants","parent_sku", "attribute_name", "attribute_value",
-						"sync_with_woocommerce", "default_warehouse", "item_group", "category_ecommerce", "default_company", "woocommerce_warehouse", "stock", "valuation_rate", "standard_rate", "additionnal_categories", "description"])
+						"sync_with_woocommerce", "default_warehouse", "item_group", "category_ecommerce", "default_company", "woocommerce_warehouse", "stock", "valuation_rate", "standard_rate", "additionnal_categories", "description",
+						"woocommerce_taxable", "woocommerce_tax_rate", "weight_uom", "brand", "brand_ecommerce"])
 						image_index = row.index("image")
 						for (index, item) in enumerate(row):
-							#frappe.msgprint(item)
-							if "Attribute Name (" in item:
+							if item == "ID":
+								id_index = index
+							elif item == "Content":
+								description_index = index
+							#elif item == "Excerpt":
+							#	short_description_index = index
+							elif item == "Parent Product ID":
+								parent_id_index = index
+							elif item == "Sku":
+								sku_index = index
+							elif item == "Price":
+								other_selling_price_index = index
+							elif item == "Regular Price":
+								selling_price_index = index
+							elif item == "Stock":
+								stock_index = index
+							elif "Attribute Name (" in item:
 								attributes_index.append(index)
 							elif "Attribute Value (" in item:
 								attributes_value_index.append(index)
-							elif item == "Parent Product ID":
-								parent_id_index = index
-							elif item == "Product Type":
-								type_index = index
-							elif item == "ID":
-								id_index = index
-							elif item == "Sku":
-								sku_index = index
-							elif item == "Catégories de produits":
-								category_index = index
 							elif item == "Image URL":
 								images_field_index = index
-							elif item == "Stock":
-								stock_index = index
-							elif item == "Regular Price":
-								selling_price_index = index
-							elif item == "Price":
-								other_selling_price_index = index
+							elif item == "Catégories de produits":
+								category_index = index
+							elif item == "Product Type":
+								type_index = index
 							elif item == "Manage Stock":
 								manage_stock_index = index
-							elif item == "Content":
-								description_index = index
+							elif item == "Tax Status":
+								taxable_index = index
+							elif item == "Tax Class":
+								tax_rate_index = index
+							elif item == "Marques":
+								brand_index = index
 							#frappe.msgprint(str(attributes_name))
 							#frappe.msgprint(str(attributes_index))
 
@@ -646,49 +654,47 @@ class ImportFile:
 
 						for (index, item) in enumerate(row):
 							#frappe.msgprint(item)
-							if item == "billing_email":
+							if item == "Billing Email":
 								billing_email_index = index
-							elif item == "billing_first_name":
+							elif item == "Billing First Name":
 								billing_firstname_index = index
-							elif item == "billing_last_name":
+							elif item == "Billing Last Name":
 								billing_lastname_index = index
-							elif item == "billing_address_1":
+							elif item == "Billing Address Line 1":
 								billing_address_1_index = index
-							elif item == "billing_address_2":
+							elif item == "Billing Address Line 2":
 								billing_address_2_index = index
-							elif item == "billing_city":
+							elif item == "Billing City":
 								billing_city_index = index
-							elif item == "billing_postcode":
+							elif item == "Billing Postcode":
 								billing_postcode_index = index
-							elif item == "billing_state":
+							elif item == "Billing State":
 								billing_state_index = index
-							elif item == "billing_country":
+							elif item == "Billing Country":
 								billing_country_index = index
-							elif item == "billing_phone":
+							elif item == "Billing Phone":
 								billing_phone_index = index
-							elif item == "billing_company":
+							elif item == "Billing Company":
 								billing_company_index = index
-							elif item == "shipping_email":
-								shipping_email_index = index
-							elif item == "shipping_first_name":
+							elif item == "Shipping First Name":
 								shipping_firstname_index = index
-							elif item == "shipping_last_name":
+							elif item == "Shipping Last Name":
 								shipping_lastname_index = index
-							elif item == "shipping_address_1":
+							elif item == "Shipping Address Line 1":
 								shipping_address_1_index = index
-							elif item == "shipping_address_2":
+							elif item == "Shipping Address Line 2":
 								shipping_address_2_index = index
-							elif item == "shipping_city":
+							elif item == "Shipping City":
 								shipping_city_index = index
-							elif item == "shipping_postcode":
+							elif item == "Shipping Postcode":
 								shipping_postcode_index = index
-							elif item == "shipping_state":
+							elif item == "Shipping State":
 								shipping_state_index = index
-							elif item == "shipping_country":
+							elif item == "Shipping Country":
 								shipping_country_index = index
-							elif item == "shipping_phone":
+							elif item == "Shipping Phone":
 								shipping_phone_index = index
-							elif item == "shipping_company":
+							elif item == "Shipping Company":
 								shipping_company_index = index
 							elif item == "First Name":
 								firstname_index = index
@@ -701,23 +707,23 @@ class ImportFile:
 						row.extend(["customer_name", "customer_type", "territory", "is_import"])
 						for (index, item) in enumerate(row):
 							#frappe.msgprint(item)
-							if item == "billing_email":
+							if item == "Billing Email":
 								billing_email_index = index
-							elif item == "billing_first_name":
+							elif item == "Billing First Name":
 								billing_firstname_index = index
-							elif item == "billing_last_name":
+							elif item == "Billing Last Name":
 								billing_lastname_index = index
-							elif item == "billing_country":
+							elif item == "Billing Country":
 								billing_country_index = index
-							elif item == "billing_company":
+							elif item == "Billing Company":
 								billing_company_index = index
-							elif item == "shipping_first_name":
+							elif item == "Shipping First Name":
 								shipping_firstname_index = index
-							elif item == "shipping_last_name":
+							elif item == "Shipping Last Name":
 								shipping_lastname_index = index
-							elif item == "shipping_country":
+							elif item == "Shipping Country":
 								shipping_country_index = index
-							elif item == "shipping_company":
+							elif item == "Shipping Company":
 								shipping_company_index = index
 							elif item == "User Email":
 								user_email_index = index
@@ -832,6 +838,21 @@ class ImportFile:
 							elif item == "ad_ville":
 								address_city_index = index
 
+					elif self.doctype == "Contact":
+						row.extend(["link_doctype", "link_name", "email_id", "is_primary_email", "phone", "number", "is_primary_phone"])
+						for (index, item) in enumerate(row):
+							#frappe.msgprint(item)
+							if item == "ad_email":
+								user_email_index = index
+							elif item == "ad_numero":
+								address_id_index = index
+							elif item == "ad_societe":
+								address_company_index = index
+							elif item == "ad_prenom":
+								firstname_index = index
+							elif item == "ad_nom":
+								lastname_index = index
+
 					elif self.doctype == "Address":
 						row.extend(["address_title", "address_type", "country", "link_doctype", "link_name"])
 						for (index, item) in enumerate(row):
@@ -863,6 +884,8 @@ class ImportFile:
 								address_company_index = index
 							elif item == "ad_codpays":
 								address_country_index = index
+							elif item == "ad_email":
+								user_email_index = index
 
 					elif self.doctype == "Supplier":
 						row.extend(["supplier_name", "supplier_type", "country", "supplier_group"])
@@ -889,76 +912,126 @@ class ImportFile:
 							sku_suffix += 1
 
 						split_cats = row[category_index].split("|")
-						for index, cat in enumerate(split_cats):
-							tree = cat.split(">")
-							if tree[-1] not in created_cats:
-								for index in range(len(tree)):
-									if tree[index] not in created_cats:
-										if(index == 0):
-											parent = self.doctype_data.root_category
-											parent_tree = parent
+						for idx_nb, cat in enumerate(split_cats):
+							#tree = cat.split(">")
+							#if tree[-1] not in created_cats:
+							root = self.doctype_data.root_category
+							last_cat = root
+							if not frappe.db.get_value("Item Group", {"group_tree": root+">"+cat}, "name"):
+								for c in cat.split(">"):
+									this_cat = last_cat + ">"+c
+									if not frappe.db.get_value("Item Group", {"group_tree": this_cat}, "name"):
+										parent_group = frappe.db.get_value("Item Group", {"group_tree": last_cat}, "name")
+										if not frappe.db.exists("Item Group", {"name": c}):
+											cat_doc = frappe.get_doc({
+												"doctype": "Item Group",
+												"item_group_name": c,
+												"parent_item_group": parent_group,
+												"is_group": 1,
+												"group_tree": this_cat
+											})
+										elif parent_group == "Ecommerce" :
+											index_to_append = 1
+											composed_name = c
+											while frappe.db.exists("Item Group", {"name": composed_name + " " + str(index_to_append)}):
+												index_to_append += 1
+											cat_doc = frappe.get_doc({
+												"doctype": "Item Group",
+												"item_group_name": composed_name + " - " + str(index_to_append),
+												"parent_item_group": parent_group,
+												"is_group": 1,
+												"group_tree": this_cat
+											})
+										elif not frappe.db.exists("Item Group", {"name": parent_group + ' - ' + c}):
+											cat_doc = frappe.get_doc({
+												"doctype": "Item Group",
+												"item_group_name": parent_group + ' - ' + c,
+												"parent_item_group": parent_group,
+												"is_group": 1,
+												"group_tree": this_cat
+											})
 										else:
-											parent_tree = self.doctype_data.root_category + ">"
-											parent_tree += ">".join([e for j, e in enumerate(tree) if j in range(0,index)])
-											parent_filtered = frappe.get_all("Item Group", filters={"group_tree": parent_tree})
-											if parent_filtered:
-												parent = parent[0].name
-											else:
-												frappe.throw("Parent Category not found: " + tree[index])
+											index_to_append = 1
+											composed_name = parent_group + ' - ' + c
+											while frappe.db.exists("Item Group", {"name": composed_name + " " + str(index_to_append)}):
+												index_to_append += 1
+											cat_doc = frappe.get_doc({
+												"doctype": "Item Group",
+												"item_group_name": composed_name + " " + str(index_to_append),
+												"parent_item_group": parent_group,
+												"is_group": 1,
+												"group_tree": this_cat
+											})
+										cat_doc.insert()
+										frappe.db.commit()
+									last_cat = this_cat
+							cat_name = frappe.db.get_value("Item Group",{"group_tree": root + ">" + cat}, "name")
+							'''for index in range(len(tree)):
+								if tree[index] not in created_cats:
+									if(index == 0):
+										parent = self.doctype_data.root_category
+										parent_tree = parent
+									else:
+										parent_tree = self.doctype_data.root_category + ">"
+										parent_tree += ">".join([e for j, e in enumerate(tree) if j in range(0,index)])
+										parent_filtered = frappe.get_all("Item Group", filters={"group_tree": parent_tree})
+										if parent_filtered:
+											parent = parent_filtered[0].name
+										else:
+											frappe.throw("Parent Category not found: " + tree[index])
 
-										group_tree = parent_tree + ">" + tree[index]
-										filtered_groups = frappe.get_all("Item Group", filters={"group_tree": group_tree})
-										if not filtered_groups:
-											if not frappe.db.exists("Item Group", {"name": tree[index]}):
-												created_cats.append(tree[index])
-												cat_doc = frappe.get_doc({
-													"doctype": "Item Group",
-													"item_group_name": tree[index],
-													"parent_item_group": parent,
-													"is_group": 1,
-													"group_tree": group_tree
-												})
-												cat_doc.insert()
-												frappe.db.commit()
-												created_cats.append(tree[index])
-											elif not frappe.db.exists("Item Group", {"name": parent + ' - ' + tree[index]}):
-												created_cats.append(tree[index])
-												cat_doc = frappe.get_doc({
-													"doctype": "Item Group",
-													"item_group_name": parent + ' - ' + tree[index],
-													"parent_item_group": parent,
-													"is_group": 1,
-													"group_tree": group_tree
-												})
-												cat_doc.insert()
-												frappe.db.commit()
-												created_cats.append(tree[index])
-											else:
-												index_to_append = 1
-												composed_name = parent + ' - ' + tree[index]
-												while frappe.db.exists("Item Group", {"name": composed_name + " " + str(index_to_append)}):
-													index_to_append += 1
-												created_cats.append(tree[index])
-												cat_doc = frappe.get_doc({
-													"doctype": "Item Group",
-													"item_group_name": composed_name + " " + str(index_to_append),
-													"parent_item_group": parent,
-													"is_group": 1,
-													"group_tree": group_tree
-												})
-												cat_doc.insert()
-												frappe.db.commit()
-												created_cats.append(tree[index])
-							cat_name = frappe.get_all("Item Group", filters={"group_tree": self.doctype_data.root_category + ">" + ">".join(group_tree)})[0].name
-							if index == 0:
+									group_tree = parent_tree + ">" + tree[index]
+									filtered_groups = frappe.get_all("Item Group", filters={"group_tree": group_tree})
+									if not filtered_groups:
+										if not frappe.db.exists("Item Group", {"name": tree[index]}):
+											#created_cats.append(tree[index])
+											cat_doc = frappe.get_doc({
+												"doctype": "Item Group",
+												"item_group_name": tree[index],
+												"parent_item_group": parent,
+												"is_group": 1,
+												"group_tree": group_tree
+											})
+											cat_doc.insert()
+											frappe.db.commit()
+											#created_cats.append(tree[index])
+										elif not frappe.db.exists("Item Group", {"name": parent + ' - ' + tree[index]}):
+											#created_cats.append(tree[index])
+											cat_doc = frappe.get_doc({
+												"doctype": "Item Group",
+												"item_group_name": parent + ' - ' + tree[index],
+												"parent_item_group": parent,
+												"is_group": 1,
+												"group_tree": group_tree
+											})
+											cat_doc.insert()
+											frappe.db.commit()
+											#created_cats.append(tree[index])
+										else:
+											index_to_append = 1
+											composed_name = parent + ' - ' + tree[index]
+											while frappe.db.exists("Item Group", {"name": composed_name + " " + str(index_to_append)}):
+												index_to_append += 1
+											#created_cats.append(tree[index])
+											cat_doc = frappe.get_doc({
+												"doctype": "Item Group",
+												"item_group_name": composed_name + " " + str(index_to_append),
+												"parent_item_group": parent,
+												"is_group": 1,
+												"group_tree": group_tree
+											})
+											cat_doc.insert()
+											frappe.db.commit()
+											#created_cats.append(tree[index])'''
+							#cat_name = frappe.get_all("Item Group", filters={"group_tree": self.doctype_data.root_category + ">" + ">".join(tree)})[0].name
+							if idx_nb == 0:
 								row[category_index] = cat_name
-							elif index == 1:
+							elif idx_nb == 1:
 								additional_cat = cat_name
 							else:
 								additional_categories.append(cat_name)
-								if not new_row:
-									new_row = deepcopy.copy(row)
-
+								#if not new_row:
+								#	new_row = copy.deepcopy(row)
 						if row[type_index] == "variable" and row[parent_id_index] == 0:
 							list_of_parents[row[id_index]] = row[sku_index]
 							for (index, item) in enumerate(row):
@@ -1047,7 +1120,6 @@ class ImportFile:
 									if not found_files:
 										image_data = requests.get(image).content
 										try:
-											frappe.log_error(f"try inserting file {image_name}")
 											file_doc = frappe.get_doc({
 												"doctype": "File",
 												"file_name": image_name,
@@ -1061,16 +1133,17 @@ class ImportFile:
 												row[image_index] = image_url
 											else:
 												row[image_index+index] = image_url
-											frappe.log_error(f"file {image_name} inserted")
 										except:
 											frappe.log_error(f"file {image_name} not inserted")
 									else:
-										frappe.log_error(f"file {image_name} already inserted")
 										link_file = frappe.get_doc("File", found_files[0].name)
 										if index == 0:
 											row[image_index] = link_file.file_url
 										else:
 											row[image_index+index] = link_file.file_url
+
+							command = "/usr/bin/php /home/neoffice/frappe-bench/sites/web/wp-content/plugins/bulk-media-register-add-on-wpcron/lib/bmrcroncli.php"
+							subprocess.run(command, capture_output=False, shell=True)
 						if not row[sku_index]:
 							#error_msg += f"Your file line {i} has not SKU provided. The value is mandatory\n"
 							row[sku_index] = sku_prefix + str(sku_suffix)
@@ -1089,6 +1162,17 @@ class ImportFile:
 							error_msg += f"Can't find parent product with ID {item}\n"
 						#product_category = ((row[category_index]).split('>'))[-1]
 
+						brand = row[brand_index]
+						if brand:
+							neo_brand = frappe.db.get_value("Brand", {"name":brand}, "name")
+							if not neo_brand:
+								neo_brand = frappe.get_doc({
+									"doctype": "Brand",
+									"brand": brand
+								})
+								neo_brand.insert()
+								frappe.db.commit()
+
 						is_parent = True if (row[type_index] == "variable" and row[parent_id_index] == 0) else False
 						if is_parent:
 							manage_stock = 0
@@ -1104,23 +1188,25 @@ class ImportFile:
 						if not price:
 							price = row[other_selling_price_index]
 							
-						if len(attributes_value) > 1:
+						if len(attributes_value) > 1 or len(additional_categories) > 0:
 							new_row = copy.deepcopy(row)
 
-						description = row[description_index].replace("_x000D_", "\n")
+						description = None if not row[description_index] else row[description_index].replace("_x000D_", "\n")
+						is_vat = 0 if row[taxable_index] == "Aucune" else 1
+						tax_class = {"parent": "parent", "Taux réduit": "Taux réduit", "Taux zéro": "Taux zéro"}.get(row[tax_rate_index], "Standard")
 						if(len(attributes_value) == 0):
 							row.extend([manage_stock, is_parent, parent_sku, None, None, self.doctype_data.sync_with_woocommerce, self.doctype_data.warehouse, row[category_index], row[category_index],
-							default_company, self.doctype_data.warehouse, stock, valuation_rate, price, additional_cat, description])
+							default_company, self.doctype_data.warehouse, stock, valuation_rate, price, additional_cat, description, is_vat, tax_class, "Kg", brand, brand])
 						else:
 							attribute_value = attributes_value[0]
 							if row[parent_id_index] == 0:
 								attribute_value = None
 							row.extend([manage_stock, is_parent, parent_sku, attributes_name[0], attribute_value, self.doctype_data.sync_with_woocommerce, self.doctype_data.warehouse, row[category_index], row[category_index],
-							default_company, self.doctype_data.warehouse, stock, valuation_rate, price, additional_cat, description]) 
+							default_company, self.doctype_data.warehouse, stock, valuation_rate, price, additional_cat, description, is_vat, tax_class, "Kg", brand, brand]) 
 
 						if index % 100 == 0 or index == data_length - 1:
-							import subprocess, time
-							command = "php /home/neoffice/frappe-bench/sites/web/wp-content/plugins/bulk-media-register-add-on-wpcron/lib/bmrcroncli.php"
+							pass
+							command = "/usr/bin/php /home/neoffice/frappe-bench/sites/web/wp-content/plugins/bulk-media-register-add-on-wpcron/lib/bmrcroncli.php"
 							subprocess.run(command, capture_output=False, shell=True)
 
 					elif self.doctype == "Contact":
@@ -1142,7 +1228,7 @@ class ImportFile:
 								elif row[billing_firstname_index]:
 									first_name = row[billing_firstname_index]
 								elif row[shipping_firstname_index]:
-									first_name = row[shipping_firstname_index]
+									first_name = str(row[shipping_firstname_index])
 								else:
 									first_name = None
 									add_row_in_data = False
@@ -1161,11 +1247,16 @@ class ImportFile:
 								customer_name = None
 
 							if row[billing_address_1_index]:
-								title_formatted = row[billing_firstname_index] + " " + row[billing_lastname_index] if row[billing_firstname_index] else row[billing_company_index]
+								title_formatted = str(row[billing_firstname_index]) + " " + str(row[billing_lastname_index]) if row[billing_firstname_index] else str(row[billing_company_index])
 								if row[shipping_address_1_index]:
 									new_row = copy.deepcopy(row)
 								if row[billing_country_index]:
-									country = _(pycountry.countries.get(alpha_2=row[billing_country_index]).name)
+									countries = frappe.get_all("Country", filters={"code": row[billing_country_index].lower()})
+									if countries:
+										country = countries[0].name
+									else:
+										country = None
+									#country = "Suisse" if _(pycountry.countries.get(alpha_2=row[billing_country_index]).name) == "Switzerland" else self.doctype_data.default_territory #!!!!_(pycountry.countries.get(alpha_2=row[billing_country_index]).name)
 								else:
 									country = None
 								row.extend([row[user_email_index], title_formatted, "Billing", row[billing_address_1_index], row[billing_address_2_index], row[billing_city_index], row[billing_state_index],
@@ -1174,9 +1265,14 @@ class ImportFile:
 									add_row_in_data = False
 
 							elif not row[billing_address_1_index] and row[shipping_address_1_index]:
-								title_formatted = row[shipping_firstname_index] + " " + row[shipping_lastname_index] if row[shipping_firstname_index] else row[shipping_company_index]
+								title_formatted = str(row[shipping_firstname_index]) + " " + str(row[shipping_lastname_index]) if row[shipping_firstname_index] else str(row[shipping_company_index])
 								if row[shipping_country_index]:
-									country = _(pycountry.countries.get(alpha_2=row[shipping_country_index]).name)
+									countries = frappe.get_all("Country", filters={"code": row[shipping_country_index].lower()})
+									if countries:
+										country = countries[0].name
+									else:
+										country = None
+									#country = "Suisse" if _(pycountry.countries.get(alpha_2=row[shipping_country_index]).name) == "Switzerland" else self.doctype_data.default_territory #!!!!_(pycountry.countries.get(alpha_2=row[shipping_country_index]).name)
 								else:
 									country = None
 								row.extend([row[user_email_index], title_formatted, "Shipping", row[shipping_address_1_index], row[shipping_address_2_index], row[shipping_city_index], row[shipping_state_index],
@@ -1189,10 +1285,19 @@ class ImportFile:
 
 					elif self.doctype == "Customer":
 						if row[billing_company_index]:
-							full_name = row[billing_company_index]
+							full_name = str(row[billing_company_index])
 							customer_type = "Company"
 						else:
-							full_name = row[firstname_index] + " " + row[lastname_index]
+							if row[firstname_index]:
+								full_name = str(row[billing_firstname_index])
+								if row[lastname_index]:
+									full_name += " " + str(row[billing_lastname_index])
+							else:
+								base_name = "Neoffice "
+								index_to_append = 1
+								while frappe.get_all("Customer", filters={"customer_name": base_name + str(index_to_append)}):
+									index_to_append += 1
+								full_name = base_name + str(index_to_append)
 							customer_type = "Individual"
 
 						#if last_full_name and not full_name.lower() in last_full_name[0]:
@@ -1220,9 +1325,19 @@ class ImportFile:
 										final_name = full_name
 
 								if row[billing_country_index]:
-									country = _("Switzerland") if _(pycountry.countries.get(alpha_2=row[billing_country_index]).name) == "Switzerland" else self.doctype_data.default_territory
+									countries = frappe.get_all("Country", filters={"code": row[billing_country_index].lower()})
+									if countries:
+										country = countries[0].name
+									else:
+										country = None
+									#country = "Suisse" if _(pycountry.countries.get(alpha_2=row[billing_country_index]).name) == "Switzerland" else self.doctype_data.default_territory #!!!!
 								elif row[shipping_country_index]:
-									country = _("Switzerland") if _(pycountry.countries.get(alpha_2=row[shipping_country_index]).name) == "Switzerland" else self.doctype_data.default_territory
+									countries = frappe.get_all("Country", filters={"code": row[shipping_country_index].lower()})
+									if countries:
+										country = countries[0].name
+									else:
+										country = None
+									#country = "Suisse" if _(pycountry.countries.get(alpha_2=row[shipping_country_index]).name) == "Switzerland" else self.doctype_data.default_territory #!!!!
 								else:
 									country = self.doctype_data.default_territory
 								if final_name:
@@ -1251,9 +1366,9 @@ class ImportFile:
 								customer_link = None
 								customer_text = ""
 								if row[billing_firstname_index]:
-									customer_text += f"{row[billing_firstname_index]} "
+									customer_text += f"{str(row[billing_firstname_index])} "
 								if row[billing_lastname_index]:
-									customer_text += f"{row[billing_lastname_index]}\n"
+									customer_text += f"{str(row[billing_lastname_index])}\n"
 								if row[billing_address_1_index]:
 									customer_text += f"{row[billing_address_1_index]}\n"
 								if row[billing_address_2_index]:
@@ -1408,8 +1523,36 @@ class ImportFile:
 							row = [None] * len(row)
 							row.extend([None, None, ref, description, units, quantity, price_vat_excluded, vat, price, None, None, None, None])
 
+					elif self.doctype == "Contact":
+						if not row[user_email_index] or row[user_email_index].strip() == "":
+							continue
+
+						customer_with_address_number = frappe.db.get_value("Customer", {"winbiz_address_number": row[address_id_index]}, "name")
+						if customer_with_address_number:
+							customer_name = customer_with_address_number
+						else:
+							customer_with_email = frappe.db.get_value("Customer", {"email_id": row[user_email_index]}, "name")
+							if customer_with_email:
+								customer_name = customer_with_email
+							else:
+								customer_name = None
+
+						if not frappe.db.get_value("Contact", {"winbiz_address_number": row[address_id_index]}, "name") and not frappe.db.get_value("Contact", {"email_id": row[user_email_index]}, "name"):
+							first_name = row[firstname_index] if row[firstname_index] else (row[address_company_index] if row[address_company_index] else row[lastname_index])
+							last_name = row[lastname_index] if row[lastname_index] and (row[firstname_index] or row[address_company_index]) else None
+							email_ids = [{"email_id":row[user_email_index], "is_primary":1}]
+							contact_number = str(row[address_phone_index]) if row[address_phone_index] else None
+							links = [{"link_doctype": "Customer", "link_name": customer_name}],
+							row.extend([first_name, last_name, email_ids, contact_number, links])
+							row.extend(["Customer", customer_name, row[user_email_index], 1, str(row[address_phone_index]), contact_number, 1])
+						else:
+							continue
+
 					elif self.doctype == "Address":
-						customer_with_address_number = frappe.db.get_all("Customer", filters={"winbiz_address_number": row[address_id_index]})
+						if not row[user_email_index] or row[user_email_index].strip() == "":
+							continue
+
+						'''customer_with_address_number = frappe.db.get_all("Customer", filters={"winbiz_address_number": row[address_id_index]})
 						if customer_with_address_number:
 							customer_name = customer_with_address_number[0].name
 						else:
@@ -1422,14 +1565,13 @@ class ImportFile:
 							else:
 								contact_email = archive_no_index
 							if self.from_func == "start_import":
-								frappe.msgprint("contact email = {}".format("test"))
 								frappe.get_doc({"doctype": "Contact", "email_ids": contact_email,
 								"first_name": row[firstname_index] if row[firstname_index] else (row[address_company_index] if row[address_company_index] else row[lastname_index]), "last_name": row[lastname_index],
 								"links": [{"link_doctype": "Customer", "link_name": customer_name}], "winbiz_address_number": row[address_id_index],
 								"email_ids": contact_email if row[user_email_index] else []}).insert()
 								frappe.db.commit()
 						else:
-							frappe.msgprint("Contact already exists")
+							frappe.msgprint("Contact already exists")'''
 
 						if not frappe.get_all("Address", filters={"winbiz_address_number": row[address_id_index]}):
 							title_formatted = ""
@@ -1449,15 +1591,23 @@ class ImportFile:
 								title_formatted += " " + str(counter)
 
 							if row[address_country_index]:
-								country = _(pycountry.countries.get(alpha_2=row[address_country_index]).name)
+								countries = frappe.get_all("Country", filters={"code": row[address_country_index].lower()})
+								if countries:
+									country = countries[0].name
+								else:
+									country = None
+								#country = "Suisse" if _(pycountry.countries.get(alpha_2=row[address_country_index]).name) == "Switzerland" else "Suisse" #!!!! _(pycountry.countries.get(alpha_2=row[address_country_index]).name)
 							else:
-								country = _("Switzerland")
+								country = "Suisse" #!!!!_("Switzerland")
 
 							row.extend([title_formatted, "Billing", country, "Customer", customer_name])
 						else:
 							add_row_in_data = False
 
 					elif self.doctype == "Customer":
+						if not row[user_email_index] or row[user_email_index].strip() == "":
+							continue
+
 						if row[address_company_index]:
 							full_name = row[address_company_index]
 							customer_type = "Company"
@@ -1469,7 +1619,12 @@ class ImportFile:
 							last_full_name = []
 
 						if row[address_country_index]:
-							country =  _("Switzerland") if _(pycountry.countries.get(alpha_2=row[address_country_index]).name) == "Switzerland" else self.doctype_data.default_territory
+							countries = frappe.get_all("Country", filters={"code": row[address_country_index].lower()})
+							if countries:
+								country = "Suisse" if row[address_country_index] == "CH" else self.doctype_data.default_territory
+							else:
+								country = self.doctype_data.default_territory
+							#country =  "Suisse"#!!!!_("Switzerland") if _(pycountry.countries.get(alpha_2=row[address_country_index]).name) == "Switzerland" else self.doctype_data.default_territory
 						else:
 							country = self.doctype_data.default_territory
 
@@ -1527,7 +1682,9 @@ class ImportFile:
 						if parent_sku == "error":
 							error_msg += f"Can't find parent product with ID {item}\n"
 
-						attributes_value = attributes_value.pop(0)
+						if  attributes_value:
+							del attributes_value[0]
+						#attributes_value = [] if not attributes_value else attributes_value.pop(0)
 						if len(additional_categories) > len(attributes_value):
 							range_len = len(additional_categories)
 						else:
@@ -1535,20 +1692,26 @@ class ImportFile:
 						for index in range(range_len):
 							#for index in range(1, len(attributes_value)):
 							added_lines += 1
-							new_row = [None] * len(new_row)
+							#new_row = [None] * len(new_row)
+							#if len(new_row) == 0:
+							new_row = [None] * (base_row_length+6) # +6 because 6 images
 							#new_row[-5] = attributes_name[i]
 							#new_row[-4] = attributes_value[i]
 							#new_row[-3] = 1 if has_ecommerce else 0
 							row_attribute_name = None
 							row_attribute_value = None
 							additional_cat = None
-							if index < len(attributes_value):
+							if attributes_value and index < len(attributes_value):
 								row_attribute_name = attributes_name[index]
 								row_attribute_value = attributes_value[index]
-							if index < len(additional_categories):
+							if additional_categories and index < len(additional_categories):
 								additional_cat = additional_categories[index]
+
+							#new_row.extend([None, None, None, row_attribute_name, row_attribute_value, None, None, None, None,
+							#None, None, None, None, None, additional_cat])
 							new_row.extend([None, None, None, row_attribute_name, row_attribute_value, None, None, None, None,
-							None, None, None, None, None, additional_cat])
+							None, None, None, None, None, additional_cat, None, None, None, None, None, None])
+
 							row_obj = Row(i+added_lines, new_row, self.doctype, header, self.import_type)
 							data.append(row_obj)
 							new_row = []
@@ -1557,9 +1720,14 @@ class ImportFile:
 					elif self.doctype == "Address":
 						if customer_name:
 							added_lines += 1
-							title_formatted = row[shipping_firstname_index] + " " + row[shipping_lastname_index] if row[shipping_firstname_index] else row[shipping_company_index]
+							title_formatted = str(row[shipping_firstname_index]) + " " + str(row[shipping_lastname_index]) if row[shipping_firstname_index] else str(row[shipping_company_index])
 							if row[shipping_country_index]:
-								country = _(pycountry.countries.get(alpha_2=row[shipping_country_index]).name)
+								countries = frappe.get_all("Country", filters={"code": row[shipping_country_index].lower()})
+								if countries:
+									country = countries[0].name
+								else:
+									country = None
+								#country = "Suisse" if _(pycountry.countries.get(alpha_2=row[shipping_country_index]).name) == "Switzerland" else self.doctype_data.default_territory #!!!!_(pycountry.countries.get(alpha_2=row[shipping_country_index]).name)
 							else:
 								country = None
 							if not frappe.get_all("Address", filters={"woocommerce_email": row[user_email_index], "address_type": "Shipping", "address_line1": row[shipping_address_1_index]}):
@@ -1587,6 +1755,8 @@ class ImportFile:
 
 		if error_msg:
 			frappe.throw(error_msg)
+		if self.from_func == "start_import":
+			self.doctype_data.db_set("added_lines", added_lines)
 		#////
 		self.header = header
 		self.columns = self.header.columns
@@ -1945,12 +2115,13 @@ class Header(Row):
 			#////
 			if self.doctype_data.import_source == "Woocommerce":
 				if self.doctype == "Item":
-					map_to_field = {"Title": "item_name", "Sku": "item_code", "description": "woocommerce_long_description", "item_group": "item_group", "maintain_stock": "is_stock_item",
+					map_to_field = {"Title": "item_name", "Sku": "item_code", "description": "woocommerce_long_description", "Excerpt":"woocommerce_short_description", "item_group": "item_group", "maintain_stock": "is_stock_item",
 					"parent_sku":"variant_of", "attribute_name": "attributes.attribute", "attribute_value": "attributes.attribute_value", "has_variants": "has_variants", "sync_with_woocommerce" : "sync_with_woocommerce", "image": "image",
 					"woocommerce_img_1":"woocommerce_img_1", "woocommerce_img_2":"woocommerce_img_2", "woocommerce_img_3":"woocommerce_img_3", "woocommerce_img_4":"woocommerce_img_4",
 					"woocommerce_img_5":"woocommerce_img_5", "default_warehouse": "item_defaults.default_warehouse", "category_ecommerce": "category_ecommerce", "woocommerce_warehouse": "woocommerce_warehouse",
 					"stock": "opening_stock", "valuation_rate": "valuation_rate", "standard_rate": "standard_rate", "default_company": "item_defaults.company", "ID": "import_id",
-					"additionnal_categories": "additional_ecommerce_categories.item_group"}.get(header, "Don't Import")
+					"additionnal_categories": "additional_ecommerce_categories.item_group", "woocommerce_taxable": "woocommerce_taxable", "woocommerce_tax_rate": "woocommerce_tax_rate", "brand":"brand", "brand_ecommerce":"brand_ecommerce",
+					"Weight": "weight_per_unit", "weight_uom": "weight_uom"}.get(header, "Don't Import")
 
 				elif self.doctype == "Item Price":
 					"price_list", "price_list_rate"
@@ -1988,6 +2159,10 @@ class Header(Row):
 
 				elif self.doctype == "Customer":
 					map_to_field = {"ad_email": "email_id", "customer_type": "customer_type", "territory": "territory", "customer_name": "customer_name", "ad_numero": "winbiz_address_number", "is_import": "is_import"}.get(header, "Don't Import")
+
+				elif self.doctype == "Contact":
+					map_to_field = {"ad_email": "email_id", "first_name": "first_name", "last_name": "last_name", "phone": "phone", "link_doctype": "links.link_doctype",
+					"link_name":"links.link_name", "email_id": "email_ids.email_id", "is_primary_email":"email_ids.is_primary", "number": "phone_nos.phone", "is_primary_phone": "phone_nos.is_primary_phone"}.get(header, "Don't Import")
 
 				elif self.doctype == "Address":
 					map_to_field = {"ad_email": "email_id", "address_title": "address_title", "address_type": "address_type", "ad_tel1": "phone", "ad_rue_1": "address_line1",
