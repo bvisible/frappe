@@ -42,7 +42,7 @@ from .utils.jinja import (
 )
 from .utils.lazy_loader import lazy_import
 
-__version__ = "14.9.0"
+__version__ = "14.10.0"
 __title__ = "Frappe Framework"
 
 controllers = {}
@@ -453,7 +453,7 @@ def msgprint(
 	if as_list and type(msg) in (list, tuple):
 		out.as_list = 1
 
-	if sys.stdin.isatty():
+	if sys.stdin and sys.stdin.isatty():
 		msg = _strip_html_tags(out.message)
 
 	if flags.print_messages and out.message:
