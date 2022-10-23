@@ -18,15 +18,17 @@ from frappe.utils.xlsxutils import (
 	read_xls_file_from_attached_file,
 	read_xlsx_file_from_attached_file,
 )
-from copy import deepcopy
-import requests
+from copy import deepcopy #////
+import requests #////
+import subprocess, time #////
 
 INVALID_VALUES = ("", None)
 MAX_ROWS_IN_PREVIEW = 10
 INSERT = "Insert New Records"
 UPDATE = "Update Existing Records"
 DURATION_PATTERN = re.compile(r"^(?:(\d+d)?((^|\s)\d+h)?((^|\s)\d+m)?((^|\s)\d+s)?)$")
-SPLIT_ROWS_AT = 100
+SPLIT_ROWS_AT = 1000 #////
+WC_SPLIT_ROWS_AT = 300 #////
 
 
 class Importer:
@@ -80,6 +82,9 @@ class Importer:
 		self.data_import.db_set("template_warnings", "")
 
 	def import_data(self):
+		if self.from_func == "start_import" and self.data_import.db_get("last_line") == 0: #////
+			from frappe.integrations.doctype.s3_backup_settings.s3_backup_settings import backup_to_s3 #////
+			backup_to_s3() #////
 		self.before_import()
 
 		# parse docs from rows
@@ -114,7 +119,7 @@ class Importer:
 		if (
 			(self.data_import.status == "Partial Success"
 			and len(import_log) >= self.data_import.payload_count)
-			or (self.data_import.status == "Splited Import Started"
+			or (self.data_import.status == "Split Import Started"
 			and len(import_log) >= self.data_import.payload_count)
 		):
 		#////
@@ -238,7 +243,7 @@ class Importer:
 				else:
 					status = "Success"
 			else:
-				status = "Splited Import Started"
+				status = "Split Import Started"
 		else:
 			if len(failures) == total_payload_count:
 				status = "Pending"
@@ -567,23 +572,26 @@ class ImportFile:
 		import unicodedata
 		regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
 		split_value = SPLIT_ROWS_AT
-		if self.doctype_data.sync_with_woocommerce == 1:
+		if self.doctype_data.sync_with_woocommerce == 1 or self.doctype == "Contact":
 			split_value = WC_SPLIT_ROWS_AT
 
 		data_length = len(self.raw_data)
 		if not self.doctype_data.total_lines:
 			self.doctype_data.db_set("total_lines", data_length, update_modified=False)
-		
+
 		last_line = self.doctype_data.db_get("last_line")
 		if last_line and last_line > 0:
 			start_line = self.doctype_data.db_get("last_line") +1
 		else:
 			start_line = 0
 		#////
-
 		for i, row in enumerate(self.raw_data):
 			#////
-			if (i == start_line + split_value+1) and self.from_func == "start_import":
+			if start_line == 0:
+				add_to_value = 1
+			else:
+				add_to_value = 0
+			if (i == start_line + split_value + add_to_value) and self.from_func == "start_import":
 				self.doctype_data.db_set("last_line", i-1)
 				break
 
@@ -592,11 +600,15 @@ class ImportFile:
 					#frappe.log_error("continue")
 					continue
 
-			if ((i < data_length-1 and i == start_line + split_value) or (i == data_length-1)) and self.from_func == "start_import":
+			if i < data_length-1 and i == start_line + split_value:
 				self.doctype_data.db_set("last_line", i)
+
+			if i == data_length-1 and self.from_func == "start_import":
+				self.doctype_data.db_set("last_line", i+1)
 			#////
 
 			if all(v in INVALID_VALUES for v in row):
+				frappe.log_error("invalid values")
 				# empty row
 				continue
 
@@ -606,7 +618,7 @@ class ImportFile:
 					if self.doctype == "Item":
 						row.extend(["image", "woocommerce_img_1", "woocommerce_img_2", "woocommerce_img_3", "woocommerce_img_4", "woocommerce_img_5", "maintain_stock","has_variants","parent_sku", "attribute_name", "attribute_value",
 						"sync_with_woocommerce", "default_warehouse", "item_group", "category_ecommerce", "default_company", "woocommerce_warehouse", "stock", "valuation_rate", "standard_rate", "additionnal_categories", "description",
-						"woocommerce_taxable", "woocommerce_tax_rate", "weight_uom", "brand", "brand_ecommerce"])
+						"woocommerce_taxable", "woocommerce_tax_name", "weight_uom", "brand", "brand_ecommerce"])
 						image_index = row.index("image")
 						for (index, item) in enumerate(row):
 							if item == "ID":
@@ -639,8 +651,6 @@ class ImportFile:
 								manage_stock_index = index
 							elif item == "Tax Status":
 								taxable_index = index
-							elif item == "Tax Class":
-								tax_rate_index = index
 							elif item == "Marques":
 								brand_index = index
 							#frappe.msgprint(str(attributes_name))
@@ -755,19 +765,19 @@ class ImportFile:
 								billing_country_index = index
 							elif item == "Customer Account Email Address":
 								user_email_index = index
-							elif item == "Order Status":
+							elif item == "Order Status" or item == "État de la commande":
 								status_index = index
 							elif item == "Order Line Title":
 								description_index = index
-							elif item == "Quantity":
+							elif item == "Quantity" or item == "Quantité":
 								quantity_index = index
-							elif item == "Item Total":
+							elif item == "Item Total" or item == "Total des biens":
 								price_index = index
 							elif item == "Item Tax Total":
 								vat_index = index
-							elif item == "Reference":
+							elif item == "Reference" or item == "Référence" or item == "Réference":
 								ref_index = index
-							elif item == "Order Number":
+							elif item == "Order Number" or item == "Numéro de commande":
 								archive_no_index = index
 
 				elif self.doctype_data.import_source == "Winbiz" and self.from_func == "start_import":
@@ -919,9 +929,12 @@ class ImportFile:
 							last_cat = root
 							if not frappe.db.get_value("Item Group", {"group_tree": root+">"+cat}, "name"):
 								for c in cat.split(">"):
+									c = str(c)
 									this_cat = last_cat + ">"+c
 									if not frappe.db.get_value("Item Group", {"group_tree": this_cat}, "name"):
 										parent_group = frappe.db.get_value("Item Group", {"group_tree": last_cat}, "name")
+										if not parent_group:
+											parent_group = "Ecommerce"
 										if not frappe.db.exists("Item Group", {"name": c}):
 											cat_doc = frappe.get_doc({
 												"doctype": "Item Group",
@@ -1183,17 +1196,18 @@ class ImportFile:
 								stock = 0
 							else:
 								stock = 0 if row[stock_index] < 0 else int(row[stock_index])
-								
+
 						price = row[selling_price_index]
 						if not price:
 							price = row[other_selling_price_index]
-							
+
 						if len(attributes_value) > 1 or len(additional_categories) > 0:
 							new_row = copy.deepcopy(row)
 
 						description = None if not row[description_index] else row[description_index].replace("_x000D_", "\n")
 						is_vat = 0 if row[taxable_index] == "Aucune" else 1
-						tax_class = {"parent": "parent", "Taux réduit": "Taux réduit", "Taux zéro": "Taux zéro"}.get(row[tax_rate_index], "Standard")
+						default_tax = frappe.db.get_value("Company", frappe.defaults.get_global_default("company"), "default_tax")
+						tax_class = frappe.db.get_value("Easy Tax and Accounting", default_tax, "woocommerce_tax")
 						if(len(attributes_value) == 0):
 							row.extend([manage_stock, is_parent, parent_sku, None, None, self.doctype_data.sync_with_woocommerce, self.doctype_data.warehouse, row[category_index], row[category_index],
 							default_company, self.doctype_data.warehouse, stock, valuation_rate, price, additional_cat, description, is_vat, tax_class, "Kg", brand, brand])
@@ -1202,7 +1216,7 @@ class ImportFile:
 							if row[parent_id_index] == 0:
 								attribute_value = None
 							row.extend([manage_stock, is_parent, parent_sku, attributes_name[0], attribute_value, self.doctype_data.sync_with_woocommerce, self.doctype_data.warehouse, row[category_index], row[category_index],
-							default_company, self.doctype_data.warehouse, stock, valuation_rate, price, additional_cat, description, is_vat, tax_class, "Kg", brand, brand]) 
+							default_company, self.doctype_data.warehouse, stock, valuation_rate, price, additional_cat, description, is_vat, tax_class, "Kg", brand, brand])
 
 						if index % 100 == 0 or index == data_length - 1:
 							pass
@@ -1341,7 +1355,7 @@ class ImportFile:
 								else:
 									country = self.doctype_data.default_territory
 								if final_name:
-									row.extend([final_name, customer_type, country, 1])
+									row.extend([final_name, customer_type, self.doctype_data.default_territory, 1])
 							else:
 								add_row_in_data = False
 						else:
@@ -1392,7 +1406,7 @@ class ImportFile:
 						if last_archive_no != row[archive_no_index]:
 							#frappe.msgprint("Archive No: " + str(row[archive_no_index]) + " is being imported")
 							row.extend(["Woocommerce", "Order", row[ref_index], row[description_index], row[quantity_index], price_vat_excluded, row[vat_index], row[price_index],
-							customer_link, customer_text, row[status_index].replace("wc-", ""), "Woo-" + row[archive_no_index]])
+							customer_link, customer_text, row[status_index].replace("wc-", ""), "Woo-" + str(row[archive_no_index])])
 							last_archive_no = row[archive_no_index]
 						else:# The above code is appending the data archive lines
 							ref = row[ref_index]
@@ -1402,6 +1416,9 @@ class ImportFile:
 							vat = row[vat_index]
 							row = [None] * len(row)
 							row.extend([None, None, ref, description, quantity, price_vat_excluded, vat, price, None, None, None, None])
+
+						if (i == start_line + split_value + add_to_value - 1) and self.raw_data[i+1][archive_no_index] == last_archive_no:
+							split_value += 1
 
 				elif self.doctype_data.import_source == "Winbiz" and self.from_func == "start_import":
 					if self.doctype == "Item Price":
@@ -1876,15 +1893,12 @@ class ImportFile:
 
 	######
 
-	def read_file(self, file_path: str):
+	def read_file(self, file_path):
 		extn = os.path.splitext(file_path)[1][1:]
 
 		file_content = None
-
-		file_name = frappe.db.get_value("File", {"file_url": file_path})
-		if file_name:
-			file = frappe.get_doc("File", file_name)
-			file_content = file.get_content()
+		with open(file_path, mode="rb") as f:
+			file_content = f.read()
 
 		return file_content, extn
 
@@ -2005,17 +2019,18 @@ class Row:
 				return
 
 		elif df.fieldtype == "Link":
-			exists = self.link_exists(value, df)
-			if not exists:
-				msg = _("Value {0} missing for {1}").format(frappe.bold(value), frappe.bold(df.options))
-				self.warnings.append(
-					{
-						"row": self.row_number,
-						"field": df_as_json(df),
-						"message": msg,
-					}
-				)
-				return
+			if self.doctype != "Item": #////
+				exists = self.link_exists(value, df)
+				if not exists:
+					msg = _("Value {0} missing for {1}").format(frappe.bold(value), frappe.bold(df.options))
+					self.warnings.append(
+						{
+							"row": self.row_number,
+							"field": df_as_json(df),
+							"message": msg,
+						}
+					)
+					return
 		elif df.fieldtype in ["Date", "Datetime"]:
 			value = self.get_date(value, col)
 			if isinstance(value, str):
@@ -2123,7 +2138,7 @@ class Header(Row):
 					"woocommerce_img_1":"woocommerce_img_1", "woocommerce_img_2":"woocommerce_img_2", "woocommerce_img_3":"woocommerce_img_3", "woocommerce_img_4":"woocommerce_img_4",
 					"woocommerce_img_5":"woocommerce_img_5", "default_warehouse": "item_defaults.default_warehouse", "category_ecommerce": "category_ecommerce", "woocommerce_warehouse": "woocommerce_warehouse",
 					"stock": "opening_stock", "valuation_rate": "valuation_rate", "standard_rate": "standard_rate", "default_company": "item_defaults.company", "ID": "import_id",
-					"additionnal_categories": "additional_ecommerce_categories.item_group", "woocommerce_taxable": "woocommerce_taxable", "woocommerce_tax_rate": "woocommerce_tax_rate", "brand":"brand", "brand_ecommerce":"brand_ecommerce",
+					"additionnal_categories": "additional_ecommerce_categories.item_group", "woocommerce_taxable": "woocommerce_taxable", "brand":"brand", "brand_ecommerce":"brand_ecommerce",
 					"Weight": "weight_per_unit", "weight_uom": "weight_uom"}.get(header, "Don't Import")
 
 				elif self.doctype == "Item Price":
@@ -2278,13 +2293,15 @@ class Column:
 			skip_import = True
 		elif self.map_to_field == "Don't Import":
 			skip_import = True
-			self.warnings.append(
-				{
-					"col": column_number,
-					"message": _("Skipping column {0}").format(frappe.bold(header_title)),
-					"type": "info",
-				}
-			)
+			#////
+			#self.warnings.append(
+			#	{
+			#		"col": column_number,
+			#		"message": _("Skipping column {0}").format(frappe.bold(header_title)),
+			#		"type": "info",
+			#	}
+			#)
+			#////
 		elif header_title and not df:
 			self.warnings.append(
 				{
