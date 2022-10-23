@@ -107,7 +107,7 @@ frappe.ui.form.on("Data Import", {
 		frm.disable_save();
 		if (frm.doc.status !== "Success") {
 			if (!frm.is_new() && frm.has_import_file()) {
-				let label = frm.doc.status === "Pending" ? __("Start Import") : __("Retry");
+				let label = frm.doc.status === "Pending" ? __("Start Import") : frm.doc.status === "Split Import Started" ? __("Continue") : __("Retry"); ////
 				frm.page.set_primary_action(label, () => frm.events.start_import(frm));
 			} else {
 				frm.page.set_primary_action(__("Save"), () => frm.save());
@@ -125,6 +125,9 @@ frappe.ui.form.on("Data Import", {
 	},
 
 	show_import_status(frm) {
+		////
+		frappe.dom.unfreeze();
+		////
 		frappe.call({
 			method: "frappe.core.doctype.data_import.data_import.get_import_status",
 			args: {
@@ -207,6 +210,9 @@ frappe.ui.form.on("Data Import", {
 	},
 
 	start_import(frm) {
+		////
+		frappe.dom.freeze("Importing...");
+		////
 		frm.call({
 			method: "form_start_import",
 			args: { data_import: frm.doc.name },
