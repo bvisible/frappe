@@ -744,7 +744,7 @@ class ImportFile:
 
 					elif self.doctype == "Data Archive":
 						row.extend(["source", "type", "lines.reference", "lines.description", "lines.quantity", "lines.total_price_excl_taxes", "lines.total_vat", "lines.total_price_incl_taxes",
-						"customer_link", "customer_text", "status", "number"])
+						"customer_link", "customer_text", "status", "number", "total", "shipping_fees"])
 						for (index, item) in enumerate(row):
 							#frappe.msgprint(item)
 							if item == "Billing Email Address":
@@ -1406,7 +1406,7 @@ class ImportFile:
 						if last_archive_no != row[archive_no_index]:
 							#frappe.msgprint("Archive No: " + str(row[archive_no_index]) + " is being imported")
 							row.extend(["Woocommerce", "Order", row[ref_index], row[description_index], row[quantity_index], price_vat_excluded, row[vat_index], row[price_index],
-							customer_link, customer_text, row[status_index].replace("wc-", ""), "Woo-" + str(row[archive_no_index])])
+							customer_link, customer_text, row[status_index].replace("wc-", ""), "Woo-" + str(row[archive_no_index]), float(row[total_index]) if row[total_index] else 0, float(row[shipping_fees_index]) if row[shipping_fees_index] else 0])
 							last_archive_no = row[archive_no_index]
 						else:# The above code is appending the data archive lines
 							ref = row[ref_index]
@@ -1415,7 +1415,7 @@ class ImportFile:
 							price = row[price_index]
 							vat = row[vat_index]
 							row = [None] * len(row)
-							row.extend([None, None, ref, description, quantity, price_vat_excluded, vat, price, None, None, None, None])
+							row.extend([None, None, ref, description, quantity, price_vat_excluded, vat, price, None, None, None, None, None, None])
 
 						if (i == start_line + split_value + add_to_value - 1) and self.raw_data[i+1][archive_no_index] == last_archive_no:
 							split_value += 1
@@ -2160,7 +2160,7 @@ class Header(Row):
 					map_to_field = {"source": "source", "type": "type", "number": "number", "Total Order": "total", "lines.reference": "lines.reference", "lines.description": "lines.description", "lines.units": "lines.units",
 					"lines.quantity": "lines.quantity", "lines.total_price_excl_taxes": "lines.total_price_excl_taxes", "lines.total_vat": "lines.total_vat",
 					"lines.total_price_incl_taxes": "lines.total_price_incl_taxes", "customer_link": "customer_link", "customer_text": "customer_text", "Order Date": "date", "status": "status",
-					"Payment Method Title":"payment_method", "Shipping Method": "shipping_method", "Shipping Fees": "shipping _fees", "Currency": "currency"}.get(header, "Don't Import")
+					"Payment Method Title":"payment_method", "Shipping Method": "shipping_method", "shipping_fees": "shipping_fees", "total": "total"}.get(header, "Don't Import")
 
 			elif self.doctype_data.import_source == "Winbiz":
 				if self.doctype == "Item":
