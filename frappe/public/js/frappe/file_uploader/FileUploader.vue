@@ -339,7 +339,8 @@ export default {
 
 			this.files = this.files.concat(files);
 			// if only one file is allowed and crop_image_aspect_ratio is set, open cropper immediately
-			if (this.files.length === 1 && !this.allow_multiple && this.restrictions.crop_image_aspect_ratio != null) {
+			//// if (this.files.length === 1 && !this.allow_multiple && this.restrictions.crop_image_aspect_ratio != null) {
+			if (this.files.length === 1 && !this.allow_multiple && this.restrictions.crop_image_aspect_ratio != null && cur_frm.doctype != "Company") {
 				if (!this.files[0].file_obj.type.includes('svg')) {
 					this.toggle_image_cropper(0);
 				}
