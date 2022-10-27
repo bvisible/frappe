@@ -125,9 +125,6 @@ frappe.ui.form.on("Data Import", {
 	},
 
 	show_import_status(frm) {
-		////
-		frappe.dom.unfreeze();
-		////
 		frappe.call({
 			method: "frappe.core.doctype.data_import.data_import.get_import_status",
 			args: {
@@ -547,4 +544,9 @@ frappe.ui.form.on("Data Import", {
 			},
 		});
 	},
+	////
+	status(frm) {
+		frappe.dom.unfreeze();
+	}
+	////
 });
