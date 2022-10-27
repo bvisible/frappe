@@ -21,6 +21,7 @@ from frappe.utils.xlsxutils import (
 from copy import deepcopy #////
 import requests #////
 import subprocess, time #////
+from datetime import datetime
 
 INVALID_VALUES = ("", None)
 MAX_ROWS_IN_PREVIEW = 10
@@ -251,6 +252,9 @@ class Importer:
 				status = "Partial Success"
 			else:
 				status = "Success"
+		now = datetime.now()
+		current_time = now.strftime("%H:%M:%S")
+		frappe.log_error("end time: {0}".format(current_time))
 		#////
 
 		if self.console:
@@ -587,6 +591,7 @@ class ImportFile:
 		#////
 		for i, row in enumerate(self.raw_data):
 			#////
+			additional_categories = []
 			if start_line == 0:
 				add_to_value = 1
 			else:
@@ -600,7 +605,7 @@ class ImportFile:
 					#frappe.log_error("continue")
 					continue
 
-			if i < data_length-1 and i == start_line + split_value:
+			if i < data_length-1 and i == start_line + split_value and self.from_func == "start_import":
 				self.doctype_data.db_set("last_line", i)
 
 			if i == data_length-1 and self.from_func == "start_import":
@@ -615,8 +620,11 @@ class ImportFile:
 			if not header:
 				#////
 				if self.doctype_data.import_source == "Woocommerce" and self.from_func == "start_import":
+					now = datetime.now()
+					current_time = now.strftime("%H:%M:%S")
+					frappe.log_error("start time: {0}".format(current_time))
 					if self.doctype == "Item":
-						row.extend(["image", "woocommerce_img_1", "woocommerce_img_2", "woocommerce_img_3", "woocommerce_img_4", "woocommerce_img_5", "maintain_stock","has_variants","parent_sku", "attribute_name", "attribute_value",
+						row.extend(["image", "woocommerce_img_1", "woocommerce_img_2", "woocommerce_img_3", "woocommerce_img_4", "woocommerce_img_5", "maintain_stock", "maintain_stock_ecommerce","has_variants","parent_sku", "attribute_name", "attribute_value",
 						"sync_with_woocommerce", "default_warehouse", "item_group", "category_ecommerce", "default_company", "woocommerce_warehouse", "stock", "valuation_rate", "standard_rate", "additionnal_categories", "description",
 						"woocommerce_taxable", "woocommerce_tax_name", "weight_uom", "brand", "brand_ecommerce"])
 						image_index = row.index("image")
@@ -641,7 +649,7 @@ class ImportFile:
 								attributes_index.append(index)
 							elif "Attribute Value (" in item:
 								attributes_value_index.append(index)
-							elif item == "Image URL":
+							elif item == "Image URL" or item == "URL":
 								images_field_index = index
 							elif item == "Catégories de produits":
 								category_index = index
@@ -1038,6 +1046,7 @@ class ImportFile:
 											#created_cats.append(tree[index])'''
 							#cat_name = frappe.get_all("Item Group", filters={"group_tree": self.doctype_data.root_category + ">" + ">".join(tree)})[0].name
 							if idx_nb == 0:
+								additional_cat = None
 								row[category_index] = cat_name
 							elif idx_nb == 1:
 								additional_cat = cat_name
@@ -1050,9 +1059,31 @@ class ImportFile:
 							for (index, item) in enumerate(row):
 								if index > 0:
 									if index in attributes_value_index and item:
-										attribute_to_create = row[index-1]
+										attribute_to_create = row[index-1].strip()
+										if not frappe.db.exists("Item Attribute", attribute_to_create):
+											attr_doc = frappe.get_doc({'doctype': "Item Attribute", 'attribute_name': attribute_to_create})
+											attr_doc.insert()
+											frappe.db.commit()
 										terms_to_create = item.split('|')
-										if not attribute_to_create in created_attributes:
+										for term in terms_to_create:
+											term = term.strip()
+											term_created = False
+											attributes_found = frappe.get_all("Item Attribute", filters=[["Item Attribute Value", "attribute_value", "=", term]])
+											if attributes_found:
+												for attribute in attributes_found:
+													if attribute.name == attribute_to_create:
+														term_created = True
+														break
+											if not term_created:
+												attr_val_doc = frappe.get_doc({"doctype":"Item Attribute Value", "parent": attribute_to_create, "parentfield": "item_attribute_values", "parenttype": "Item Attribute", "attribute_value": term, "abbr": term.upper()})
+												attr_val_doc.insert()
+												frappe.db.commit()
+												attribute_doc = frappe.get_doc("Item Attribute", attribute_to_create)
+												attribute_doc.save()
+												frappe.db.commit()
+
+
+										'''if not attribute_to_create in created_attributes:
 											created_attributes[attribute_to_create] = []
 										#frappe.log_error("{0}".format(frappe.get_all("Item Attribute", filters=[{"name": attribute_to_create}])), f"all item attribute for {attribute_to_create}")
 										if len(frappe.get_all("Item Attribute", filters=[{"name": attribute_to_create}])) == 0 and self.from_func == "start_import":
@@ -1072,10 +1103,10 @@ class ImportFile:
 														attr_val_doc = frappe.get_doc({"doctype":"Item Attribute Value", "parent": attribute_to_create, "parentfield": "item_attribute_values", "parenttype": "Item Attribute", "attribute_value": term.strip(), "abbr": term.strip().upper()})
 														attr_val_doc.insert()
 														created_attributes[attribute_to_create] += [term.strip()]
-											frappe.db.commit()
+											frappe.db.commit()'''
 						for (index, item) in enumerate(row):
 							if index in attributes_index:
-								attribute_name = item
+								attribute_name = item.strip()
 								#attributes_name.append(item)
 							if index in attributes_value_index and item:
 								attributes_name.append(attribute_name)
@@ -1172,7 +1203,8 @@ class ImportFile:
 									parent_sku = parent_list[0].name
 
 						if parent_sku == "error":
-							error_msg += f"Can't find parent product with ID {item}\n"
+							#error_msg += f"Can't find parent product with ID {item}\n"
+							add_row_in_data = False
 						#product_category = ((row[category_index]).split('>'))[-1]
 
 						brand = row[brand_index]
@@ -1209,13 +1241,13 @@ class ImportFile:
 						default_tax = frappe.db.get_value("Company", frappe.defaults.get_global_default("company"), "default_tax")
 						tax_class = frappe.db.get_value("Easy Tax and Accounting", default_tax, "woocommerce_tax")
 						if(len(attributes_value) == 0):
-							row.extend([manage_stock, is_parent, parent_sku, None, None, self.doctype_data.sync_with_woocommerce, self.doctype_data.warehouse, row[category_index], row[category_index],
+							row.extend([manage_stock, manage_stock, is_parent, parent_sku, None, None, self.doctype_data.sync_with_woocommerce, self.doctype_data.warehouse, row[category_index], row[category_index],
 							default_company, self.doctype_data.warehouse, stock, valuation_rate, price, additional_cat, description, is_vat, tax_class, "Kg", brand, brand])
 						else:
 							attribute_value = attributes_value[0]
 							if row[parent_id_index] == 0:
 								attribute_value = None
-							row.extend([manage_stock, is_parent, parent_sku, attributes_name[0], attribute_value, self.doctype_data.sync_with_woocommerce, self.doctype_data.warehouse, row[category_index], row[category_index],
+							row.extend([manage_stock, manage_stock, is_parent, parent_sku, attributes_name[0], attribute_value, self.doctype_data.sync_with_woocommerce, self.doctype_data.warehouse, row[category_index], row[category_index],
 							default_company, self.doctype_data.warehouse, stock, valuation_rate, price, additional_cat, description, is_vat, tax_class, "Kg", brand, brand])
 
 						if index % 100 == 0 or index == data_length - 1:
@@ -1696,8 +1728,8 @@ class ImportFile:
 								if parent_list:
 									parent_sku = parent_list[0].name
 
-						if parent_sku == "error":
-							error_msg += f"Can't find parent product with ID {item}\n"
+						#if parent_sku == "error":
+							#error_msg += f"Can't find parent product with ID {item}\n"
 
 						if  attributes_value:
 							del attributes_value[0]
@@ -1726,11 +1758,12 @@ class ImportFile:
 
 							#new_row.extend([None, None, None, row_attribute_name, row_attribute_value, None, None, None, None,
 							#None, None, None, None, None, additional_cat])
-							new_row.extend([None, None, None, row_attribute_name, row_attribute_value, None, None, None, None,
+							new_row.extend([None, None, None, None, row_attribute_name, row_attribute_value, None, None, None, None,
 							None, None, None, None, None, additional_cat, None, None, None, None, None, None])
 
 							row_obj = Row(i+added_lines, new_row, self.doctype, header, self.import_type)
-							data.append(row_obj)
+							if parent_sku != "error":
+								data.append(row_obj)
 							new_row = []
 							#frappe.msgprint(str(new_row))
 
@@ -1770,8 +1803,8 @@ class ImportFile:
 						data.append(row_obj)
 						new_row = []
 
-		if error_msg:
-			frappe.throw(error_msg)
+		#if error_msg:
+		#	frappe.throw(error_msg)
 		if self.from_func == "start_import":
 			self.doctype_data.db_set("added_lines", added_lines)
 		#////
@@ -2139,7 +2172,7 @@ class Header(Row):
 					"woocommerce_img_5":"woocommerce_img_5", "default_warehouse": "item_defaults.default_warehouse", "category_ecommerce": "category_ecommerce", "woocommerce_warehouse": "woocommerce_warehouse",
 					"stock": "opening_stock", "valuation_rate": "valuation_rate", "standard_rate": "standard_rate", "default_company": "item_defaults.company", "ID": "import_id",
 					"additionnal_categories": "additional_ecommerce_categories.item_group", "woocommerce_taxable": "woocommerce_taxable", "brand":"brand", "brand_ecommerce":"brand_ecommerce",
-					"Weight": "weight_per_unit", "weight_uom": "weight_uom"}.get(header, "Don't Import")
+					"Weight": "weight_per_unit", "weight_uom": "weight_uom", "maintain_stock_ecommerce": "woocommerce_manage_stock"}.get(header, "Don't Import")
 
 				elif self.doctype == "Item Price":
 					"price_list", "price_list_rate"
