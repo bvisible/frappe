@@ -944,7 +944,12 @@ export default class GridRow {
 				vertical = false;
 				horizontal = false;
 			})
-			.on("click", function () {
+			////.on("click", function () {
+			.on("click", function (event) {
+				////
+				grid_container = $(event.currentTarget).closest(".form-grid-container")[0];
+				grid = $(event.currentTarget).closest(".form-grid")[0];
+				////
 				if (frappe.ui.form.editable_row !== me) {
 					var out = me.toggle_editable_row();
 				}
