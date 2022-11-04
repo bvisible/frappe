@@ -430,6 +430,9 @@ frappe.ui.form.on("Data Import", {
 				order_by: "log_index",
 			},
 			callback: function (r) {
+				////
+				frappe.dom.unfreeze();
+				////
 				let logs = r.message;
 
 				if (logs.length === 0) return;
