@@ -28,7 +28,7 @@ MAX_ROWS_IN_PREVIEW = 10
 INSERT = "Insert New Records"
 UPDATE = "Update Existing Records"
 DURATION_PATTERN = re.compile(r"^(?:(\d+d)?((^|\s)\d+h)?((^|\s)\d+m)?((^|\s)\d+s)?)$")
-SPLIT_ROWS_AT = 1000 #////
+SPLIT_ROWS_AT = 3000 #////
 WC_SPLIT_ROWS_AT = 300 #////
 
 
@@ -90,6 +90,7 @@ class Importer:
 
 		# parse docs from rows
 		payloads = self.import_file.get_payloads_for_import()
+		frappe.log_error("payloads", "{}".format(payloads))
 
 		# dont import if there are non-ignorable warnings
 		warnings = self.import_file.get_warnings()
@@ -520,6 +521,7 @@ class ImportFile:
 		lastname_index = None
 		user_email_index = None
 		status_index = None
+		shipping_fees_index = None
 
 		address_id_index = None
 		description_index = None
@@ -787,6 +789,8 @@ class ImportFile:
 								ref_index = index
 							elif item == "Order Number" or item == "Numéro de commande":
 								archive_no_index = index
+							elif item == "Frais de livraison" or item == "Shipping Fees":
+								shipping_fees_index = index
 
 				elif self.doctype_data.import_source == "Winbiz" and self.from_func == "start_import":
 					if self.doctype == "Item Price":
@@ -808,7 +812,8 @@ class ImportFile:
 								selling_price_index = index
 
 					if self.doctype == "Item":
-						row.extend(["sync_with_woocommerce", "item_group", "maintain_stock", "default_warehouse", "default_company", "woocommerce_warehouse", "stock", "valuation_rate", "category_ecommerce", "standard_rate"])
+						row.extend(["sync_with_woocommerce", "item_group", "maintain_stock", "default_warehouse", "default_company", "woocommerce_warehouse", "stock", "valuation_rate", "category_ecommerce", "standard_rate", "weight_uom", "woocommerce_taxable",
+						"tax_class", "maintain_stock_ecommerce"])
 						for (index, item) in enumerate(row):
 							if item == "ar_groupe":
 								category_index = index
@@ -818,7 +823,7 @@ class ImportFile:
 								selling_price_index = index
 
 					if self.doctype == "Data Archive":
-						row.extend(["source", "type", "lines.reference", "lines.description", "lines.units", "lines.quantity", "lines.total_price_excl_taxes", "lines.total_vat", "lines.total_price_incl_taxes", "date",
+						row.extend(["source", "type", "lines.reference", "lines.description", "lines.units", "lines.quantity", "lines.total_price_excl_taxes", "lines.total_vat", "lines.total_price_incl_taxes", "formatted_date",
 						"customer_link", "customer_text", "number"])
 						for (index, item) in enumerate(row):
 							if item == "do_adr1":
@@ -857,7 +862,7 @@ class ImportFile:
 								address_city_index = index
 
 					elif self.doctype == "Contact":
-						row.extend(["link_doctype", "link_name", "email_id", "is_primary_email", "phone", "number", "is_primary_phone"])
+						row.extend(["first_name", "last_name", "link_doctype", "link_name", "email_id", "is_primary_email", "phone", "number", "is_primary_phone"])
 						for (index, item) in enumerate(row):
 							#frappe.msgprint(item)
 							if item == "ad_email":
@@ -870,6 +875,8 @@ class ImportFile:
 								firstname_index = index
 							elif item == "ad_nom":
 								lastname_index = index
+							elif item == "ad_tel1":
+								address_phone_index = index
 
 					elif self.doctype == "Address":
 						row.extend(["address_title", "address_type", "country", "link_doctype", "link_name"])
@@ -987,64 +994,7 @@ class ImportFile:
 										frappe.db.commit()
 									last_cat = this_cat
 							cat_name = frappe.db.get_value("Item Group",{"group_tree": root + ">" + cat}, "name")
-							'''for index in range(len(tree)):
-								if tree[index] not in created_cats:
-									if(index == 0):
-										parent = self.doctype_data.root_category
-										parent_tree = parent
-									else:
-										parent_tree = self.doctype_data.root_category + ">"
-										parent_tree += ">".join([e for j, e in enumerate(tree) if j in range(0,index)])
-										parent_filtered = frappe.get_all("Item Group", filters={"group_tree": parent_tree})
-										if parent_filtered:
-											parent = parent_filtered[0].name
-										else:
-											frappe.throw("Parent Category not found: " + tree[index])
-
-									group_tree = parent_tree + ">" + tree[index]
-									filtered_groups = frappe.get_all("Item Group", filters={"group_tree": group_tree})
-									if not filtered_groups:
-										if not frappe.db.exists("Item Group", {"name": tree[index]}):
-											#created_cats.append(tree[index])
-											cat_doc = frappe.get_doc({
-												"doctype": "Item Group",
-												"item_group_name": tree[index],
-												"parent_item_group": parent,
-												"is_group": 1,
-												"group_tree": group_tree
-											})
-											cat_doc.insert()
-											frappe.db.commit()
-											#created_cats.append(tree[index])
-										elif not frappe.db.exists("Item Group", {"name": parent + ' - ' + tree[index]}):
-											#created_cats.append(tree[index])
-											cat_doc = frappe.get_doc({
-												"doctype": "Item Group",
-												"item_group_name": parent + ' - ' + tree[index],
-												"parent_item_group": parent,
-												"is_group": 1,
-												"group_tree": group_tree
-											})
-											cat_doc.insert()
-											frappe.db.commit()
-											#created_cats.append(tree[index])
-										else:
-											index_to_append = 1
-											composed_name = parent + ' - ' + tree[index]
-											while frappe.db.exists("Item Group", {"name": composed_name + " " + str(index_to_append)}):
-												index_to_append += 1
-											#created_cats.append(tree[index])
-											cat_doc = frappe.get_doc({
-												"doctype": "Item Group",
-												"item_group_name": composed_name + " " + str(index_to_append),
-												"parent_item_group": parent,
-												"is_group": 1,
-												"group_tree": group_tree
-											})
-											cat_doc.insert()
-											frappe.db.commit()
-											#created_cats.append(tree[index])'''
-							#cat_name = frappe.get_all("Item Group", filters={"group_tree": self.doctype_data.root_category + ">" + ">".join(tree)})[0].name
+							
 							if idx_nb == 0:
 								additional_cat = None
 								row[category_index] = cat_name
@@ -1082,28 +1032,6 @@ class ImportFile:
 												attribute_doc.save()
 												frappe.db.commit()
 
-
-										'''if not attribute_to_create in created_attributes:
-											created_attributes[attribute_to_create] = []
-										#frappe.log_error("{0}".format(frappe.get_all("Item Attribute", filters=[{"name": attribute_to_create}])), f"all item attribute for {attribute_to_create}")
-										if len(frappe.get_all("Item Attribute", filters=[{"name": attribute_to_create}])) == 0 and self.from_func == "start_import":
-											item_attribute_values = []
-											for term in terms_to_create:
-												item_attribute_values.append({"attribute_value": term.strip(), "abbr": term.strip().upper()})
-												created_attributes[attribute_to_create] += [term.strip()]
-											attr_doc = frappe.get_doc({'doctype': "Item Attribute", 'attribute_name': attribute_to_create, 'item_attribute_values': item_attribute_values})
-											attr_doc.insert()
-											frappe.db.commit()
-										else:
-											for term in terms_to_create:
-												if term.strip() not in created_attributes[attribute_to_create]:
-													#frappe.log_error("{0}".format(term), "term")
-													#frappe.log_error("{0}".format(frappe.get_all("Item Attribute", filters=[{"name": attribute_to_create}, ["Item Attribute Value", "attribute_value", "=", term.strip()]])), f"all item attribute value for {attribute_to_create} - {term.strip()}")
-													if len(frappe.get_all("Item Attribute Value", filters=[{"attribute_value": term.strip(), "parent": attribute_to_create}])) == 0 and self.from_func == "start_import":
-														attr_val_doc = frappe.get_doc({"doctype":"Item Attribute Value", "parent": attribute_to_create, "parentfield": "item_attribute_values", "parenttype": "Item Attribute", "attribute_value": term.strip(), "abbr": term.strip().upper()})
-														attr_val_doc.insert()
-														created_attributes[attribute_to_create] += [term.strip()]
-											frappe.db.commit()'''
 						for (index, item) in enumerate(row):
 							if index in attributes_index:
 								attribute_name = item.strip()
@@ -1239,7 +1167,7 @@ class ImportFile:
 						description = None if not row[description_index] else row[description_index].replace("_x000D_", "\n")
 						is_vat = 0 if row[taxable_index] == "Aucune" else 1
 						default_tax = frappe.db.get_value("Company", frappe.defaults.get_global_default("company"), "default_tax")
-						tax_class = frappe.db.get_value("Easy Tax and Accounting", default_tax, "woocommerce_tax")
+						tax_class = frappe.db.get_value("Easy Tax and Accounting", default_tax, "woocommerce_tax") if is_vat else None
 						if(len(attributes_value) == 0):
 							row.extend([manage_stock, manage_stock, is_parent, parent_sku, None, None, self.doctype_data.sync_with_woocommerce, self.doctype_data.warehouse, row[category_index], row[category_index],
 							default_company, self.doctype_data.warehouse, stock, valuation_rate, price, additional_cat, description, is_vat, tax_class, "Kg", brand, brand])
@@ -1449,7 +1377,7 @@ class ImportFile:
 							row = [None] * len(row)
 							row.extend([None, None, ref, description, quantity, price_vat_excluded, vat, price, None, None, None, None, None, None])
 
-						if (i == start_line + split_value + add_to_value - 1) and self.raw_data[i+1][archive_no_index] == last_archive_no:
+						if  i < len(self.raw_data)-1 and (i == start_line + split_value + add_to_value - 1) and self.raw_data[i+1][archive_no_index] == last_archive_no:
 							split_value += 1
 
 				elif self.doctype_data.import_source == "Winbiz" and self.from_func == "start_import":
@@ -1462,18 +1390,6 @@ class ImportFile:
 
 					if self.doctype == "Item":
 						if row[category_index] and row[category_index] not in created_cats:
-							'''parent = self.doctype_data.root_category
-							if not frappe.db.exists("Item Group", {"name": row[category_index]}):
-								cat_doc = frappe.get_doc({
-									"doctype": "Item Group",
-									"item_group_name": row[category_index],
-									"parent_item_group": parent,
-									"is_group": 1
-								})
-								cat_doc.insert()
-								frappe.db.commit()
-								created_cats.append(row[category_index])'''
-
 							current_cat = row[category_index]
 							parent = self.doctype_data.root_category
 							parent_tree = parent
@@ -1519,9 +1435,14 @@ class ImportFile:
 						else:
 							manage_stock = 0
 							stock = None
+
+						company = frappe.defaults.get_global_default("company")
+						taxable_company = frappe.db.get_value("Company", company, "is_vat_company")
+						default_tax = frappe.db.get_value("Company", frappe.defaults.get_global_default("company"), "default_tax")
+						tax_class = frappe.db.get_value("Easy Tax and Accounting", default_tax, "woocommerce_tax") if taxable_company else None
 						standard_rate = row[selling_price_index]
 						row.extend([self.doctype_data.sync_with_woocommerce, item_group, manage_stock, self.doctype_data.warehouse, default_company,
-						self.doctype_data.warehouse, stock, valuation_rate, item_group, standard_rate])
+						self.doctype_data.warehouse, stock, valuation_rate, item_group, standard_rate, "KG", taxable_company, tax_class, manage_stock])
 
 
 					if self.doctype == "Data Archive":
@@ -1556,11 +1477,17 @@ class ImportFile:
 						else:
 							price_vat_excluded = None
 
+						date_base = row[date_archive_index]
+						if(isinstance(date_base, int)):
+							formatted_date = datetime.fromordinal(datetime(1900, 1, 1).toordinal() + date_base - 2).strftime('%Y-%m-%d')
+						else:
+							formatted_date = datetime.strptime(date_base,'%d.%m.%Y').strftime('%Y-%m-%d')
+
 						if last_archive_no != row[archive_no_index]:
 							#frappe.msgprint("Archive No: " + str(row[archive_no_index]) + " is being imported")
 							type_line = {"20":"Invoice", "10": "Offer", "12":"Order Confirmation", "14":"Worksheet"}.get(str(row[type_line_index]), None)
 							row.extend(["Winbiz", _(type_line), row[ref_index], row[description_index], row[units_index], row[quantity_index], price_vat_excluded, row[vat_index], row[price_index],
-							row[date_archive_index], customer_link, customer_text, "Win-" + str(row[archive_no_index])])
+							str(formatted_date), customer_link, customer_text, "Win-" + str(row[archive_no_index])])
 							last_archive_no = row[archive_no_index]
 						else:# The above code is appending the data archive lines
 							ref = row[ref_index]
@@ -1571,6 +1498,9 @@ class ImportFile:
 							vat = row[vat_index]
 							row = [None] * len(row)
 							row.extend([None, None, ref, description, units, quantity, price_vat_excluded, vat, price, None, None, None, None])
+
+						if i < len(self.raw_data)-1 and (i == start_line + split_value + add_to_value - 1) and self.raw_data[i+1][archive_no_index] == last_archive_no:
+							split_value += 1
 
 					elif self.doctype == "Contact":
 						if not row[user_email_index] or row[user_email_index].strip() == "":
@@ -1589,38 +1519,39 @@ class ImportFile:
 						if not frappe.db.get_value("Contact", {"winbiz_address_number": row[address_id_index]}, "name") and not frappe.db.get_value("Contact", {"email_id": row[user_email_index]}, "name"):
 							first_name = row[firstname_index] if row[firstname_index] else (row[address_company_index] if row[address_company_index] else row[lastname_index])
 							last_name = row[lastname_index] if row[lastname_index] and (row[firstname_index] or row[address_company_index]) else None
+							frappe.log_error(f"Contact {first_name} {row[lastname_index]} is being imported", "Winbiz Import")
 							email_ids = [{"email_id":row[user_email_index], "is_primary":1}]
 							contact_number = str(row[address_phone_index]) if row[address_phone_index] else None
 							links = [{"link_doctype": "Customer", "link_name": customer_name}],
-							row.extend([first_name, last_name, email_ids, contact_number, links])
-							row.extend(["Customer", customer_name, row[user_email_index], 1, str(row[address_phone_index]), contact_number, 1])
+							#row.extend([first_name, last_name, email_ids, contact_number, links])
+							row.extend([first_name, last_name, "Customer", customer_name, row[user_email_index], 1, str(row[address_phone_index]), contact_number, 1 if contact_number else None])
 						else:
 							continue
 
 					elif self.doctype == "Address":
-						if not row[user_email_index] or row[user_email_index].strip() == "":
+						if not row[user_email_index] or row[user_email_index].strip() == "" or row[address_id_index] == 329:
 							continue
 
-						'''customer_with_address_number = frappe.db.get_all("Customer", filters={"winbiz_address_number": row[address_id_index]})
+						customer_with_address_number = frappe.db.get_all("Customer", filters={"winbiz_address_number": row[address_id_index]})
 						if customer_with_address_number:
 							customer_name = customer_with_address_number[0].name
 						else:
 							customer_name = None
+
 
 						filtered_contacts = frappe.get_all("Contact", filters={"winbiz_address_number": row[address_id_index]})
 						if not filtered_contacts:
 							if row[user_email_index] and re.fullmatch(regex,row[user_email_index]):
 								contact_email = [{"email_id":row[user_email_index], "is_primary":1}]
 							else:
-								contact_email = archive_no_index
-							if self.from_func == "start_import":
-								frappe.get_doc({"doctype": "Contact", "email_ids": contact_email,
-								"first_name": row[firstname_index] if row[firstname_index] else (row[address_company_index] if row[address_company_index] else row[lastname_index]), "last_name": row[lastname_index],
-								"links": [{"link_doctype": "Customer", "link_name": customer_name}], "winbiz_address_number": row[address_id_index],
-								"email_ids": contact_email if row[user_email_index] else []}).insert()
-								frappe.db.commit()
-						else:
-							frappe.msgprint("Contact already exists")'''
+								continue
+							if row[address_id_index] == 329:
+								frappe.log_error("try insert contact")
+							frappe.get_doc({"doctype": "Contact", "email_ids": contact_email,
+							"first_name": row[firstname_index] if row[firstname_index] else (row[address_company_index] if row[address_company_index] else row[lastname_index]), "last_name": row[lastname_index],
+							"links": [{"link_doctype": "Customer", "link_name": customer_name}], "winbiz_address_number": row[address_id_index],
+							"email_ids": contact_email if row[user_email_index] else []}).insert()
+							frappe.db.commit()
 
 						if not frappe.get_all("Address", filters={"winbiz_address_number": row[address_id_index]}):
 							title_formatted = ""
@@ -1649,6 +1580,8 @@ class ImportFile:
 							else:
 								country = "Suisse" #!!!!_("Switzerland")
 
+							if row[address_id_index] == 329:
+								frappe.log_error("customer_name: " + str(customer_name))
 							row.extend([title_formatted, "Billing", country, "Customer", customer_name])
 						else:
 							add_row_in_data = False
@@ -2198,7 +2131,9 @@ class Header(Row):
 			elif self.doctype_data.import_source == "Winbiz":
 				if self.doctype == "Item":
 					map_to_field = {"ar_abrege": "item_name", "ar_fn_ref": "item_code", "ar_desc": "woocommerce_long_description", "item_group": "item_group", "sync_with_woocommerce" : "sync_with_woocommerce",
-					"maintain_stock": "is_stock_item", "default_warehouse": "item_defaults.default_warehouse", "category_ecommerce": "category_ecommerce", "woocommerce_warehouse": "woocommerce_warehouse", "stock": "opening_stock", "valuation_rate": "valuation_rate", "standard_rate": "standard_rate", "default_company": "item_defaults.company"}.get(header, "Don't Import")
+					"maintain_stock": "is_stock_item", "default_warehouse": "item_defaults.default_warehouse", "category_ecommerce": "category_ecommerce", "woocommerce_warehouse": "woocommerce_warehouse", "stock": "opening_stock",
+					"valuation_rate": "valuation_rate", "standard_rate": "standard_rate", "default_company": "item_defaults.company", "ar_codbar": "barcodes.barcode", "ar_poids": "weight_per_unit", "weight_uom": "weight_uom",
+					"woocommerce_taxable": "woocommerce_taxable","maintain_stock_ecommerce": "woocommerce_manage_stock" }.get(header, "Don't Import")
 
 				elif self.doctype == "Item Price":
 					map_to_field = {"ar_fn_ref": "item_code", "price_list": "price_list", "price_list_rate": "price_list_rate"}.get(header, "Don't Import")
@@ -2206,13 +2141,13 @@ class Header(Row):
 				if self.doctype == "Data Archive":
 					map_to_field = {"source": "source", "type": "type", "number": "number", "do_montant": "total", "lines.reference": "lines.reference", "lines.description": "lines.description", "lines.units": "lines.units",
 					"lines.quantity": "lines.quantity", "lines.total_price_excl_taxes": "lines.total_price_excl_taxes", "lines.total_vat": "lines.total_vat",
-					"lines.total_price_incl_taxes": "lines.total_price_incl_taxes", "customer_link": "customer_link", "customer_text": "customer_text", "date": "date"}.get(header, "Don't Import")
+					"lines.total_price_incl_taxes": "lines.total_price_incl_taxes", "customer_link": "customer_link", "customer_text": "customer_text", "formatted_date": "date_text"}.get(header, "Don't Import")
 
 				elif self.doctype == "Customer":
 					map_to_field = {"ad_email": "email_id", "customer_type": "customer_type", "territory": "territory", "customer_name": "customer_name", "ad_numero": "winbiz_address_number", "is_import": "is_import"}.get(header, "Don't Import")
 
 				elif self.doctype == "Contact":
-					map_to_field = {"ad_email": "email_id", "first_name": "first_name", "last_name": "last_name", "phone": "phone", "link_doctype": "links.link_doctype",
+					map_to_field = {"ad_email": "email_id", "ad_numero": "winbiz_address_number", "first_name": "first_name", "last_name": "last_name", "phone": "phone", "link_doctype": "links.link_doctype",
 					"link_name":"links.link_name", "email_id": "email_ids.email_id", "is_primary_email":"email_ids.is_primary", "number": "phone_nos.phone", "is_primary_phone": "phone_nos.is_primary_phone"}.get(header, "Don't Import")
 
 				elif self.doctype == "Address":
