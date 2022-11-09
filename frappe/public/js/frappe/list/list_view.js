@@ -938,11 +938,9 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 			return this.settings.get_form_link(doc);
 		}
 
-		const docname = cstr(doc.name).match(/[%'"#\s]/) ? encodeURIComponent(doc.name) : doc.name;
-
 		return `/app/${frappe.router.slug(
 			frappe.router.doctype_layout || this.doctype
-		)}/${docname}`;
+		)}/${encodeURIComponent(cstr(doc.name))}`;
 	}
 
 	get_seen_class(doc) {
@@ -1181,7 +1179,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		this.$result.on("click", ".list-row, .image-view-header, .file-header", (e) => {
 			const $target = $(e.target);
 			// tick checkbox if Ctrl/Meta key is pressed
-			if (e.ctrlKey || (e.metaKey && !$target.is("a"))) {
+			if ((e.ctrlKey || e.metaKey) && !$target.is("a")) {
 				const $list_row = $(e.currentTarget);
 				const $check = $list_row.find(".list-row-checkbox");
 				$check.prop("checked", !$check.prop("checked"));
