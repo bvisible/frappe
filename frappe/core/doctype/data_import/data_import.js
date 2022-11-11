@@ -61,7 +61,7 @@ frappe.ui.form.on("Data Import", {
 
 		frm.get_field("import_file").df.options = {
 			restrictions: {
-				allowed_file_types: [".csv", ".xls", ".xlsx"],
+				allowed_file_types: [".xlsx"],
 			},
 		};
 
@@ -550,6 +550,59 @@ frappe.ui.form.on("Data Import", {
 	////
 	status(frm) {
 		frappe.dom.unfreeze();
-	}
+	},
+
+	sync_with_woocommerce(frm) {
+		if (frm.doc.sync_with_woocommerce == 1) {
+			frm.doc.root_category = '';
+			frm.fields_dict.root_category.refresh()
+			frm.set_query('root_category', () => {
+				return {
+					filters: {
+						name: ['=', "Ecommerce"]
+					}
+				};
+			});
+		} else {
+			frm.set_query('root_category', () => {
+				return
+			});
+		}
+	},
+
+	convert(frm) {
+		console.log("convert")
+		if(frm.doc.import_file_data.split('.').pop() == 'csv' || frm.doc.import_file_data.split('.').pop() == 'xls'){
+			frappe.call({
+				method: 'neoffice_archive.events.create_doc_xlsx',
+				args: {
+					file_path: frm.doc.import_file_data,
+				},
+				callback: function(data) {
+					if(data.message){
+						frm.doc.import_file = data.message;
+						frm.fields_dict.import_file.refresh()
+						frm.trigger('import_file');
+					}
+				}
+			});
+		}
+	},
+
+	import_file_data(frm) {
+		if(frm.doc.import_file_data.split('.').pop() == 'csv' || frm.doc.import_file_data.split('.').pop() == 'xls'){
+			frappe.call({
+				method: 'neoffice_archive.events.convert_file_to_xlsx',
+				args: {
+					file_path: frm.doc.import_file_data,
+				},
+				callback: function(data) {
+					if(data.message){
+						//frm.import_file = data.message;
+					}
+				}
+			});
+		}
+	},
 	////
 });
