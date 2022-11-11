@@ -90,7 +90,7 @@ class Importer:
 
 		# parse docs from rows
 		payloads = self.import_file.get_payloads_for_import()
-		frappe.log_error("payloads", "{}".format(payloads))
+		#frappe.log_error("payloads", "{}".format(payloads))
 
 		# dont import if there are non-ignorable warnings
 		warnings = self.import_file.get_warnings()
@@ -237,7 +237,7 @@ class Importer:
 		failures = [log for log in import_log if not log.get("success")]
 		#////
 		if self.data_import.db_get("last_line"):
-			if self.data_import.db_get("last_line") == self.data_import.total_lines-1:
+			if self.data_import.db_get("last_line") == self.data_import.total_lines:
 				if len(failures) == self.data_import.db_get("payload_count"):
 					status = "Pending"
 				elif len(failures) > 0:
@@ -1478,10 +1478,13 @@ class ImportFile:
 							price_vat_excluded = None
 
 						date_base = row[date_archive_index]
-						if(isinstance(date_base, int)):
-							formatted_date = datetime.fromordinal(datetime(1900, 1, 1).toordinal() + date_base - 2).strftime('%Y-%m-%d')
+						if(not isinstance(date_base, datetime)):
+							if(isinstance(date_base, int)):
+								formatted_date = datetime.fromordinal(datetime(1900, 1, 1).toordinal() + date_base - 2).strftime('%Y-%m-%d')
+							else:
+								formatted_date = datetime.strptime(date_base,'%d.%m.%Y').strftime('%Y-%m-%d')
 						else:
-							formatted_date = datetime.strptime(date_base,'%d.%m.%Y').strftime('%Y-%m-%d')
+							formatted_date = date_base
 
 						if last_archive_no != row[archive_no_index]:
 							#frappe.msgprint("Archive No: " + str(row[archive_no_index]) + " is being imported")
@@ -1519,7 +1522,7 @@ class ImportFile:
 						if not frappe.db.get_value("Contact", {"winbiz_address_number": row[address_id_index]}, "name") and not frappe.db.get_value("Contact", {"email_id": row[user_email_index]}, "name"):
 							first_name = row[firstname_index] if row[firstname_index] else (row[address_company_index] if row[address_company_index] else row[lastname_index])
 							last_name = row[lastname_index] if row[lastname_index] and (row[firstname_index] or row[address_company_index]) else None
-							frappe.log_error(f"Contact {first_name} {row[lastname_index]} is being imported", "Winbiz Import")
+							#frappe.log_error(f"Contact {first_name} {row[lastname_index]} is being imported", "Winbiz Import")
 							email_ids = [{"email_id":row[user_email_index], "is_primary":1}]
 							contact_number = str(row[address_phone_index]) if row[address_phone_index] else None
 							links = [{"link_doctype": "Customer", "link_name": customer_name}],
