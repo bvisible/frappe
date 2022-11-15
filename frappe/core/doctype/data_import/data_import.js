@@ -3,6 +3,23 @@
 
 frappe.ui.form.on("Data Import", {
 	setup(frm) {
+		frm.toggle_display("import_file", false);
+		frm.fields_dict.import_file.refresh()
+
+		if(frm.doc.name.includes("partie 2") && !frm.doc.import_file) {
+			frappe.db.get_value("Data Import", frm.doc.name.replace("2", "1"), "import_file", (r) => {
+				if(r.import_file) {
+					frappe.db.set_value("Data Import", frm.doc.name, "import_file", r.import_file);
+				}
+			});
+		} else if(frm.doc.name.includes("partie 3") && !frm.doc.import_file) {
+			frappe.db.get_value("Data Import", frm.doc.name.replace("3", "1"), "import_file", (r) => {
+				if(r.import_file) {
+					frappe.db.set_value("Data Import", frm.doc.name, "import_file", r.import_file);
+				}
+			});
+		}
+
 		frappe.realtime.on("data_import_refresh", ({ data_import }) => {
 			frm.import_in_progress = false;
 			if (data_import !== frm.doc.name) return;
@@ -65,12 +82,19 @@ frappe.ui.form.on("Data Import", {
 			},
 		};
 
+		frm.get_field("import_file_data").df.options = {
+			restrictions: {
+				allowed_file_types: [".csv", ".xls", ".xlsx"],
+			},
+		};
+
 		frm.has_import_file = () => {
 			return frm.doc.import_file || frm.doc.google_sheets_url;
 		};
 	},
 
 	refresh(frm) {
+		frappe.dom.unfreeze();
 		frm.page.hide_icon_group();
 		frm.trigger("update_indicators");
 		frm.trigger("import_file");
@@ -258,6 +282,7 @@ frappe.ui.form.on("Data Import", {
 	},
 
 	import_file(frm) {
+		frappe.dom.freeze(__("loading file data"));
 		frm.toggle_display("section_import_preview", frm.has_import_file());
 		if (!frm.has_import_file()) {
 			frm.get_field("import_preview").$wrapper.empty();
@@ -288,6 +313,7 @@ frappe.ui.form.on("Data Import", {
 			let preview_data = r.message;
 			frm.events.show_import_preview(frm, preview_data);
 			frm.events.show_import_warnings(frm, preview_data);
+			frappe.dom.unfreeze();
 		});
 	},
 
@@ -548,6 +574,26 @@ frappe.ui.form.on("Data Import", {
 		});
 	},
 	////
+	onload(frm) {
+		if (frm.doc.sync_with_woocommerce == 1) {
+			frm.doc.root_category = '';
+			frm.fields_dict.root_category.refresh()
+			frm.set_query('root_category', () => {
+				return {
+					filters: {
+						name: ['=', "Ecommerce"]
+					}
+				};
+			});
+		} else {
+			frm.set_query('root_category', () => {
+				return
+			});
+		}
+		frm.toggle_display("import_file", false);
+		frm.fields_dict.import_file.refresh()
+	},
+
 	status(frm) {
 		frappe.dom.unfreeze();
 	},
@@ -571,7 +617,6 @@ frappe.ui.form.on("Data Import", {
 	},
 
 	convert(frm) {
-		console.log("convert")
 		if(frm.doc.import_file_data.split('.').pop() == 'csv' || frm.doc.import_file_data.split('.').pop() == 'xls'){
 			frappe.call({
 				method: 'neoffice_archive.events.create_doc_xlsx',
@@ -581,11 +626,17 @@ frappe.ui.form.on("Data Import", {
 				callback: function(data) {
 					if(data.message){
 						frm.doc.import_file = data.message;
+						frappe.db.set_value('Data Import', frm.doc.name, 'import_file', data.message);
 						frm.fields_dict.import_file.refresh()
-						frm.trigger('import_file');
+						frm.trigger("import_file");
 					}
 				}
 			});
+		} else {
+			frm.doc.import_file = frm.doc.import_file_data;
+			frappe.db.set_value('Data Import', frm.doc.name, 'import_file', frm.doc.import_file_data);
+			frm.fields_dict.import_file.refresh()
+			frm.trigger("import_file");
 		}
 	},
 
@@ -602,6 +653,10 @@ frappe.ui.form.on("Data Import", {
 					}
 				}
 			});
+		}
+		if(!frm.doc.import_file_data){
+			frm.doc.import_file = null;
+			frm.fields_dict.import_file.refresh()
 		}
 	},
 	////
