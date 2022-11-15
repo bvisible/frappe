@@ -94,7 +94,7 @@
             "fieldtype": "Select",
             "hidden": 1,
             "label": "Status",
-            "options": "Pending\nSuccess\nPartial Success\nError",
+            "options": "Pending\nSuccess\nPartial Success\nError\nSplit Import Started",
             "read_only": 1
         },
         {
@@ -155,7 +155,7 @@
             "read_only_depends_on": "eval: ['Success', 'Partial Success'].includes(doc.status)"
         },
         {
-            "depends_on": "eval:doc.google_sheets_url && !doc.__unsaved &&  ['Success', 'Partial Success'].includes(doc.status)",
+            "depends_on": "eval:doc.google_sheets_url && !doc.__unsaved &&  ['Success', 'Partial Success', 'Split Import Started'].includes(doc.status)",
             "fieldname": "refresh_google_sheet",
             "fieldtype": "Button",
             "label": "Refresh Google Sheet"
