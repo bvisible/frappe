@@ -627,7 +627,7 @@ class ImportFile:
 					frappe.log_error("start time: {0}".format(current_time))
 					if self.doctype == "Item":
 						row.extend(["image", "woocommerce_img_1", "woocommerce_img_2", "woocommerce_img_3", "woocommerce_img_4", "woocommerce_img_5", "maintain_stock", "maintain_stock_ecommerce","has_variants","parent_sku", "attribute_name", "attribute_value",
-						"sync_with_woocommerce", "default_warehouse", "item_group", "category_ecommerce", "default_company", "woocommerce_warehouse", "stock", "valuation_rate", "standard_rate", "additionnal_categories", "description",
+						"sync_with_woocommerce", "default_warehouse", "item_group", "category_ecommerce", "default_company", "woocommerce_warehouse", "stock", "valuation_rate", "standard_rate", "additionnal_categories", "description", "short_description",
 						"woocommerce_taxable", "woocommerce_tax_name", "weight_uom", "brand", "brand_ecommerce"])
 						image_index = row.index("image")
 						for (index, item) in enumerate(row):
@@ -635,8 +635,8 @@ class ImportFile:
 								id_index = index
 							elif item == "Content":
 								description_index = index
-							#elif item == "Excerpt":
-							#	short_description_index = index
+							elif item == "Excerpt":
+								short_description_index = index
 							elif item == "Parent Product ID":
 								parent_id_index = index
 							elif item == "Sku":
@@ -1165,18 +1165,19 @@ class ImportFile:
 							new_row = copy.deepcopy(row)
 
 						description = None if not row[description_index] else row[description_index].replace("_x000D_", "\n")
+						short_description = None if not row[short_description_index] else row[short_description_index].replace("_x000D_", "\n")
 						is_vat = 0 if row[taxable_index] == "Aucune" else 1
 						default_tax = frappe.db.get_value("Company", frappe.defaults.get_global_default("company"), "default_tax")
 						tax_class = frappe.db.get_value("Easy Tax and Accounting", default_tax, "woocommerce_tax") if is_vat else None
 						if(len(attributes_value) == 0):
 							row.extend([manage_stock, manage_stock, is_parent, parent_sku, None, None, self.doctype_data.sync_with_woocommerce, self.doctype_data.warehouse, row[category_index], row[category_index],
-							default_company, self.doctype_data.warehouse, stock, valuation_rate, price, additional_cat, description, is_vat, tax_class, "Kg", brand, brand])
+							default_company, self.doctype_data.warehouse, stock, valuation_rate, price, additional_cat, description, short_description, is_vat, tax_class, "Kg", brand, brand])
 						else:
 							attribute_value = attributes_value[0]
 							if row[parent_id_index] == 0:
 								attribute_value = None
 							row.extend([manage_stock, manage_stock, is_parent, parent_sku, attributes_name[0], attribute_value, self.doctype_data.sync_with_woocommerce, self.doctype_data.warehouse, row[category_index], row[category_index],
-							default_company, self.doctype_data.warehouse, stock, valuation_rate, price, additional_cat, description, is_vat, tax_class, "Kg", brand, brand])
+							default_company, self.doctype_data.warehouse, stock, valuation_rate, price, additional_cat, description, short_description, is_vat, tax_class, "Kg", brand, brand])
 
 						if index % 100 == 0 or index == data_length - 1:
 							pass
@@ -1548,8 +1549,6 @@ class ImportFile:
 								contact_email = [{"email_id":row[user_email_index], "is_primary":1}]
 							else:
 								continue
-							if row[address_id_index] == 329:
-								frappe.log_error("try insert contact")
 							frappe.get_doc({"doctype": "Contact", "email_ids": contact_email,
 							"first_name": row[firstname_index] if row[firstname_index] else (row[address_company_index] if row[address_company_index] else row[lastname_index]), "last_name": row[lastname_index],
 							"links": [{"link_doctype": "Customer", "link_name": customer_name}], "winbiz_address_number": row[address_id_index],
@@ -1583,8 +1582,6 @@ class ImportFile:
 							else:
 								country = "Suisse" #!!!!_("Switzerland")
 
-							if row[address_id_index] == 329:
-								frappe.log_error("customer_name: " + str(customer_name))
 							row.extend([title_formatted, "Billing", country, "Customer", customer_name])
 						else:
 							add_row_in_data = False
@@ -1695,7 +1692,7 @@ class ImportFile:
 							#new_row.extend([None, None, None, row_attribute_name, row_attribute_value, None, None, None, None,
 							#None, None, None, None, None, additional_cat])
 							new_row.extend([None, None, None, None, row_attribute_name, row_attribute_value, None, None, None, None,
-							None, None, None, None, None, additional_cat, None, None, None, None, None, None])
+							None, None, None, None, None, additional_cat, None, None, None, None, None, None, None])
 
 							row_obj = Row(i+added_lines, new_row, self.doctype, header, self.import_type)
 							if parent_sku != "error":
@@ -2102,7 +2099,7 @@ class Header(Row):
 			#////
 			if self.doctype_data.import_source == "Woocommerce":
 				if self.doctype == "Item":
-					map_to_field = {"Title": "item_name", "Sku": "item_code", "description": "woocommerce_long_description", "Excerpt":"woocommerce_short_description", "item_group": "item_group", "maintain_stock": "is_stock_item",
+					map_to_field = {"Title": "item_name", "Sku": "item_code", "description": "woocommerce_long_description", "short_description":"woocommerce_short_description", "item_group": "item_group", "maintain_stock": "is_stock_item",
 					"parent_sku":"variant_of", "attribute_name": "attributes.attribute", "attribute_value": "attributes.attribute_value", "has_variants": "has_variants", "sync_with_woocommerce" : "sync_with_woocommerce", "image": "image",
 					"woocommerce_img_1":"woocommerce_img_1", "woocommerce_img_2":"woocommerce_img_2", "woocommerce_img_3":"woocommerce_img_3", "woocommerce_img_4":"woocommerce_img_4",
 					"woocommerce_img_5":"woocommerce_img_5", "default_warehouse": "item_defaults.default_warehouse", "category_ecommerce": "category_ecommerce", "woocommerce_warehouse": "woocommerce_warehouse",
