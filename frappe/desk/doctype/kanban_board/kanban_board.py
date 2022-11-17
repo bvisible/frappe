@@ -103,7 +103,7 @@ def update_order(board_name, order):
 			if column.column_name == col_name:
 				column.order = json.dumps(cards)
 
-	board.save()
+	#////board.save()
 	return board, updated_cards
 
 
