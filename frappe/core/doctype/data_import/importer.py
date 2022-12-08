@@ -1166,8 +1166,8 @@ class ImportFile:
 						if len(attributes_value) > 1 or len(additional_categories) > 0:
 							new_row = copy.deepcopy(row)
 
-						description = None if not row[description_index] else row[description_index].replace("_x000D_", "\n")
-						short_description = None if not row[short_description_index] else row[short_description_index].replace("_x000D_", "\n")
+						description = None if not row[description_index] else row[description_index].replace("_x000D_", "<br>")
+						short_description = None if not row[short_description_index] else row[short_description_index].replace("_x000D_", "<br>")
 						is_vat = 0 if row[taxable_index] == "Aucune" else 1
 						default_tax = frappe.db.get_value("Company", frappe.defaults.get_global_default("company"), "default_tax")
 						tax_class = frappe.db.get_value("Easy Tax and Accounting", default_tax, "woocommerce_tax") if is_vat else None
@@ -1489,15 +1489,15 @@ class ImportFile:
 						else:
 							formatted_date = date_base
 
+						description = row[description_index].replace("_x000D_", "<br>").replace("\n", "<br>")
 						if last_archive_no != row[archive_no_index]:
 							#frappe.msgprint("Archive No: " + str(row[archive_no_index]) + " is being imported")
 							type_line = {"20":"Invoice", "10": "Offer", "12":"Order Confirmation", "14":"Worksheet"}.get(str(row[type_line_index]), None)
-							row.extend(["Winbiz", _(type_line), row[ref_index], row[description_index], row[units_index], row[quantity_index], price_vat_excluded, row[vat_index], row[price_index],
+							row.extend(["Winbiz", _(type_line), row[ref_index], description, row[units_index], row[quantity_index], price_vat_excluded, row[vat_index], row[price_index],
 							str(formatted_date), customer_link, customer_text, "Win-" + str(row[archive_no_index])])
 							last_archive_no = row[archive_no_index]
 						else:# The above code is appending the data archive lines
 							ref = row[ref_index]
-							description = row[description_index]
 							units = row[units_index]
 							quantity = row[quantity_index]
 							price = row[price_index]
