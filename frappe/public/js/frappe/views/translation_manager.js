@@ -6,8 +6,9 @@ frappe.views.TranslationManager = class TranslationManager {
 
 	make() {
 		this.data = [];
+		let show_woocommerce_translation = this.df.fieldname.includes("woocommerce"); ////
 		this.dialog = new frappe.ui.Dialog({
-			fields: this.get_fields(),
+			fields: this.get_fields(show_woocommerce_translation), ////
 			title: __("Translate {0}", [this.df.label]),
 			no_submit_on_enter: true,
 			primary_action_label: __("Update Translations"),
@@ -32,7 +33,7 @@ frappe.views.TranslationManager = class TranslationManager {
 		});
 	}
 
-	get_fields() {
+	get_fields(show_woocommerce_translation) { ////
 		var fields = [
 			{
 				label: __("Source Text"),
@@ -47,20 +48,30 @@ frappe.views.TranslationManager = class TranslationManager {
 				fieldname: "translation_data",
 				fieldtype: "Table",
 				fields: [
+					////
+					{
+						label: "Translate on Ecommerce",
+						fieldname: "translate_woocommerce",
+						fieldtype: "Check",
+						in_list_view: 1,
+						columns: 3,
+						hidden: !show_woocommerce_translation,
+					},
+					////
 					{
 						label: "Language",
 						fieldname: "language",
 						fieldtype: "Link",
 						options: "Language",
 						in_list_view: 1,
-						columns: 3,
+						columns: 1,////
 					},
 					{
 						label: "Translation",
 						fieldname: "translation",
 						fieldtype: "Text",
 						in_list_view: 1,
-						columns: 7,
+						columns: 5,////
 					},
 				],
 				data: this.data,
@@ -74,7 +85,7 @@ frappe.views.TranslationManager = class TranslationManager {
 
 	get_translations_data() {
 		return frappe.db.get_list("Translation", {
-			fields: ["name", "language", "translated_text as translation"],
+			fields: ["name", "language", "translated_text as translation", "translate_woocommerce"], ////
 			filters: {
 				source_text: strip_html(this.source_text),
 			},
@@ -84,7 +95,7 @@ frappe.views.TranslationManager = class TranslationManager {
 	update_translations({ source, translation_data = [] }) {
 		const translation_dict = {};
 		translation_data.map((row) => {
-			translation_dict[row.language] = row.translation;
+			translation_dict[row.language] = [row.translation, row.translate_woocommerce]; ////
 		});
 
 		return frappe

@@ -6,19 +6,18 @@ frappe.ui.form.on("Data Import", {
 		frm.toggle_display("import_file", false);
 		frm.fields_dict.import_file.refresh()
 
-		if(frm.doc.name.includes("partie 2") && !frm.doc.import_file) {
-			frappe.db.get_value("Data Import", frm.doc.name.replace("2", "1"), "import_file", (r) => {
+		////
+		if((frm.doc.name.includes("partie 2") || frm.doc.name.includes("partie 3")) && !frm.doc.import_file) {
+			frappe.db.get_value("Data Import", frm.doc.name.replace(/.$/, "1"), "import_file", (r) => {
 				if(r.import_file) {
-					frappe.db.set_value("Data Import", frm.doc.name, "import_file", r.import_file);
-				}
-			});
-		} else if(frm.doc.name.includes("partie 3") && !frm.doc.import_file) {
-			frappe.db.get_value("Data Import", frm.doc.name.replace("3", "1"), "import_file", (r) => {
-				if(r.import_file) {
-					frappe.db.set_value("Data Import", frm.doc.name, "import_file", r.import_file);
+					frappe.db.set_value("Data Import", frm.doc.name, {"import_file": r.import_file, "import_file_data": r.import_file});
+					frm.fields_dict.import_file_data.refresh()
+					frm.fields_dict.import_file.refresh()
+					frm.trigger("import_file");
 				}
 			});
 		}
+		////
 
 		frappe.realtime.on("data_import_refresh", ({ data_import }) => {
 			frm.import_in_progress = false;

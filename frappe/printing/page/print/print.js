@@ -54,6 +54,20 @@ frappe.ui.form.PrintView = class {
 		this.setup_menu();
 		this.setup_toolbar();
 		this.setup_sidebar();
+		////
+		frappe.db.get_list('Language', {filters: {"enabled":1}, fields: ['language_code']}).then(r => {
+			let array_code = []
+			r.forEach(function(item) {
+				array_code.push(item.language_code)
+			})
+			$('select[data-fieldname="language"] option').each(function() {
+				console.log($(this).val())
+				if ( !array_code.includes($(this).val()) ) {
+					$(this).remove();
+				}
+			});
+		});
+		////
 		this.setup_keyboard_shortcuts();
 	}
 
