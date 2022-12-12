@@ -760,12 +760,12 @@ $.extend(frappe.model, {
 	set_default_views_for_doctype(doctype, frm) {
 		frappe.model.with_doctype(doctype, () => {
 			let meta = frappe.get_meta(doctype);
-			let default_views = ["List", "Report", "Dashboard", "Kanban"];
+			let default_views = ["List", "Report", "Dashboard", "Kanban", "Calendar", "Gantt"];
 
-			if (meta.is_calendar_and_gantt && frappe.views.calendar[doctype]) {
-				let views = ["Calendar", "Gantt"];
-				default_views.push(...views);
-			}
+			////if (meta.is_calendar_and_gantt && frappe.views.calendar[doctype]) {
+			////	let views = ["Calendar", "Gantt"];
+			////	default_views.push(...views);
+			////}
 
 			if (meta.is_tree) {
 				default_views.push("Tree");
