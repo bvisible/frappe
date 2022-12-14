@@ -3,10 +3,16 @@
 
 frappe.ui.form.on("Data Import", {
 	setup(frm) {
-		frm.toggle_display("import_file", false);
-		frm.fields_dict.import_file.refresh()
-
 		////
+		cur_frm.fields_dict.import_file_data.df.hidden = 1;
+		cur_frm.fields_dict.import_file_data.refresh()
+		cur_frm.fields_dict.html_5.df.hidden = 1;
+		cur_frm.fields_dict.html_5.refresh()
+		cur_frm.fields_dict.google_sheets_url.df.hidden = 1;
+		cur_frm.fields_dict.google_sheets_url.refresh()
+		cur_frm.fields_dict.refresh_google_sheet.df.hidden = 1;
+		cur_frm.fields_dict.refresh_google_sheet.refresh()
+
 		if((frm.doc.name.includes("partie 2") || frm.doc.name.includes("partie 3")) && !frm.doc.import_file) {
 			frappe.db.get_value("Data Import", frm.doc.name.replace(/.$/, "1"), "import_file", (r) => {
 				if(r.import_file) {
@@ -93,6 +99,16 @@ frappe.ui.form.on("Data Import", {
 	},
 
 	refresh(frm) {
+		////
+		cur_frm.fields_dict.import_file_data.df.hidden = 1;
+		cur_frm.fields_dict.import_file_data.refresh()
+		cur_frm.fields_dict.html_5.df.hidden = 1;
+		cur_frm.fields_dict.html_5.refresh()
+		cur_frm.fields_dict.google_sheets_url.df.hidden = 1;
+		cur_frm.fields_dict.google_sheets_url.refresh()
+		cur_frm.fields_dict.refresh_google_sheet.df.hidden = 1;
+		cur_frm.fields_dict.refresh_google_sheet.refresh()
+		////
 		frappe.dom.unfreeze();
 		frm.page.hide_icon_group();
 		frm.trigger("update_indicators");
@@ -589,8 +605,16 @@ frappe.ui.form.on("Data Import", {
 				return
 			});
 		}
-		frm.toggle_display("import_file", false);
-		frm.fields_dict.import_file.refresh()
+
+		cur_frm.fields_dict.import_file_data.df.hidden = 1;
+		cur_frm.fields_dict.import_file_data.refresh()
+		cur_frm.fields_dict.html_5.df.hidden = 1;
+		cur_frm.fields_dict.html_5.refresh()
+		cur_frm.fields_dict.google_sheets_url.df.hidden = 1;
+		cur_frm.fields_dict.google_sheets_url.refresh()
+		cur_frm.fields_dict.refresh_google_sheet.df.hidden = 1;
+		cur_frm.fields_dict.refresh_google_sheet.refresh()
+
 	},
 
 	status(frm) {
