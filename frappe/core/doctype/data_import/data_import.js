@@ -4,8 +4,8 @@
 frappe.ui.form.on("Data Import", {
 	setup(frm) {
 		////
-		cur_frm.fields_dict.import_file_data.df.hidden = 1;
-		cur_frm.fields_dict.import_file_data.refresh()
+		cur_frm.fields_dict.import_file.df.hidden = 1;
+		cur_frm.fields_dict.import_file.refresh()
 		cur_frm.fields_dict.html_5.df.hidden = 1;
 		cur_frm.fields_dict.html_5.refresh()
 		cur_frm.fields_dict.google_sheets_url.df.hidden = 1;
@@ -100,8 +100,8 @@ frappe.ui.form.on("Data Import", {
 
 	refresh(frm) {
 		////
-		cur_frm.fields_dict.import_file_data.df.hidden = 1;
-		cur_frm.fields_dict.import_file_data.refresh()
+		cur_frm.fields_dict.import_file.df.hidden = 1;
+		cur_frm.fields_dict.import_file.refresh()
 		cur_frm.fields_dict.html_5.df.hidden = 1;
 		cur_frm.fields_dict.html_5.refresh()
 		cur_frm.fields_dict.google_sheets_url.df.hidden = 1;
@@ -606,8 +606,8 @@ frappe.ui.form.on("Data Import", {
 			});
 		}
 
-		cur_frm.fields_dict.import_file_data.df.hidden = 1;
-		cur_frm.fields_dict.import_file_data.refresh()
+		cur_frm.fields_dict.import_file.df.hidden = 1;
+		cur_frm.fields_dict.import_file.refresh()
 		cur_frm.fields_dict.html_5.df.hidden = 1;
 		cur_frm.fields_dict.html_5.refresh()
 		cur_frm.fields_dict.google_sheets_url.df.hidden = 1;
