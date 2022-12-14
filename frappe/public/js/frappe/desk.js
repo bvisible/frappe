@@ -438,6 +438,9 @@ frappe.Application = class Application {
 		});
 	}
 	handle_session_expired() {
+		////
+        redirect_to_login();
+        ////
 		if (!frappe.app.session_expired_dialog) {
 			var dialog = new frappe.ui.Dialog({
 				title: __("Session Expired"),
