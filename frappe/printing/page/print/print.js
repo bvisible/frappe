@@ -61,7 +61,6 @@ frappe.ui.form.PrintView = class {
 				array_code.push(item.language_code)
 			})
 			$('select[data-fieldname="language"] option').each(function() {
-				console.log($(this).val())
 				if ( !array_code.includes($(this).val()) ) {
 					$(this).remove();
 				}
@@ -78,7 +77,7 @@ frappe.ui.form.PrintView = class {
 	setup_toolbar() {
 		/* ////this.page.set_primary_action(__("Print"), () => this.printit(), "printer");*/
 		this.page.set_primary_action(__("Print"), () => this.render_pdf());
-		
+
 		this.page.add_button(__("Full Page"), () => this.render_page("/printview?"), {
 			icon: "full-page",
 		});
@@ -413,7 +412,7 @@ frappe.ui.form.PrintView = class {
 		if (print_format.print_format_builder_beta) {
 			this.print_wrapper.find(".print-preview-wrapper").hide();
 			this.print_wrapper.find(".preview-beta-wrapper").show();
-			//// 
+			////
 			this.print_wrapper.find('.preview-beta-wrapper iframe').css("height","100vh");
 			////
 			this.preview_beta();
