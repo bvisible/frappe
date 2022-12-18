@@ -181,7 +181,137 @@
 			</form>
 		</div>
 	</section>
+	<section id="lastNews">
+		<style>
+			#lastNews {
+				position: absolute;
+				width: 25%;
+				right: 30px;
+				background-color: rgb(255 255 255 / 50%);
+				padding: 25px;
+				bottom: 30px;
+				border-radius: 10px;
+				max-width: 450px;
+				min-width: 300px;
+			}
+			#lastNews #articles li {
+				border: 1px solid #d8d8d8; 
+				border-radius: 10px; 
+				padding: 15px; 
+				cursor: pointer;
+				background-color: rgb(255 255 255 / 60%);
+			}
+			#lastNews #articles li:hover {
+				box-shadow: rgba(50, 50, 93, 0.25) 0px 13px 27px -5px, rgba(0, 0, 0, 0.3) 0px 8px 16px -8px;
+				background-color: rgb(255 255 255 / 100%);
+			}
+			.loaderNews {
+				border: 6px solid #f3f3f3;
+				border-radius: 50%;
+				border-top: 6px solid var(--primary);
+				width: 60px;
+				height: 60px;
+				animation: spin 2s linear infinite;
+			}
+			@keyframes spin {
+				0% { transform: rotate(0deg); }
+				100% { transform: rotate(360deg); }
+			  }
+			@media (max-width: 700px) {
+				#lastNews {
+					display: none;
+				}
+			}
+		</style>
+		<h4 style=" margin-top: 0; ">{{ _("Latest news") }}</h4>
+		<div style="display: flex;justify-content: center;">
+			<div class="loaderNews"></div>
+		</div>
+		<ul id="articles" style="list-style-type: none; padding-left: 15px;">
+		</ul>
+		<a href="https://www.neoffice.io/news" target="_blank" id="linkToNews" style="display: block; text-align: center; margin-top: 10px; color:black;">{{ _("See all news") }}</a>
+		<script>
+			// Adresse de l'API REST de WordPress
+			const apiUrl = 'https://www.neoffice.io/wp-json/wp/v2/';
+
+			// Nombre maximum d'articles à afficher
+			const maxArticles = 1;
+
+			// Fonction qui récupère les derniers articles
+			async function getLatestArticles() {
+
+				// Affiche le loader
+				document.querySelector('.loaderNews').style.display = 'block';
+
+				// Requête HTTP pour récupérer les articles
+				// ID de la catégorie "Neoffice"
+				const neofficeCategoryId = 82;
+
+				// Requête HTTP pour récupérer les articles de la catégorie "Neoffice"
+				const response = await fetch(apiUrl + 'posts?per_page=' + maxArticles + '&categories=' + neofficeCategoryId);
+				const articles = await response.json();
+
+				// Ajout des titres des articles dans la liste HTML
+				const articlesList = document.getElementById('articles');
+				for (const article of articles) {
+					// Création d'un élément de liste pour chaque article
+					const listItem = document.createElement('li');
+					listItem.addEventListener('click', () => {
+						// Ouvre un lien vers l'article complet de WordPress
+						window.open(article.link);
+					});
+
+					// Ajout de l'image mise en avant de l'article
+					//const featuredImage = document.createElement('img');
+					//featuredImage.src = article.featured_media ? apiUrl + 'media/' + article.featured_media : '';
+					//listItem.appendChild(featuredImage);
+
+					// Ajout du titre de l'article
+					const articleTitle = document.createElement('h5');
+					articleTitle.innerHTML = article.title.rendered;
+					articleTitle.setAttribute('style','margin-top: 0px; cursor: pointer;');
+					listItem.appendChild(articleTitle);
+
+					// Limite le nombre de caractères à afficher dans l'article à 100
+					const maxChar = 90;
+					const articleContent = article.excerpt.rendered;
+					const truncatedContent = articleContent.substring(0, maxChar);
+
+					// Création de l'élément HTML pour afficher le contenu de l'article
+					const articleContentElement = document.createElement('p');
+					articleContentElement.innerHTML = truncatedContent + '...';
+					articleContentElement.setAttribute('style','padding-left: 10px; cursor: pointer;');
+
+					// Ajout de l'élément à la liste HTML
+					listItem.appendChild(articleContentElement);
+
+					// Création de l'élément de bouton "Lire plus"
+					//const readMoreButton = document.createElement('button');
+					//readMoreButton.innerHTML = 'Lire plus';
+
+					// Attribution d'une fonction de gestionnaire d'événements au clic sur le bouton
+					//readMoreButton.addEventListener('click', () => {
+						// Ouvre un lien vers l'article complet de WordPress
+					//	window.open(article.link);
+					//});
+
+					// Ajout du bouton à l'élément de liste
+					//listItem.appendChild(readMoreButton);
+
+					// Ajout de l'élément de liste à la liste HTML
+					articlesList.appendChild(listItem);
+				}
+				document.querySelector('.loaderNews').style.display = 'none';
+
+			}
+
+			// Appel de la fonction lorsque le document est chargé
+			document.addEventListener('DOMContentLoaded', getLatestArticles);
+
+		</script>
+	</section>
 </div>
+
 {% endblock %}
 
 {% block script %}
