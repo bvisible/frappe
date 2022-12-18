@@ -231,83 +231,35 @@
 		</ul>
 		<a href="https://www.neoffice.io/news" target="_blank" id="linkToNews" style="display: block; text-align: center; margin-top: 10px; color:black;">{{ _("See all news") }}</a>
 		<script>
-			// Adresse de l'API REST de WordPress
 			const apiUrl = 'https://www.neoffice.io/wp-json/wp/v2/';
-
-			// Nombre maximum d'articles à afficher
 			const maxArticles = 1;
-
-			// Fonction qui récupère les derniers articles
 			async function getLatestArticles() {
-
-				// Affiche le loader
 				document.querySelector('.loaderNews').style.display = 'block';
-
-				// Requête HTTP pour récupérer les articles
-				// ID de la catégorie "Neoffice"
 				const neofficeCategoryId = 82;
-
-				// Requête HTTP pour récupérer les articles de la catégorie "Neoffice"
 				const response = await fetch(apiUrl + 'posts?per_page=' + maxArticles + '&categories=' + neofficeCategoryId);
 				const articles = await response.json();
-
-				// Ajout des titres des articles dans la liste HTML
 				const articlesList = document.getElementById('articles');
 				for (const article of articles) {
-					// Création d'un élément de liste pour chaque article
 					const listItem = document.createElement('li');
 					listItem.addEventListener('click', () => {
-						// Ouvre un lien vers l'article complet de WordPress
 						window.open(article.link);
 					});
-
-					// Ajout de l'image mise en avant de l'article
-					//const featuredImage = document.createElement('img');
-					//featuredImage.src = article.featured_media ? apiUrl + 'media/' + article.featured_media : '';
-					//listItem.appendChild(featuredImage);
-
-					// Ajout du titre de l'article
 					const articleTitle = document.createElement('h5');
 					articleTitle.innerHTML = article.title.rendered;
 					articleTitle.setAttribute('style','margin-top: 0px; cursor: pointer;');
 					listItem.appendChild(articleTitle);
-
-					// Limite le nombre de caractères à afficher dans l'article à 100
 					const maxChar = 90;
 					const articleContent = article.excerpt.rendered;
 					const truncatedContent = articleContent.substring(0, maxChar);
-
-					// Création de l'élément HTML pour afficher le contenu de l'article
 					const articleContentElement = document.createElement('p');
 					articleContentElement.innerHTML = truncatedContent + '...';
 					articleContentElement.setAttribute('style','padding-left: 10px; cursor: pointer;');
-
-					// Ajout de l'élément à la liste HTML
 					listItem.appendChild(articleContentElement);
-
-					// Création de l'élément de bouton "Lire plus"
-					//const readMoreButton = document.createElement('button');
-					//readMoreButton.innerHTML = 'Lire plus';
-
-					// Attribution d'une fonction de gestionnaire d'événements au clic sur le bouton
-					//readMoreButton.addEventListener('click', () => {
-						// Ouvre un lien vers l'article complet de WordPress
-					//	window.open(article.link);
-					//});
-
-					// Ajout du bouton à l'élément de liste
-					//listItem.appendChild(readMoreButton);
-
-					// Ajout de l'élément de liste à la liste HTML
 					articlesList.appendChild(listItem);
 				}
 				document.querySelector('.loaderNews').style.display = 'none';
-
 			}
-
-			// Appel de la fonction lorsque le document est chargé
 			document.addEventListener('DOMContentLoaded', getLatestArticles);
-
 		</script>
 	</section>
 </div>
