@@ -103,7 +103,7 @@ def update_order(board_name, order):
 			if column.column_name == col_name:
 				column.order = json.dumps(cards)
 
-	#////board.save()
+	board.save()
 	return board, updated_cards
 
 
@@ -125,7 +125,9 @@ def update_order_for_single_card(
 	if from_colname == to_colname:
 		from_col_order = to_col_order
 
-	to_col_order.insert(new_index, from_col_order.pop(old_index))
+	#////
+	if old_index < len(from_col_order):
+		to_col_order.insert(new_index, from_col_order.pop(old_index))
 
 	# save updated order
 	board.columns[from_col_idx].order = frappe.as_json(from_col_order)
