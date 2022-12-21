@@ -591,8 +591,10 @@ frappe.ui.form.on("Data Import", {
 	////
 	onload(frm) {
 		if (frm.doc.sync_with_woocommerce == 1) {
-			frm.doc.root_category = '';
-			frm.fields_dict.root_category.refresh()
+			if(frm.doc.root_category != "Ecommerce") {
+				frm.doc.root_category = '';
+				frm.fields_dict.root_category.refresh()
+			}
 			frm.set_query('root_category', () => {
 				return {
 					filters: {
