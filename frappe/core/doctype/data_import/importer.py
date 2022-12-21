@@ -20,8 +20,7 @@ from frappe.utils.xlsxutils import (
 )
 from copy import deepcopy #////
 import requests #////
-import subprocess, time #////
-from datetime import datetime
+import subprocess #////
 
 INVALID_VALUES = ("", None)
 MAX_ROWS_IN_PREVIEW = 10
@@ -789,10 +788,12 @@ class ImportFile:
 									vat_index = index
 								elif item == "Reference" or item == "Référence" or item == "Réference" or item == "SKU":
 									ref_index = index
-								elif item == "Order Number" or item == "Numéro de commande":
+								elif item == "Order Number" or item == "Numéro de commande" or item == "Order ID":
 									archive_no_index = index
 								elif item == "Frais de livraison" or item == "Shipping Fees" or item == "Shipping Cost":
 									shipping_fees_index = index
+								elif item == "Order Total":
+									total_index = index
 
 					elif self.doctype_data.import_source == "Winbiz" and self.from_func == "start_import":
 						if self.doctype == "Item Price":
