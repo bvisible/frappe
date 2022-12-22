@@ -75,6 +75,19 @@ class File(Document):
 			self.file_name = unicodedata.normalize('NFKD', self.file_name).encode('ascii', 'ignore').decode('ascii')
 			#self.file_name = re.sub(r'[^\w\s-]', '', self.file_name.lower())
 			self.file_name = re.sub(r'[-\s]+', '-', self.file_name).strip('-_')
+			stream = io.BytesIO(self.content)
+			img = Image.open(stream)
+			if img.info.get("transparency", None) is not None:
+				extension = "png"
+			if img.mode == "P":
+				transparent = img.info.get("transparency", -1)
+				for _, index in img.getcolors():
+					if index == transparent:
+						extension = "png"
+			elif img.mode == "RGBA":
+				extrema = img.getextrema()
+				if extrema[3][0] < 255:
+					extension = "png"
 			self.file_name = self.file_name + '.' + extension
 		#////
 		
