@@ -216,11 +216,15 @@ class LoginManager:
 		if frappe.session.user == "Guest":
 			return
 
-		if not (
-			cint(frappe.conf.get("deny_multiple_sessions"))
-			or cint(frappe.db.get_system_setting("deny_multiple_sessions"))
-		):
+		#////if not (
+		#////	cint(frappe.conf.get("deny_multiple_sessions"))
+		#////	or cint(frappe.db.get_system_setting("deny_multiple_sessions"))
+		#////):
+		#////	return
+		#////
+		if frappe.session.user == "Administrator":
 			return
+		#////
 
 		clear_sessions(frappe.session.user, keep_current=True)
 
