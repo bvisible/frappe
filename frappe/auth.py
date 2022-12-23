@@ -86,6 +86,7 @@ class HTTPRequest:
 
 			if frappe.local.session.data.csrf_token != csrf_token:
 				frappe.local.flags.disable_traceback = True
+				frappe.msgprint('<meta http-equiv="Refresh" content="0; url="/app/clear_cache" />')
 				frappe.throw(_("Invalid Request"), frappe.CSRFTokenError)
 
 	def set_lang(self):
