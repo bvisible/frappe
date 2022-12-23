@@ -23,7 +23,7 @@ from frappe.utils.image import optimize_image, strip_exif_data
 
 from .exceptions import AttachmentLimitReached, FolderNotEmpty, MaxFileSizeReachedError
 from .utils import *
-
+import subprocess #////
 exclude_from_linked_with = True
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 URL_PREFIXES = ("http://", "https://")
@@ -99,6 +99,10 @@ class File(Document):
 			frappe.local.rollback_observers.append(self)
 
 	def after_insert(self):
+		#////
+		command = "/usr/bin/php /home/neoffice/frappe-bench/sites/web/wp-content/plugins/bulk-media-register-add-on-wpcron/lib/bmrcroncli.php"
+		subprocess.run(command, capture_output=False, shell=True)
+		#////
 		if not self.is_folder:
 			self.create_attachment_record()
 		self.set_is_private()

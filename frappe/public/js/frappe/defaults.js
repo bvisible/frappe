@@ -99,12 +99,10 @@ frappe.defaults = {
 
 	update_user_permissions: function () {
 		const method = "frappe.core.doctype.user_permission.user_permission.get_user_permissions";
-		setTimeout(() => { ////
-			frappe.call(method).then((r) => {
-				if (r.message) {
-					this._user_permissions = Object.assign({}, r.message);
-				}
-			});
-		}, 400); ////
+		frappe.call(method).then((r) => {
+			if (r.message) {
+				this._user_permissions = Object.assign({}, r.message);
+			}
+		});
 	},
 };
