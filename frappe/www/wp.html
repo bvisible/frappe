@@ -153,7 +153,7 @@ function inIframe () {
 	}
 }
 if (!inIframe()) {
-	window.location.href = "/web/my-account";
+	window.location.href = "/web/fr/my-account";
 }
 /*
 var user_is_logeed_in = false;
@@ -214,7 +214,7 @@ const redirect = urlParams.get('redirect');
 							if (redirect == "false"){
 								//nothing
 							} else {
-								window.parent.location.href = "/web/my-account";
+								window.parent.location.href = "/web/fr/my-account";
 							}
 					}
 				}, 3000);
@@ -251,12 +251,12 @@ const redirect = urlParams.get('redirect');
 				break;
 			default:
 				console.log("default");
-				window.location.href = "/web/my-account";
+				window.location.href = "/web/fr/my-account";
 		}
 	} else if (redirect == "false"){
 		//nothing
 	}else {
-		window.parent.location.href = "/web/my-account";
+		window.parent.location.href = "/web/fr/my-account";
 	}
 	//alert("You are logged in as {{ user }}");
 </script> 
