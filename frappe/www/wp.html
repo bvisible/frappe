@@ -188,14 +188,14 @@ const redirect = urlParams.get('redirect');
 							sendRequest(this.getResponseHeader('Location')).then(resolve, reject);
 						  } else {
 							// la requête a échoué
-							reject(new Error('Erreur lors du chargement de l\'URL de login'));
+							reject(new Error('Error loading the login URL'));
 						  }
 						}
 					  };
 
 					  xhr.onerror = function() {
 						// la requête a échoué
-						reject(new Error('Erreur lors du chargement de l\'URL de login'));
+						reject(new Error('Error loading the login URL'));
 					  };
 
 					  xhr.open('GET', url, true);
@@ -204,7 +204,7 @@ const redirect = urlParams.get('redirect');
 				  }
 
 				  sendRequest('{{ provider.auth_url }}').then(function() {
-					console.log('URL de login chargée');
+					console.log('Login URL loaded');
 					switch (view) {
 						case "orders":
 							console.log("orders");
