@@ -174,16 +174,37 @@ const redirect = urlParams.get('redirect');
 	{% for provider in provider_logins %}
 		{% if provider.name == "wordpress" %}
 			<script type="text/javascript">
-				function prepareFrame() {
-					var ifrm = document.createElement("iframe");
-					ifrm.setAttribute("src", "{{ provider.auth_url }}");
-					ifrm.style.width = "0px";
-					ifrm.style.height = "0px";
-					ifrm.style.display = "none";
-					document.body.appendChild(ifrm);
-				}
-				prepareFrame();
-				setTimeout(function() {
+				function sendRequest(url) {
+					return new Promise(function(resolve, reject) {
+					  var xhr = new XMLHttpRequest();
+
+					  xhr.onreadystatechange = function() {
+						if (this.readyState == 4) {
+						  if (this.status == 200) {
+							// la requête a réussi
+							resolve();
+						  } else if (this.status == 302 && this.getResponseHeader('Location')) {
+							// la requête a été redirigée, envoie une nouvelle requête
+							sendRequest(this.getResponseHeader('Location')).then(resolve, reject);
+						  } else {
+							// la requête a échoué
+							reject(new Error('Erreur lors du chargement de l\'URL de login'));
+						  }
+						}
+					  };
+
+					  xhr.onerror = function() {
+						// la requête a échoué
+						reject(new Error('Erreur lors du chargement de l\'URL de login'));
+					  };
+
+					  xhr.open('GET', url, true);
+					  xhr.send();
+					});
+				  }
+
+				  sendRequest('{{ provider.auth_url }}').then(function() {
+					console.log('URL de login chargée');
 					switch (view) {
 						case "orders":
 							console.log("orders");
@@ -217,7 +238,9 @@ const redirect = urlParams.get('redirect');
 								window.parent.location.href = "/web/fr/my-account";
 							}
 					}
-				}, 3000);
+				  }, function(error) {
+					console.error(error.message);
+				  });
 			</script>
 		{% endif %}
 	{% endfor %}
