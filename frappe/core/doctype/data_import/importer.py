@@ -1583,7 +1583,7 @@ class ImportFile:
 										country = None
 									#country = "Suisse" if _(pycountry.countries.get(alpha_2=row[address_country_index]).name) == "Switzerland" else "Suisse" #!!!! _(pycountry.countries.get(alpha_2=row[address_country_index]).name)
 								else:
-									country = "Suisse" #!!!!_("Switzerland")
+									country = "Switzerland"
 
 								row.extend([title_formatted, "Billing", country, "Customer", customer_name])
 							else:
@@ -1606,7 +1606,7 @@ class ImportFile:
 							if row[address_country_index]:
 								countries = frappe.get_all("Country", filters={"code": row[address_country_index].lower()})
 								if countries:
-									country = "Suisse" if row[address_country_index] == "CH" else self.doctype_data.default_territory
+									country = "Switzerland" if row[address_country_index] == "CH" else self.doctype_data.default_territory
 								else:
 									country = self.doctype_data.default_territory
 								#country =  "Suisse"#!!!!_("Switzerland") if _(pycountry.countries.get(alpha_2=row[address_country_index]).name) == "Switzerland" else self.doctype_data.default_territory
