@@ -239,7 +239,7 @@ login.login_handlers = (function () {
 					$("body").append(ifrmWEB);
 				}
 
-				readJSONFile("/web/config_web.json", function(config){
+				readJSONFile("/web/wp-content/neoconfig.json", function(config){
 					var data = JSON.parse(config);
 					console.log(data);
 					if (data["website"] == 1){
