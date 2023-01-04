@@ -498,6 +498,15 @@ export default {
 							file.failed = true;
 							file.error_message = 'Size exceeds the maximum allowed file size.';
 
+						} else if (xhr.status === 500) {
+							/* //// */
+							file.failed = true;
+							if (typeof response !== 'undefined') {
+								file.error_message = response._error_message;
+							} else {
+								file.error_message = __('File not supported.');
+							}
+							/* //// */
 						} else {
 							file.failed = true;
 							file.error_message = xhr.status === 0 ? 'XMLHttpRequest Error' : `${xhr.status} : ${xhr.statusText}`;
