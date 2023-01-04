@@ -78,7 +78,6 @@ class File(Document):
 				self.file_name = unicodedata.normalize('NFKD', self.file_name).encode('ascii', 'ignore').decode('ascii')
 				#self.file_name = re.sub(r'[^\w\s-]', '', self.file_name.lower())
 				self.file_name = re.sub(r'[-\s]+', '-', self.file_name).strip('-_')
-				frappe.log_error("File Name: " + self.file_name)
 				stream = io.BytesIO(self.content)
 				img = Image.open(stream)
 				if img.info.get("transparency", None) is not None:
