@@ -20,7 +20,7 @@ from frappe.utils.xlsxutils import (
 )
 from copy import deepcopy #////
 import requests #////
-import subprocess #////
+from neoffice_ecommerce.neoffice_ecommerce.doctype.wordpress_settings.api.neo import call_bmr #////
 
 INVALID_VALUES = ("", None)
 MAX_ROWS_IN_PREVIEW = 10
@@ -1117,8 +1117,7 @@ class ImportFile:
 											else:
 												row[image_index+index] = link_file.file_url
 
-								command = "/usr/bin/php /home/neoffice/frappe-bench/sites/web/wp-content/plugins/bulk-media-register-add-on-wpcron/lib/bmrcroncli.php"
-								subprocess.run(command, capture_output=False, shell=True)
+								call_bmr()
 							if not row[sku_index]:
 								#error_msg += f"Your file line {i} has not SKU provided. The value is mandatory\n"
 								row[sku_index] = sku_prefix + str(sku_suffix)
@@ -1181,11 +1180,6 @@ class ImportFile:
 									attribute_value = None
 								row.extend([manage_stock, manage_stock, is_parent, parent_sku, attributes_name[0], attribute_value, self.doctype_data.sync_with_woocommerce, self.doctype_data.warehouse, row[category_index], row[category_index],
 								default_company, self.doctype_data.warehouse, stock, valuation_rate, price, additional_cat, description, short_description, is_vat, tax_class, "Kg", brand, brand])
-
-							if index % 100 == 0 or index == data_length - 1:
-								pass
-								command = "/usr/bin/php /home/neoffice/frappe-bench/sites/web/wp-content/plugins/bulk-media-register-add-on-wpcron/lib/bmrcroncli.php"
-								subprocess.run(command, capture_output=False, shell=True)
 
 						elif self.doctype == "Contact":
 							if not row[firstname_index] and not row[billing_company_index] and not row[shipping_company_index]:

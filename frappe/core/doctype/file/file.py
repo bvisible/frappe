@@ -24,7 +24,7 @@ from frappe.utils.image import optimize_image, strip_exif_data
 
 from .exceptions import AttachmentLimitReached, FolderNotEmpty, MaxFileSizeReachedError
 from .utils import *
-import subprocess #////
+from neoffice_ecommerce.neoffice_ecommerce.doctype.wordpress_settings.api.neo import call_bmr #////
 exclude_from_linked_with = True
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 URL_PREFIXES = ("http://", "https://")
@@ -105,8 +105,7 @@ class File(Document):
 
 	def after_insert(self):
 		#////
-		command = "/usr/bin/php /home/neoffice/frappe-bench/sites/web/wp-content/plugins/bulk-media-register-add-on-wpcron/lib/bmrcroncli.php"
-		subprocess.run(command, capture_output=False, shell=True)
+		call_bmr()
 		#////
 		if not self.is_folder:
 			self.create_attachment_record()
