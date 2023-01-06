@@ -20,7 +20,6 @@ from frappe.utils.xlsxutils import (
 )
 from copy import deepcopy #////
 import requests #////
-from neoffice_ecommerce.neoffice_ecommerce.doctype.wordpress_settings.api.neo import call_bmr #////
 
 INVALID_VALUES = ("", None)
 MAX_ROWS_IN_PREVIEW = 10
@@ -1117,7 +1116,6 @@ class ImportFile:
 											else:
 												row[image_index+index] = link_file.file_url
 
-								call_bmr()
 							if not row[sku_index]:
 								#error_msg += f"Your file line {i} has not SKU provided. The value is mandatory\n"
 								row[sku_index] = sku_prefix + str(sku_suffix)
