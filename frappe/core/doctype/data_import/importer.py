@@ -2147,7 +2147,7 @@ class Header(Row):
 
 			elif self.doctype_data.import_source == "Winbiz":
 				if self.doctype == "Item":
-					map_to_field = {"ar_abrege": "item_name", "ar_fn_ref": "item_code", "ar_desc": "woocommerce_long_description", "item_group": "item_group", "sync_with_woocommerce" : "sync_with_woocommerce",
+					map_to_field = {"ar_abrege": "item_name", "ar_fn_ref": "item_code", "ar_desc": "description", "item_group": "item_group", "sync_with_woocommerce" : "sync_with_woocommerce",
 					"maintain_stock": "is_stock_item", "default_warehouse": "item_defaults.default_warehouse", "category_ecommerce": "category_ecommerce", "woocommerce_warehouse": "woocommerce_warehouse", "stock": "opening_stock",
 					"valuation_rate": "valuation_rate", "standard_rate": "standard_rate", "default_company": "item_defaults.company", "ar_codbar": "barcodes.barcode", "ar_poids": "weight_per_unit", "weight_uom": "weight_uom",
 					"woocommerce_taxable": "woocommerce_taxable","maintain_stock_ecommerce": "woocommerce_manage_stock" }.get(header, "Don't Import")
