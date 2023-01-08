@@ -804,8 +804,6 @@ class ImportFile:
 									category_index = index
 								elif item == "ar_abrege":
 									name_index = index
-								elif item == "ar_fn_ref":
-									sku_index = index
 								elif item == "ar_type":
 									product_type_index = index
 								elif item == "prixach":
