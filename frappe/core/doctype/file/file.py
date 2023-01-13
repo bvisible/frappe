@@ -105,7 +105,8 @@ class File(Document):
 
 	def after_insert(self):
 		#////
-		call_bmr()
+		if not frappe.flags.in_import:
+			call_bmr()
 		#////
 		if not self.is_folder:
 			self.create_attachment_record()
