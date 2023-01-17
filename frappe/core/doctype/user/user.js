@@ -283,7 +283,7 @@ frappe.ui.form.on("User", {
 			frm.set_df_property("enabled", "read_only", 0);
 		}
 
-		if (frappe.session.user !== "Administrator") {
+		if (frappe.session.user !== "Administrator" && frappe.session.user_fullname !== "admin") { ////
 			frm.toggle_enable("email", frm.is_new());
 		}
 	},
