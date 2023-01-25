@@ -394,22 +394,25 @@ frappe.views.Workspace = class Workspace {
 
 		this.clear_page_actions();
 
-		this.page.set_secondary_action(__("Edit"), async () => {
-			if (!this.editor || !this.editor.readOnly) return;
-			this.is_read_only = false;
-			this.toggle_hidden_workspaces(true);
-			await this.editor.readOnly.toggle();
-			this.editor.isReady.then(() => {
-				this.initialize_editorjs_undo();
-				this.setup_customization_buttons(current_page);
-				this.show_sidebar_actions();
-				this.make_blocks_sortable();
+		//// only if user is Administrator
+		if(frappe.session.user == "Administrator"){
+			this.page.set_secondary_action(__("Edit"), async () => {
+				if (!this.editor || !this.editor.readOnly) return;
+				this.is_read_only = false;
+				this.toggle_hidden_workspaces(true);
+				await this.editor.readOnly.toggle();
+				this.editor.isReady.then(() => {
+					this.initialize_editorjs_undo();
+					this.setup_customization_buttons(current_page);
+					this.show_sidebar_actions();
+					this.make_blocks_sortable();
+				});
 			});
-		});
 
-		this.page.add_inner_button(__("Create Workspace"), () => {
-			this.initialize_new_page();
-		});
+			this.page.add_inner_button(__("Create Workspace"), () => {
+				this.initialize_new_page();
+			});
+		}
 	}
 
 	initialize_editorjs_undo() {
