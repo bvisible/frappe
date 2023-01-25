@@ -1698,7 +1698,7 @@ def copy_doc(doc: "Document", ignore_no_copy: bool = True) -> "Document":
 			if hasattr(d, df.fieldname):
 				d.set(df.fieldname, None)
 
-	fields_to_clear = ["name", "owner", "creation", "modified", "modified_by"]
+	fields_to_clear = ["name", "owner", "creation", "modified", "modified_by", "woocommerce_id"] #////
 
 	if not local.flags.in_test:
 		fields_to_clear.append("docstatus")

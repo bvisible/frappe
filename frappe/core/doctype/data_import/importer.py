@@ -489,7 +489,7 @@ class ImportFile:
 			email = email.replace(" ", "")  # remove all spaces
 			match = re.match(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', email)
 			#match = re.match(r"[^@]+@[^@]+\.[^@]+", email)
-			return match is not None
+			return (match is not None, email)
 
 		if self.from_func == "start_import":
 			attributes_index  = []
@@ -1556,7 +1556,10 @@ class ImportFile:
 								split_value += 1
 
 						elif self.doctype == "Contact":
-							if not row[user_email_index] or row[user_email_index].strip() == "" or not is_valid_email(row[user_email_index]):
+							if not row[user_email_index]:
+								continue
+							valid_email, row[user_email_index] = is_valid_email(row[user_email_index])
+							if not valid_email:
 								continue
 							if frappe.db.exists("Contact", {"winbiz_address_number": row[address_id_index]}):
 								continue
@@ -1580,7 +1583,10 @@ class ImportFile:
 							row.extend([first_name, last_name, "Customer", customer_name, row[user_email_index], 1, str(row[address_phone_index]), contact_number, 1 if contact_number else None, row[user_email_index]])
 
 						elif self.doctype == "Address":
-							if not row[user_email_index] or row[user_email_index].strip() == "" or not is_valid_email(row[user_email_index]):
+							if not row[user_email_index]:
+								continue
+							valid_email, row[user_email_index] = is_valid_email(row[user_email_index])
+							if not valid_email:
 								continue
 							if frappe.db.exists("Address", {"winbiz_address_number": row[address_id_index]}):
 								continue
@@ -1645,7 +1651,10 @@ class ImportFile:
 							row.extend([title_formatted, "Billing", country, "Customer", customer_name, row[user_email_index], phone])
 
 						elif self.doctype == "Customer":
-							if not row[user_email_index] or row[user_email_index].strip() == "" or not is_valid_email(row[user_email_index]):
+							if not row[user_email_index]:
+								continue
+							valid_email, row[user_email_index] = is_valid_email(row[user_email_index])
+							if not valid_email:
 								continue
 							if frappe.db.exists("Customer", {"winbiz_address_number": row[address_id_index]}):
 								continue
