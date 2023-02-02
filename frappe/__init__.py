@@ -652,7 +652,20 @@ def sendmail(
 	:param header: Append header in email
 	:param with_container: Wraps email inside a styled container
 	"""
-
+	#////
+	default_outgoing = db.get_value("Email Account", {"default_outgoing": 1}, "login_id")
+	if sender != default_outgoing:
+		reply_to = sender
+	else:
+		reply_to = None
+	if session.user and session.user != "Guest":
+		user = session.user + " "
+	else:
+		user = ""
+	from frappe.defaults import get_user_default, get_global_default
+	name = user + (get_user_default("Company") or get_global_default("company"))
+	sender = name + ' - <'+default_outgoing +'>'
+	#////
 	if recipients is None:
 		recipients = []
 	if cc is None:
