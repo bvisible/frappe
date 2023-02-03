@@ -672,12 +672,12 @@ frappe.ui.form.PrintView = class {
 		} else {
 			this.render_page("/api/method/frappe.utils.print_format.download_pdf?");
 		}
+		const route = frappe.get_route();
+		const doctype = route[1];
+		const docname = route.slice(2).join("/");
 		if( doctype == 'Quotation' || doctype == 'Sales Order' || doctype == 'Sales Invoice' || doctype == 'Delivery Note'){
 			frappe.confirm(__("Do you want to consider the document as printed ?"),
 			() => {
-				const route = frappe.get_route();
-				const doctype = route[1];
-				const docname = route.slice(2).join("/");
 				frappe.db.set_value(doctype, docname, "printed_document", 1);
 			}, () => {
 				frappe.db.set_value(doctype, docname, "printed_document", 0);
