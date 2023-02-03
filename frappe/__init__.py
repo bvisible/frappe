@@ -659,12 +659,12 @@ def sendmail(
 	else:
 		reply_to = None
 	if session.user and session.user != "Guest":
-		user = session.user + " "
+		user = session.user + " - "
 	else:
 		user = ""
 	from frappe.defaults import get_user_default, get_global_default
 	name = user + (get_user_default("Company") or get_global_default("company"))
-	sender = name + ' - <'+default_outgoing +'>'
+	sender = name + ' <'+default_outgoing +'>'
 	#////
 	if recipients is None:
 		recipients = []
