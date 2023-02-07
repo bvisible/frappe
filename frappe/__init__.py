@@ -658,8 +658,8 @@ def sendmail(
 		reply_to = sender
 	else:
 		reply_to = None
-	if session.user and session.user != "Guest":
-		user = session.user + " - "
+	if session.user and session.user != "Guest" and session.user != "Administrator":
+		user = db.get_value("User", session.user, "full_name") + " | "
 	else:
 		user = ""
 	from frappe.defaults import get_user_default, get_global_default
