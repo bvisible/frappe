@@ -235,7 +235,7 @@
 			const maxArticles = 1;
 			async function getLatestArticles() {
 				document.querySelector('.loaderNews').style.display = 'block';
-				const neofficeCategoryId = 82;
+				const neofficeCategoryId = 1;
 				const response = await fetch(apiUrl + 'posts?per_page=' + maxArticles + '&categories=' + neofficeCategoryId);
 				const articles = await response.json();
 				const articlesList = document.getElementById('articles');
