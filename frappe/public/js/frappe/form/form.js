@@ -620,10 +620,6 @@ frappe.ui.form.Form = class FrappeForm {
 
 		this.$wrapper.trigger("render_complete");
 
-		if (!this.hidden) {
-			this.layout.show_empty_form_message();
-		}
-
 		frappe.after_ajax(() => {
 			$(document).ready(() => {
 				this.scroll_to_element();
@@ -1935,7 +1931,9 @@ frappe.ui.form.Form = class FrappeForm {
 		let doctype = this.doctype;
 		let docname = this.docname;
 
-		frappe.socketio.doc_subscribe(doctype, docname);
+		if (this.doc && !this.is_new()) {
+			frappe.socketio.doc_subscribe(doctype, docname);
+		}
 		frappe.realtime.off("docinfo_update");
 		frappe.realtime.on("docinfo_update", ({ doc, key, action = "update" }) => {
 			if (

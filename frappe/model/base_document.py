@@ -45,7 +45,7 @@ def get_controller(doctype):
 		from frappe.utils.nestedset import NestedSet
 
 		module_name, custom = frappe.db.get_value(
-			"DocType", doctype, ("module", "custom"), cache=True
+			"DocType", doctype, ("module", "custom"), cache=not frappe.flags.in_migrate
 		) or ("Core", False)
 
 		if custom:
@@ -73,7 +73,7 @@ def get_controller(doctype):
 				raise ImportError(doctype)
 		return _class
 
-	if frappe.local.dev_server:
+	if frappe.local.dev_server or frappe.flags.in_migrate:
 		return _get_controller()
 
 	site_controllers = frappe.controllers.setdefault(frappe.local.site, {})
@@ -975,8 +975,14 @@ class BaseDocument:
 					)
 				if self_value != db_value:
 					frappe.throw(
-						_("Not allowed to change {0} after submission").format(df.label),
+						_("{0} Not allowed to change {1} after submission from {2} to {3}").format(
+							f"Row #{self.idx}:" if self.get("parent") else "",
+							frappe.bold(_(df.label)),
+							frappe.bold(db_value),
+							frappe.bold(self_value),
+						),
 						frappe.UpdateAfterSubmitError,
+						title=_("Cannot Update After Submit"),
 					)
 
 	def _sanitize_content(self):
@@ -1056,7 +1062,7 @@ class BaseDocument:
 	def is_dummy_password(self, pwd):
 		return "".join(set(pwd)) == "*"
 
-	def precision(self, fieldname, parentfield=None):
+	def precision(self, fieldname, parentfield=None) -> int | None:
 		"""Returns float precision for a particular field (or get global default).
 
 		:param fieldname: Fieldname for which precision is required.
@@ -1097,7 +1103,8 @@ class BaseDocument:
 			df = get_default_df(fieldname)
 
 		if (
-			df.fieldtype == "Currency"
+			df
+			and df.fieldtype == "Currency"
 			and not currency
 			and (currency_field := df.get("options"))
 			and (currency_value := self.get(currency_field))
