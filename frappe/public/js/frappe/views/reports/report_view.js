@@ -218,6 +218,13 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			return;
 		}
 		this.setup_datatable(this.data);
+		////
+		new MiniBar($(this.datatable.wrapper).children( ".datatable" )[0], {
+			barType: "default",
+			minBarSize: 10,
+			hideBars: false,
+			alwaysShowBars: false,
+		});
 	}
 
 	render_count() {
