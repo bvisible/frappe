@@ -924,7 +924,8 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 				treeView: this.tree_report,
 				layout: "fixed",
 				cellHeight: 33,
-				showTotalRow: this.raw_data.add_total_row && !this.report_settings.tree,
+				//// showTotalRow: this.raw_data.add_total_row && !this.report_settings.tree,
+				showTotalRow: 5000,
 				direction: frappe.utils.is_rtl() ? "rtl" : "ltr",
 				hooks: {
 					columnTotal: frappe.utils.report_column_total,
@@ -943,6 +944,13 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 		if (this.report_settings.after_datatable_render) {
 			this.report_settings.after_datatable_render(this.datatable);
 		}
+		////
+		new MiniBar($(this.datatable.wrapper).children( ".datatable" )[0], {
+			barType: "default",
+			minBarSize: 10,
+			hideBars: false,
+			alwaysShowBars: false,
+		});
 	}
 
 	show_loading_screen() {
