@@ -924,7 +924,6 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 				treeView: this.tree_report,
 				layout: "fixed",
 				cellHeight: 33,
-				//// showTotalRow: this.raw_data.add_total_row && !this.report_settings.tree,
 				showTotalRow: 5000,
 				direction: frappe.utils.is_rtl() ? "rtl" : "ltr",
 				hooks: {
