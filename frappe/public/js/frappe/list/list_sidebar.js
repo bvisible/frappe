@@ -38,6 +38,9 @@ frappe.views.ListSidebar = class ListSidebar {
 				this.reload_stats();
 			});
 		}
+
+		////
+		this.make_sidebar_menu(this.sidebar);
 	}
 
 	setup_views() {
@@ -238,5 +241,87 @@ frappe.views.ListSidebar = class ListSidebar {
 		this.sidebar.find(".stat-link").remove();
 		this.sidebar.find(".stat-no-records").remove();
 		this.get_stats();
+	}
+
+	////
+	make_sidebar_menu(sidebar) {
+		const sidebar_item_container = (item) => {
+			return `
+		  <div class="sidebar-item-container ${item.is_editable ? "is-draggable" : ""}" data-parent="${item.parent_page}" data-name="${item.title}" data-public="${item.public || 0}">
+			<div class="desk-sidebar-item standard-sidebar-item ${item.selected ? "selected" : ""}">
+			  <a href="/app/${
+				item.public
+					? frappe.router.slug(item.title)
+					: "private/" + frappe.router.slug(item.title)
+			}" class="item-anchor ${item.is_editable ? "" : "block-click"}" title="${__(item.title)}">
+				<span class="sidebar-item-icon" data-icon=${item.icon || "folder-normal"}>${frappe.utils.icon(item.icon || "folder-normal", "md")}</span>
+				<span class="sidebar-item-label">${__(item.title)}<span>
+			  </a>
+			  <div class="sidebar-item-control"></div>
+			</div>
+			<div class="sidebar-child-item nested-container hidden"></div>
+		  </div>`;
+		};
+
+		frappe.call({
+			method: "frappe.desk.desktop.get_workspace_sidebar_items",
+			callback: function (r) {
+				const pages = r.message.pages;
+				let html_sidebar_menu = '';
+				pages.forEach(element => {
+					html_sidebar_menu += sidebar_item_container(element);
+				});
+				$(sidebar).append(`<div class="desk-sidebar list-unstyled sidebar-menu"><div class="standard-sidebar-section nested-container" data-title="Public">${html_sidebar_menu}</div></div>`);
+
+				$(sidebar).prepend('<button type="button" class="collapsible_btn"><span class="search-icon"><svg class="icon icon-md"><use xlink:href="#icon-search"></use></svg></span>' + __("Filter by") + '</button>');
+				$(sidebar).find("button.collapsible_btn").on("click", function() {
+					const content = $(sidebar).find('ul.sidebar-menu').last();
+					if ($(content).css("display") === "block") {
+						$(this).removeClass("active");
+						$(content).css("display", "none");
+					} else {
+						$(this).addClass("active");
+						$(content).css("display", "block");
+					}
+				});
+
+				const $sidebarSections = $(sidebar).find('.standard-sidebar-section').not(".hidden");
+				const $nonLabelItems = $sidebarSections.children().not(".standard-sidebar-label");
+
+				$nonLabelItems.each(function () {
+					const $currentElement = $(this);
+					const itemname = $currentElement.data("name");
+					const itemparent = $currentElement.data("parent");
+
+					if (itemparent) {
+						const $selectoritemname = $sidebarSections.find(`[data-name="${itemname}"].sidebar-item-container`);
+						const $selectoritemparent = $sidebarSections.find(`[data-name="${itemparent}"].sidebar-item-container`);
+						const $selectoritemparentcontent = $selectoritemparent.children('.sidebar-child-item.nested-container');
+						const $selectoritemparentbtn = $selectoritemparent.find('.desk-sidebar-item > .sidebar-item-control');
+
+						if ($selectoritemparentbtn.find('.drop-icon').length == 0) {
+							const itemparentbtn = '<span class="drop-icon"><svg class="icon icon-sm"><use class="" href="#icon-small-down"></use></svg></span>';
+							$selectoritemparentbtn.append(itemparentbtn);
+						}
+						$selectoritemname.appendTo($selectoritemparentcontent);
+						$selectoritemparentcontent.addClass("hidden");
+					}
+				});
+				$nonLabelItems.find(".drop-icon").on("click", (e) => {
+					const $target = $(e.target);
+					const $parentContainer = $target.parents(".sidebar-item-container");
+					const $nestedContainer = $parentContainer.find(".sidebar-child-item.nested-container");
+					const $icon = $target.find("use");
+
+					if ($icon.attr("href") == "#icon-small-down") {
+						$nestedContainer.removeClass("hidden");
+						$icon.attr("href", "#icon-small-up");
+					} else {
+						$nestedContainer.addClass("hidden");
+						$icon.attr("href", "#icon-small-down");
+					}
+				});
+			}
+		});
 	}
 };
