@@ -39,6 +39,9 @@ frappe.ui.form.Sidebar = class {
 		this.show_auto_repeat_status();
 		frappe.ui.form.setup_user_image_event(this.frm);
 
+		////
+		this.make_sidebar_menu(this.sidebar);
+
 		this.refresh();
 	}
 
@@ -281,4 +284,79 @@ frappe.ui.form.Sidebar = class {
 			},
 		});
 	}
+
+	////
+	make_sidebar_menu(sidebar) {
+		function sidebar_item_container(item) {
+			var html_sidebar = `
+            <div class="sidebar-item-container ${item.is_editable ? "is-draggable" : ""}" item-parent="${item.parent_page}" item-name="${item.title}" item-public="${item.public || 0}">
+				<div class="desk-sidebar-item standard-sidebar-item ${item.selected ? "selected" : ""}">
+					<a href="/app/${
+				item.public
+					? frappe.router.slug(item.title)
+					: "private/" + frappe.router.slug(item.title)
+			}" class="item-anchor ${item.is_editable ? "" : "block-click"}" title="${__(item.title)}">
+						<span class="sidebar-item-icon" item-icon=${item.icon || "folder-normal"}>${frappe.utils.icon(item.icon || "folder-normal", "md")}</span>
+						<span class="sidebar-item-label">${__(item.title)}<span>
+					</a>
+					<div class="sidebar-item-control"></div>
+				</div>
+				<div class="sidebar-child-item nested-container"></div>
+			</div>
+        `;
+
+			return html_sidebar;
+		}
+
+		frappe.call({
+			method: "frappe.desk.desktop.get_workspace_sidebar_items",
+			callback: function (r) {
+				let pages = r.message.pages;
+				let html_sidebar_menu;
+				pages.forEach(element => {
+					html_sidebar_menu += sidebar_item_container(element);
+				});
+
+ 				$(sidebar).append('<div class="desk-sidebar list-unstyled sidebar-menu"><div class="standard-sidebar-section nested-container" data-title="Public">' + html_sidebar_menu + '</div></div>');
+
+				$(sidebar).find('.standard-sidebar-section').not(".hidden").children().not(".standard-sidebar-label").each(function () {
+					var currentElement = $(this);
+					var itemname = currentElement.attr("item-name");
+					var itemparent = currentElement.attr("item-parent");
+					if (itemparent) {
+						var selectoritemname = $(sidebar).find('.standard-sidebar-section [item-name="' + itemname + '"].sidebar-item-container');
+						var selectoritemparent = $(sidebar).find('.standard-sidebar-section [item-name="' + itemparent + '"].sidebar-item-container');
+
+						var selectoritemparentcontent = $(selectoritemparent).children('.sidebar-child-item.nested-container');
+						var selectoritemparentbtn = $(selectoritemparent).find('.desk-sidebar-item > .sidebar-item-control');
+						var itemparentbtn = '<span class="drop-icon"><svg class="icon  icon-sm" style=""><use class="" href="#icon-small-down"></use></svg></span>';
+
+						if (!$(selectoritemparentcontent).hasClass("hidden")) {
+							$(selectoritemparentcontent).addClass("hidden");
+						}
+
+						if ($(selectoritemparentbtn).find('.drop-icon').length == 0) {
+							$(selectoritemparentbtn).append(itemparentbtn);
+						}
+						$(selectoritemname).appendTo(selectoritemparentcontent);
+					}
+				});
+
+
+				$(sidebar).find('.standard-sidebar-section').not(".hidden").children().not(".standard-sidebar-label").find(".drop-icon").on("click", (e) => {
+					let positionDropicon = $(e.target).parent().find("use").attr("href");
+					let itemname = $(e.target).parents(".sidebar-item-container").attr("item-name");
+					if (positionDropicon == "#icon-small-down") {
+						$(e.target).parents(".sidebar-item-container").find(".sidebar-child-item.nested-container").removeClass("hidden");
+						$(e.target).parent().find("use").attr("href", "#icon-small-up");
+						$('#page-Workspaces .row.layout-main > .col-lg-2.layout-side-section > .list-sidebar > .desk-sidebar > .standard-sidebar-section.nested-container[data-title="Public"] .sidebar-item-container[item-name="' + itemname + '"] .sidebar-item-control > .drop-icon .icon use').attr('href', '#icon-small-up');
+					} else {
+						$(e.target).parents(".sidebar-item-container").find(".sidebar-child-item.nested-container").addClass("hidden");
+						$(e.target).parent().find("use").attr("href", "#icon-small-down");
+					}
+				});
+			}
+		});
+	}
+	////
 };
