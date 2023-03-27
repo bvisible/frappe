@@ -314,7 +314,7 @@ frappe.ui.form.Sidebar = class {
 				pages.forEach(element => {
 					html_sidebar_menu += sidebar_item_container(element);
 				});
-				$(sidebar).html(`<div class="desk-sidebar list-unstyled sidebar-menu"><div class="standard-sidebar-section nested-container" data-title="Public">${html_sidebar_menu}</div></div>`);
+				$(sidebar).append(`<div class="desk-sidebar list-unstyled sidebar-menu"><div class="standard-sidebar-section nested-container" data-title="Public">${html_sidebar_menu}</div></div>`);
 
 				const $sidebarSections = $(sidebar).find('.standard-sidebar-section').not(".hidden");
 				const $nonLabelItems = $sidebarSections.children().not(".standard-sidebar-label");
