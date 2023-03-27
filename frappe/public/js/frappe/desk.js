@@ -82,6 +82,15 @@ frappe.Application = class Application {
 
 		$(document).trigger("app_ready");
 
+		////
+		readJSONFile("/web/wp-content/neoconfig.json", function(data_config){
+			var data_config = JSON.parse(data_config);
+			if (data_config["first_run"] == 1){
+				frappe.set_route("neoffice-wizard/0")
+			}
+		});
+		////
+
 		if (frappe.boot.messages) {
 			frappe.msgprint(frappe.boot.messages);
 		}
@@ -486,7 +495,7 @@ frappe.Application = class Application {
 	}
 	redirect_to_login() {
         ////
-        window.location.href = '/login';
+		frappe.app.redirect_to_login();
         ////
 	}
 	set_favicon() {
