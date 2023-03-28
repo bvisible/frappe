@@ -1642,7 +1642,7 @@ class ImportFile:
 								title_formatted += " " + str(counter)
 
 							if row[address_country_index]:
-								countries = frappe.db.get_value("Country", filters={"code": row[address_country_index].lower()}, fieldname='name')
+								country = frappe.db.get_value("Country", filters={"code": row[address_country_index].lower()}, fieldname='name')
 								#country = "Suisse" if _(pycountry.countries.get(alpha_2=row[address_country_index]).name) == "Switzerland" else "Suisse" #!!!! _(pycountry.countries.get(alpha_2=row[address_country_index]).name)
 							else:
 								country = "Switzerland"

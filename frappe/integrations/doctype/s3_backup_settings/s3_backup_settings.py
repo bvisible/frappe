@@ -118,7 +118,7 @@ def backup_to_s3():
 				for file in files:
 					file_path = os.path.join(root, file)
 					zipf.write(file_path, file_path[len_dir_path:])
-					
+
 	def IsPathValid(path, ignoreDir, ignoreExt):
 		splited = None
 		if os.path.isfile(path):
@@ -230,7 +230,7 @@ def backup_to_s3():
 def upload_file_to_s3(filename, folder, conn, bucket):
 	# //// destpath = os.path.join(folder, os.path.basename(filename))
 	domain = frappe.db.get_value("Neoffice Woocommerce Settings", "Neoffice Woocommerce Settings", "woocommerce_server_url")
-	frappe.log_error("parsed json", domain)
+	# ////frappe.log_error("parsed json", domain)
 	destpath = domain.replace('https://', '').replace('/web', '') + " - " + frappe.db.get_single_value('Global Defaults', 'default_company') + "/" + os.path.join(folder, os.path.basename(filename))
 	# ////
 	try:
