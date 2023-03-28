@@ -495,7 +495,7 @@ frappe.Application = class Application {
 	}
 	redirect_to_login() {
         ////
-		frappe.app.redirect_to_login();
+		window.location.href = '/login';
         ////
 	}
 	set_favicon() {
@@ -545,7 +545,7 @@ frappe.Application = class Application {
 		// Iterate over changelog
 		var change_log_dialog = frappe.msgprint({
 			message: frappe.render_template("change_log", { change_log: change_log }),
-			title: __("Updated To A New Version 🎉"),
+			title: __("Updated To A New Version ðŸŽ‰"),
 			wide: true,
 		});
 		change_log_dialog.keep_open = true;
