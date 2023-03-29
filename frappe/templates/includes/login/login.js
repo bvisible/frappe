@@ -198,93 +198,62 @@ login.login_handlers = (function () {
 				document.body.innerHTML = `{% include "templates/includes/splash_screen.html" %}`;
 				////
 				function redirectAfterLogin() {
-					window.location.href = frappe.utils.sanitise_redirect(frappe.utils.get_url_arg("redirect-to")) || data.home_page;
+					window.location.href = frappe.utils.sanitise_redirect(frappe.utils.get_url_arg("redirect-to")) || "/app";
+				}
+				let loggedInServices = {};
+
+				function fetchJSONFile(file, onSuccess) {
+					fetch(file)
+						.then(response => {
+							if (response.ok) {
+								return response.json();
+							} else {
+								throw new Error('Erreur lors de la récupération du fichier JSON');
+							}
+						})
+						.then(data => {
+							onSuccess(data);
+						})
+						.catch(error => {
+							console.error('Erreur lors de la récupération du fichier JSON:', error);
+						});
 				}
 
-				/**
-				 * It takes a file name and a callback function as parameters. It then makes an AJAX request to the
-				 * file and when it's ready, it calls the callback function and passes the file's contents to it
-				 * @param file - The file to be read.
-				 * @param callback - The function that will be called when the file is loaded.
-				 */
-				function readJSONFile(file, callback) {
-					var rawFile = new XMLHttpRequest();
-					rawFile.overrideMimeType("application/json");
-					rawFile.open("GET", file, true);
-					rawFile.onreadystatechange = function() {
-						if (rawFile.readyState === 4 && rawFile.status == "200") {
-							callback(rawFile.responseText);
+				fetchJSONFile("/web/wp-content/neoconfig.json", function(configData) {
+					function handleMessage(event) {
+						if (event.data.source === 'wordpress' || event.data.source === 'nextcloud') {
+							if (event.data.status === 'loggedIn') {
+								loggedInServices[event.data.source] = true;
+								if (configData.website === 1 && configData.cloud === 1 && loggedInServices.wordpress && loggedInServices.nextcloud) {
+									redirectAfterLogin();
+								}
+								else if (configData.website === 1 && configData.cloud === 0 && loggedInServices.wordpress) {
+									redirectAfterLogin();
+								}
+								else if (configData.website === 0 && configData.cloud === 1 && loggedInServices.nextcloud) {
+									redirectAfterLogin();
+								}
+							}
 						}
 					}
-					rawFile.send(null);
-				}
-
-				function prepareFrameCloud() {
-					var ifrmCloud = document.createElement("iframe");
-					ifrmCloud.setAttribute("src", "/cloud/");
-					ifrmCloud.setAttribute("id", "iframeCloud");
-					ifrmCloud.style.width = "0px";
-					ifrmCloud.style.height = "0px";
-					ifrmCloud.style = "display:none;";
-					$("body").append(ifrmCloud);
-				}
-
-				function prepareFrameWEB() {
-					var ifrmWEB = document.createElement("iframe");
-					ifrmWEB.setAttribute("src", "/web/wp-login.php");
-					ifrmWEB.setAttribute("id", "iframeWEB");
-					ifrmWEB.style.width = "0px";
-					ifrmWEB.style.height = "0px";
-					ifrmWEB.style = "display:none;";
-					$("body").append(ifrmWEB);
-				}
-
-				readJSONFile("/web/wp-content/neoconfig.json", function(config){
-					var data = JSON.parse(config);
-					console.log(data);
-					if (data["website"] == 1){
-						prepareFrameWEB();
+					window.addEventListener('message', handleMessage);
+					if (configData.website === 1) {
+						createInvisibleIframe("/web/wp-admin", "iframeWEB");
 					}
-					if (data["cloud"] == 1){
-						prepareFrameCloud();
+					if (configData.cloud === 1) {
+						createInvisibleIframe("/cloud/", "iframeCloud");
 					}
-
-					if(data["cloud"] == 1 && data["website"] == 1){
-						$('#iframeWEB, #iframeCloud').on('load', function(){
-							setTimeout(() => {
-								redirectAfterLogin();
-							}, 2000);
-						});
-					}
-
-					if(data["cloud"] == 0 && data["website"] == 1){
-						$('#iframeWEB').on('load', function(){
-							setTimeout(() => {
-								redirectAfterLogin();
-							}, 2000);
-						});
-					}
-
-					if(data["cloud"] == 1 && data["website"] == 0){
-						$('#iframeCloud').on('load', function(){
-							setTimeout(() => {
-								redirectAfterLogin();
-							}, 2000);
-						});
-					}
-
-					if(data["cloud"] == 0 && data["website"] == 0){
-						setTimeout(() => {
-							redirectAfterLogin();
-						}, 2000);
-					}
-
 				});
-
-				setTimeout(() => {
-					redirectAfterLogin();
-				}, 10000);
-
+				function createInvisibleIframe(src, id) {
+					const iframe = document.createElement("iframe");
+					iframe.src = src;
+					iframe.id = id;
+					iframe.style.width = "0px";
+					iframe.style.height = "0px";
+					iframe.style.display = "none";
+					document.body.appendChild(iframe);
+					return iframe;
+				}
 				////
 			} else if (data.message == 'Password Reset') {
 				window.location.href = frappe.utils.sanitise_redirect(data.redirect_to);
