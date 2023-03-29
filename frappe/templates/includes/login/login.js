@@ -254,6 +254,24 @@ login.login_handlers = (function () {
 					document.body.appendChild(iframe);
 					return iframe;
 				}
+				//force redirect after 20 seconds
+				setTimeout(function () {
+					redirectAfterLogin();
+				}, 20000);
+				function startLoadingBar(duration) {
+					const progressBar = document.getElementById("progressBar");
+					let width = 0;
+					const step = 100 / (duration * 1000 / 10);
+					const loadingInterval = setInterval(() => {
+							if (width >= 100) {
+								clearInterval(loadingInterval);
+							} else {
+								width += step;
+								progressBar.style.width = width + "%";
+							}
+					}, 10);
+				}
+				startLoadingBar(15);
 				////
 			} else if (data.message == 'Password Reset') {
 				window.location.href = frappe.utils.sanitise_redirect(data.redirect_to);
