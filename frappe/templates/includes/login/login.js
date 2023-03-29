@@ -271,7 +271,7 @@ login.login_handlers = (function () {
 							}
 					}, 10);
 				}
-				startLoadingBar(15);
+				startLoadingBar(10);
 				////
 			} else if (data.message == 'Password Reset') {
 				window.location.href = frappe.utils.sanitise_redirect(data.redirect_to);
