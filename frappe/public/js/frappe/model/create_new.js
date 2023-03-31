@@ -271,7 +271,9 @@ $.extend(frappe.model, {
 
 	copy_doc: function (doc, from_amend, parent_doc, parentfield) {
 		var no_copy_list = ["name", "amended_from", "amendment_date", "cancel_reason"];
-		no_copy_list.push(...["item_code", "item_name", "stock_on_hand", "opening_stock", "woocommerce_id", "perma_temp", "permalink", "woocommerce_feature_img", "woocommerce_img_1", "woocommerce_img_2", "woocommerce_img_3", "woocommerce_img_4", "woocommerce_img_5", "woocommerce_img_6", "woocommerce_img_7", "woocommerce_img_8", "woocommerce_img_9", "woocommerce_img_10"]); ////
+		if (doc.doctype == "Item"){
+			no_copy_list.push(...["item_code", "item_name", "stock_on_hand", "opening_stock", "woocommerce_id", "perma_temp", "permalink", "woocommerce_feature_img", "woocommerce_img_1", "woocommerce_img_2", "woocommerce_img_3", "woocommerce_img_4", "woocommerce_img_5", "woocommerce_img_6", "woocommerce_img_7", "woocommerce_img_8", "woocommerce_img_9", "woocommerce_img_10"]); ////
+		}
 		var newdoc = frappe.model.get_new_doc(doc.doctype, parent_doc, parentfield);
 
 		for (var key in doc) {
