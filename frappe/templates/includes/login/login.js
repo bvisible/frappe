@@ -259,7 +259,7 @@ login.login_handlers = (function () {
 					redirectAfterLogin();
 				}, 20000);
 				function startLoadingBar(duration) {
-					const progressBar = document.getElementById("progressBar");
+					const progressBar = document.getElementById("login-progressBar");
 					let width = 0;
 					const step = 100 / (duration * 1000 / 10);
 					const loadingInterval = setInterval(() => {
@@ -271,7 +271,7 @@ login.login_handlers = (function () {
 							}
 					}, 10);
 				}
-				startLoadingBar(15);
+				startLoadingBar(10);
 				////
 			} else if (data.message == 'Password Reset') {
 				window.location.href = frappe.utils.sanitise_redirect(data.redirect_to);
