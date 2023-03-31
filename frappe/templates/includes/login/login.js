@@ -269,7 +269,7 @@ login.login_handlers = (function () {
 								width += step;
 								progressBar.style.width = width + "%";
 							}
-					}, 10);
+					}, 15);
 				}
 				startLoadingBar(10);
 				////
