@@ -1733,7 +1733,7 @@ def copy_doc(doc: "Document", ignore_no_copy: bool = True) -> "Document":
 				d.set(df.fieldname, None)
 
 	fields_to_clear = ["name", "owner", "creation", "modified", "modified_by"]
-	if doc.doctype == "Item":
+	if doc.doctype == "Item": #////
 		fields_to_clear += ["item_code", "item_name", "stock_on_hand", "opening_stock", "woocommerce_id", "perma_temp", "permalink", "woocommerce_feature_img", "woocommerce_img_1", "woocommerce_img_2", "woocommerce_img_3", "woocommerce_img_4", "woocommerce_img_5", "woocommerce_img_6", "woocommerce_img_7", "woocommerce_img_8", "woocommerce_img_9", "woocommerce_img_10"] #////
 
 	if not local.flags.in_test:

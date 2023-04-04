@@ -97,6 +97,7 @@ class Importer:
 		warnings = [w for w in warnings if w.get("type") != "info"]
 
 		if warnings:
+			frappe.log_error("warnings", "{}".format(warnings))
 			if self.console:
 				self.print_grouped_warnings(warnings)
 			else:
@@ -492,86 +493,32 @@ class ImportFile:
 			return (match is not None, email)
 
 		if self.from_func == "start_import":
-			attributes_index  = []
-			parent_id_index = None
-			added_lines = self.doctype_data.db_get("added_lines") if self.doctype_data.db_get("added_lines") else 0
-			type_index = None
-			id_index = None
-			sku_index = None
-			category_index = None
+			attributes_index = []
 			attributes_value_index = []
 			list_of_parents = {}
-			images_field_index = None
-			billing_email_index = None
-			billing_firstname_index = None
-			billing_lastname_index = None
-			billing_address_1_index = None
-			billing_address_2_index = None
-			billing_city_index = None
-			billing_postcode_index = None
-			billing_state_index = None
-			billing_country_index = None
-			billing_phone_index = None
-			shipping_firstname_index = None
-			shipping_lastname_index = None
-			shipping_address_1_index = None
-			shipping_address_2_index = None
-			shipping_city_index = None
-			shipping_postcode_index = None
-			shipping_state_index = None
-			shipping_country_index = None
-			shipping_phone_index = None
-			billing_company_index = None
-			shipping_company_index = None
-			firstname_index = None
-			lastname_index = None
-			user_email_index = None
-			status_index = None
-			shipping_fees_index = None
-
-			address_id_index = None
-			description_index = None
-			short_description_index = None
-			quantity_index = None
-			price_index = None
-			units_index = None
-			archive_no_index = None
-			total_index = None
-			vat_index = None
-			ref_index = None
-			address_name_index = None
-			address_name_title_index = None
-			address_company_index = None
-			address_line1_index = None
-			address_line2_index = None
-			address_pincode_index = None
-			address_city_index = None
-			address_country_index = None
-			address_phone_index = None
-			date_archive_index = None
-			type_line_index = None
-			product_type_index = None
-			buying_price_index = None
-			selling_price_index = None
-			other_selling_price_index = None
-			manage_stock_index = None
-			additional_cat = None
-			taxable_index = None
-			brand_index = None
-			weight_index = None
-
-			last_archive_no = None
 			last_full_name = []
 			created_cats = []
 			new_row = []
-			additional_categories = []
 			names_to_add = []
 			addresses_to_add = []
-
-			manage_stock = 0
-			stock_index = None
 			default_company = frappe.defaults.get_global_default("company")
 			valuation_rate = 0
+			manage_stock = 0
+			added_lines = self.doctype_data.db_get("added_lines") if self.doctype_data.db_get("added_lines") else 0
+
+			parent_id_index = type_index = id_index = sku_index = category_index = images_field_index = billing_email_index = None
+			billing_firstname_index = billing_lastname_index = billing_address_1_index = billing_address_2_index = None
+			billing_city_index = billing_postcode_index = billing_state_index = billing_country_index = billing_phone_index = None
+			shipping_firstname_index = shipping_lastname_index = shipping_address_1_index = shipping_address_2_index = None
+			shipping_city_index = shipping_postcode_index = shipping_state_index = shipping_country_index = shipping_phone_index = None
+			billing_company_index = shipping_company_index = firstname_index = lastname_index = user_email_index = status_index = None
+			shipping_fees_index = address_id_index = description_index = short_description_index = quantity_index = price_index = None
+			units_index = archive_no_index = total_index = vat_index = ref_index = address_name_index = address_name_title_index = None
+			address_company_index = address_line1_index = address_line2_index = address_pincode_index = address_city_index = None
+			address_country_index = address_phone_index = date_archive_index = type_line_index = product_type_index = None
+			buying_price_index = selling_price_index = other_selling_price_index = manage_stock_index = additional_cat = None
+			taxable_index = brand_index = weight_index = last_archive_no = stock_index = liters_index = liter_unit_index = None
+			origin_index = item_name_index = None
 
 			base_row_length = len(self.raw_data[0])
 
@@ -610,19 +557,18 @@ class ImportFile:
 					add_to_value = 1
 				else:
 					add_to_value = 0
-				if (i == start_line + split_value + add_to_value) and self.from_func == "start_import":
+				if (i == start_line + split_value + add_to_value):
 					self.doctype_data.db_set("last_line", i-1)
 					break
 
 				if i > 0 and i < start_line:
-					if self.from_func == "start_import":
-						#frappe.log_error("continue")
-						continue
+					#frappe.log_error("continue")
+					continue
 
-				if i < data_length-1 and i == start_line + split_value and self.from_func == "start_import":
+				if i < data_length-1 and i == start_line + split_value:
 					self.doctype_data.db_set("last_line", i)
 
-				if i == data_length-1 and self.from_func == "start_import":
+				if i == data_length-1:
 					self.doctype_data.db_set("last_line", i+1)
 				#////
 
@@ -632,7 +578,7 @@ class ImportFile:
 
 				if not header:
 					#////
-					if self.doctype_data.import_source == "Woocommerce" and self.from_func == "start_import":
+					if self.doctype_data.import_source == "Woocommerce":
 						now = datetime.now()
 						current_time = now.strftime("%H:%M:%S")
 						frappe.log_error("start time: {0}".format(current_time))
@@ -818,7 +764,7 @@ class ImportFile:
 								elif item == "Order Total":
 									total_index = index
 
-					elif self.doctype_data.import_source == "Winbiz" and self.from_func == "start_import":
+					elif self.doctype_data.import_source == "Winbiz":
 						if self.doctype == "Item Price":
 							row.extend(["price_list", "price_list_rate"])
 							for (index, item) in enumerate(row):
@@ -827,7 +773,7 @@ class ImportFile:
 								elif item == "ar_groupe":
 									category_index = index
 								elif item == "ar_abrege":
-									name_index = index
+									item_name_index = index
 								elif item == "ar_type":
 									product_type_index = index
 								elif item == "prixach":
@@ -837,7 +783,7 @@ class ImportFile:
 
 						if self.doctype == "Item":
 							row.extend(["sync_with_woocommerce", "item_group", "maintain_stock", "default_warehouse", "default_company", "woocommerce_warehouse", "stock", "valuation_rate", "category_ecommerce", "standard_rate", "weight_uom", "woocommerce_taxable",
-							"tax_class", "maintain_stock_ecommerce", "description"])
+							"tax_class", "maintain_stock_ecommerce", "description", "liters", "origin"])
 							for (index, item) in enumerate(row):
 								if item == "ar_groupe":
 									category_index = index
@@ -847,6 +793,14 @@ class ImportFile:
 									selling_price_index = index
 								elif item == "ar_desc":
 									description_index = index
+								elif item == "ar_unit":
+									liter_unit_index = index
+								elif item == "ar_liters":
+									liters_index = index
+								elif item == "ar_origine":
+									origin_index = index
+								elif item == "ar_abrege":
+									item_name_index = index
 
 						if self.doctype == "Data Archive":
 							row.extend(["source", "type", "lines.reference", "lines.description", "lines.units", "lines.quantity", "lines.total_price_excl_taxes", "lines.total_vat", "lines.total_price_incl_taxes", "formatted_date",
@@ -954,7 +908,7 @@ class ImportFile:
 				else:
 					#////
 					add_row_in_data = True
-					if self.doctype_data.import_source == "Woocommerce" and self.from_func == "start_import":
+					if self.doctype_data.import_source == "Woocommerce":
 						if self.doctype == "Item":
 							attributes_value = []
 							attributes_name  = []
@@ -1431,7 +1385,7 @@ class ImportFile:
 							if  i < len(self.raw_data)-1 and (i == start_line + split_value + add_to_value - 1) and self.raw_data[i+1][archive_no_index] == last_archive_no:
 								split_value += 1
 
-					elif self.doctype_data.import_source == "Winbiz" and self.from_func == "start_import":
+					elif self.doctype_data.import_source == "Winbiz":
 						if self.doctype == "Item Price":
 							if row[product_type_index] == 1:
 								new_row = copy.deepcopy(row)
@@ -1486,14 +1440,32 @@ class ImportFile:
 							else:
 								manage_stock = 0
 								stock = None
+							liters = 0
+							if liters_index and row[liters_index]:
+								if row[liter_unit_index] and row[liter_unit_index].lower() == "cl":
+									liters = flt(row[liters_index]) / 100
+									origin = row[origin_index].capitalize()
+									name_lower = row[item_name_index].lower()
+									wine_types = ["blanc", "rosé", "rouge", "mousseux"]
+									final_type = "autres"
+									for wine_type in wine_types:
+										if wine_type in name_lower:
+											final_type = wine_type.capitalize()
+											break
+									compatible = frappe.db.get_all("Alcohol Type", filters={"name": ["like", "%{0}%{1}".format(origin, final_type)]})
+									final_origin = compatible[0].name if compatible else None
 
 							company = frappe.defaults.get_global_default("company")
 							taxable_company = frappe.db.get_value("Company", company, "is_vat_company")
 							default_tax = frappe.db.get_value("Company", frappe.defaults.get_global_default("company"), "default_tax")
 							tax_class = frappe.db.get_value("Easy Tax and Accounting", default_tax, "woocommerce_tax") if taxable_company else None
 							standard_rate = row[selling_price_index]
+							description = ""
+							if description_index:
+								description = row[description_index]
 							row.extend([self.doctype_data.sync_with_woocommerce, item_group, manage_stock, self.doctype_data.warehouse, default_company,
-							self.doctype_data.warehouse, stock, valuation_rate, item_group, standard_rate, "KG", taxable_company, tax_class, manage_stock, row[description_index]])
+								self.doctype_data.warehouse, stock, valuation_rate, item_group, standard_rate, "KG", taxable_company, tax_class, manage_stock,
+								description, liters, final_origin])
 
 						if self.doctype == "Data Archive":
 							customer_match = frappe.get_all("Customer", filters={'winbiz_address_number': row[address_id_index]})
@@ -1726,7 +1698,7 @@ class ImportFile:
 					if add_row_in_data: #////
 						data.append(row_obj)
 			#////
-					if self.doctype_data.import_source == "Woocommerce" and new_row and self.from_func == "start_import":
+					if self.doctype_data.import_source == "Woocommerce" and new_row:
 						if self.doctype == "Item":
 							if row[parent_id_index] == 0:
 								parent_sku = None
@@ -1804,7 +1776,7 @@ class ImportFile:
 							data.append(row_obj)
 							new_row = []'''
 
-					if self.doctype_data.import_source == "Winbiz" and new_row and self.from_func == "start_import":
+					if self.doctype_data.import_source == "Winbiz" and new_row:
 						if self.doctype == "Item Price":
 							added_lines += 1
 							new_row.extend(["Standard Buying", row[buying_price_index]])
@@ -1814,8 +1786,7 @@ class ImportFile:
 
 			#if error_msg:
 			#	frappe.throw(error_msg)
-			if self.from_func == "start_import":
-				self.doctype_data.db_set("added_lines", added_lines)
+			self.doctype_data.db_set("added_lines", added_lines)
 			#////
 			self.header = header
 			self.columns = self.header.columns
@@ -2232,7 +2203,8 @@ class Header(Row):
 					map_to_field = {"ar_abrege": "item_name", "ar_fn_ref": "item_code", "ar_desc": "woocommerce_long_description", "item_group": "item_group", "sync_with_woocommerce" : "sync_with_woocommerce",
 					"maintain_stock": "is_stock_item", "default_warehouse": "item_defaults.default_warehouse", "category_ecommerce": "category_ecommerce", "woocommerce_warehouse": "woocommerce_warehouse", "stock": "opening_stock",
 					"valuation_rate": "valuation_rate", "standard_rate": "standard_rate", "default_company": "item_defaults.company", "ar_codbar": "barcodes.barcode", "ar_poids": "weight_per_unit", "weight_uom": "weight_uom",
-					"woocommerce_taxable": "woocommerce_taxable","maintain_stock_ecommerce": "woocommerce_manage_stock", "description": "description" }.get(header, "Don't Import")
+					"woocommerce_taxable": "woocommerce_taxable","maintain_stock_ecommerce": "woocommerce_manage_stock", "description": "description", "liters": "alcohol_quantity", "prixach": "buying_standard_rate",
+					"origin": "alcohol_origin", "ar_alcool": "is_alcohol"}.get(header, "Don't Import")
 
 				elif self.doctype == "Item Price":
 					map_to_field = {"ar_fn_ref": "item_code", "price_list": "price_list", "price_list_rate": "price_list_rate"}.get(header, "Don't Import")

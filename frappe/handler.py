@@ -167,6 +167,8 @@ def uploadfile():
 
 @frappe.whitelist(allow_guest=True)
 def upload_file():
+	import re #////
+	from unidecode import unidecode #////
 	user = None
 	if frappe.session.user == "Guest":
 		if frappe.get_system_settings("allow_guests_to_upload_files"):
@@ -192,7 +194,8 @@ def upload_file():
 	if "file" in files:
 		file = files["file"]
 		content = file.stream.read()
-		filename = file.filename
+		filename = unidecode(file.filename) #////
+		filename = re.sub(r'[-\s]+', '-', filename).strip('-_') #////
 
 		content_type = guess_type(filename)[0]
 		if optimize and content_type.startswith("image/"):
