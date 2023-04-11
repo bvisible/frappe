@@ -945,14 +945,12 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 		}
 		////
 		$($(this.datatable.wrapper).find( ".dt-scrollable" )[0]).css("min-height","auto");
-		setTimeout(() => {
-			new MiniBar($(this.datatable.wrapper).children( ".datatable" )[0], {
-				barType: "default",
-				minBarSize: 10,
-				hideBars: false,
-				alwaysShowBars: false,
-			});
-		}, 200);
+		new MiniBar($(this.datatable.wrapper).children( ".datatable" )[0], {
+			barType: "default",
+			minBarSize: 10,
+			hideBars: false,
+			alwaysShowBars: false,
+		});
 	}
 
 	show_loading_screen() {
