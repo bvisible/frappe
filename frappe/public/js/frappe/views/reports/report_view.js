@@ -225,6 +225,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			hideBars: false,
 			alwaysShowBars: false,
 		});
+		$($(this.datatable.wrapper).find( ".dt-scrollable" )[0]).css("min-height","auto");
 	}
 
 	render_count() {
