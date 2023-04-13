@@ -817,46 +817,86 @@ frappe.ui.form.Form = class FrappeForm {
 		var me = this;
 		return new Promise((resolve) => {
 			this.validate_form_action("Submit");
-			frappe.confirm(
-				__("Permanently Submit {0}?", [this.docname]),
-				function () {
-					frappe.validated = true;
-					me.script_manager.trigger("before_submit").then(function () {
-						if (!frappe.validated) {
-							return me.handle_save_fail(btn, on_error);
-						}
+			////
+			if(this.doctype == 'POS Invoice'){
+				me.submit_confirmed(btn, callback, on_error, resolve);
+			} else {
+			////
+				frappe.confirm(
+					__("Permanently Submit {0}?", [this.docname]),
+					function () {
+						//// commented multiline
+						/*
+						frappe.validated = true;
+						me.script_manager.trigger("before_submit").then(function () {
+							if (!frappe.validated) {
+								return me.handle_save_fail(btn, on_error);
+							}
 
-						me.save(
-							"Submit",
-							function (r) {
-								if (r.exc) {
-									me.handle_save_fail(btn, on_error);
-								} else {
-									frappe.utils.play_sound("submit");
-									callback && callback();
-									me.script_manager
-										.trigger("on_submit")
-										.then(() => resolve(me))
-										.then(() => {
-											if (frappe.route_hooks.after_submit) {
-												let route_callback =
-													frappe.route_hooks.after_submit;
-												delete frappe.route_hooks.after_submit;
-												route_callback(me);
-											}
-										});
-								}
-							},
-							btn,
-							() => me.handle_save_fail(btn, on_error),
-							resolve
-						);
-					});
-				},
-				() => me.handle_save_fail(btn, on_error)
-			);
+							me.save(
+								"Submit",
+								function (r) {
+									if (r.exc) {
+										me.handle_save_fail(btn, on_error);
+									} else {
+										frappe.utils.play_sound("submit");
+										callback && callback();
+										me.script_manager
+											.trigger("on_submit")
+											.then(() => resolve(me))
+											.then(() => {
+												if (frappe.route_hooks.after_submit) {
+													let route_callback =
+														frappe.route_hooks.after_submit;
+													delete frappe.route_hooks.after_submit;
+													route_callback(me);
+												}
+											});
+									}
+								},
+								btn,
+								() => me.handle_save_fail(btn, on_error),
+								resolve
+							);
+						});*/
+						////
+						me.submit_confirmed(btn, callback, on_error); ////
+					},
+					() => me.handle_save_fail(btn, on_error)
+				);
+			}////
 		});
 	}
+
+	////
+	submit_confirmed(btn, callback, on_error, resolve){
+		var me = this;
+		frappe.validated = true;
+		me.script_manager.trigger("before_submit").then(function() {
+			if(!frappe.validated) {
+				return me.handle_save_fail(btn, on_error);
+			}
+
+			me.save('Submit', function(r) {
+				if(r.exc) {
+					me.handle_save_fail(btn, on_error);
+				} else {
+					frappe.utils.play_sound("submit");
+					callback && callback();
+					me.script_manager.trigger("on_submit")
+						.then(() => resolve(me))
+						.then(() => {
+							if (frappe.route_hooks.after_submit) {
+								let route_callback = frappe.route_hooks.after_submit;
+								delete frappe.route_hooks.after_submit;
+								route_callback(me);
+							}
+						});
+				}
+			}, btn, () => me.handle_save_fail(btn, on_error), resolve);
+		});
+	}
+	////
 
 	savecancel(btn, callback, on_error) {
 		const me = this;
