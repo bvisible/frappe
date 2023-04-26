@@ -583,7 +583,7 @@ class ImportFile:
 						current_time = now.strftime("%H:%M:%S")
 						frappe.log_error("start time: {0}".format(current_time))
 						if self.doctype == "Item":
-							row.extend(["image", "woocommerce_img_1", "woocommerce_img_2", "woocommerce_img_3", "woocommerce_img_4", "woocommerce_img_5", "woocommerce_img_6", "woocommerce_img_7", "woocommerce_img_8", "woocommerce_img_9", "woocommerce_img_10", 
+							row.extend(["image", "woocommerce_img_1", "woocommerce_img_2", "woocommerce_img_3", "woocommerce_img_4", "woocommerce_img_5", "woocommerce_img_6", "woocommerce_img_7", "woocommerce_img_8", "woocommerce_img_9", "woocommerce_img_10",
 							"maintain_stock", "maintain_stock_ecommerce","has_variants","parent_sku", "attribute_name", "attribute_value", "sync_with_woocommerce", "default_warehouse", "item_group", "category_ecommerce", "default_company",
 							"woocommerce_warehouse", "stock", "valuation_rate", "standard_rate", "additionnal_categories", "description", "short_description", "woocommerce_taxable", "woocommerce_tax_name", "weight_uom", "brand", "brand_ecommerce",
 							"woocommerce_weight"])
@@ -976,7 +976,7 @@ class ImportFile:
 											frappe.db.commit()
 										last_cat = this_cat
 								cat_name = frappe.db.get_value("Item Group",{"group_tree": root + ">" + cat}, "name")
-								
+
 								if idx_nb == 0:
 									additional_cat = None
 									row[category_index] = cat_name
@@ -1436,7 +1436,7 @@ class ImportFile:
 							item_group = cat_name
 							if self.doctype_data.manage_stock:
 								manage_stock = 1
-								stock = 0 if row[stock_index] < 0 else int(row[stock_index])
+								stock = 0 if int(flt(row[stock_index])) < 0 else int(flt(row[stock_index]))
 							else:
 								manage_stock = 0
 								stock = None
