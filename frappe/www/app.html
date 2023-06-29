@@ -24,21 +24,24 @@
 				SBF.getActiveUser(true, () => {
 					setTimeout(() => {
 						let neo_user_email = user_email;
+
 						if (!SBF.activeUser() || (SBF.activeUser().email != neo_user_email)) {
-							function isEmpty(value){
-								return (typeof value === "undefined" || value === null || value === '' || value === ' ');
-							}
-							let first_name = user_fullname.substring(0, user_fullname.indexOf(' '));
-							let last_name = user_fullname.substring(user_fullname.indexOf(' ') + 1);
-							if(isEmpty(first_name)){
+							let isEmpty = (value) => (typeof value === "undefined" || value === null || value === '' || value === ' ');
+
+							let first_name = frappe.user_info().fullname.substring(0, frappe.user_info().fullname.indexOf(' '));
+							let last_name = frappe.user_info().fullname.substring(frappe.user_info().fullname.indexOf(' ') + 1);
+							
+							if (isEmpty(first_name)) {
 								first_name = neo_user_email.substring(0, neo_user_email.indexOf('@'));
 							}
-							if(isEmpty(last_name)){
+							
+							if (isEmpty(last_name)) {
 								last_name = neo_user_email.substring(0, neo_user_email.indexOf('@'));
 							}
+
 							SBF.ajax({
 								function: "add-user-and-login",
-								settings: { profile_image: "https://board.support/media/docs/user.png", first_name: first_name, last_name: last_name, email: neo_user_email, password: window.localStorage.getItem('metadata_version') },
+								settings: { profile_image: "https://board.support/media/docs/user.png", first_name: first_name, last_name: last_name, email: neo_user_email, password: neo_user_email },
 								settings_extra: { company: [frappe.defaults.get_user_default("company"), "company"], instance: [window.location.hostname, "Instance"]}
 							}, (response) => {
 								if (!SBF.errorValidation(response)) {
@@ -46,7 +49,7 @@
 									SBF.activeUser(new SBUser(response[0]));
 									SBChat.initChat();
 								} else if (response[1] == "duplicate-email") {
-									SBF.login(neo_user_email, window.localStorage.getItem('metadata_version'), "", "", () => { SBChat.initChat(); });
+									SBF.login(neo_user_email, neo_user_email, "", "", () => { SBChat.initChat(); });
 								} else console.log(response);
 							});
 						} else {
