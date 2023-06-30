@@ -298,6 +298,18 @@ frappe.views.CommunicationComposer = class {
 
 				content_field.set_value(`${reply.message}<br>${content}`);
 				subject_field.set_value(reply.subject);
+				////
+				if (!content) {
+					try {
+						let editors = tinymce.get();
+						let lastEditor = editors[editors.length - 1];
+						let contentEditor = lastEditor.getContent()
+						child.description = contentEditor;
+					} catch (e) {
+						// pass
+					}
+				}
+				////
 			}
 
 			frappe.call({
@@ -611,6 +623,17 @@ frappe.views.CommunicationComposer = class {
 	}
 
 	get_values() {
+		////
+		var content_data = this.dialog.get_value("content");
+		if (this.dialog.get_value("content") == null || this.dialog.get_value("content") == "") {
+			try {
+				let editors = tinymce.get();
+				let lastEditor = editors[editors.length - 1];
+				content_data = lastEditor.getContent()
+			} catch (error) {
+			}
+		}
+		////
 		const form_values = this.dialog.get_values();
 
 		// cc
@@ -628,6 +651,11 @@ frappe.views.CommunicationComposer = class {
 				delete form_values[df.fieldname];
 			}
 		}
+		////
+		if(!('content' in form_values)){
+			form_values['content'] = content_data
+		}
+		////
 
 		return form_values;
 	}
