@@ -62,6 +62,7 @@
 {% macro logo_section() %}
 <div class="page-card-head">
 	<img class="app-logo" src="{{ logo }}">
+	<a href="https://www.swissmadesoftware.org/about/swiss-made-software.html" title="Swiss made software" target="_blank"><img class="swiss-logo" title="Swiss made software" style=" display: block; max-width: 150px; margin: auto; " src="https://www.neoffice.io/neo-uploads/SMS-Logo-1h-300dpi_RGB-768x128.png"></a>
 	<h4>{{ _('Login to {0}').format(app_name or _("Frappe")) }}</h4>
 </div>
 {% endmacro %}
