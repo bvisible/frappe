@@ -63,8 +63,9 @@
 <div class="page-card-head">
 	<img class="app-logo" src="{{ logo }}">
 	<a href="https://www.swissmadesoftware.org/about/swiss-made-software.html" title="Swiss made software" target="_blank"><img class="swiss-logo" title="Swiss made software" style=" display: block; max-width: 150px; margin: auto; " src="https://www.neoffice.io/neo-uploads/SMS-Logo-1h-300dpi_RGB-768x128.png"></a>
-	<h4>{{ _('Login to {0}').format(app_name or _("Frappe")) }}</h4>
+	<br>
 	<div id="messageLogin"></div>
+	<h4>{{ _('Login to {0}').format(app_name or _("Frappe")) }}</h4>
 </div>
 {% endmacro %}
 
@@ -232,50 +233,114 @@
 		</ul>
 		<a href="https://www.neoffice.io/news" target="_blank" id="linkToNews" style="display: block; text-align: center; margin-top: 10px; color:white;">{{ _("See all news") }}</a>
 		<script>
-			window.onload = function() {
-				var domain = window.location.hostname;
+		function getTimeRemainingWeek() {
+			var now = new Date();
+			var target = new Date();
 
-				if (domain === 'demo.neoffice.me') {
+			// Set target date to next Sunday
+			target.setDate(now.getDate() + (7 + 0 - now.getDay()) % 7);
+			target.setUTCHours(23 - 2); // 23h in UTC+2
+			target.setUTCMinutes(59);
+			target.setUTCSeconds(59);
+			target.setUTCMilliseconds(0);
+
+			var diff = target - now;
+
+			var hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+			var minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+			var seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+			return hours + "h " + minutes + "m " + seconds + "s ";
+		}
+
+		function getTimeRemainingDay() {
+			var now = new Date();
+			var target = new Date();
+
+			// Set target date to the end of the current day
+			target.setHours(23); 
+			target.setMinutes(59);
+			target.setSeconds(59);
+			target.setMilliseconds(0);
+
+			var diff = target - now;
+
+			var hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+			var minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+			var seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+			return hours + "h " + minutes + "m " + seconds + "s ";
+		}
+
+		var domain = window.location.hostname;
+
+		if (domain === 'demo.neoffice.me') {
+			fetch('/web/wp-content/demo.json')
+				.then(response => response.json())
+				.then(data => {
 					document.getElementById('login_email').value = 'John';
-					document.getElementById('login_password').value = 'Demoneoffice2023';
+					document.getElementById('login_password').value = data['john@demo.neoffice.me'];
 					var messageDiv = document.getElementById('messageLogin');
 
 					var alertDiv = document.createElement('div');
-					alertDiv.className = 'alert alert-info';
-					alertDiv.textContent = "Bienvenue sur la démo de Neoffice. Pour vous connecter, utilisez les identifiants suivants : John / Demoneoffice2023";
-
+					alertDiv.className = 'alert alert-light';
+					alertDiv.textContent = 'Bienvenue sur la démo de Neoffice. Le nom d\'utilisateur et le mot de passe ont été préremplis pour ce domaine.';
 					messageDiv.appendChild(alertDiv);
-				}
-			};
-			const apiUrl = 'https://www.neoffice.io/wp-json/wp/v2/';
-			const maxArticles = 1;
-			async function getLatestArticles() {
-				document.querySelector('.loaderNews').style.display = 'block';
-				const neofficeCategoryId = 1;
-				const response = await fetch(apiUrl + 'posts?per_page=' + maxArticles + '&categories=' + neofficeCategoryId);
-				const articles = await response.json();
-				const articlesList = document.getElementById('articles');
-				for (const article of articles) {
-					const listItem = document.createElement('li');
-					listItem.addEventListener('click', () => {
-						window.open(article.link);
-					});
-					const articleTitle = document.createElement('h5');
-					articleTitle.innerHTML = article.title.rendered;
-					articleTitle.setAttribute('style','margin-top: 0px; cursor: pointer;');
-					listItem.appendChild(articleTitle);
-					const maxChar = 90;
-					const articleContent = article.excerpt.rendered;
-					const truncatedContent = articleContent.substring(0, maxChar);
-					const articleContentElement = document.createElement('p');
-					articleContentElement.innerHTML = truncatedContent + '...';
-					articleContentElement.setAttribute('style','padding-left: 10px; cursor: pointer;');
-					listItem.appendChild(articleContentElement);
-					articlesList.appendChild(listItem);
-				}
-				document.querySelector('.loaderNews').style.display = 'none';
+
+					var countdownDivWeek = document.createElement('div');
+					countdownDivWeek.innerHTML = "<strong>Instance</strong><br>Temps restant jusqu'à la réinitialisation : <br>" + getTimeRemainingWeek();
+					countdownDivWeek.className = 'alert alert-info';
+					messageDiv.appendChild(countdownDivWeek); 
+
+					setInterval(function() {
+						countdownDivWeek.innerHTML = "<strong>Instance</strong><br>Temps restant jusqu'à la réinitialisation : <br>" + getTimeRemainingWeek();
+					}, 1000);
+
+					var countdownDivDay = document.createElement('div');
+					countdownDivDay.innerHTML = "<strong>Accès</strong><br>Temps restant jusqu'à la réinitialisation : <br>" + getTimeRemainingDay();
+					countdownDivDay.className = 'alert alert-info';
+					messageDiv.appendChild(countdownDivDay); 
+
+					setInterval(function() {
+						countdownDivDay.innerHTML = "<strong>Accès</strong><br>Temps restant jusqu'à la réinitialisation : <br>" + getTimeRemainingDay();
+					}, 1000);
+
+				})
+				.catch((error) => {
+					console.error('Erreur:', error);
+				});
+
+		}
+
+		const apiUrl = 'https://www.neoffice.io/wp-json/wp/v2/';
+		const maxArticles = 1;
+		async function getLatestArticles() {
+			document.querySelector('.loaderNews').style.display = 'block';
+			const neofficeCategoryId = 1;
+			const response = await fetch(apiUrl + 'posts?per_page=' + maxArticles + '&categories=' + neofficeCategoryId);
+			const articles = await response.json();
+			const articlesList = document.getElementById('articles');
+			for (const article of articles) {
+				const listItem = document.createElement('li');
+				listItem.addEventListener('click', () => {
+					window.open(article.link);
+				});
+				const articleTitle = document.createElement('h5');
+				articleTitle.innerHTML = article.title.rendered;
+				articleTitle.setAttribute('style','margin-top: 0px; cursor: pointer;');
+				listItem.appendChild(articleTitle);
+				const maxChar = 90;
+				const articleContent = article.excerpt.rendered;
+				const truncatedContent = articleContent.substring(0, maxChar);
+				const articleContentElement = document.createElement('p');
+				articleContentElement.innerHTML = truncatedContent + '...';
+				articleContentElement.setAttribute('style','padding-left: 10px; cursor: pointer;');
+				listItem.appendChild(articleContentElement);
+				articlesList.appendChild(listItem);
 			}
-			document.addEventListener('DOMContentLoaded', getLatestArticles);
+			document.querySelector('.loaderNews').style.display = 'none';
+		}
+		document.addEventListener('DOMContentLoaded', getLatestArticles);
 		</script>
 	</section>
 </div>
