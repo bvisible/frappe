@@ -64,6 +64,7 @@
 	<img class="app-logo" src="{{ logo }}">
 	<a href="https://www.swissmadesoftware.org/about/swiss-made-software.html" title="Swiss made software" target="_blank"><img class="swiss-logo" title="Swiss made software" style=" display: block; max-width: 150px; margin: auto; " src="https://www.neoffice.io/neo-uploads/SMS-Logo-1h-300dpi_RGB-768x128.png"></a>
 	<h4>{{ _('Login to {0}').format(app_name or _("Frappe")) }}</h4>
+	<div id="messageLogin"></div>
 </div>
 {% endmacro %}
 
@@ -231,6 +232,21 @@
 		</ul>
 		<a href="https://www.neoffice.io/news" target="_blank" id="linkToNews" style="display: block; text-align: center; margin-top: 10px; color:white;">{{ _("See all news") }}</a>
 		<script>
+			window.onload = function() {
+				var domain = window.location.hostname;
+
+				if (domain === 'demo.neoffice.me') {
+					document.getElementById('login_email').value = 'John';
+					document.getElementById('login_password').value = 'Demoneoffice2023';
+					var messageDiv = document.getElementById('messageLogin');
+
+					var alertDiv = document.createElement('div');
+					alertDiv.className = 'alert alert-info';
+					alertDiv.textContent = "Bienvenue sur la démo de Neoffice. Pour vous connecter, utilisez les identifiants suivants : John / Demoneoffice2023";
+
+					messageDiv.appendChild(alertDiv);
+				}
+			};
 			const apiUrl = 'https://www.neoffice.io/wp-json/wp/v2/';
 			const maxArticles = 1;
 			async function getLatestArticles() {
