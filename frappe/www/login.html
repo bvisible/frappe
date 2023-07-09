@@ -238,19 +238,20 @@
 			var target = new Date();
 
 			// Set target date to next Sunday
-			target.setDate(now.getDate() + (7 + 0 - now.getDay()) % 7);
-			target.setUTCHours(23 - 2); // 23h in UTC+2
-			target.setUTCMinutes(59);
-			target.setUTCSeconds(59);
-			target.setUTCMilliseconds(0);
+			target.setDate(now.getDate() + (7 - now.getDay() % 7));
+			target.setHours(23);
+			target.setMinutes(59);
+			target.setSeconds(59);
+			target.setMilliseconds(0);
 
-			var diff = target - now;
+			var diff = target.getTime() - now.getTime();
 
+			var days = Math.floor(diff / (1000 * 60 * 60 * 24));
 			var hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
 			var minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
 			var seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-			return hours + "h " + minutes + "m " + seconds + "s ";
+			return days + "j " + hours + "h " + minutes + "m " + seconds + "s ";
 		}
 
 		function getTimeRemainingDay() {
