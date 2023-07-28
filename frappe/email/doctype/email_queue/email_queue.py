@@ -202,7 +202,8 @@ class EmailQueue(Document):
 							mailgun_api_key = get_mailgun_api_key()
 
 						data = {
-							"to": recipients						}
+							"to": recipients
+						}
 
 						files={
 							"message": message
@@ -246,30 +247,6 @@ class EmailQueue(Document):
 										message=_("Your email to {} has not been sent because the email {} does not exist.").format(recipients, recipients)
 									)
 									ctx.add_to_error_list(recipient)
-									try:
-										# Vérifiez si les documents existent avant de les mettre à jour
-										email_queue_exists = frappe.db.exists("Email Queue", self.name)
-										communication_exists = frappe.db.exists("Communication", self.communication)
-
-										if not email_queue_exists:
-											frappe.log_error(f"Email Queue document not found: {self.name}")
-
-										if not communication_exists:
-											frappe.log_error(f"Communication document not found: {self.communication}")
-
-										# Essayez de mettre à jour les documents
-										if email_queue_exists:
-											frappe.db.set_value("Email Queue", self.name, "status", "Error")
-
-										if communication_exists:
-											frappe.db.set_value("Communication", self.communication, "status", "Error")
-
-										# Commit the transaction
-										frappe.db.commit()
-									except Exception as e:
-										# Log any exceptions
-										frappe.log_error(f"Error updating status: {e}")
-
 									frappe.log_error(_("Email {} does not exist.").format(recipients), response_data)
 								elif delivery_status == "The server has rejected your email as spam":
 									frappe.msgprint(
@@ -277,16 +254,13 @@ class EmailQueue(Document):
 										alert=True,
 										indicator="red",
 									)
-									ctx.add_to_error_list(recipient)
 									send_via_mailgun(
 										recipients=[email_error_notification],
 										sender=default_outgoing,
 										subject=_("Email Delivery Failed"),
 										message=_("Your email to {} has not been sent because the server has rejected your email as spam.").format(recipients, recipients)
 									)
-									frappe.db.set_value("Email Queue", self.name, "status", "Error")
-									frappe.db.set_value("Communication", self.communication, "status", "Error")
-									frappe.db.commit()
+									ctx.add_to_error_list(recipient)
 									frappe.log_error(_("Eemail {} as spam.").format(recipients), response_data)
 								else:
 									frappe.msgprint(
@@ -301,9 +275,6 @@ class EmailQueue(Document):
 										message=_("Your email to {} generated this message : {}.").format(recipients, delivery_status)
 									)
 									ctx.add_to_error_list(recipient)
-									#frappe.db.set_value("Email Queue", self.name, "status", "Error")
-									#frappe.db.set_value("Communication", self.communication, "status", "Error")
-									frappe.db.commit()
 									frappe.log_error(_("Failed to send emai to {}").format(recipients), response_data)
 							else:
 								ctx.add_to_error_list(recipient)
