@@ -138,9 +138,180 @@ class EmailQueue(Document):
 				if method:
 					method(self, self.sender, recipient.recipient, message)
 				else:
-					if not frappe.flags.in_test:
-						ctx.smtp_session.sendmail(from_addr=self.sender, to_addrs=recipient.recipient, msg=message)
-					ctx.add_to_sent_list(recipient)
+					#////
+					# Check if the disable_mailgun option is checked in the Email Account doctype
+					disable_mailgun = frappe.db.get_value("Email Account", {"default_outgoing": 1}, "disable_mailgun")
+					# build email queue and send the email if send_now is True and Mailgun is disabled
+					if disable_mailgun:
+						if not frappe.flags.in_test:
+							ctx.smtp_session.sendmail(from_addr=self.sender, to_addrs=recipient.recipient, msg=message)
+						ctx.add_to_sent_list(recipient)
+					else:
+						# Now send the email with Mailgun
+						import requests
+						import time
+						sender = self.sender
+						recipients = recipient.recipient
+						message = message
+						default_outgoing = frappe.db.get_value("Email Account", {"default_outgoing": 1}, "email_id")
+						
+						def get_delivery_status(message_id):
+							response = requests.get(
+								f"https://api.mailgun.net/v3/{mailgun_domain}/events",
+								auth=("api", mailgun_api_key),
+								params={"message-id": message_id}
+							)
+
+							event_data = response.json()
+							if 'items' in event_data:
+								for item in event_data['items']:
+									if 'event' in item:
+										if item['event'] == 'failed' and 'delivery-status' in item and 'message' in item['delivery-status']:
+											message = item['delivery-status']['message']
+											if 'address unknown' in message:
+												return "Address unknown"
+											elif '5.7.1' in message:
+												return "The server has rejected your email as spam"
+											else:
+												return message
+										elif item['event'] == 'delivered':
+											return "Delivered"
+							return "Not Delivered"
+
+						def send_via_mailgun(recipients, sender, subject, message):
+							data = {
+								"from": sender,
+								"to": recipients,
+								"subject": subject,
+								"html": message
+							}
+							
+							response = requests.post(
+								f"https://api.mailgun.net/v3/{mailgun_domain}/messages",
+								auth=("api", mailgun_api_key),
+								data=data
+							)
+
+							if response.status_code != 200:
+								frappe.log_error("Failed to send email", response.status_code)
+
+						mailgun_domain = frappe.db.get_value("Email Account", {"default_outgoing": 1}, "mailgun_domain")
+						mailgun_api_key = frappe.db.get_value("Email Account", {"default_outgoing": 1}, "mailgun_api_key")
+						if not mailgun_api_key:
+							from neoffice_theme.events import get_mailgun_api_key
+							mailgun_api_key = get_mailgun_api_key()
+
+						data = {
+							"to": recipients						}
+
+						files={
+							"message": message
+						}
+
+						response = requests.post(
+							f"https://api.mailgun.net/v3/{mailgun_domain}/messages.mime",
+							auth=("api", mailgun_api_key),
+							data=data,
+							files=files
+						)
+
+						if response.status_code == 200:
+							email_error_notification = frappe.db.get_value("Email Account", {"default_outgoing": 1}, "email_error_notification")
+							if not email_error_notification:
+								email_error_notification = sender
+
+							response_data = response.json()
+							if 'id' in response_data:
+								message_id = response_data['id']
+								time.sleep(3)  # wait for a while before checking delivery status
+								delivery_status = get_delivery_status(message_id)
+
+								if delivery_status == "Delivered":
+									frappe.msgprint(
+										_("Your email to {} has been successfully sent.").format(recipients),
+										alert=True,
+										indicator="green",
+									)
+									ctx.add_to_sent_list(recipient)
+								elif delivery_status == "Address unknown":
+									frappe.msgprint(
+										_("Your email to {} has not been sent because the email {} does not exist.").format(recipients, recipients),
+										alert=True,
+										indicator="red",
+									)
+									send_via_mailgun(
+										recipients=[email_error_notification],
+										sender=default_outgoing,
+										subject=_("Email Delivery Failed"),
+										message=_("Your email to {} has not been sent because the email {} does not exist.").format(recipients, recipients)
+									)
+									ctx.add_to_error_list(recipient)
+									try:
+										# Vérifiez si les documents existent avant de les mettre à jour
+										email_queue_exists = frappe.db.exists("Email Queue", self.name)
+										communication_exists = frappe.db.exists("Communication", self.communication)
+
+										if not email_queue_exists:
+											frappe.log_error(f"Email Queue document not found: {self.name}")
+
+										if not communication_exists:
+											frappe.log_error(f"Communication document not found: {self.communication}")
+
+										# Essayez de mettre à jour les documents
+										if email_queue_exists:
+											frappe.db.set_value("Email Queue", self.name, "status", "Error")
+
+										if communication_exists:
+											frappe.db.set_value("Communication", self.communication, "status", "Error")
+
+										# Commit the transaction
+										frappe.db.commit()
+									except Exception as e:
+										# Log any exceptions
+										frappe.log_error(f"Error updating status: {e}")
+
+									frappe.log_error(_("Email {} does not exist.").format(recipients), response_data)
+								elif delivery_status == "The server has rejected your email as spam":
+									frappe.msgprint(
+										_("Your email to {} has not been sent because the server has rejected your email as spam.").format(recipients),
+										alert=True,
+										indicator="red",
+									)
+									ctx.add_to_error_list(recipient)
+									send_via_mailgun(
+										recipients=[email_error_notification],
+										sender=default_outgoing,
+										subject=_("Email Delivery Failed"),
+										message=_("Your email to {} has not been sent because the server has rejected your email as spam.").format(recipients, recipients)
+									)
+									frappe.db.set_value("Email Queue", self.name, "status", "Error")
+									frappe.db.set_value("Communication", self.communication, "status", "Error")
+									frappe.db.commit()
+									frappe.log_error(_("Eemail {} as spam.").format(recipients), response_data)
+								else:
+									frappe.msgprint(
+										_("Your email to {} generated this message : {}.").format(recipients, delivery_status),
+										alert=True,
+										indicator="red",
+									)
+									send_via_mailgun(
+										recipients=[email_error_notification],
+										sender=default_outgoing,
+										subject=_("Email Delivery"),
+										message=_("Your email to {} generated this message : {}.").format(recipients, delivery_status)
+									)
+									ctx.add_to_error_list(recipient)
+									#frappe.db.set_value("Email Queue", self.name, "status", "Error")
+									#frappe.db.set_value("Communication", self.communication, "status", "Error")
+									frappe.db.commit()
+									frappe.log_error(_("Failed to send emai to {}").format(recipients), response_data)
+							else:
+								ctx.add_to_error_list(recipient)
+								frappe.log_error("Failed to get message id from response", response_data)
+						else:
+							ctx.add_to_error_list(recipient)
+							frappe.log_error("Failed to send email", response.status_code)
+						#////
 
 			if frappe.flags.in_test:
 				frappe.flags.sent_mail = message
@@ -222,26 +393,39 @@ class SendMailContext:
 
 		self.log_exception(exc_type, exc_val, exc_tb)
 
-		if exc_type in exceptions:
-			email_status = "Partially Sent" if self.sent_to else "Not Sent"
-			self.queue_doc.update_status(status=email_status, commit=True)
-		elif exc_type:
-			if self.queue_doc.retry < get_email_retry_limit():
-				update_fields = {"status": "Not Sent", "retry": self.queue_doc.retry + 1}
-			else:
-				update_fields = {"status": (self.sent_to and "Partially Errored") or "Error"}
-			self.queue_doc.update_status(**update_fields, commit=True)
-		else:
-			email_status = self.is_mail_sent_to_all() and "Sent"
-			email_status = email_status or (self.sent_to and "Partially Sent") or "Not Sent"
+		#////
+		has_error = False
+		for recipient in self.queue_doc.recipients:
+			status = frappe.db.get_value("Email Queue Recipient", recipient.name, "status")
+			if status == "Error":
+				has_error = True
+				break
 
-			update_fields = {
-				"status": email_status,
-				"email_account": self.email_account_doc.name
-				if self.email_account_doc.is_exists_in_db()
-				else None,
-			}
-			self.queue_doc.update_status(**update_fields, commit=True)
+		if has_error:
+			email_status = "Error"
+			self.queue_doc.update_status(status=email_status, commit=True)
+		else:
+		#//// (+ indent)
+			if exc_type in exceptions:
+				email_status = "Partially Sent" if self.sent_to else "Not Sent"
+				self.queue_doc.update_status(status=email_status, commit=True)
+			elif exc_type:
+				if self.queue_doc.retry < get_email_retry_limit():
+					update_fields = {"status": "Not Sent", "retry": self.queue_doc.retry + 1}
+				else:
+					update_fields = {"status": (self.sent_to and "Partially Errored") or "Error"}
+				self.queue_doc.update_status(**update_fields, commit=True)
+			else:
+				email_status = self.is_mail_sent_to_all() and "Sent"
+				email_status = email_status or (self.sent_to and "Partially Sent") or "Not Sent"
+
+				update_fields = {
+					"status": email_status,
+					"email_account": self.email_account_doc.name
+					if self.email_account_doc.is_exists_in_db()
+					else None,
+				}
+				self.queue_doc.update_status(**update_fields, commit=True)
 
 	def log_exception(self, exc_type, exc_val, exc_tb):
 		if exc_type:
@@ -260,6 +444,12 @@ class SendMailContext:
 		# Update recipient status
 		recipient.update_db(status="Sent", commit=True)
 		self.sent_to.append(recipient.recipient)
+
+	#////
+	def add_to_error_list(self, recipient):
+		recipient.update_db(status="Error", commit=True)
+		self.sent_to.append(recipient.recipient)
+	#////
 
 	def is_mail_sent_to_all(self):
 		return sorted(self.sent_to) == sorted(rec.recipient for rec in self.queue_doc.recipients)

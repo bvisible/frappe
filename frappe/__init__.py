@@ -594,7 +594,7 @@ def sendmail(
 	subject="No Subject",
 	message="No Message",
 	as_markdown=False,
-	delayed=True,
+	delayed=False,
 	reference_doctype=None,
 	reference_name=None,
 	unsubscribe_method=None,
@@ -654,7 +654,7 @@ def sendmail(
 	:param with_container: Wraps email inside a styled container
 	"""
 	#////
-	default_outgoing = db.get_value("Email Account", {"default_outgoing": 1}, "login_id")
+	default_outgoing = db.get_value("Email Account", {"default_outgoing": 1}, "email_id")
 	if sender != default_outgoing:
 		reply_to = sender
 	else:
@@ -663,16 +663,20 @@ def sendmail(
 		user = db.get_value("User", session.user, "full_name") + " | "
 	else:
 		user = ""
+		
 	from frappe.defaults import get_user_default, get_global_default
 	name = user + (get_user_default("Company") or get_global_default("company"))
 	sender = name + ' <'+default_outgoing +'>'
-	#////
+	
 	if recipients is None:
 		recipients = []
 	if cc is None:
 		cc = []
 	if bcc is None:
 		bcc = []
+	if recipients[0] == "changeme@neoffice.me":
+			recipients[0] = db.get_value("Neoffice Woocommerce Settings", "Neoffice Woocommerce Settings", "email_notification")
+	#////
 
 	text_content = None
 	if template:
@@ -722,7 +726,7 @@ def sendmail(
 	)
 
 	# build email queue and send the email if send_now is True.
-	builder.process(send_now=now)
+	builder.process(send_now=True)
 
 
 whitelisted = []
