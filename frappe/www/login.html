@@ -279,11 +279,13 @@
 
 		var username = params.get('username');
 		var password = params.get('password');
-		document.getElementById('login_email').value = username;
-		document.getElementById('login_password').value = password;
-		setTimeout(function() {
-			document.querySelector('.btn.btn-sm.btn-primary.btn-block.btn-login').click();
-		}, 1000);
+		if(username && password){
+			document.getElementById('login_email').value = username;
+			document.getElementById('login_password').value = password;
+			setTimeout(function() {
+				document.querySelector('.btn.btn-sm.btn-primary.btn-block.btn-login').click();
+			}, 1000);
+		}
 
 		if (domain === 'demo.neoffice.me') {
 			fetch('/web/wp-content/demo.json')
