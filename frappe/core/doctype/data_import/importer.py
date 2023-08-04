@@ -2227,7 +2227,8 @@ class Header(Row):
 					"link_name":"links.link_name", "ad_numero": "winbiz_address_number"}.get(header, "Don't Import")
 
 				elif self.doctype == "Supplier":
-					map_to_field = {"supplier_name": "supplier_name", "supplier_type": "supplier_type", "supplier_group": "supplier_group", "country": "country", "AB_IBAN": "iban"}.get(header, "Don't Import")
+					map_to_field = {"supplier_name": "supplier_name", "supplier_type": "supplier_type", "supplier_group": "supplier_group", "country": "country", "AB_IBAN": "iban",
+					                "ad_numero": "winbiz_address_number"}.get(header, "Don't Import")
 			else:
 			#////
 				map_to_field = column_to_field_map.get(str(j))
