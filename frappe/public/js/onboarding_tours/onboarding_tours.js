@@ -6,7 +6,7 @@ frappe.ui.OnboardingTour = class OnboardingTour {
 	}
 
 	init_driver() {
-		//// btn next and previous
+		//// change btn next and previous and add trad done and close
 		this.driver = new frappe.Driver({
 			className: "frappe-driver",
 			allowClose: false,
