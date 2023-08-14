@@ -301,6 +301,8 @@ frappe.ui.form.ControlTextEditor = class ControlTextEditor extends frappe.ui.for
 		// hack to retain space sequence.
 		value = value.replace(/(\s)(\s)/g, " &nbsp;");
 
+		////
+		/*
 		try {
 			if (!$(value).find(".ql-editor").length) {
 				value = `<div class="ql-editor read-mode">${value}</div>`;
@@ -308,7 +310,14 @@ frappe.ui.form.ControlTextEditor = class ControlTextEditor extends frappe.ui.for
 		} catch (e) {
 			value = `<div class="ql-editor read-mode">${value}</div>`;
 		}
-
+		*/
+		try {
+			if ($(value).find(".ql-editor").length) {
+				value = $(value).find(".ql-editor").html();
+			}
+		} catch (e) {
+		}
+		
 		return value;
 	}
 
