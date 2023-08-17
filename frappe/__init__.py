@@ -44,7 +44,7 @@ from .utils.jinja import (
 )
 from .utils.lazy_loader import lazy_import
 
-__version__ = "14.44.0"
+__version__ = "14.45.0"
 __title__ = "Frappe Framework"
 
 controllers = {}
@@ -2298,27 +2298,11 @@ def bold(text):
 
 def safe_eval(code, eval_globals=None, eval_locals=None):
 	"""A safer `eval`"""
+
+	from frappe.utils.safe_exec import UNSAFE_ATTRIBUTES
+
 	whitelisted_globals = {"int": int, "float": float, "long": int, "round": round}
 	code = unicodedata.normalize("NFKC", code)
-
-	UNSAFE_ATTRIBUTES = {
-		# Generator Attributes
-		"gi_frame",
-		"gi_code",
-		# Coroutine Attributes
-		"cr_frame",
-		"cr_code",
-		"cr_origin",
-		# Async Generator Attributes
-		"ag_code",
-		"ag_frame",
-		# Traceback Attributes
-		"tb_frame",
-		"tb_next",
-		# Format Attributes
-		"format",
-		"format_map",
-	}
 
 	for attribute in UNSAFE_ATTRIBUTES:
 		if attribute in code:
