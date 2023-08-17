@@ -2468,3 +2468,34 @@ if _tune_gc:
 	# everything else.
 	g0, g1, g2 = gc.get_threshold()  # defaults are 700, 10, 10.
 	gc.set_threshold(g0 * 10, g1 * 2, g2 * 2)
+
+
+#////
+def neolog(title=None, message=None, reference_doctype=None, reference_name=None):
+	"""Log error to Error Log"""
+	# Parameter ALERT:
+	# the title and message may be swapped
+	# the better API for this is log_error(title, message), and used in many cases this way
+	# this hack tries to be smart about whats a title (single line ;-)) and fixes it
+
+	traceback = None
+	if message:
+		if "\n" in title:  # traceback sent as title
+			traceback, title = title, message
+		else:
+			traceback = message
+
+	title = title or "Error"
+	traceback = as_unicode(traceback or get_traceback(with_context=True))
+
+	neo_error_log = get_doc(
+		doctype="Error Log",
+		error=traceback,
+		method=title,
+		reference_doctype=reference_doctype,
+		reference_name=reference_name,
+	)
+	neo_error_log.insert(ignore_permissions=True)
+	db.commit()
+#////
+
