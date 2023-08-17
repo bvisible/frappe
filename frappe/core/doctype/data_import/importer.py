@@ -21,7 +21,6 @@ from frappe.utils.xlsxutils import (
 from copy import deepcopy #////
 import requests #////
 from neoffice_ecommerce.neoffice_ecommerce.doctype.wordpress_settings.api.neo import call_bmr #////
-from neoffice_theme.events import neo_log #////
 
 INVALID_VALUES = ("", None)
 MAX_ROWS_IN_PREVIEW = 10
@@ -925,7 +924,7 @@ class ImportFile:
 						elif self.doctype == "Object":
 							row.extend(["customer_name", "registration_number", "chassis_number", "plate_number", "homologation", "engine_number", "order_number", "keycode_1",
 										"key_id", "gearbox_number", "cabin_number", "radio_code", "keycode_2", "doors", "seats", "remark", "object_name"])
-							
+
 							for (index, item) in enumerate(row):
 								#frappe.msgprint(item)
 								if item == "ad_numero":
@@ -1812,7 +1811,6 @@ class ImportFile:
 								continue
 
 							if not frappe.db.exists("Brand", row[brand_index]) and row[brand_index]:
-								neo_log("print brand", str(row[brand_index]))
 								frappe.get_doc({"doctype": "Brand", "brand": row[brand_index]}).insert()
 
 							if not frappe.db.exists("Vehicle Type", row[type_index]) and row[type_index]:
@@ -1946,7 +1944,6 @@ class ImportFile:
 							new_row = []
 
 						elif self.doctype == "Contact":
-							neo_log("new row contact")
 							if row[address_second_phone_index]:
 								added_lines += 1
 								second_phone = "".join(re.findall("\d{5,}", str(row[address_second_phone_index])))
@@ -1955,7 +1952,6 @@ class ImportFile:
 								row_obj = Row(i+added_lines, new_row, self.doctype, header, self.import_type)
 								data.append(row_obj)
 								new_row = []
-								neo_log("add second phone",  str(new_row))
 							if row[address_mobile_phone_index]:
 								new_row = [None] * base_row_length
 								added_lines += 1
@@ -1964,8 +1960,6 @@ class ImportFile:
 								row_obj = Row(i+added_lines, new_row, self.doctype, header, self.import_type)
 								data.append(row_obj)
 								new_row = []
-								neo_log("add mobile phone", str(new_row))
-							neo_log("contact data", str(data))
 
 							#frappe.msgprint(str(new_row))
 
