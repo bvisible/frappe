@@ -323,7 +323,7 @@ export default {
 						request_succeeded: false,
 						error_message: null,
 						uploading: false,
-						private: is_image ? false : file.is_private ////
+						private: is_image ? false : ((cur_frm.doctype == "Data Import" && ["xls", "xlsx", "csv"].some(str => file.type.includes(str))) ? true : file.is_private) ////
 					};
 				});
 
