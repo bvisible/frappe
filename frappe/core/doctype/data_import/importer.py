@@ -1026,10 +1026,11 @@ class ImportFile:
 								sku_suffix += 1
 
 							split_cats = row[category_index].split("|")
+							from neoffice_theme.events import get_full_group_tree
 							for idx_nb, cat in enumerate(split_cats):
 								#tree = cat.split(">")
 								#if tree[-1] not in created_cats:
-								root = self.doctype_data.root_category
+								root = get_full_group_tree(self.doctype_data.root_category)
 								last_cat = root
 								if not frappe.db.get_value("Item Group", {"group_tree": root+">"+cat}, "name"):
 									for c in cat.split(">"):
@@ -1047,7 +1048,7 @@ class ImportFile:
 													"is_group": 1,
 													"group_tree": this_cat
 												})
-											elif parent_group == "Ecommerce" :
+											elif parent_group == "Ecommerce":
 												index_to_append = 1
 												composed_name = c
 												while frappe.db.exists("Item Group", {"name": composed_name + " " + str(index_to_append)}):
@@ -1503,7 +1504,8 @@ class ImportFile:
 						if self.doctype == "Item":
 							item_group = None
 							if row[category_index]:
-								parent = self.doctype_data.root_category
+								from neoffice_theme.events import get_full_group_tree
+								parent = get_full_group_tree(self.doctype_data.root_category)
 								group_tree = parent + ">" + row[category_index]
 								item_group = parent
 								filtered_groups = frappe.get_all("Item Group", filters={"group_tree": group_tree})
