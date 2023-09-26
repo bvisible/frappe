@@ -323,7 +323,7 @@ export default {
 						request_succeeded: false,
 						error_message: null,
 						uploading: false,
-						private: is_image ? false : ((cur_frm.doctype == "Data Import" && ["xls", "xlsx", "csv"].some(str => file.type.includes(str))) ? true : file.is_private) ////
+						private: file.is_private
 					};
 				});
 
@@ -389,7 +389,7 @@ export default {
 
 			return is_correct_type && valid_file_size;
 		},
-		upload_files() {
+		upload_files(is_private) { //// added is_private
 			if (this.show_file_browser) {
 				return this.upload_via_file_browser();
 			}
@@ -402,7 +402,7 @@ export default {
 			return frappe.run_serially(
 				this.files.map(
 					(file, i) =>
-						() => this.upload_file(file, i)
+						() => this.upload_file(file, i, is_private) //// added is_private
 				)
 			);
 		},
@@ -442,7 +442,7 @@ export default {
 			this.close_dialog = true;
 			return Promise.all(promises);
 		},
-		upload_file(file, i) {
+		upload_file(file, i, is_private) { //// added is_private
 			this.currently_uploading = i;
 
 			return new Promise((resolve, reject) => {
@@ -529,7 +529,7 @@ export default {
 				if (file.file_obj) {
 					form_data.append('file', file.file_obj, file.name);
 				}
-				form_data.append('is_private', +file.private);
+				form_data.append('is_private', + is_private); //// is_private replace file.private
 				form_data.append('folder', this.folder);
 
 				if (file.file_url) {
