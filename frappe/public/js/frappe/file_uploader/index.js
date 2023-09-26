@@ -125,7 +125,7 @@ export default class FileUploader {
 		});
 
 		////
-		const switch_file_public_html = '<div data-tooltip-bottom="' + __("Change file visibility: Private => only visible by neoffice user system. Public => visible by anyone (can be indexed by Google)") + '" class="switch_interface" > <span class="view_interface_span_pre"></span> <div class="switches-container"> <input type="radio" id="switchPrivate" name="switch" value="Private" checked="checked" /> <input type="radio" id="switchPublic" name="switch" value="Public" /> <label for="switchPrivate">' + __("Private") + '</label> <label for="switchPublic">' + __("Public") + '</label> <div class="switch-wrapper"> <div class="switch"> <div>' + __("Private") + '</div> <div>' + __("Public") + '</div> </div> </div> </div> </div>';
+		const switch_file_public_html = '<div data-tooltip-bottom="' + __("Change file visibility: Private => only visible by Neoffice user system. Public => visible by anyone (can be indexed by Google)") + '" class="switch_interface" > <span class="view_interface_span_pre"></span> <div class="switches-container"> <input type="radio" id="switchPrivate" name="switch" value="Private" checked="checked" /> <input type="radio" id="switchPublic" name="switch" value="Public" /> <label for="switchPrivate">' + __("Private") + '</label> <label for="switchPublic">' + __("Public") + '</label> <div class="switch-wrapper"> <div class="switch"> <div>' + __("Private") + '</div> <div>' + __("Public") + '</div> </div> </div> </div> </div>';
 		this.dialog.footer.prepend(switch_file_public_html);
 
 		$(this.dialog.footer[0].children[0]).find('label').on('click', function () {
