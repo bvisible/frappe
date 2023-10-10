@@ -403,7 +403,26 @@ frappe.provide("frappe.views");
 						var col = {
 							title: title.trim(),
 						};
-						store.dispatch("add_column", col);
+						//// get route if route egale ['List', 'ToDo', 'Kanban', 'ToDo']
+						var route = frappe.get_route();
+						if (route[0] == "List" && route[1] == "ToDo" && route[2] == "Kanban" && route[3] == "ToDo") {
+							frappe.call({
+								method: 'neoffice_theme.events.add_status_options',
+								args: {
+									'new_options': title.trim()
+								},
+								callback: function(r) {
+									if (r.message) {
+										frappe.msgprint(r.message);
+										setTimeout(function() {
+											location.reload(); 
+										} , 3000);
+									}
+								}
+							});
+						} else {
+							store.dispatch("add_column", col);
+						}
 						$compose_column_form.find("input").val("");
 						$compose_column.show();
 						$compose_column_form.hide();
@@ -676,7 +695,28 @@ frappe.provide("frappe.views");
 					var action = $btn.data().action;
 
 					if (action === "archive") {
-						store.dispatch("archive_column", column);
+						////
+						var route = frappe.get_route();
+						if (route[0] == "List" && route[1] == "ToDo" && route[2] == "Kanban" && route[3] == "ToDo") {
+							console.log(column.title);
+							frappe.call({
+								method: 'neoffice_theme.events.remove_status_option',
+								args: {
+									'column_to_remove': column.title
+								},
+								callback: function(r) {
+									if (r.message) {
+										frappe.msgprint(r.message);
+										setTimeout(function() {
+											location.reload(); 
+										} , 3000);
+									}
+								}
+							});
+						} else {
+							store.dispatch("archive_column", column);
+						}
+						
 					} else if (action === "indicator") {
 						var color = $btn.data().indicator;
 						store.dispatch("set_indicator", { column, color });
