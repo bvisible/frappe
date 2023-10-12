@@ -39,7 +39,7 @@
             "in_list_view": 1,
             "in_standard_filter": 1,
             "label": "Status",
-            "options": "sdasdasd\nqweqweqwe\nsadasd\nasdasdasdsa\ntest4\ntest\ntest8\nOpen\nClosed"
+            "options": "Open\nClosed"
         },
         {
             "default": "Medium",
