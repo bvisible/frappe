@@ -293,12 +293,103 @@ frappe.router = {
 	},
 
 	render() {
-		if (this.current_route[0]) {
-			this.render_page();
+		////
+		let me = this;
+		if(frappe.user.name != "Administrator") {
+			let view_type = this.current_route[0];
+			let view_name = this.current_route[1];
+			let view_end = this.current_route[2];
+			let restrict_to_domain = "";
+			let meta = frappe.get_meta(view_name);
+
+			function no_module_show_message() {
+				frappe.msgprint({
+					title: __("Access Refused"),
+					message: __("Your subscription does not give you access to this page. You can change your Neoffice subscription in the <a href='https://app.neoffice.io/clientarea.php?action=services' target='_blank'>My products & services</a> section of your account."),
+					indicator: 'red',
+					primary_action:{
+						'label': __("Go back"),
+						action(values) {
+							window.history.back();
+						}
+					}
+				});
+			}
+	
+			frappe.call({
+				method: 'neoffice_theme.events.get_active_domains',
+				callback: function(r) {
+					let active_domains = r.message;
+
+					if (view_type == "query-report" && !active_domains.includes("ERP")) {
+						no_module_show_message();
+					} else if(frappe.views.formview?.Page?.label == "Page" || view_name == null ) { 
+						if(view_name == null) {
+							view_end = view_type;
+						}
+
+						frappe.call({
+							method: 'neoffice_theme.events.get_restrict_to_domain_for_page',
+							args: {
+								view_end: view_end
+							},
+							callback: function(r) {
+								restrict_to_domain = r.message;
+								if (restrict_to_domain && !active_domains.includes(restrict_to_domain)) {
+									no_module_show_message();
+								} else {
+									if (me.current_route[0]) {
+										me.render_page();
+									} else {
+										// Show home
+										frappe.views.pageview.show("");
+									}
+								}
+							}
+						});
+
+					} else if(meta?.doctype == "DocType" || view_type == "List"){
+
+						frappe.call({
+							method: 'neoffice_theme.events.get_restrict_to_domain_for_doctype',
+							args: {
+								view_name: view_name
+							},
+							callback: function(r) {
+								restrict_to_domain = r.message;
+								if (restrict_to_domain && !active_domains.includes(restrict_to_domain)) {
+									no_module_show_message();
+								} else {
+									if (me.current_route[0]) {
+										me.render_page();
+									} else {
+										// Show home
+										frappe.views.pageview.show("");
+									}
+								}
+							}
+						});
+
+					} else {
+						if (me.current_route[0]) {
+							me.render_page();
+						} else {
+							// Show home
+							frappe.views.pageview.show("");
+						}
+					}
+					
+				}
+			});
 		} else {
-			// Show home
-			frappe.views.pageview.show("");
+			if (me.current_route[0]) {
+				me.render_page();
+			} else {
+				// Show home
+				frappe.views.pageview.show("");
+			}
 		}
+	
 	},
 
 	render_page() {
