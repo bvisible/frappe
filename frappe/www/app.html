@@ -23,7 +23,7 @@
 			jQuery(document).on("SBReady", function () {
 				SBF.getActiveUser(true, () => {
 					setTimeout(() => {
-						let neo_user_email = user_email;
+						let neo_user_email = frappe.user_info().email;
 
 						if (!SBF.activeUser() || (SBF.activeUser().email != neo_user_email)) {
 							let isEmpty = (value) => (typeof value === "undefined" || value === null || value === '' || value === ' ');
