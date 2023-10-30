@@ -51,10 +51,11 @@ class Importer:
 			self.template_options,
 			self.import_type,
 			console=self.console,
-			self.custom_import_type, #//// added
-			self.data_import, #//// added
-			self.from_func #//// added
+			custom_import_type=self.custom_import_type, #//// Added
+			data_import=self.data_import, #//// Added
+			from_func=self.from_func  #//// Added
 		)
+
 
 	def get_data_for_import_preview(self):
 		out = self.import_file.get_data_for_import_preview()
