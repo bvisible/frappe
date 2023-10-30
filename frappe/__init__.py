@@ -724,7 +724,7 @@ def sendmail(
 
 	#//// added if
 	if recipients[0] == "changeme@neoffice.me":
-				recipients[0] = db.get_single_value("Neoffice Woocommerce Settings","email_notification")
+		recipients[0] = db.get_single_value("Neoffice Woocommerce Settings","email_notification")
 		for recipient in recipients:
 			if 'administrator@neoffice.net' in recipient:
 				recipients.remove(recipient)
