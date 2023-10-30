@@ -228,7 +228,84 @@ login.login_handlers = (function () {
 			if (data.message == 'Logged In') {
 				login.set_status('{{ _("Success") }}', 'green');
 				document.body.innerHTML = `{% include "templates/includes/splash_screen.html" %}`;
-				window.location.href = frappe.utils.sanitise_redirect(frappe.utils.get_url_arg("redirect-to")) || data.home_page;
+				////commented window.location.href = frappe.utils.sanitise_redirect(frappe.utils.get_url_arg("redirect-to")) || data.home_page;
+				//// replacement
+				function redirectAfterLogin() {
+					window.location.href = frappe.utils.sanitise_redirect(frappe.utils.get_url_arg("redirect-to")) || "/app";
+				}
+				let loggedInServices = {};
+
+				function fetchJSONFile(file, onSuccess) {
+					fetch(file)
+						.then(response => {
+							if (response.ok) {
+								return response.json();
+							} else {
+								throw new Error('Erreur lors de la récupération du fichier JSON');
+							}
+						})
+						.then(data => {
+							onSuccess(data);
+						})
+						.catch(error => {
+							console.error('Erreur lors de la récupération du fichier JSON:', error);
+						});
+				}
+
+				fetchJSONFile("/web/wp-content/neoconfig.json", function(configData) {
+					function handleMessage(event) {
+						if (event.data.source === 'wordpress' || event.data.source === 'nextcloud') {
+							if (event.data.status === 'loggedIn') {
+								loggedInServices[event.data.source] = true;
+								if (configData.website === 1 && configData.cloud === 1 && loggedInServices.wordpress && loggedInServices.nextcloud) {
+									redirectAfterLogin();
+								}
+								else if (configData.website === 1 && configData.cloud === 0 && loggedInServices.wordpress) {
+									redirectAfterLogin();
+								}
+								else if (configData.website === 0 && configData.cloud === 1 && loggedInServices.nextcloud) {
+									redirectAfterLogin();
+								}
+							}
+						}
+					}
+					window.addEventListener('message', handleMessage);
+					if (configData.website === 1) {
+						createInvisibleIframe("/web/wp-admin", "iframeWEB");
+					}
+					if (configData.cloud === 1) {
+						createInvisibleIframe("/cloud/", "iframeCloud");
+					}
+				});
+				function createInvisibleIframe(src, id) {
+					const iframe = document.createElement("iframe");
+					iframe.src = src;
+					iframe.id = id;
+					iframe.style.width = "0px";
+					iframe.style.height = "0px";
+					iframe.style.display = "none";
+					document.body.appendChild(iframe);
+					return iframe;
+				}
+				//force redirect after 20 seconds
+				setTimeout(function () {
+					redirectAfterLogin();
+				}, 20000);
+				function startLoadingBar(duration) {
+					const progressBar = document.getElementById("login-progressBar");
+					let width = 0;
+					const step = 100 / (duration * 1000 / 10);
+					const loadingInterval = setInterval(() => {
+							if (width >= 100) {
+								clearInterval(loadingInterval);
+							} else {
+								width += step;
+								progressBar.style.width = width + "%";
+							}
+					}, 15);
+				}
+				startLoadingBar(10);
+				////
 			} else if (data.message == 'Password Reset') {
 				window.location.href = frappe.utils.sanitise_redirect(data.redirect_to);
 			} else if (data.message == "No App") {

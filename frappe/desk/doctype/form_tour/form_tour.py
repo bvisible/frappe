@@ -49,7 +49,7 @@ class FormTour(Document):
 				self.module = frappe.db.get_value("DocType", dashboard_doctype, "module")
 			else:
 				self.module = "Desk"
-		if not self.ui_tour:
+		if not self.ui_tour and not frappe.flags.tour_import: #//// added  and not frappe.flags.tour_import
 			meta = frappe.get_meta(self.reference_doctype)
 			for step in self.steps:
 				if step.is_table_field and step.parent_fieldname:

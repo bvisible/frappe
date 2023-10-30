@@ -73,8 +73,13 @@ def make(
 			"are deprecated or unsupported",
 			category=DeprecationWarning,
 		)
+	#//// added
+	user = None 
+	if kwargs and "user" in kwargs:
+		user = kwargs.get("user")
+	#////
 
-	if doctype and name and not frappe.has_permission(doctype=doctype, ptype="email", doc=name):
+	if doctype and name and not frappe.has_permission(doctype=doctype, ptype="email", doc=name, user=user): #//// added , user=user
 		raise frappe.PermissionError(f"You are not allowed to send emails related to: {doctype} {name}")
 
 	return _make(

@@ -56,6 +56,19 @@ def optimize_image(
 	max_height = max(min(max_height, height * 0.8), 200)
 	max_width = max(min(max_width, width * 0.8), 200)
 	image_format = content_type.split("/")[1]
+	#//// added
+	if image.info.get("transparency", None) is not None:
+		image_format = "png"
+	if image.mode == "P":
+		transparent = image.info.get("transparency", -1)
+		for _, index in image.getcolors():
+			if index == transparent:
+				image_format = "png"
+	elif image.mode == "RGBA":
+		extrema = image.getextrema()
+		if extrema[3][0] < 255:
+			image_format = "png"
+	#////
 	size = max_width, max_height
 	image.thumbnail(size, Image.Resampling.LANCZOS)
 

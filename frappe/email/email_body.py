@@ -359,17 +359,29 @@ def get_formatted_html(
 
 	email_account = email_account or EmailAccount.find_outgoing(match_by_email=sender)
 
+	#//// added block
+	signature = None
+	if "<!-- signature-included -->" not in message:
+		signature = get_signature(email_account)
+
+	domain = get_url()
+	company_name = frappe.db.get_single_value('Global Defaults', 'default_company')
+	logo_path = frappe.db.get_value("Company", company_name, "company_logo")
+	logo_url = get_url(logo_path)
+
 	rendered_email = frappe.get_template("templates/emails/standard.html").render(
 		{
-			"brand_logo": get_brand_logo(email_account) if with_container or header else None,
+			"brand_logo": logo_url, #////get_brand_logo(email_account) if with_container or header else None,
 			"with_container": with_container,
-			"site_url": get_url(),
+			"site_url": domain, #////get_url(),
 			"header": get_header(header),
 			"content": message,
 			"footer": get_footer(email_account, footer),
 			"title": subject,
 			"print_html": print_html,
 			"subject": subject,
+			"signature": signature, #//// added
+			"company": company_name, #//// added
 		}
 	)
 

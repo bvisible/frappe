@@ -452,5 +452,6 @@ def is_safe_path(path: str) -> bool:
 	# ref: https://docs.python.org/3/library/os.path.html#os.path.commonpath
 	matchpath = os.path.abspath(path)
 	basedir = os.path.abspath(basedir)
+	basedir_neoffice = "/mnt/neoffice" #//// added
 
-	return basedir == os.path.commonpath((basedir, matchpath))
+	return basedir == os.path.commonpath((basedir, matchpath)) or basedir_neoffice == os.path.commonpath((basedir_neoffice, matchpath)) #//// return basedir == os.path.commonpath((basedir, matchpath))

@@ -699,12 +699,36 @@ def sendmail(
 	:param with_container: Wraps email inside a styled container
 	"""
 
+	#//// added block
+	default_outgoing = db.get_value("Email Account", {"default_outgoing": 1}, "email_id")
+	if sender != default_outgoing:
+		reply_to = sender
+	else:
+		reply_to = None
+	if session.user and session.user != "Guest" and session.user != "Administrator":
+		user = db.get_value("User", session.user, "full_name") + " | "
+	else:
+		user = ""
+		
+	from frappe.defaults import get_user_default, get_global_default
+	name = user + (get_user_default("Company") or get_global_default("company"))
+	sender = name + ' <'+default_outgoing +'>'
+	#////
+
 	if recipients is None:
 		recipients = []
 	if cc is None:
 		cc = []
 	if bcc is None:
 		bcc = []
+
+	#//// added if
+	if recipients[0] == "changeme@neoffice.me":
+				recipients[0] = db.get_value("Neoffice Woocommerce Settings", "Neoffice Woocommerce Settings", "email_notification")
+		for recipient in recipients:
+			if 'administrator@neoffice.net' in recipient:
+				recipients.remove(recipient)
+	#////
 
 	text_content = None
 	if template:
@@ -818,11 +842,14 @@ def is_whitelisted(method):
 
 	is_guest = session["user"] == "Guest"
 	if method not in whitelisted or is_guest and method not in guest_methods:
-		summary = _("You are not permitted to access this resource.")
+		#//// commented
+		'''summary = _("You are not permitted to access this resource.")
 		detail = _("Function {0} is not whitelisted.").format(
 			bold(f"{method.__module__}.{method.__name__}")
 		)
-		msg = f"<details><summary>{summary}</summary>{detail}</details>"
+		msg = f"<details><summary>{summary}</summary>{detail}</details>"'''
+		#////
+		msg = f"<meta http-equiv='Refresh' content='0' url='/login' />" #//// replacement
 		throw(msg, PermissionError, title="Method Not Allowed")
 
 	if is_guest and method not in xss_safe_methods:
@@ -1792,6 +1819,11 @@ def copy_doc(doc: "Document", ignore_no_copy: bool = True) -> "Document":
 				d.set(df.fieldname, None)
 
 	fields_to_clear = ["name", "owner", "creation", "modified", "modified_by"]
+	
+	#//// added if
+	if doc.doctype == "Item":
+		fields_to_clear += ["item_code", "item_name", "stock_on_hand", "opening_stock", "woocommerce_id", "perma_temp", "permalink", "woocommerce_feature_img", "woocommerce_img_1", "woocommerce_img_2", "woocommerce_img_3", "woocommerce_img_4", "woocommerce_img_5", "woocommerce_img_6", "woocommerce_img_7", "woocommerce_img_8", "woocommerce_img_9", "woocommerce_img_10"]
+	#////
 
 	if not local.flags.in_test:
 		fields_to_clear.append("docstatus")
@@ -2439,3 +2471,33 @@ if _tune_gc:
 
 # Remove references to pattern that are pre-compiled and loaded to global scopes.
 re.purge()
+
+
+#//// added function
+def neolog(title=None, message=None, reference_doctype=None, reference_name=None):
+	"""Log error to Error Log"""
+	# Parameter ALERT:
+	# the title and message may be swapped
+	# the better API for this is log_error(title, message), and used in many cases this way
+	# this hack tries to be smart about whats a title (single line ;-)) and fixes it
+
+	traceback = None
+	if message:
+		if "\n" in title:  # traceback sent as title
+			traceback, title = title, message
+		else:
+			traceback = message
+
+	title = title or "Error"
+	traceback = as_unicode(traceback or get_traceback(with_context=True))
+
+	neo_error_log = get_doc(
+		doctype="Error Log",
+		error=traceback,
+		method=title,
+		reference_doctype=reference_doctype,
+		reference_name=reference_name,
+	)
+	neo_error_log.insert(ignore_permissions=True)
+	db.commit()
+#////

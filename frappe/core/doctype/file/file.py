@@ -6,9 +6,11 @@ import mimetypes
 import os
 import re
 import shutil
+import unicodedata #//// added
 import zipfile
 from urllib.parse import quote, unquote
 
+import PIL #//// added
 from PIL import Image, ImageFile, ImageOps
 from requests.exceptions import HTTPError, SSLError
 
@@ -28,6 +30,7 @@ from .exceptions import (
 	MaxFileSizeReachedError,
 )
 from .utils import *
+from neoffice_ecommerce.neoffice_ecommerce.doctype.wordpress_settings.api.neo import call_bmr #//// added
 
 exclude_from_linked_with = True
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -98,6 +101,36 @@ class File(Document):
 		if self.is_folder:
 			return
 
+		#//// added if
+		if self.file_name:
+			base_name = self.file_name
+			try:
+				self.file_name = re.sub(r"/", "", self.file_name)
+				extension = self.file_name.split(".")[-1]
+				self.file_name = self.file_name[:self.file_name.rfind('.')]
+				self.file_name = re.sub("[-]\d+x\d+", '', self.file_name)
+				self.file_name = re.sub("\d+x\d+", '', self.file_name)
+				self.file_name = unicodedata.normalize('NFKD', self.file_name).encode('ascii', 'ignore').decode('ascii')
+				#self.file_name = re.sub(r'[^\w\s-]', '', self.file_name.lower())
+				self.file_name = re.sub(r'[-\s]+', '-', self.file_name).strip('-_')
+				stream = io.BytesIO(self.content)
+				img = Image.open(stream)
+				if img.info.get("transparency", None) is not None:
+					extension = "png"
+				if img.mode == "P":
+					transparent = img.info.get("transparency", -1)
+					for _, index in img.getcolors():
+						if index == transparent:
+							extension = "png"
+				elif img.mode == "RGBA":
+					extrema = img.getextrema()
+					if extrema[3][0] < 255:
+						extension = "png"
+				self.file_name = self.file_name + '.' + extension
+			except PIL.UnidentifiedImageError:
+				self.file_name = base_name
+		#////
+
 		if self.is_remote_file:
 			self.validate_remote_file()
 		else:
@@ -106,6 +139,10 @@ class File(Document):
 			frappe.db.after_rollback.add(self.on_rollback)
 
 	def after_insert(self):
+		#//// added if
+		if not frappe.flags.in_import:
+			call_bmr()
+		#////
 		if not self.is_folder:
 			self.create_attachment_record()
 		self.set_is_private()
@@ -216,6 +253,20 @@ class File(Document):
 				_("URL must start with http:// or https://"),
 				title=_("Invalid URL"),
 			)
+
+		#//// added code
+		self.file_url = unquote(self.file_url)
+		extension = self.file_url.split(".")[-1]
+		path = '/files/' if self.file_url.startswith('/files/') else '/private/files/'
+		self.file_url = (self.file_url[:self.file_url.rfind('.')]).replace(path, '')
+		self.file_url = re.sub("[-]\d+x\d+", '', self.file_url)
+		self.file_url = re.sub("\d+x\d+", '', self.file_url)
+		self.file_url = unicodedata.normalize('NFKD', self.file_url).encode('ascii', 'ignore').decode('ascii')
+		#self.file_url = re.sub(r'[^\w\s-]', '', self.file_url.lower())
+		self.file_url = re.sub(r'[-\s]+', '-', self.file_url).strip('-_')
+		self.file_url = path + self.file_url + '.' + extension
+		self.is_private = cint(self.is_private)
+		#////
 
 	def handle_is_private_changed(self):
 		if self.is_remote_file:

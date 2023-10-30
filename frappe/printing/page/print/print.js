@@ -54,6 +54,19 @@ frappe.ui.form.PrintView = class {
 		this.setup_menu();
 		this.setup_toolbar();
 		this.setup_sidebar();
+		//// added
+		frappe.db.get_list('Language', {filters: {"enabled":1}, fields: ['language_code']}).then(r => {
+			let array_code = []
+			r.forEach(function(item) {
+				array_code.push(item.language_code)
+			})
+			$('select[data-fieldname="language"] option').each(function() {
+				if ( !array_code.includes($(this).val()) ) {
+					$(this).remove();
+				}
+			});
+		});
+		////
 		this.setup_keyboard_shortcuts();
 	}
 
@@ -62,7 +75,7 @@ frappe.ui.form.PrintView = class {
 	}
 
 	setup_toolbar() {
-		this.page.set_primary_action(__("Print"), () => this.printit(), "printer");
+		/*////commented this.page.set_primary_action(__("Print"), () => this.printit(), "printer");*/
 
 		this.page.add_button(__("Full Page"), () => this.render_page("/printview?"), {
 			icon: "full-page",
@@ -377,6 +390,7 @@ frappe.ui.form.PrintView = class {
 		if (print_format.print_format_builder_beta) {
 			this.print_wrapper.find(".print-preview-wrapper").hide();
 			this.print_wrapper.find(".preview-beta-wrapper").show();
+			this.print_wrapper.find('.preview-beta-wrapper iframe').css("height","100vh"); //// added
 			this.preview_beta();
 			return;
 		}
@@ -615,6 +629,38 @@ frappe.ui.form.PrintView = class {
 			this.render_page("/api/method/frappe.utils.print_format.download_pdf?");
 		}
 	}
+
+	//// added function
+	render_pdf_dialog() {
+		let print_format = this.get_print_format();
+		if (print_format.print_format_builder_beta) {
+			let params = new URLSearchParams({
+				doctype: this.frm.doc.doctype,
+				name: this.frm.doc.name,
+				print_format: print_format.name,
+				letterhead: this.get_letterhead(),
+			});
+			let w = window.open(`/api/method/frappe.utils.weasyprint.download_pdf?${params}`);
+			if (!w) {
+				frappe.msgprint(__("Please enable pop-ups"));
+				return;
+			}
+		} else {
+			this.render_page("/api/method/frappe.utils.print_format.download_pdf?");
+		}
+		const route = frappe.get_route();
+		const doctype = route[1];
+		const docname = route.slice(2).join("/");
+		if( doctype == 'Quotation' || doctype == 'Sales Order' || doctype == 'Sales Invoice' || doctype == 'Delivery Note'){
+			frappe.confirm(__("Do you want to consider the document as printed ?"),
+			() => {
+				frappe.db.set_value(doctype, docname, "printed_document", 1);
+			}, () => {
+				frappe.db.set_value(doctype, docname, "printed_document", 0);
+			})
+		}
+	}
+	////
 
 	render_page(method, printit = false) {
 		let w = window.open(

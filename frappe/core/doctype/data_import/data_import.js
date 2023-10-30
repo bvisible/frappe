@@ -3,6 +3,27 @@
 
 frappe.ui.form.on("Data Import", {
 	setup(frm) {
+		//// added
+		cur_frm.fields_dict.import_file.df.hidden = 1;
+		cur_frm.fields_dict.import_file.refresh()
+		cur_frm.fields_dict.html_5.df.hidden = 1;
+		cur_frm.fields_dict.html_5.refresh()
+		cur_frm.fields_dict.google_sheets_url.df.hidden = 1;
+		cur_frm.fields_dict.google_sheets_url.refresh()
+		cur_frm.fields_dict.refresh_google_sheet.df.hidden = 1;
+		cur_frm.fields_dict.refresh_google_sheet.refresh()
+
+		if((frm.doc.name.includes("partie 2") || frm.doc.name.includes("partie 3")) && !frm.doc.import_file) {
+			frappe.db.get_value("Data Import", frm.doc.name.replace(/.$/, "1"), "import_file", (r) => {
+				if(r.import_file) {
+					frappe.db.set_value("Data Import", frm.doc.name, {"import_file": r.import_file, "import_file_data": r.import_file});
+					frm.fields_dict.import_file_data.refresh()
+					frm.fields_dict.import_file.refresh()
+					frm.trigger("import_file");
+				}
+			});
+		}
+		////
 		frappe.realtime.on("data_import_refresh", ({ data_import }) => {
 			frm.import_in_progress = false;
 			if (data_import !== frm.doc.name) return;
@@ -71,6 +92,16 @@ frappe.ui.form.on("Data Import", {
 	},
 
 	refresh(frm) {
+		//// added
+		cur_frm.fields_dict.import_file.df.hidden = 1;
+		cur_frm.fields_dict.import_file.refresh()
+		cur_frm.fields_dict.html_5.df.hidden = 1;
+		cur_frm.fields_dict.html_5.refresh()
+		cur_frm.fields_dict.google_sheets_url.df.hidden = 1;
+		cur_frm.fields_dict.google_sheets_url.refresh()
+		cur_frm.fields_dict.refresh_google_sheet.df.hidden = 1;
+		cur_frm.fields_dict.refresh_google_sheet.refresh()
+		////
 		frm.page.hide_icon_group();
 		frm.trigger("update_indicators");
 		frm.trigger("import_file");
@@ -107,7 +138,7 @@ frappe.ui.form.on("Data Import", {
 		frm.disable_save();
 		if (frm.doc.status !== "Success") {
 			if (!frm.is_new() && frm.has_import_file()) {
-				let label = frm.doc.status === "Pending" ? __("Start Import") : __("Retry");
+				let label = frm.doc.status === "Pending" ? __("Start Import") : frm.doc.status === "Split Import Started" ? __("Continue") : __("Retry"); //// let label = frm.doc.status === "Pending" ? __("Start Import") : __("Retry");
 				frm.page.set_primary_action(label, () => frm.events.start_import(frm));
 			} else {
 				frm.page.set_primary_action(__("Save"), () => frm.save());
@@ -207,11 +238,13 @@ frappe.ui.form.on("Data Import", {
 	},
 
 	start_import(frm) {
+		frappe.dom.freeze("Importing..."); //// added
 		frm.call({
 			method: "form_start_import",
 			args: { data_import: frm.doc.name },
 			btn: frm.page.btn_primary,
 		}).then((r) => {
+			frappe.dom.unfreeze(); //// added
 			if (r.message === true) {
 				frm.disable_save();
 			}
@@ -541,4 +574,102 @@ frappe.ui.form.on("Data Import", {
 			},
 		});
 	},
+
+	//// added triggers
+	onload(frm) {
+		if (frm.doc.sync_with_woocommerce == 1) {
+			if(frm.doc.root_category != "Ecommerce") {
+				frm.doc.root_category = '';
+				frm.fields_dict.root_category.refresh()
+			}
+			frm.set_query('root_category', () => {
+				return {
+					filters: {
+						name: ['=', "Ecommerce"]
+					}
+				};
+			});
+		} else {
+			frm.set_query('root_category', () => {
+				return
+			});
+		}
+
+		cur_frm.fields_dict.import_file.df.hidden = 1;
+		cur_frm.fields_dict.import_file.refresh()
+		cur_frm.fields_dict.html_5.df.hidden = 1;
+		cur_frm.fields_dict.html_5.refresh()
+		cur_frm.fields_dict.google_sheets_url.df.hidden = 1;
+		cur_frm.fields_dict.google_sheets_url.refresh()
+		cur_frm.fields_dict.refresh_google_sheet.df.hidden = 1;
+		cur_frm.fields_dict.refresh_google_sheet.refresh()
+
+	},
+
+	status(frm) {
+		frappe.dom.unfreeze();
+	},
+
+	sync_with_woocommerce(frm) {
+		if (frm.doc.sync_with_woocommerce == 1) {
+			frm.doc.root_category = '';
+			frm.fields_dict.root_category.refresh()
+			frm.set_query('root_category', () => {
+				return {
+					filters: {
+						name: ['=', "Ecommerce"]
+					}
+				};
+			});
+		} else {
+			frm.set_query('root_category', () => {
+				return
+			});
+		}
+	},
+
+	convert(frm) {
+		if(frm.doc.import_file_data.split('.').pop() == 'csv' || frm.doc.import_file_data.split('.').pop() == 'xls'){
+			frappe.call({
+				method: 'neoffice_archive.events.create_doc_xlsx',
+				args: {
+					file_path: frm.doc.import_file_data,
+				},
+				callback: function(data) {
+					if(data.message){
+						frm.doc.import_file = data.message;
+						frappe.db.set_value('Data Import', frm.doc.name, 'import_file', data.message);
+						frm.fields_dict.import_file.refresh()
+						frm.trigger("import_file");
+					}
+				}
+			});
+		} else {
+			frm.doc.import_file = frm.doc.import_file_data;
+			frappe.db.set_value('Data Import', frm.doc.name, 'import_file', frm.doc.import_file_data);
+			frm.fields_dict.import_file.refresh()
+			frm.trigger("import_file");
+		}
+	},
+
+	import_file_data(frm) {
+		if(frm.doc.import_file_data.split('.').pop() == 'csv' || frm.doc.import_file_data.split('.').pop() == 'xls'){
+			frappe.call({
+				method: 'neoffice_archive.events.convert_file_to_xlsx',
+				args: {
+					file_path: frm.doc.import_file_data,
+				},
+				callback: function(data) {
+					if(data.message){
+						//frm.import_file = data.message;
+					}
+				}
+			});
+		}
+		if(!frm.doc.import_file_data){
+			frm.doc.import_file = null;
+			frm.fields_dict.import_file.refresh()
+		}
+	},
+	////
 });

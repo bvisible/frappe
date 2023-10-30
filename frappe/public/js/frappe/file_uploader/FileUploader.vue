@@ -315,7 +315,7 @@ function add_files(file_array) {
 
 	files.value = files.value.concat(_files);
 	// if only one file is allowed and crop_image_aspect_ratio is set, open cropper immediately
-	if (files.value.length === 1 && !props.allow_multiple && props.restrictions.crop_image_aspect_ratio != null) {
+	if (files.value.length === 1 && !props.allow_multiple && props.restrictions.crop_image_aspect_ratio != null && cur_frm.doctype != "Company") { //// added && cur_frm.doctype != "Company"
 		if (!files.value[0].file_obj.type.includes('svg')) {
 			toggle_image_cropper(0);
 		}
@@ -364,7 +364,7 @@ function check_restrictions(file) {
 
 	return is_correct_type && valid_file_size;
 }
-function upload_files() {
+function upload_files(is_private) { //// added is_private
 	if (show_file_browser.value) {
 		return upload_via_file_browser();
 	}
@@ -377,7 +377,7 @@ function upload_files() {
 	return frappe.run_serially(
 		files.value.map(
 			(file, i) =>
-				() => upload_file(file, i)
+				() => upload_file(file, i, is_private) //// added is_private
 		)
 	);
 }
@@ -417,7 +417,7 @@ function return_as_dataurl() {
 	close_dialog.value = true;
 	return Promise.all(promises);
 }
-function upload_file(file, i) {
+function upload_file(file, i, is_private) { //// added is_private
 	currently_uploading.value = i;
 
 	return new Promise((resolve, reject) => {
@@ -486,7 +486,18 @@ function upload_file(file, i) {
 					file.failed = true;
 					file.error_message = 'Size exceeds the maximum allowed file size.';
 
-				} else {
+				}
+				//// added else if
+				else if (xhr.status === 500) {
+					file.failed = true;
+					if (typeof response !== 'undefined') {
+						file.error_message = response._error_message;
+					} else {
+						file.error_message = __('File not supported.');
+					}
+				}
+				////
+				else {
 					file.failed = true;
 					file.error_message = xhr.status === 0 ? 'XMLHttpRequest Error' : `${xhr.status} : ${xhr.statusText}`;
 
@@ -508,7 +519,7 @@ function upload_file(file, i) {
 		if (file.file_obj) {
 			form_data.append('file', file.file_obj, file.name);
 		}
-		form_data.append('is_private', +file.private);
+		form_data.append('is_private', +is_private); //// form_data.append('is_private', +file.private);
 		form_data.append('folder', props.folder);
 
 		if (file.file_url) {

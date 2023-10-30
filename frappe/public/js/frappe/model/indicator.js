@@ -83,16 +83,25 @@ frappe.get_indicator = function (doc, doctype, show_workflow_state) {
 		if (indicator) return indicator;
 	}
 
-	// if submittable
+	////commented moved down
+	/*// if submittable
 	if (is_submittable && doc.docstatus == 1) {
 		return [__("Submitted"), "blue", "docstatus,=,1"];
-	}
+	}*/
+	////
 
 	// based on status
 	if (doc.status) {
 		return [__(doc.status), frappe.utils.guess_colour(doc.status)];
 	}
 
+	//// moved here
+	//if submittable
+	if (is_submittable && doc.docstatus == 1) {
+		return [__("Submitted"), "blue", "docstatus,=,1"];
+	}
+	////
+	
 	// based on enabled
 	if (frappe.meta.has_field(doctype, "enabled")) {
 		if (doc.enabled) {

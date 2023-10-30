@@ -232,6 +232,11 @@ export default class QuickListWidget extends Widget {
 
 		let filters = frappe.utils.get_filter_from_json(this.quick_list_filter);
 		let route = frappe.utils.generate_route({ type: "doctype", name: this.document_type });
+		//// added if
+		if(this.document_type  == "ToDo"){
+			route = "/app/todo/view/kanban/ToDo";
+		}
+		////
 		this.see_all_button = $(`
 			<div class="see-all btn btn-xs">${__("View List")}</div>
 		`).appendTo(this.footer);

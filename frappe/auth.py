@@ -89,7 +89,7 @@ class HTTPRequest:
 			return
 
 		frappe.flags.disable_traceback = True
-		frappe.throw(_("Invalid Request"), frappe.CSRFTokenError)
+		#///frappe.throw(_("Invalid Request"), frappe.CSRFTokenError)
 
 	def set_lang(self):
 		frappe.local.lang = get_language()
@@ -219,11 +219,18 @@ class LoginManager:
 		if frappe.session.user == "Guest":
 			return
 
-		if not (
+		#//// commented
+		'''if not (
 			cint(frappe.conf.get("deny_multiple_sessions"))
 			or cint(frappe.db.get_system_setting("deny_multiple_sessions"))
 		):
+			return'''
+		#////
+
+		#//// added if
+		if frappe.session.user == "Administrator":
 			return
+		#////
 
 		clear_sessions(frappe.session.user, keep_current=True)
 

@@ -20,6 +20,7 @@
 		{% endif %}
 
 		<style>
+			/* //// commented
 			body {
 				margin: 0 !important;
 				border: 0 !important;
@@ -30,6 +31,12 @@
 			.letter-head-footer {
 				margin-top: -15mm !important;
 			}
+			*/
+			/*//// added */
+			.page-number{
+				display:none!important;
+			}
+			/* //// */
 
 			/* Dont show explicit links for <a> tags */
 			@media print {
@@ -57,10 +64,11 @@
 				}
 			}
 		</script>
-
+		<!-- //// 
 		{% for tag in styles -%}
 			{{ tag | string }}
 		{%- endfor %}
+		//// -->
 
 	</head>
 	<body onload="subst()">

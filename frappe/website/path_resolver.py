@@ -110,6 +110,15 @@ def resolve_redirect(path, query_string=None):
 	if not redirects:
 		return
 
+	#//// added
+	if query_string and query_string.decode("utf-8") == "iframe=true" and path:
+		roles = frappe.get_roles(frappe.session.user)
+		if "all-products" in path and "Access shop b2b" not in roles:
+			pass
+		else:
+			return
+	#////
+
 	redirect_to = frappe.cache.hget("website_redirects", path)
 
 	if redirect_to:

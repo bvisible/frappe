@@ -59,7 +59,7 @@ class DataImport(Document):
 	def validate_import_file(self):
 		if self.import_file:
 			# validate template
-			self.get_importer()
+			self.get_importer(from_func="validate_import_file") #//// added from_func="validate_import_file"
 
 	def validate_google_sheets_url(self):
 		if not self.google_sheets_url:
@@ -83,7 +83,7 @@ class DataImport(Document):
 		if not (self.import_file or self.google_sheets_url):
 			return
 
-		i = self.get_importer()
+		i = self.get_importer(from_func="preview") #//// added from_func="preview"
 		return i.get_data_for_import_preview()
 
 	def start_import(self):
@@ -114,8 +114,8 @@ class DataImport(Document):
 	def download_import_log(self):
 		return self.get_importer().export_import_log()
 
-	def get_importer(self):
-		return Importer(self.reference_doctype, data_import=self)
+	def get_importer(self, from_func=None): #//// added , from_func=None
+		return Importer(self.reference_doctype, data_import=self, from_func=from_func) #//// added , from_func=from_func
 
 
 @frappe.whitelist()
@@ -134,7 +134,7 @@ def start_import(data_import):
 	"""This method runs in background job"""
 	data_import = frappe.get_doc("Data Import", data_import)
 	try:
-		i = Importer(data_import.reference_doctype, data_import=data_import)
+		i = Importer(data_import.reference_doctype, data_import=data_import, from_func="start_import") #//// added , from_func="start_import"
 		i.import_data()
 	except Exception:
 		frappe.db.rollback()
