@@ -30,7 +30,7 @@ WC_CONTACT_SPLIT_ROWS_AT = 5000 #//// added
 
 
 class Importer:
-	def __init__(self, doctype, data_import=None, file_path=None, import_type=None, console=False):
+	def __init__(self, doctype, data_import=None, file_path=None, import_type=None, custom_import_type=None, from_func=None, console=False):#//// added custom_import_type and from_func
 		self.doctype = doctype
 		self.console = console
 		self.custom_import_type = custom_import_type #//// added
@@ -51,11 +51,9 @@ class Importer:
 			self.template_options,
 			self.import_type,
 			console=self.console,
-			custom_import_type=self.custom_import_type, #//// Added
-			data_import=self.data_import, #//// Added
-			from_func=self.from_func  #//// Added
+			custom_import_type=self.custom_import_type, #//// added
+			from_func=self.from_func #//// added
 		)
-
 
 	def get_data_for_import_preview(self):
 		out = self.import_file.get_data_for_import_preview()
