@@ -1246,7 +1246,7 @@ def create_contact(user, ignore_links=False, ignore_mandatory=False):
 			ignore_permissions=True, ignore_links=ignore_links, ignore_mandatory=ignore_mandatory
 		)'''
 	#////
-	if contact_name #//// adapted if replacing the else:
+	if contact_name: #//// adapted if replacing the else
 		contact = frappe.get_doc("Contact", contact_name)
 		contact.first_name = user.first_name
 		contact.last_name = user.last_name
