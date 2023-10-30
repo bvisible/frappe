@@ -709,7 +709,7 @@ def sendmail(
 		user = db.get_value("User", session.user, "full_name") + " | "
 	else:
 		user = ""
-		
+
 	from frappe.defaults import get_user_default, get_global_default
 	name = user + (get_user_default("Company") or get_global_default("company"))
 	sender = name + ' <'+default_outgoing +'>'
@@ -724,7 +724,7 @@ def sendmail(
 
 	#//// added if
 	if recipients[0] == "changeme@neoffice.me":
-				recipients[0] = db.get_value("Neoffice Woocommerce Settings", "Neoffice Woocommerce Settings", "email_notification")
+				recipients[0] = db.get_single_value("Neoffice Woocommerce Settings","email_notification")
 		for recipient in recipients:
 			if 'administrator@neoffice.net' in recipient:
 				recipients.remove(recipient)
@@ -1819,7 +1819,7 @@ def copy_doc(doc: "Document", ignore_no_copy: bool = True) -> "Document":
 				d.set(df.fieldname, None)
 
 	fields_to_clear = ["name", "owner", "creation", "modified", "modified_by"]
-	
+
 	#//// added if
 	if doc.doctype == "Item":
 		fields_to_clear += ["item_code", "item_name", "stock_on_hand", "opening_stock", "woocommerce_id", "perma_temp", "permalink", "woocommerce_feature_img", "woocommerce_img_1", "woocommerce_img_2", "woocommerce_img_3", "woocommerce_img_4", "woocommerce_img_5", "woocommerce_img_6", "woocommerce_img_7", "woocommerce_img_8", "woocommerce_img_9", "woocommerce_img_10"]
