@@ -330,7 +330,7 @@ frappe.router = {
 				callback: function(r) {
 					let active_domains = r.message;
 
-					if (view_type == "query-report" && !active_domains.includes("ERP")) {
+					if (view_type == "query-report" && !active_domains.includes("Gestion")) {
 						no_module_show_message();
 					} else if(frappe.views.formview?.Page?.label == "Page" || view_name == null ) { 
 						if(view_name == null) {
