@@ -135,12 +135,16 @@ class UserPermissions:
 				elif p.get("write"):
 					self.can_write.append(dt)
 				elif p.get("read"):
-					if dtp.get("read_only"):
-						# read_only = "User Cannot Search"
-						self.all_read.append(dt)
-						no_list_view_link.append(dt)
-					else:
+					#//// Check if user is 'Administrator' to bypass read_only restriction
+					if frappe.session.user == "Administrator":
 						self.can_read.append(dt)
+					else:
+						if dtp.get("read_only"):
+							# read_only = "User Cannot Search"
+							self.all_read.append(dt)
+							no_list_view_link.append(dt)
+						else:
+							self.can_read.append(dt)
 
 			if p.get("cancel"):
 				self.can_cancel.append(dt)
@@ -156,8 +160,12 @@ class UserPermissions:
 						getattr(self, "can_" + key).append(dt)
 
 				if not dtp.get("istable"):
-					if not dtp.get("issingle") and not dtp.get("read_only"):
+					#//// Check if user is 'Administrator' to bypass read_only restriction
+					if frappe.session.user == "Administrator":
 						self.can_search.append(dt)
+					else:
+						if not dtp.get("issingle") and not dtp.get("read_only"):
+							self.can_search.append(dt)
 					if dtp.get("module") not in self.allow_modules:
 						if active_modules and dtp.get("module") not in active_modules:
 							pass
