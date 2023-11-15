@@ -4,7 +4,9 @@
 import functools
 import hashlib
 import io
+import json
 import os
+import re
 import sys
 import traceback
 from collections import deque
@@ -19,9 +21,13 @@ from collections.abc import (
 )
 from email.header import decode_header, make_header
 from email.utils import formataddr, parseaddr
-from typing import TypedDict
+from typing import Any, Literal, TypedDict
+from urllib.parse import quote, urlparse
 
+from redis.exceptions import ConnectionError
 from werkzeug.test import Client
+
+import frappe
 
 # utility functions like cint, int, flt, etc.
 from frappe.utils.data import *
@@ -161,7 +167,15 @@ def validate_email_address(email_str, throw=False):
 	"""Validates the email string"""
 	email = email_str = (email_str or "").strip()
 
+	#//// added function to check if email is valid
+	def add_brackets_if_missing(e):
+		if " " in e and "<" not in e and ">" not in e:
+			e = f"<{e}>"
+		return e
+
 	def _check(e):
+		#//// added function to check if email is valid
+		e = add_brackets_if_missing(e)
 		_valid = True
 		if not e:
 			_valid = False

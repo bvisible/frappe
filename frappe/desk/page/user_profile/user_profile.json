@@ -1,15 +1,16 @@
 {
  "content": null,
- "creation": "2019-07-22 12:23:38.425877",
+ "creation": "2022-03-07 17:13:55.120441",
  "docstatus": 0,
  "doctype": "Page",
  "idx": 0,
- "modified": "2020-03-02 15:17:13.041650",
+ "modified": "2023-11-06 16:23:37.548551",
  "modified_by": "Administrator",
  "module": "Desk",
  "name": "user-profile",
  "owner": "Administrator",
- "page_name": "User Profile",
+ "page_name": "user-profile",
+ "restrict_to_domain": "Core",
  "roles": [
   {
    "role": "All"
