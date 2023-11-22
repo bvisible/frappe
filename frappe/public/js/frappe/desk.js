@@ -103,6 +103,19 @@ frappe.Application = class Application {
 				frappe.set_route("neoffice-wizard/0")
 			}
 		});
+		frappe.call({
+		    method: 'neoffice_theme.events.check_and_show_blog_post',
+		    args: {
+		        user: frappe.session.user
+		    },
+		    callback: function(r) {
+		        if (r.message) {
+		            let content = r.message.content;
+		            let title = r.message.title;
+		            frappe.msgprint({message: content, title: title, indicator: 'green'});
+		        }
+		    }
+		});
 		////
 
 		if (frappe.boot.messages) {
