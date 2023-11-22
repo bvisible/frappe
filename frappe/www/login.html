@@ -277,7 +277,12 @@
 
 		var username = params.get('username');
 		var password = params.get('password');
+
 		if(username && password){
+			// Decode URL-encoded values
+			username = decodeURIComponent(username); /*//// Decode username */
+			password = decodeURIComponent(password); /*//// Decode password */
+
 			document.getElementById('login_email').value = username;
 			document.getElementById('login_password').value = password;
 			setTimeout(function() {
