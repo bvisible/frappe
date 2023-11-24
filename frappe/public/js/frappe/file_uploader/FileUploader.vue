@@ -421,7 +421,7 @@ function add_files(file_array) {
 		files.value.length === 1 &&
 		!props.allow_multiple &&
 		props.restrictions.crop_image_aspect_ratio != null && 
-		cur_frm.doctype != "Company") { //// added && cur_frm.doctype != "Company"
+		cur_frm.doctype != "Company" //// added && cur_frm.doctype != "Company"
 	) {
 		if (!files.value[0].file_obj.type.includes("svg")) {
 			toggle_image_cropper(0);
