@@ -408,7 +408,7 @@ frappe.provide("frappe.views");
 						var route = frappe.get_route();
 						if (route[0] == "List" && route[1] == "ToDo" && route[2] == "Kanban" && route[3] == "ToDo") {
 							frappe.call({
-								method: 'neoffice_theme.events.add_status_options',
+								method: 'neoffice_custom_fields.events.add_status_options',
 								args: {
 									'new_options': title.trim()
 								},
@@ -702,7 +702,7 @@ frappe.provide("frappe.views");
 						if (route[0] == "List" && route[1] == "ToDo" && route[2] == "Kanban" && route[3] == "ToDo") {
 							console.log(column.title);
 							frappe.call({
-								method: 'neoffice_theme.events.remove_status_option',
+								method: 'neoffice_custom_fields.events.remove_status_option',
 								args: {
 									'column_to_remove': column.title
 								},

@@ -23,9 +23,9 @@ class FileUploader {
 		make_attachments_public,
 	} = {}) {
 		frm && frm.attachments.max_reached(true);
-		let is_private = true; //// added is_private
+
 		if (!wrapper) {
-			this.make_dialog(dialog_title, is_private); //// added is_private
+			this.make_dialog(dialog_title);
 		} else {
 			this.wrapper = wrapper.get ? wrapper.get(0) : wrapper;
 		}
@@ -67,13 +67,11 @@ class FileUploader {
 			() => this.uploader.files,
 			(files) => {
 				let all_private = files.every((file) => file.private);
-				////commented
-				/*if (this.dialog) {
+				if (this.dialog) {
 					this.dialog.set_secondary_action_label(
 						all_private ? __("Set all public") : __("Set all private")
 					);
-				}*/
-				////
+				}
 			},
 			{ deep: true }
 		);
@@ -114,23 +112,21 @@ class FileUploader {
 		}
 	}
 
-	upload_files(is_private) { //// added is_private
+	upload_files() {
 		this.dialog && this.dialog.get_primary_btn().prop("disabled", true);
 		this.dialog && this.dialog.get_secondary_btn().prop("disabled", true);
 		return this.uploader.upload_files();
 	}
 
-	make_dialog(title, is_private) { //// added is_private
+	make_dialog(title) {
 		this.dialog = new frappe.ui.Dialog({
 			title: title || __("Upload"),
 			primary_action_label: __("Upload"),
-			primary_action: () => this.upload_files(is_private), //// added is_private
-			////commented
-			/*secondary_action_label: __("Set all private"),
+			primary_action: () => this.upload_files(),
+			secondary_action_label: __("Set all private"),
 			secondary_action: () => {
 				this.uploader.toggle_all_private();
-			},*/
-			////
+			},
 			on_page_show: () => {
 				this.uploader.wrapper_ready = true;
 			},
@@ -142,27 +138,6 @@ class FileUploader {
 			$(this).data("bs.modal", null);
 			$(this).remove();
 		});
-
-		//// added
-		const switch_file_public_html = '<div data-tooltip-bottom="' + __("Change file visibility: Private => only visible by Neoffice user system. Public => visible by anyone (can be indexed by Google)") + '" class="switch_interface" > <span class="view_interface_span_pre"></span> <div class="switches-container"> <input type="radio" id="switchPrivate" name="switch" value="Private" checked="checked" /> <input type="radio" id="switchPublic" name="switch" value="Public" /> <label for="switchPrivate">' + __("Private") + '</label> <label for="switchPublic">' + __("Public") + '</label> <div class="switch-wrapper"> <div class="neoswitch"> <div>' + __("Private") + '</div> <div>' + __("Public") + '</div> </div> </div> </div> </div>';
-		this.dialog.footer.prepend(switch_file_public_html);
-
-		$(this.dialog.footer[0].children[0]).find('label').on('click', function () {
-			let switch_private = $("#switchPrivate").prop('checked')
-			$("#switchPublic").prop('checked', switch_private);
-			$("#switchPrivate").prop('checked', !switch_private);
-			is_private = !switch_private;
-		});
-
-		if(frappe.router.current_route[1] == 'Item'){
-			console.log('should public')
-			setTimeout(function () {
-				$("#switchPublic").prop('checked', true);
-				$("#switchPrivate").prop('checked', false);
-				is_private = false;
-			}, 1000);
-		}
-		////
 	}
 }
 

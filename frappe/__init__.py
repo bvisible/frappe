@@ -781,7 +781,7 @@ def sendmail(
 	)
 
 	# build email queue and send the email if send_now is True.
-	builder.process(send_now=now)
+	builder.process(send_now=True) #//// changed from now to True
 
 
 whitelisted = []

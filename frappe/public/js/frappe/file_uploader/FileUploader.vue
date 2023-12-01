@@ -186,6 +186,7 @@
 					@toggle_optimize="file.optimize = !file.optimize"
 					@toggle_image_cropper="toggle_image_cropper(i)"
 				/>
+				<div class="public-warning form-message blue"> {{ __("Change file visibility: Private => only visible by Neoffice user system. Public => visible by anyone (can be indexed by Google)") }}</div><!-- //// -->
 			</div>
 			<div class="flex align-center" v-if="show_upload_button && currently_uploading === -1">
 				<button class="btn btn-primary btn-sm margin-right" @click="upload_files">
@@ -401,7 +402,7 @@ function add_files(file_array) {
 				request_succeeded: false,
 				error_message: null,
 				uploading: false,
-				private: !props.make_attachments_public,
+				private: frappe.router.current_route[1] == 'Item'  ? 0 : 1////!props.make_attachments_public,
 			};
 		});
 
@@ -420,8 +421,8 @@ function add_files(file_array) {
 	if (
 		files.value.length === 1 &&
 		!props.allow_multiple &&
-		props.restrictions.crop_image_aspect_ratio != null && 
-		cur_frm.doctype != "Company" //// added && cur_frm.doctype != "Company"
+		props.restrictions.crop_image_aspect_ratio != null
+		&& cur_frm.doctype != "Company" //// added && cur_frm.doctype != "Company"
 	) {
 		if (!files.value[0].file_obj.type.includes("svg")) {
 			toggle_image_cropper(0);
@@ -474,7 +475,7 @@ function check_restrictions(file) {
 
 	return is_correct_type && valid_file_size;
 }
-function upload_files(is_private) { //// added is_private
+function upload_files() {
 	if (show_file_browser.value) {
 		return upload_via_file_browser();
 	}
@@ -484,7 +485,7 @@ function upload_files(is_private) { //// added is_private
 	if (props.as_dataurl) {
 		return return_as_dataurl();
 	}
-	return frappe.run_serially(files.value.map((file, i, is_private) /*//// added is_private */ => () => upload_file(file, i)));
+	return frappe.run_serially(files.value.map((file, i) => () => upload_file(file, i)));
 }
 function upload_via_file_browser() {
 	let selected_file = file_browser.value.selected_node;
@@ -521,7 +522,7 @@ function return_as_dataurl() {
 	close_dialog.value = true;
 	return Promise.all(promises);
 }
-function upload_file(file, i, is_private) { //// added is_private
+function upload_file(file, i) {
 	currently_uploading.value = i;
 
 	return new Promise((resolve, reject) => {
@@ -589,7 +590,6 @@ function upload_file(file, i, is_private) { //// added is_private
 				} else if (xhr.status === 413) {
 					file.failed = true;
 					file.error_message = "Size exceeds the maximum allowed file size.";
-
 				}
 				//// added else if
 				else if (xhr.status === 500) {
@@ -626,7 +626,7 @@ function upload_file(file, i, is_private) { //// added is_private
 		if (file.file_obj) {
 			form_data.append("file", file.file_obj, file.name);
 		}
-		form_data.append("is_private", +is_private); //// form_data.append('is_private', +file.private);
+		form_data.append("is_private", +file.private);
 		form_data.append("folder", props.folder);
 
 		if (file.file_url) {

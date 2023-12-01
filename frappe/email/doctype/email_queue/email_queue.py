@@ -172,8 +172,10 @@ class EmailQueue(Document):
 					disable_mailgun = frappe.db.get_value("Email Account", {"default_outgoing": 1}, "disable_mailgun")
 					# build email queue and send the email if send_now is True and Mailgun is disabled
 					if disable_mailgun:
-						if not frappe.flags.in_test:
-							ctx.smtp_session.sendmail(from_addr=self.sender, to_addrs=recipient.recipient, msg=message)
+						if not frappe.flags.in_test or frappe.flags.testing_email:
+							ctx.smtp_server.session.sendmail(
+								from_addr=self.sender, to_addrs=recipient.recipient, msg=message
+							)
 						ctx.add_to_sent_list(recipient)
 					else:
 						# Now send the email with Mailgun
@@ -253,7 +255,7 @@ class EmailQueue(Document):
 							response_data = response.json()
 							if 'id' in response_data:
 								message_id = response_data['id']
-								time.sleep(3)  # wait for a while before checking delivery status
+								#time.sleep(3)  # wait for a while before checking delivery status
 								delivery_status = get_delivery_status(message_id)
 
 								if delivery_status == "Delivered":
@@ -290,21 +292,30 @@ class EmailQueue(Document):
 										message=_("Your email to {} has not been sent because the server has rejected your email as spam.").format(recipients, recipients)
 									)
 									ctx.add_to_error_list(recipient)
-									frappe.log_error(_("Eemail {} as spam.").format(recipients), response_data)
+									frappe.log_error(_("Email {} as spam.").format(recipients), response_data)
 								else:
-									frappe.msgprint(
-										_("Your email to {} generated this message : {}.").format(recipients, delivery_status),
-										alert=True,
-										indicator="red",
-									)
-									send_via_mailgun(
-										recipients=[email_error_notification],
-										sender=default_outgoing,
-										subject=_("Email Delivery"),
-										message=_("Your email to {} generated this message : {}.").format(recipients, delivery_status)
-									)
-									ctx.add_to_error_list(recipient)
-									frappe.log_error(_("Failed to send emai to {}").format(recipients), response_data)
+									if response_data =="Queued. Thank you.":
+										frappe.msgprint(
+											_("Your email to {} has been queued.").format(recipients),
+											alert=True,
+											indicator="green",
+										)
+										ctx.add_to_sent_list(recipient)
+									else:
+										frappe.msgprint(
+											_("Your email to {} generated this message : {}.").format(recipients, delivery_status),
+											alert=True,
+											indicator="red",
+										)
+										send_via_mailgun(
+											recipients=[email_error_notification],
+											sender=default_outgoing,
+											subject=_("Email Delivery"),
+											message=_("Your email to {} generated this message : {}.").format(recipients, delivery_status)
+										)
+										ctx.add_to_error_list(recipient)
+										frappe.neolog("status = {}".format(delivery_status))
+										frappe.log_error(_("Failed to send email to {}").format(recipients), response_data)
 							else:
 								ctx.add_to_error_list(recipient)
 								frappe.log_error("Failed to get message id from response", response_data)
@@ -312,10 +323,12 @@ class EmailQueue(Document):
 							ctx.add_to_error_list(recipient)
 							frappe.log_error("Failed to send email", response.status_code)
 						#////
-					if not frappe.flags.in_test or frappe.flags.testing_email:
+					#//// moved in else if disable_mailgun
+					'''if not frappe.flags.in_test or frappe.flags.testing_email:
 						ctx.smtp_server.session.sendmail(
 							from_addr=self.sender, to_addrs=recipient.recipient, msg=message
-						)
+						)'''
+					#////
 
 				ctx.update_recipient_status_to_sent(recipient)
 
