@@ -180,6 +180,9 @@ class DatabaseQuery:
 			from frappe.model.base_document import get_controller
 
 			controller = get_controller(self.doctype)
+			if not hasattr(controller, "get_list"):
+				return []
+
 			self.parse_args()
 			kwargs = {
 				"as_list": as_list,
@@ -734,7 +737,7 @@ class DatabaseQuery:
 			f.update(get_additional_filter_field(additional_filters_config, f, f.value))
 
 		meta = frappe.get_meta(f.doctype)
-		can_be_null = True
+		can_be_null = f.fieldname != "name"  # primary key is never nullable
 
 		# prepare in condition
 		if f.operator.lower() in NestedSetHierarchy:
@@ -790,7 +793,7 @@ class DatabaseQuery:
 			# for `in` query this is only required if values contain '' or values are empty.
 			# for `not in` queries we can't be sure as column values might contain null.
 			if f.operator.lower() == "in":
-				can_be_null = not f.value or any(v is None or v == "" for v in f.value)
+				can_be_null &= not f.value or any(v is None or v == "" for v in f.value)
 
 			values = f.value or ""
 			if isinstance(values, str):
