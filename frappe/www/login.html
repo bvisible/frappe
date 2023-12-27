@@ -1,3 +1,4 @@
+<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script> 
 {% extends "templates/web.html" %}
 
 {% macro email_login_body() -%}
@@ -56,10 +57,11 @@
 <div class="page-card-head">
 	<!-- //// -->
 	<!-- <img class="app-logo" src="{{ logo }}"> -->
-	<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script> 
+	
     <a href="https://www.neoffice.io" target="_blank"><lottie-player src="https://lottie.host/04958336-3eab-4226-ae23-9f91595bfa8f/CMYVx7AszK.json" background="transparent" speed="1" style="width: 300px;height: 70px;margin: auto;" autoplay></lottie-player></a>
 	<a href="https://www.swissmadesoftware.org/about/swiss-made-software.html" title="Swiss made software" target="_blank"><img class="swiss-logo" title="Swiss made software" style=" display: block; max-width: 150px; margin: auto; " src="https://www.neoffice.io/neo-uploads/SMS-Logo-1h-300dpi_RGB-768x128.png"></a>
 	<br>
+	<div id="loginDemo"></div>
 	<!-- //// -->
 	{% if title %}
 	<h4>{{ _(title)}}</h4>
@@ -291,40 +293,164 @@
 		}
 
 		if (domain === 'demo.neoffice.me') {
-			fetch('/web/wp-content/demo.json')
-				.then(response => response.json())
-				.then(data => {
-					document.getElementById('login_email').value = 'John';
-					document.getElementById('login_password').value = data['john@demo.neoffice.me'];
-					var messageDiv = document.getElementById('messageLogin');
+			var titleConnect = document.querySelector('section.for-login > div.page-card-head > h4');
+			titleConnect.style.display = 'none';
 
-					var alertDiv = document.createElement('div');
-					alertDiv.className = 'alert alert-light';
-					alertDiv.textContent = 'Bienvenue sur la démo de Neoffice. Le nom d\'utilisateur et le mot de passe ont été préremplis pour ce domaine.';
-					messageDiv.appendChild(alertDiv);
+			if(password){
+				var inputLogin = document.querySelectorAll('div.login-content.page-card > form > div > div.page-card-body > div.form-group'); 
+				inputLogin.forEach(input => input.style.display = 'none');
+				var messageResetpwd = document.querySelector('div.login-content.page-card > form > div > div.page-card-body > p');
+				messageResetpwd.style.display = 'none';
+				var btnLogin = document.querySelector('div.login-content.page-card > form > div > div.page-card-actions > button');
+				btnLogin.style.backgroundColor = 'transparent';
+				btnLogin.style.fontSize = '25px';
+				alertShow = false;
+				document.addEventListener('DOMContentLoaded', function() {
+					var observer = new MutationObserver(function(mutations) {
+						mutations.forEach(function(mutation) {
+							if (mutation.type === 'childList' || mutation.type === 'characterData') {
+								var text = btnLogin.textContent || btnLogin.innerText;
+								if (text.startsWith("Login Invalide") && !alertShow) {
+									alertShow = true;
+									console.log("aasdadsasd");
+									var alertDiv = document.createElement('div');
+									alertDiv.className = 'alert alert-light';
+									alertDiv.innerHTML = 'Les accès que vous avez saisis sont incorrects ou périmés. Veuillez réessayer remplire de nouveau le formulaire d\'inscription.<br><a href="/login" style=" background: #1161fe; margin-top: 5px; display: block; text-align: center; border-radius: 5px; padding: 5px; color: white; text-decoration: none; ">Cliquez ici pour vous inscrire</a>';
+									document.querySelector('section.for-login > div.login-content.page-card > form > div > div.page-card-actions').appendChild(alertDiv);
+								}
+							}
+						});
+					});
 
-					var countdownDivWeek = document.createElement('div');
-					countdownDivWeek.innerHTML = "<strong>Instance</strong><br>Temps restant jusqu'à la réinitialisation : <br>" + getTimeRemainingWeek();
-					countdownDivWeek.className = 'alert alert-info';
-					messageDiv.appendChild(countdownDivWeek); 
-
-					setInterval(function() {
-						countdownDivWeek.innerHTML = "<strong>Instance</strong><br>Temps restant jusqu'à la réinitialisation : <br>" + getTimeRemainingWeek();
-					}, 1000);
-
-					var countdownDivDay = document.createElement('div');
-					countdownDivDay.innerHTML = "<strong>Accès</strong><br>Temps restant jusqu'à la réinitialisation : <br>" + getTimeRemainingDay();
-					countdownDivDay.className = 'alert alert-info';
-					messageDiv.appendChild(countdownDivDay); 
-
-					setInterval(function() {
-						countdownDivDay.innerHTML = "<strong>Accès</strong><br>Temps restant jusqu'à la réinitialisation : <br>" + getTimeRemainingDay();
-					}, 1000);
-
-				})
-				.catch((error) => {
-					console.error('Erreur:', error);
+					var config = { childList: true, characterData: true };
+					observer.observe(btnLogin, config);
 				});
+
+			} else {
+				var loginDiv = document.querySelector('section.for-login > div.login-content.page-card');
+				loginDiv.style.display = 'none';
+
+				var formContainer = document.createElement('div');
+
+				formContainer.className = 'page-card-body';
+				formContainer.innerHTML = `
+					<h4 style="margin-top: 0;">{{ _("Découvrez les avantages de Neoffice ! Testez la démo gratuitement.") }}</h4>
+					<div id="contentInfoDemo" style=""></div>
+					<form id="subscriptionForm">
+						<div class="form-group">
+							<label class="form-label sr-only" for="company">Company</label>
+							<div class="email-field">
+								<input type="text" id="company" class="form-control" placeholder="Société">
+							</div>
+						</div>
+						<div class="form-group">
+							<div class="row">
+								<div class="col" style="padding-left:0px">
+									<label class="form-label sr-only" for="firstname">Prénom</label>
+									<input type="text" id="firstname" class="form-control" placeholder="Prénom" required>
+								</div>
+								<div class="col" style="padding-right:0px">
+									<label class="form-label sr-only" for="lastname">Nom</label>
+									<input type="text" id="lastname" class="form-control" placeholder="Nom" required>
+								</div>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="form-label sr-only" for="email">Email</label>
+							<div class="email-field">
+								<input type="email" id="email" class="form-control" placeholder="Email" required>
+							</div>
+						</div>
+						<div class="page-card-actions">
+							<button type="submit" class="btn btn-sm btn-primary btn-block">Envoyer</button>
+						</div>
+					</form>
+					<div id="successMessage" class="alert alert-success" style="display: none; margin-top:20px;">
+
+					</div>
+
+					<div id="contentInfoDemobefore" style="margin-top:30px;"></div>
+				`;
+
+				// Ajouter le formulaire à l'emplacement souhaité sur votre page
+				var loginDemo = document.querySelector('#loginDemo');
+				loginDemo.style.padding = '30px';
+				loginDemo.appendChild(formContainer);
+				var subscriptionForm = document.getElementById('subscriptionForm');
+				var contentInfoDemo = document.getElementById('contentInfoDemo');
+				var contentInfoDemobefore = document.getElementById('contentInfoDemobefore');
+				var alertDiv = document.createElement('div');
+				var countdownDivWeek = document.createElement('div');
+
+				alertDiv.className = 'alert alert-light';
+				alertDiv.textContent = 'Pour profiter de la démo, complétez simplement le formulaire ci-dessous et recevez instantanément par email un accès exclusif, valide jusqu\'à dimanche 23h30. Lancez-vous dans l\'expérience Neoffice dès aujourd\'hui !.';
+				contentInfoDemo.appendChild(alertDiv);
+
+				countdownDivWeek.innerHTML = "<strong>Instance</strong><br>Temps restant jusqu'à la réinitialisation : <br>" + getTimeRemainingWeek();
+				countdownDivWeek.className = 'alert alert-info';
+				contentInfoDemobefore.appendChild(countdownDivWeek); 
+
+				setInterval(function() {
+					countdownDivWeek.innerHTML = "<strong>Instance</strong><br>Temps restant jusqu'à la réinitialisation : <br>" + getTimeRemainingWeek();
+				}, 1000);
+
+				// Gérer la soumission du formulaire
+				subscriptionForm.addEventListener('submit', function(event) {
+					event.preventDefault();
+
+					// Griser les champs et changer le texte du bouton
+					var submitButton = document.querySelector('#subscriptionForm button[type="submit"]');
+					var inputs = document.querySelectorAll('#subscriptionForm input');
+					inputs.forEach(input => input.disabled = true);
+					submitButton.textContent = 'Inscription en cours...';
+					submitButton.disabled = true;
+
+					var company = document.getElementById('company').value;
+					var firstname = document.getElementById('firstname').value;
+					var lastname = document.getElementById('lastname').value;
+					var email = document.getElementById('email').value;
+
+					var myHeaders = new Headers();
+					myHeaders.append("Authorization", "Basic YXBpOkpKUGggMVR4bCBoQjA4IHc4Um0gN2NMVyBFcGRR");
+					var requestOptions = {
+						method: 'POST',
+						headers: myHeaders,
+						redirect: 'follow'
+					};
+
+					fetch("https://www.neoffice.io/wp-json/neoffice/v1/add-subscriber?firstname=" + firstname + "&lastname=" + lastname + "&email=" + email + "&company=" + company, requestOptions)
+						.then(response => {
+							if (!response.ok) {
+								throw new Error('Network response was not ok');
+							}
+							return response.json();
+						})
+						.then(result => {
+							console.log(result);
+							// Afficher le message de succès si nécessaire
+							document.getElementById('successMessage').textContent = 'Inscription réussie ! Vous allez recevoir un email avec le lien de connexion. Vérifiez vos spams si vous ne le recevez pas.';
+							document.getElementById('successMessage').style.display = 'block';
+
+							// Réactiver les champs et remettre le texte du bouton
+							subscriptionForm.remove();
+							contentInfoDemo.remove();
+							contentInfoDemobefore.remove();
+						})
+						.catch(error => {
+							console.error('Error:', error);
+							// Afficher un message d'erreur pour l'utilisateur
+							document.getElementById('successMessage').textContent = 'Erreur lors de l\'inscription. Veuillez réessayer.';
+							document.getElementById('successMessage').className = 'alert alert-danger';
+							document.getElementById('successMessage').style.display = 'block';
+
+							// Réactiver les champs et remettre le texte du bouton
+							inputs.forEach(input => input.disabled = false);
+							submitButton.textContent = 'Envoyer';
+							submitButton.disabled = false;
+						});
+				});
+
+			}
 
 		}
 
