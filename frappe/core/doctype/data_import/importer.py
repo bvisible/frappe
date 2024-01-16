@@ -54,6 +54,7 @@ class Importer:
 			self.import_type,
 			console=self.console,
 			custom_import_type=self.custom_import_type, #//// added
+			doctype_data=self.data_import, #////
 			from_func=self.from_func #//// added
 		)
 
@@ -1008,7 +1009,7 @@ class ImportFile:
 									remark_index = index
 
 					#////
-					header = Header(i, row, self.doctype, self.raw_data[1:], self.column_to_field_map)
+					header = Header(i, row, self.doctype, self.raw_data[1:], self.column_to_field_map, self.doctype_data, self.from_func) #//// added , self.doctype_data, self.from_func
 				else:
 					#//// added block
 					add_row_in_data = True
@@ -2514,81 +2515,168 @@ class Header(Row):
 			#//// added block
 			if self.doctype_data.import_source == "Woocommerce":
 				if self.doctype == "Item":
-					map_to_field = {"Title": "item_name", "Sku": "item_code", "description": "woocommerce_long_description", "short_description":"woocommerce_short_description", "item_group": "item_group", "maintain_stock": "is_stock_item",
-					                "parent_sku":"variant_of", "attribute_name": "attributes.attribute", "attribute_value": "attributes.attribute_value", "has_variants": "has_variants", "sync_with_woocommerce" : "sync_with_woocommerce", "image": "image",
-					                "woocommerce_img_1":"woocommerce_img_1", "woocommerce_img_2":"woocommerce_img_2", "woocommerce_img_3":"woocommerce_img_3", "woocommerce_img_4":"woocommerce_img_4", "woocommerce_img_5":"woocommerce_img_5",
-					                "woocommerce_img_6":"woocommerce_img_6", "woocommerce_img_7":"woocommerce_img_7", "woocommerce_img_8":"woocommerce_img_8", "woocommerce_img_9":"woocommerce_img_9", "woocommerce_img_10":"woocommerce_img_10",
-					                "default_warehouse": "item_defaults.default_warehouse", "category_ecommerce": "category_ecommerce", "woocommerce_warehouse": "woocommerce_warehouse", "stock": "opening_stock", "valuation_rate": "valuation_rate",
-					                "standard_rate": "standard_rate", "default_company": "item_defaults.company", "id": "import_id", "additionnal_categories": "additional_ecommerce_categories.item_group", "woocommerce_taxable": "woocommerce_taxable", "brand":"brand",
-					                "brand_ecommerce":"brand_ecommerce", "Weight": "weight_per_unit", "weight_uom": "weight_uom", "maintain_stock_ecommerce": "woocommerce_manage_stock", "woocommerce_weight": "woocommerce_weight",
-					                "Length": "woocommerce_length", "Width": "woocommerce_width", "Height": "woocommerce_height"}.get(header, "Don't Import")
+					map_to_field = {
+						"Title": "item_name", "Sku": "item_code", "description": "woocommerce_long_description",
+						"short_description": "woocommerce_short_description", "item_group": "item_group",
+						"maintain_stock": "is_stock_item",
+						"parent_sku": "variant_of", "attribute_name": "attributes.attribute",
+						"attribute_value": "attributes.attribute_value", "has_variants": "has_variants",
+						"sync_with_woocommerce": "sync_with_woocommerce", "image": "image",
+						"woocommerce_img_1": "woocommerce_img_1", "woocommerce_img_2": "woocommerce_img_2",
+						"woocommerce_img_3": "woocommerce_img_3", "woocommerce_img_4": "woocommerce_img_4",
+						"woocommerce_img_5": "woocommerce_img_5",
+						"woocommerce_img_6": "woocommerce_img_6", "woocommerce_img_7": "woocommerce_img_7",
+						"woocommerce_img_8": "woocommerce_img_8", "woocommerce_img_9": "woocommerce_img_9",
+						"woocommerce_img_10": "woocommerce_img_10",
+						"default_warehouse": "item_defaults.default_warehouse",
+						"category_ecommerce": "category_ecommerce", "woocommerce_warehouse": "woocommerce_warehouse",
+						"stock": "opening_stock", "valuation_rate": "valuation_rate",
+						"standard_rate": "standard_rate", "default_company": "item_defaults.company", "id": "import_id",
+						"additionnal_categories": "additional_ecommerce_categories.item_group",
+						"woocommerce_taxable": "woocommerce_taxable", "brand": "brand",
+						"brand_ecommerce": "brand_ecommerce", "Weight": "weight_per_unit", "weight_uom": "weight_uom",
+						"maintain_stock_ecommerce": "woocommerce_manage_stock",
+						"woocommerce_weight": "woocommerce_weight",
+						"Length": "woocommerce_length", "Width": "woocommerce_width", "Height": "woocommerce_height"
+					}.get(header, "Don't Import")
 
 				elif self.doctype == "Pricing Rule":
-					map_to_field = {"apply_on": "apply_on", "price_or_product": "price_or_product", "sku": "items.item_code", "sync_woocommerce_rule": "sync_woocommerce_rule", "selling": "selling",
-					                "promo_price": "rate", "rate_or_discount": "rate_or_discount", "title": "title", "currency": "currency", "margin_type": "margin_type"}.get(header, "Don't Import")
+					map_to_field = {
+						"apply_on": "apply_on", "price_or_product": "price_or_product", "sku": "items.item_code",
+						"sync_woocommerce_rule": "sync_woocommerce_rule", "selling": "selling",
+						"promo_price": "rate", "rate_or_discount": "rate_or_discount", "title": "title",
+						"currency": "currency", "margin_type": "margin_type"
+					}.get(header, "Don't Import")
 
 				elif self.doctype == "Address":
-					map_to_field = {"User Email": "woocommerce_email", "address_title": "address_title", "address_type": "address_type", "phone": "phone", "address_line1": "address_line1",
-					                "address_line2":"address_line2", "city": "city", "country": "country", "postcode": "pincode", "link_doctype": "links.link_doctype",
-					                "link_name":"links.link_name", "email_id": "email_id"}.get(header, "Don't Import")
+					map_to_field = {
+						"User Email": "woocommerce_email", "address_title": "address_title",
+						"address_type": "address_type", "phone": "phone", "address_line1": "address_line1",
+						"address_line2": "address_line2", "city": "city", "country": "country", "postcode": "pincode",
+						"link_doctype": "links.link_doctype",
+						"link_name": "links.link_name", "email_id": "email_id"
+					}.get(header, "Don't Import")
 
 				elif self.doctype == "Contact":
-					map_to_field = {"User Email": "email_id", "first_name": "first_name", "Last Name": "last_name", "phone": "phone", "link_doctype": "links.link_doctype",
-					                "link_name":"links.link_name", "email_id": "email_ids.email_id", "is_primary_email":"email_ids.is_primary"}.get(header, "Don't Import")
+					map_to_field = {
+						"User Email": "email_id", "first_name": "first_name", "Last Name": "last_name",
+						"phone": "phone", "link_doctype": "links.link_doctype",
+						"link_name": "links.link_name", "email_id": "email_ids.email_id",
+						"is_primary_email": "email_ids.is_primary"
+					}.get(header, "Don't Import")
 
 				elif self.doctype == "Customer":
-					map_to_field = {"User Email": "email_id", "customer_type": "customer_type", "territory": "territory", "customer_name": "customer_name", "is_import": "is_import"}.get(header, "Don't Import")
+					map_to_field = {
+						"User Email": "email_id", "customer_type": "customer_type", "territory": "territory",
+						"customer_name": "customer_name", "is_import": "is_import"
+					}.get(header, "Don't Import")
 
 				elif self.doctype == "Data Archive":
-					map_to_field = {"source": "source", "type": "type", "number": "number", "Order Total": "total", "lines.reference": "lines.reference", "lines.description": "lines.description", "lines.units": "lines.units",
-					                "lines.quantity": "lines.quantity", "lines.total_price_excl_taxes": "lines.total_price_excl_taxes", "lines.total_vat": "lines.total_vat",
-					                "lines.total_price_incl_taxes": "lines.total_price_incl_taxes", "customer_link": "customer_link", "customer_text": "customer_text", "Order Date": "date", "status": "status",
-					                "Payment Method Title":"payment_method", "Shipping Method": "shipping_method", "shipping_fees": "shipping_fees", "total": "total"}.get(header, "Don't Import")
+					map_to_field = {
+						"source": "source", "type": "type", "number": "number", "Order Total": "total",
+						"lines.reference": "lines.reference", "lines.description": "lines.description",
+						"lines.units": "lines.units",
+						"lines.quantity": "lines.quantity",
+						"lines.total_price_excl_taxes": "lines.total_price_excl_taxes",
+						"lines.total_vat": "lines.total_vat",
+						"lines.total_price_incl_taxes": "lines.total_price_incl_taxes",
+						"customer_link": "customer_link", "customer_text": "customer_text", "Order Date": "date",
+						"status": "status",
+						"Payment Method Title": "payment_method", "Shipping Method": "shipping_method",
+						"shipping_fees": "shipping_fees", "total": "total"
+					}.get(header, "Don't Import")
 
 			elif self.doctype_data.import_source == "Winbiz":
 				if self.doctype == "Item":
-					map_to_field = {"ar_abrege": "item_name", "ar_fn_ref": "item_code", "ar_desc": "woocommerce_long_description", "item_group": "item_group", "sync_with_woocommerce" : "sync_with_woocommerce",
-					                "maintain_stock": "is_stock_item", "default_warehouse": "item_defaults.default_warehouse", "category_ecommerce": "category_ecommerce", "woocommerce_warehouse": "woocommerce_warehouse", "stock": "opening_stock",
-					                "valuation_rate": "valuation_rate", "standard_rate": "standard_rate", "default_company": "item_defaults.company", "ar_codbar": "barcodes.barcode", "ar_poids": "weight_per_unit", "weight_uom": "weight_uom",
-					                "woocommerce_taxable": "woocommerce_taxable","maintain_stock_ecommerce": "woocommerce_manage_stock", "description": "description", "liters": "alcohol_quantity", "prixach": "buying_standard_rate",
-					                "origin": "alcohol_origin", "ar_alcool": "is_alcohol", "ar_marque": "brand"}.get(header, "Don't Import")
+					map_to_field = {
+						"ar_abrege": "item_name", "ar_fn_ref": "item_code", "ar_desc": "woocommerce_long_description",
+						"item_group": "item_group", "sync_with_woocommerce": "sync_with_woocommerce",
+						"maintain_stock": "is_stock_item", "default_warehouse": "item_defaults.default_warehouse",
+						"category_ecommerce": "category_ecommerce", "woocommerce_warehouse": "woocommerce_warehouse",
+						"stock": "opening_stock",
+						"valuation_rate": "valuation_rate", "standard_rate": "standard_rate",
+						"default_company": "item_defaults.company", "ar_codbar": "barcodes.barcode",
+						"ar_poids": "weight_per_unit", "weight_uom": "weight_uom",
+						"woocommerce_taxable": "woocommerce_taxable",
+						"maintain_stock_ecommerce": "woocommerce_manage_stock", "description": "description",
+						"liters": "alcohol_quantity", "prixach": "buying_standard_rate",
+						"origin": "alcohol_origin", "ar_alcool": "is_alcohol", "ar_marque": "brand"
+					}.get(header, "Don't Import")
 
 				elif self.doctype == "Item Price":
-					map_to_field = {"ar_fn_ref": "item_code", "price_list": "price_list", "price_list_rate": "price_list_rate"}.get(header, "Don't Import")
+					map_to_field = {
+						"ar_fn_ref": "item_code", "price_list": "price_list", "price_list_rate": "price_list_rate"
+					}.get(header, "Don't Import")
 
 				if self.doctype == "Data Archive":
-					map_to_field = {"source": "source", "type": "type", "number": "number", "do_montant": "total", "lines.reference": "lines.reference", "lines.description": "lines.description", "lines.units": "lines.units",
-					                "lines.quantity": "lines.quantity", "lines.total_price_excl_taxes": "lines.total_price_excl_taxes", "lines.total_vat": "lines.total_vat",
-					                "lines.total_price_incl_taxes": "lines.total_price_incl_taxes", "customer_link": "customer_link", "customer_text": "customer_text", "formatted_date": "date_text"}.get(header, "Don't Import")
+					map_to_field = {
+						"source": "source", "type": "type", "number": "number", "do_montant": "total",
+						"lines.reference": "lines.reference", "lines.description": "lines.description",
+						"lines.units": "lines.units",
+						"lines.quantity": "lines.quantity",
+						"lines.total_price_excl_taxes": "lines.total_price_excl_taxes",
+						"lines.total_vat": "lines.total_vat",
+						"lines.total_price_incl_taxes": "lines.total_price_incl_taxes",
+						"customer_link": "customer_link", "customer_text": "customer_text",
+						"formatted_date": "date_text"
+					}.get(header, "Don't Import")
 
 				elif self.doctype == "Customer":
-					map_to_field = {"email": "email_id", "customer_type": "customer_type", "territory": "territory", "customer_name": "customer_name", "ad_numero": "winbiz_address_number", "is_import": "is_import",
-					                "ad_url": "website"}.get(header, "Don't Import")
+					map_to_field = {
+						"email": "email_id", "customer_type": "customer_type", "territory": "territory",
+						"customer_name": "customer_name", "ad_numero": "winbiz_address_number",
+						"is_import": "is_import",
+						"ad_url": "website"
+					}.get(header, "Don't Import")
 
 				elif self.doctype == "Contact":
-					map_to_field = {"email": "email_id", "ad_numero": "winbiz_address_number", "first_name": "first_name", "last_name": "last_name", "phone": "phone", "link_doctype": "links.link_doctype",
-					                "link_name":"links.link_name", "email_id": "email_ids.email_id", "is_primary_email":"email_ids.is_primary", "number": "phone_nos.phone", "is_primary_phone": "phone_nos.is_primary_phone",
-					                "is_primary_mobile_no": "phone_nos.is_primary_mobile_no", "is_primary_contact": "is_primary_contact"}.get(header, "Don't Import")
+					map_to_field = {
+						"email": "email_id", "ad_numero": "winbiz_address_number", "first_name": "first_name",
+						"last_name": "last_name", "phone": "phone", "link_doctype": "links.link_doctype",
+						"link_name": "links.link_name", "email_id": "email_ids.email_id",
+						"is_primary_email": "email_ids.is_primary", "number": "phone_nos.phone",
+						"is_primary_phone": "phone_nos.is_primary_phone",
+						"is_primary_mobile_no": "phone_nos.is_primary_mobile_no",
+						"is_primary_contact": "is_primary_contact"
+					}.get(header, "Don't Import")
 
 				elif self.doctype == "Address":
-					map_to_field = {"email": "email_id", "address_title": "address_title", "address_type": "address_type", "phone": "phone", "ad_rue_1": "address_line1",
-					                "ad_rue_2":"address_line2", "ad_ville": "city", "country": "country", "ad_npa": "pincode", "link_doctype": "links.link_doctype",
-					                "link_name":"links.link_name", "ad_numero": "winbiz_address_number", "is_primary_address": "is_primary_address"}.get(header, "Don't Import")
+					map_to_field = {
+						"email": "email_id", "address_title": "address_title", "address_type": "address_type",
+						"phone": "phone", "ad_rue_1": "address_line1",
+						"ad_rue_2": "address_line2", "ad_ville": "city", "country": "country", "ad_npa": "pincode",
+						"link_doctype": "links.link_doctype",
+						"link_name": "links.link_name", "ad_numero": "winbiz_address_number",
+						"is_primary_address": "is_primary_address"
+					}.get(header, "Don't Import")
 
 				elif self.doctype == "Supplier":
-					map_to_field = {"supplier_name": "supplier_name", "supplier_type": "supplier_type", "supplier_group": "supplier_group", "country": "country", "AB_IBAN": "iban",
-					                "ad_numero": "winbiz_address_number", "ad_url": "website", "client_number": "suppliers_details", "ad_tvano": "tax_id"}.get(header, "Don't Import")
+					map_to_field = {
+						"supplier_name": "supplier_name", "supplier_type": "supplier_type",
+						"supplier_group": "supplier_group", "country": "country", "AB_IBAN": "iban",
+						"ad_numero": "winbiz_address_number", "ad_url": "website", "client_number": "suppliers_details",
+						"ad_tvano": "tax_id"
+					}.get(header, "Don't Import")
 
 				elif self.doctype == "Object":
-					map_to_field = {"brand": "brand", "type": "type", "bodywork": "bodywork", "internal_color": "internal_color", "insurance": "insurance",
-					                "engine_type": "engine_type", "gearbox_type": "gearbox_type", "external_color": "external_color", "fuel": "fuel", "dj_date1": "first_circulation",
-					                "dj_date2": "last_antipollution", "dj_date3": "last_expertise", "dj_date4": "sale_date", "dj_date5": "order_date", "dj_prix1": "sale_price",
-					                "customer_name": "customer", "registration_number": "registration_number", "chassis_number": "chassis_number", "plate_number": "plate_number",
-					                "homologation": "homologation", "engine_number": "engine_number", "order_number": "order_number", "keycode_1": "key_code_1",
-					                "key_id": "key_indenfication", "gearbox_number": "gearbox_number", "cabin_number": "cabin_number", "radio_code": "radio_code",
-					                "keycode_2": "key_code_2", "dj_nbre1": "km_or_hours", "next_antipollution": "next_antipollution_control", "dj_nbre3": "tare_weight",
-					                "dj_nbre4": "total_weight", "doors": "doors", "dj_nbre6": "displacement", "seats": "seats",
-					                "remark": "finishing", "object_type": "object_type", "object_name": "object_name"}.get(header, "Don't Import")
+					map_to_field = {
+						"brand": "brand", "type": "type", "bodywork": "bodywork", "internal_color": "internal_color",
+						"insurance": "insurance",
+						"engine_type": "engine_type", "gearbox_type": "gearbox_type",
+						"external_color": "external_color", "fuel": "fuel", "dj_date1": "first_circulation",
+						"dj_date2": "last_antipollution", "dj_date3": "last_expertise", "dj_date4": "sale_date",
+						"dj_date5": "order_date", "dj_prix1": "sale_price",
+						"customer_name": "customer", "registration_number": "registration_number",
+						"chassis_number": "chassis_number", "plate_number": "plate_number",
+						"homologation": "homologation", "engine_number": "engine_number",
+						"order_number": "order_number", "keycode_1": "key_code_1",
+						"key_id": "key_indenfication", "gearbox_number": "gearbox_number",
+						"cabin_number": "cabin_number", "radio_code": "radio_code",
+						"keycode_2": "key_code_2", "dj_nbre1": "km_or_hours",
+						"next_antipollution": "next_antipollution_control", "dj_nbre3": "tare_weight",
+						"dj_nbre4": "total_weight", "doors": "doors", "dj_nbre6": "displacement", "seats": "seats",
+						"remark": "finishing", "object_type": "object_type", "object_name": "object_name"
+					}.get(header, "Don't Import")
 			else:
 				#////
 				map_to_field = column_to_field_map.get(str(j))
