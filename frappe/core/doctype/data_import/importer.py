@@ -811,6 +811,8 @@ class ImportFile:
 									origin_index = index
 								elif item == "ar_abrege":
 									item_name_index = index
+								elif item == "ar_marque":
+									brand_index = index
 
 						elif self.doctype == "Data Archive":
 							row.extend(["source", "type", "lines.reference", "lines.description", "lines.units", "lines.quantity", "lines.total_price_excl_taxes", "lines.total_vat", "lines.total_price_incl_taxes", "formatted_date",
@@ -1576,6 +1578,17 @@ class ImportFile:
 										cat_doc.insert()
 										frappe.db.commit()
 										created_cats.append(current_cat)'''
+
+							brand = row[brand_index]
+							if brand:
+								neo_brand = frappe.db.get_value("Brand", {"name":brand}, "name")
+								if not neo_brand:
+									neo_brand = frappe.get_doc({
+										"doctype": "Brand",
+										"brand": brand
+									})
+									neo_brand.insert()
+									frappe.db.commit()
 
 							if self.doctype_data.manage_stock:
 								manage_stock = 1
@@ -2538,7 +2551,7 @@ class Header(Row):
 					                "maintain_stock": "is_stock_item", "default_warehouse": "item_defaults.default_warehouse", "category_ecommerce": "category_ecommerce", "woocommerce_warehouse": "woocommerce_warehouse", "stock": "opening_stock",
 					                "valuation_rate": "valuation_rate", "standard_rate": "standard_rate", "default_company": "item_defaults.company", "ar_codbar": "barcodes.barcode", "ar_poids": "weight_per_unit", "weight_uom": "weight_uom",
 					                "woocommerce_taxable": "woocommerce_taxable","maintain_stock_ecommerce": "woocommerce_manage_stock", "description": "description", "liters": "alcohol_quantity", "prixach": "buying_standard_rate",
-					                "origin": "alcohol_origin", "ar_alcool": "is_alcohol"}.get(header, "Don't Import")
+					                "origin": "alcohol_origin", "ar_alcool": "is_alcohol", "ar_marque": "brand"}.get(header, "Don't Import")
 
 				elif self.doctype == "Item Price":
 					map_to_field = {"ar_fn_ref": "item_code", "price_list": "price_list", "price_list_rate": "price_list_rate"}.get(header, "Don't Import")
