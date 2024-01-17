@@ -3,27 +3,6 @@
 
 frappe.ui.form.on("Data Import", {
 	setup(frm) {
-		//// added
-		cur_frm.fields_dict.import_file.df.hidden = 1;
-		cur_frm.fields_dict.import_file.refresh()
-		cur_frm.fields_dict.html_5.df.hidden = 1;
-		cur_frm.fields_dict.html_5.refresh()
-		cur_frm.fields_dict.google_sheets_url.df.hidden = 1;
-		cur_frm.fields_dict.google_sheets_url.refresh()
-		cur_frm.fields_dict.refresh_google_sheet.df.hidden = 1;
-		cur_frm.fields_dict.refresh_google_sheet.refresh()
-
-		if((frm.doc.name.includes("partie 2") || frm.doc.name.includes("partie 3")) && !frm.doc.import_file) {
-			frappe.db.get_value("Data Import", frm.doc.name.replace(/.$/, "1"), "import_file", (r) => {
-				if(r.import_file) {
-					frappe.db.set_value("Data Import", frm.doc.name, {"import_file": r.import_file, "import_file_data": r.import_file});
-					frm.fields_dict.import_file_data.refresh()
-					frm.fields_dict.import_file.refresh()
-					frm.trigger("import_file");
-				}
-			});
-		}
-		////
 		frappe.realtime.on("data_import_refresh", ({ data_import }) => {
 			frm.import_in_progress = false;
 			if (data_import !== frm.doc.name) return;
@@ -622,6 +601,13 @@ frappe.ui.form.on("Data Import", {
 	},
 
 	convert(frm) {
+		if(frm.doc.name == "1er import woocommerce clients - partie 1") {
+			frappe.db.set_value('Data Import', '1er import woocommerce clients - partie 2', 'import_file_data', frm.doc.import_file_data);
+			frappe.db.set_value('Data Import', '1er import woocommerce clients - partie 3', 'import_file_data', frm.doc.import_file_data);
+		} else if(frm.doc.name == "1er import winbiz clients - partie 1") {
+			frappe.db.set_value('Data Import', '1er import winbiz clients - partie 2', 'import_file_data', frm.doc.import_file_data);
+			frappe.db.set_value('Data Import', '1er import winbiz clients - partie 3', 'import_file_data', frm.doc.import_file_data);
+		}
 		if(frm.doc.import_file_data.split('.').pop() == 'csv' || frm.doc.import_file_data.split('.').pop() == 'xls'){
 			frappe.call({
 				method: 'neoffice_archive.events.create_doc_xlsx',
