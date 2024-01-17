@@ -97,6 +97,9 @@ frappe.views.Workspace = class Workspace {
 		item.indicator_color =
 			item.indicator_color || this.indicator_colors[Math.floor(Math.random() * 12)];
 
+		//// add link and change link in return
+		const link = item.custom_link || (item.public ? frappe.router.slug(item.title) : "private/" + frappe.router.slug(item.title));
+
 		return $(`
 			<div
 				class="sidebar-item-container ${item.is_editable ? "is-draggable" : ""}"
@@ -107,11 +110,7 @@ frappe.views.Workspace = class Workspace {
 			>
 				<div class="desk-sidebar-item standard-sidebar-item ${item.selected ? "selected" : ""}">
 					<a
-						href="/app/${
-							item.public
-								? frappe.router.slug(item.title)
-								: "private/" + frappe.router.slug(item.title)
-						}"
+						href="/app/${link}"
 						class="item-anchor ${item.is_editable ? "" : "block-click"}" title="${__(item.title)}"
 					>
 						<span class="sidebar-item-icon" item-icon=${item.icon || "folder-normal"}>
