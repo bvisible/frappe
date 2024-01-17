@@ -443,21 +443,56 @@ def get_workspace_sidebar_items():
 	all_pages = frappe.get_all(
 		"Workspace", fields=fields, filters=filters, order_by=order_by, ignore_permissions=True
 	)
+
+	#////
+	import json
+    # Get the path to the JSON file
+	json_path = frappe.get_app_path('neoffice_theme', 'json', 'excluded_menus.json')
+
+	# Load JSON file for excluded titles
+	try:
+		with open(json_path, 'r') as file:
+			excluded_menus = json.load(file)
+	except FileNotFoundError:
+		excluded_menus = {}
+
+	# Get the user's view interface setting
+	user_view_interface = frappe.get_doc("User", frappe.session.user).view_interface
+
+	# Initialize exclusion set with titles from the JSON file
+	excluded_titles = set()
+	custom_links = {}
+	if user_view_interface in excluded_menus:
+		if "Hide" in excluded_menus[user_view_interface]:
+			for menu in excluded_menus[user_view_interface]["Hide"]:
+				if 'title' in menu:
+					excluded_titles.add(menu['title'].lower())
+		if "Link" in excluded_menus[user_view_interface]:
+			for menu in excluded_menus[user_view_interface]["Link"]:
+				if 'title' in menu and 'link' in menu:
+					custom_links[menu['title'].lower()] = menu['link']
+	
 	pages = []
 	private_pages = []
 
 	# Filter Page based on Permission
 	for page in all_pages:
-		try:
-			workspace = Workspace(page, True)
-			if has_access or workspace.is_permitted():
-				if page.public and (has_access or not page.is_hidden) and page.title != "Welcome Workspace":
-					pages.append(page)
-				elif page.for_user == frappe.session.user:
-					private_pages.append(page)
-				page["label"] = _(page.get("name"))
-		except frappe.PermissionError:
-			pass
+		page_title_lower = page['title'].lower()
+		if page_title_lower in custom_links:
+			page['custom_link'] = custom_links[page_title_lower]
+
+		if page_title_lower not in excluded_titles:
+			try:
+				workspace = Workspace(page, True)
+				if has_access or workspace.is_permitted():
+					if page.public and (has_access or not page.is_hidden) and page.title != "Welcome Workspace":
+						pages.append(page)
+					elif page.for_user == frappe.session.user:
+						private_pages.append(page)
+					page["label"] = _(page.get("name"))
+			except frappe.PermissionError:
+				pass
+	#////
 	if private_pages:
 		pages.extend(private_pages)
 
