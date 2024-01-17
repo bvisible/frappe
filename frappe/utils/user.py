@@ -214,6 +214,7 @@ class UserPermissions:
 		return self.can_read
 
 	def load_user(self):
+		#//// add view_interface
 		d = frappe.db.get_value(
 			"User",
 			self.name,
@@ -230,6 +231,7 @@ class UserPermissions:
 				"send_me_a_copy",
 				"user_type",
 				"onboarding_status",
+				"view_interface",
 			],
 			as_dict=True,
 		)
