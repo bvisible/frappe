@@ -295,14 +295,11 @@ frappe.views.ListSidebar = class ListSidebar {
 	//// added function
 	make_sidebar_menu(sidebar) {
 		const sidebar_item_container = (item) => {
+			const link = item.custom_link || (item.public ? frappe.router.slug(item.title) : "private/" + frappe.router.slug(item.title));
 			return `
 		  <div class="sidebar-item-container ${item.is_editable ? "is-draggable" : ""}" data-parent="${item.parent_page}" data-name="${item.title}" data-public="${item.public || 0}">
 			<div class="desk-sidebar-item standard-sidebar-item ${item.selected ? "selected" : ""}">
-			  <a href="/app/${
-				item.public
-					? frappe.router.slug(item.title)
-					: "private/" + frappe.router.slug(item.title)
-			}" class="item-anchor ${item.is_editable ? "" : "block-click"}" title="${__(item.title)}">
+			  <a href="/app/${link}" class="item-anchor ${item.is_editable ? "" : "block-click"}" title="${__(item.title)}">
 				<span class="sidebar-item-icon" data-icon=${item.icon || "folder-normal"}>${frappe.utils.icon(item.icon || "folder-normal", "md")}</span>
 				<span class="sidebar-item-label">${__(item.title)}<span>
 			  </a>
