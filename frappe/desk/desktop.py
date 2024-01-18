@@ -462,20 +462,28 @@ def get_workspace_sidebar_items():
 	# Initialize exclusion set with titles from the JSON file
 	excluded_titles = set()
 	custom_links = {}
+
+	# Check for the existence of user_view_interface in excluded_menus and process if exists
 	if user_view_interface in excluded_menus:
-		if "Hide" in excluded_menus[user_view_interface]:
-			for menu in excluded_menus[user_view_interface]["Hide"]:
+		# Get "Hide" and "Link" sections, default to empty list if not present
+		hide_menus = excluded_menus[user_view_interface].get("Hide", [])
+		link_menus = excluded_menus[user_view_interface].get("Link", [])
+		
+		# Process Hide menus if not empty
+		if hide_menus:
+			for menu in hide_menus:
 				if 'title' in menu:
 					excluded_titles.add(menu['title'].lower())
-		if "Link" in excluded_menus[user_view_interface]:
-			for menu in excluded_menus[user_view_interface]["Link"]:
+
+		# Process Link menus if not empty
+		if link_menus:
+			for menu in link_menus:
 				if 'title' in menu and 'link' in menu:
 					custom_links[menu['title'].lower()] = menu['link']
-
-	# Identify and add child pages of excluded pages to the exclusion set
-	for page in all_pages:
-		if page['parent_page'].lower() in excluded_titles:
-			excluded_titles.add(page['title'].lower())
+		# Identify and add child pages of excluded pages to the exclusion set
+		for page in all_pages:
+			if page['parent_page'].lower() in excluded_titles:
+				excluded_titles.add(page['title'].lower())
 
 	pages = []
 	private_pages = []
