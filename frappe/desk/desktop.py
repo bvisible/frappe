@@ -446,7 +446,7 @@ def get_workspace_sidebar_items():
 
 	#////
 	import json
-    # Get the path to the JSON file
+	# Get the path to the JSON file
 	json_path = frappe.get_app_path('neoffice_theme', 'json', 'excluded_menus.json')
 
 	# Load JSON file for excluded titles
@@ -471,7 +471,12 @@ def get_workspace_sidebar_items():
 			for menu in excluded_menus[user_view_interface]["Link"]:
 				if 'title' in menu and 'link' in menu:
 					custom_links[menu['title'].lower()] = menu['link']
-	
+
+	# Identify and add child pages of excluded pages to the exclusion set
+	for page in all_pages:
+		if page['parent_page'].lower() in excluded_titles:
+			excluded_titles.add(page['title'].lower())
+
 	pages = []
 	private_pages = []
 
@@ -493,6 +498,7 @@ def get_workspace_sidebar_items():
 			except frappe.PermissionError:
 				pass
 	#////
+
 	if private_pages:
 		pages.extend(private_pages)
 
