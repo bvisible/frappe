@@ -327,25 +327,38 @@ frappe.ui.form.Sidebar = class {
 						const $selectoritemparentbtn = $selectoritemparent.find('.desk-sidebar-item > .sidebar-item-control');
 
 						if ($selectoritemparentbtn.find('.drop-icon').length == 0) {
-							const itemparentbtn = '<span class="drop-icon"><svg class="icon icon-sm"><use class="" href="#icon-small-down"></use></svg></span>';
+							const itemparentbtn = `<span class="drop-icon">${frappe.utils.icon("es-line-down", "sm")}</span>`;
 							$selectoritemparentbtn.append(itemparentbtn);
 						}
 						$selectoritemname.appendTo($selectoritemparentcontent);
 						$selectoritemparentcontent.addClass("hidden");
 					}
 				});
+				
 				$nonLabelItems.find(".drop-icon").on("click", (e) => {
-					const $target = $(e.target);
-					const $parentContainer = $target.parents(".sidebar-item-container");
-					const $nestedContainer = $parentContainer.find(".sidebar-child-item.nested-container");
-					const $icon = $target.find("use");
+					const $drop_icon = $(e.target);
+					const itemname = $drop_icon.parents(".sidebar-item-container").data("name");
 
-					if ($icon.attr("href") == "#icon-small-down") {
-						$nestedContainer.removeClass("hidden");
-						$icon.attr("href", "#icon-small-up");
+					const $parentContainer = $drop_icon.parents(".sidebar-item-container");
+					const $nestedContainer = $parentContainer.find(".sidebar-child-item.nested-container");
+					let existingArray = JSON.parse(localStorage.getItem("list_sidebar_open") || '[]');
+					let icon =
+						$drop_icon.find("use").attr("href") === "#es-line-down"
+							? "#es-line-up"
+							: "#es-line-down";
+					$drop_icon.find("use").attr("href", icon);
+					$nestedContainer.toggleClass("hidden");
+					//// Save state to local storage
+					if($drop_icon.find("use").attr("href") === "#es-line-down") {
+						if (existingArray.includes(itemname)) {
+							existingArray.splice(existingArray.indexOf(itemname), 1);
+							localStorage.setItem("list_sidebar_open", JSON.stringify(existingArray));
+						}
 					} else {
-						$nestedContainer.addClass("hidden");
-						$icon.attr("href", "#icon-small-down");
+						if (!existingArray.includes(itemname)) {
+							existingArray.push(itemname);
+							localStorage.setItem("list_sidebar_open", JSON.stringify(existingArray));
+						}
 					}
 				});
 			}

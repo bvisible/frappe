@@ -246,13 +246,39 @@ frappe.views.Workspace = class Workspace {
 		) {
 			$drop_icon.removeClass("hidden");
 		}
+
+		//// Check local storage for saved state
+		let existingArray = JSON.parse(localStorage.getItem("list_sidebar_open") || '[]');
+		if (existingArray.includes(item.title)) {
+			$child_item_section.removeClass("hidden");
+			$drop_icon.find("use").attr("href", "#es-line-up");
+		} else {
+			$child_item_section.addClass("hidden");
+			$drop_icon.find("use").attr("href", "#es-line-down");
+		}
+
 		$drop_icon.on("click", () => {
+			let existingArray = JSON.parse(localStorage.getItem("list_sidebar_open") || '[]');
 			let icon =
 				$drop_icon.find("use").attr("href") === "#es-line-down"
 					? "#es-line-up"
 					: "#es-line-down";
 			$drop_icon.find("use").attr("href", icon);
 			$child_item_section.toggleClass("hidden");
+			//// Save state to local storage
+			if($drop_icon.find("use").attr("href") === "#es-line-down") {
+				if (existingArray.includes(item.title)) {
+					existingArray.splice(existingArray.indexOf(item.title), 1);
+					localStorage.setItem("list_sidebar_open", JSON.stringify(existingArray));
+				}
+				//localStorage.setItem(item.title, "closed");
+			} else {
+				if (!existingArray.includes(item.title)) {
+					existingArray.push(item.title);
+					localStorage.setItem("list_sidebar_open", JSON.stringify(existingArray));
+				}
+				//localStorage.setItem(item.title, "open");
+			}
 		});
 	}
 

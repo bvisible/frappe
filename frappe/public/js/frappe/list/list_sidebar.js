@@ -332,39 +332,54 @@ frappe.views.ListSidebar = class ListSidebar {
 				});
 
 				const $sidebarSections = $(sidebar).find('.standard-sidebar-section').not(".hidden");
-				const $nonLabelItems = $sidebarSections.children().not(".standard-sidebar-label");
+				const $labelItems = $sidebarSections.children().not(".standard-sidebar-label");
 
-				$nonLabelItems.each(function () {
+				$labelItems.each(function () {
 					const $currentElement = $(this);
 					const itemname = $currentElement.data("name");
 					const itemparent = $currentElement.data("parent");
+					const $selectoritemname = $sidebarSections.find(`[data-name="${itemname}"].sidebar-item-container`);
 
 					if (itemparent) {
-						const $selectoritemname = $sidebarSections.find(`[data-name="${itemname}"].sidebar-item-container`);
 						const $selectoritemparent = $sidebarSections.find(`[data-name="${itemparent}"].sidebar-item-container`);
 						const $selectoritemparentcontent = $selectoritemparent.children('.sidebar-child-item.nested-container');
 						const $selectoritemparentbtn = $selectoritemparent.find('.desk-sidebar-item > .sidebar-item-control');
 
 						if ($selectoritemparentbtn.find('.drop-icon').length == 0) {
-							const itemparentbtn = '<span class="drop-icon"><svg class="icon icon-sm"><use class="" href="#icon-small-down"></use></svg></span>';
+							const itemparentbtn = `<span class="drop-icon">${frappe.utils.icon("es-line-down", "sm")}</span>`;
 							$selectoritemparentbtn.append(itemparentbtn);
 						}
 						$selectoritemname.appendTo($selectoritemparentcontent);
 						$selectoritemparentcontent.addClass("hidden");
 					}
 				});
-				$nonLabelItems.find(".drop-icon").on("click", (e) => {
-					const $target = $(e.target);
-					const $parentContainer = $target.parents(".sidebar-item-container");
-					const $nestedContainer = $parentContainer.find(".sidebar-child-item.nested-container");
-					const $icon = $target.find("use");
 
-					if ($icon.attr("href") == "#icon-small-down") {
-						$nestedContainer.removeClass("hidden");
-						$icon.attr("href", "#icon-small-up");
+				$labelItems.find(".drop-icon").on("click", (e) => {
+					const $drop_icon = $(e.target);
+					const itemname = $drop_icon.parents(".sidebar-item-container").data("name");
+
+					const $parentContainer = $drop_icon.parents(".sidebar-item-container");
+					const $nestedContainer = $parentContainer.find(".sidebar-child-item.nested-container");
+					let existingArray = JSON.parse(localStorage.getItem("list_sidebar_open") || '[]');
+					let icon =
+						$drop_icon.find("use").attr("href") === "#es-line-down"
+							? "#es-line-up"
+							: "#es-line-down";
+					$drop_icon.find("use").attr("href", icon);
+					$nestedContainer.toggleClass("hidden");
+					//// Save state to local storage
+					if($drop_icon.find("use").attr("href") === "#es-line-down") {
+						if (existingArray.includes(itemname)) {
+							existingArray.splice(existingArray.indexOf(itemname), 1);
+							localStorage.setItem("list_sidebar_open", JSON.stringify(existingArray));
+						}
+						//localStorage.setItem(itemname, "closed");
 					} else {
-						$nestedContainer.addClass("hidden");
-						$icon.attr("href", "#icon-small-down");
+						if (!existingArray.includes(itemname)) {
+							existingArray.push(itemname);
+							localStorage.setItem("list_sidebar_open", JSON.stringify(existingArray));
+						}
+						//localStorage.setItem(itemname, "open");
 					}
 				});
 			}
