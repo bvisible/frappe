@@ -705,7 +705,7 @@ class ImportFile:
 									user_email_index = index
 
 						elif self.doctype == "Customer":
-							row.extend(["customer_name", "customer_type", "territory", "is_import"])
+							row.extend(["customer_name", "customer_type", "territory", "is_import", "default_currency"])
 							for (index, item) in enumerate(row):
 								#frappe.msgprint(item)
 								if item == "Billing Email":
@@ -897,7 +897,7 @@ class ImportFile:
 									address_phone_index = index
 
 						elif self.doctype == "Customer":
-							row.extend(["customer_name", "customer_type", "territory", "is_import", "email"])
+							row.extend(["customer_name", "customer_type", "territory", "is_import", "email", "default_currency"])
 							for (index, item) in enumerate(row):
 								#frappe.msgprint(item)
 								if item == "ordre":
@@ -1409,12 +1409,16 @@ class ImportFile:
 										if not final_name:
 											final_name = full_name
 
+									company = frappe.defaults.get_global_default("company")
+									default_currency = frappe.get_value("Company", company, "default_currency")
 									if row[billing_country_index]:
 										countries = frappe.get_all("Country", filters={"code": row[billing_country_index].lower()})
 										if countries:
 											country = countries[0].name
 										else:
 											country = None
+										if row[billing_country_index] != "CH":
+											default_currency = "EUR"
 									#country = "Suisse" if _(pycountry.countries.get(alpha_2=row[billing_country_index]).name) == "Switzerland" else self.doctype_data.default_territory #!!!!
 									elif row[shipping_country_index]:
 										countries = frappe.get_all("Country", filters={"code": row[shipping_country_index].lower()})
@@ -1426,7 +1430,7 @@ class ImportFile:
 									else:
 										country = self.doctype_data.default_territory
 									if final_name:
-										row.extend([final_name, customer_type, self.doctype_data.default_territory, 1])
+										row.extend([final_name, customer_type, self.doctype_data.default_territory, 1, default_currency])
 								else:
 									add_row_in_data = False
 							else:
@@ -1838,10 +1842,14 @@ class ImportFile:
 							names_to_add.append(full_name.lower())
 
 							country = self.doctype_data.default_territory
+							company = frappe.defaults.get_global_default("company")
+							default_currency = frappe.get_value("Company", company, "default_currency")
 							if row[address_country_index]:
 								#countries = frappe.db.exists("Country", {"code": row[address_country_index].lower()})
 								#if countries:
 								country = "Suisse" if row[address_country_index] == "CH" else self.doctype_data.default_territory
+								if (row[address_country_index]).upper() != "CH":
+									default_currency = "EUR"
 
 							'''final_name = None
 							if len(frappe.get_all("Customer", filters={'winbiz_address_number': row[address_id_index]})) == 0:
@@ -1865,7 +1873,7 @@ class ImportFile:
 								customer_type = ""
 							last_full_name.append(final_name.lower())'''
 
-							row.extend([full_name, customer_type, country, 1, row[user_email_index]])
+							row.extend([full_name, customer_type, country, 1, row[user_email_index], default_currency])
 
 						elif self.doctype == "Supplier":
 							if supplier_list:
@@ -2568,7 +2576,7 @@ class Header(Row):
 				elif self.doctype == "Customer":
 					map_to_field = {
 						"User Email": "email_id", "customer_type": "customer_type", "territory": "territory",
-						"customer_name": "customer_name", "is_import": "is_import"
+						"customer_name": "customer_name", "is_import": "is_import", "default_currency": "default_currency",
 					}.get(header, "Don't Import")
 
 				elif self.doctype == "Data Archive":
@@ -2624,9 +2632,8 @@ class Header(Row):
 				elif self.doctype == "Customer":
 					map_to_field = {
 						"email": "email_id", "customer_type": "customer_type", "territory": "territory",
-						"customer_name": "customer_name", "ad_numero": "winbiz_address_number",
-						"is_import": "is_import",
-						"ad_url": "website"
+						"customer_name": "customer_name", "ad_numero": "winbiz_address_number", "is_import": "is_import",
+						"ad_url": "website", "default_currency": "default_currency"
 					}.get(header, "Don't Import")
 
 				elif self.doctype == "Contact":
