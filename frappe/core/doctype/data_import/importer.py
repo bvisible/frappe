@@ -1417,8 +1417,8 @@ class ImportFile:
 											country = countries[0].name
 										else:
 											country = None
-										if row[billing_country_index] != "CH":
-											default_currency = "EUR"
+										'''if row[billing_country_index] != "CH":
+											default_currency = "EUR"'''
 									#country = "Suisse" if _(pycountry.countries.get(alpha_2=row[billing_country_index]).name) == "Switzerland" else self.doctype_data.default_territory #!!!!
 									elif row[shipping_country_index]:
 										countries = frappe.get_all("Country", filters={"code": row[shipping_country_index].lower()})
@@ -1848,8 +1848,8 @@ class ImportFile:
 								#countries = frappe.db.exists("Country", {"code": row[address_country_index].lower()})
 								#if countries:
 								country = "Suisse" if row[address_country_index] == "CH" else self.doctype_data.default_territory
-								if (row[address_country_index]).upper() != "CH":
-									default_currency = "EUR"
+								'''if (row[address_country_index]).upper() != "CH":
+									default_currency = "EUR"'''
 
 							'''final_name = None
 							if len(frappe.get_all("Customer", filters={'winbiz_address_number': row[address_id_index]})) == 0:
@@ -3146,3 +3146,4 @@ def create_import_log(data_import, log_index, log_details):
 			"exception": log_details.get("exception"),
 		}
 	).db_insert()
+
