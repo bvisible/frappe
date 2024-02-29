@@ -995,15 +995,6 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 		if (this.report_settings.after_datatable_render) {
 			this.report_settings.after_datatable_render(this.datatable);
 		}
-		//// added
-		$($(this.datatable.wrapper).find( ".dt-scrollable" )[0]).css("min-height","auto");
-		new MiniBar($(this.datatable.wrapper).children( ".datatable" )[0], {
-			barType: "default",
-			minBarSize: 10,
-			hideBars: false,
-			alwaysShowBars: false,
-		});
-		////
 	}
 
 	show_loading_screen() {
