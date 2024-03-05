@@ -26,9 +26,9 @@ MAX_ROWS_IN_PREVIEW = 10
 INSERT = "Insert New Records"
 UPDATE = "Update Existing Records"
 DURATION_PATTERN = re.compile(r"^(?:(\d+d)?((^|\s)\d+h)?((^|\s)\d+m)?((^|\s)\d+s)?)$")
-SPLIT_ROWS_AT = 40000 #//// added
+SPLIT_ROWS_AT = 50000 #//// added
 WC_SPLIT_ROWS_AT = 300 #//// added
-WC_CONTACT_SPLIT_ROWS_AT = 5000 #//// added
+WC_CONTACT_SPLIT_ROWS_AT = 1000 #//// added
 
 
 class Importer:
@@ -794,7 +794,7 @@ class ImportFile:
 
 						elif self.doctype == "Item":
 							row.extend(["sync_with_woocommerce", "item_group", "maintain_stock", "default_warehouse", "default_company", "woocommerce_warehouse", "stock", "valuation_rate", "category_ecommerce", "standard_rate", "weight_uom", "woocommerce_taxable",
-							            "tax_class", "maintain_stock_ecommerce", "description", "liters", "origin"])
+							            "tax_class", "maintain_stock_ecommerce", "description", "liters", "origin", "brand"])
 							for (index, item) in enumerate(row):
 								if item == "ar_groupe":
 									category_index = index
@@ -914,7 +914,6 @@ class ImportFile:
 						elif self.doctype == "Supplier":
 							row.extend(["supplier_name", "supplier_type", "country", "supplier_group", "client_number"])
 							supplier_list = self.doctype_data.supplier_ad_numero.split(",") if self.doctype_data.supplier_ad_numero else []
-							frappe.neolog("supplier_list", supplier_list)
 							for (index, item) in enumerate(row):
 								#frappe.msgprint(item)
 								if item == "ad_numero":
@@ -1427,8 +1426,8 @@ class ImportFile:
 										else:
 											country = None
 									#country = "Suisse" if _(pycountry.countries.get(alpha_2=row[shipping_country_index]).name) == "Switzerland" else self.doctype_data.default_territory #!!!!
-									else:
-										country = self.doctype_data.default_territory
+									#else:
+									#country = self.doctype_data.default_territory
 									if final_name:
 										row.extend([final_name, customer_type, self.doctype_data.default_territory, 1, default_currency])
 								else:
@@ -1507,7 +1506,7 @@ class ImportFile:
 							item_group = None
 							if row[category_index]:
 								from neoffice_theme.events import get_full_group_tree
-								parent = get_full_group_tree(self.doctype_data.root_category)
+								parent = get_full_group_tree(self.doctype_data.root_category).split(">")[-1]
 								group_tree = parent + ">" + row[category_index]
 								item_group = parent
 								filtered_groups = frappe.get_all("Item Group", filters={"group_tree": group_tree})
@@ -1628,7 +1627,7 @@ class ImportFile:
 								description = row[description_index]
 							row.extend([self.doctype_data.sync_with_woocommerce, item_group, manage_stock, self.doctype_data.warehouse, default_company,
 							            self.doctype_data.warehouse, stock, valuation_rate, item_group, standard_rate, "KG", taxable_company, tax_class, manage_stock,
-							            description, liters, final_origin])
+							            description, liters, final_origin, brand])
 
 						if self.doctype == "Data Archive":
 							customer_match = frappe.get_all("Customer", filters={'winbiz_address_number': row[address_id_index]})
@@ -1769,6 +1768,7 @@ class ImportFile:
 							if row[firstname_index]:
 								title_formatted += row[firstname_index]
 							title_formatted = title_formatted.strip()
+							title_formatted = title_formatted[0:115]
 
 							suffix = 1
 							base_title = title_formatted
@@ -1841,13 +1841,14 @@ class ImportFile:
 								full_name = base_name + " - " + str(suffix)
 							names_to_add.append(full_name.lower())
 
-							country = self.doctype_data.default_territory
+							#country = self.doctype_data.default_territory
 							company = frappe.defaults.get_global_default("company")
 							default_currency = frappe.get_value("Company", company, "default_currency")
 							if row[address_country_index]:
-								#countries = frappe.db.exists("Country", {"code": row[address_country_index].lower()})
-								#if countries:
-								country = "Suisse" if row[address_country_index] == "CH" else self.doctype_data.default_territory
+								country = frappe.db.exists("Country", {"code": row[address_country_index].lower()})
+								if not country:
+									country = "Switzerland"
+								#country = "Suisse" if row[address_country_index] == "CH" else self.doctype_data.default_territory
 								'''if (row[address_country_index]).upper() != "CH":
 									default_currency = "EUR"'''
 
@@ -2081,14 +2082,17 @@ class ImportFile:
 								added_lines += 1
 								title_formatted = str(row[shipping_firstname_index]) + " " + str(row[shipping_lastname_index]) if row[shipping_firstname_index] else str(row[shipping_company_index])
 								if row[shipping_country_index]:
-									countries = frappe.get_all("Country", filters={"code": row[shipping_country_index].lower()})
+									country = frappe.db.exists("Country", {"code": row[shipping_country_index].lower()})
+									'''countries = frappe.get_all("Country", filters={"code": row[shipping_country_index].lower()})
 									if countries:
 										country = countries[0].name
 									else:
-										country = None
+										country = None'''
 								#country = "Suisse" if _(pycountry.countries.get(alpha_2=row[shipping_country_index]).name) == "Switzerland" else self.doctype_data.default_territory #!!!!_(pycountry.countries.get(alpha_2=row[shipping_country_index]).name)
-								else:
-									country = None
+								'''else:
+									country = None'''
+								if not country:
+									country = "Switzerland"
 								if not frappe.get_all("Address", filters={"woocommerce_email": row[user_email_index], "address_type": "Shipping", "address_line1": row[shipping_address_1_index]}):
 									new_row.extend([row[user_email_index], title_formatted, "Shipping", row[shipping_address_1_index], row[shipping_address_2_index], row[shipping_city_index], row[shipping_state_index],
 									                row[shipping_postcode_index], country, row[billing_email_index], row[shipping_phone_index], "Customer", customer_name])
@@ -2597,18 +2601,17 @@ class Header(Row):
 			elif self.doctype_data.import_source == "Winbiz":
 				if self.doctype == "Item":
 					map_to_field = {
-						"ar_abrege": "item_name", "ar_fn_ref": "item_code", "ar_desc": "woocommerce_long_description",
+						"ar_abrege": "item_name", "ar_code": "item_code", "ar_desc": "woocommerce_long_description",
 						"item_group": "item_group", "sync_with_woocommerce": "sync_with_woocommerce",
 						"maintain_stock": "is_stock_item", "default_warehouse": "item_defaults.default_warehouse",
 						"category_ecommerce": "category_ecommerce", "woocommerce_warehouse": "woocommerce_warehouse",
-						"stock": "opening_stock",
-						"valuation_rate": "valuation_rate", "standard_rate": "standard_rate",
+						"stock": "opening_stock", "valuation_rate": "valuation_rate", "standard_rate": "standard_rate",
 						"default_company": "item_defaults.company", "ar_codbar": "barcodes.barcode",
 						"ar_poids": "weight_per_unit", "weight_uom": "weight_uom",
 						"woocommerce_taxable": "woocommerce_taxable",
 						"maintain_stock_ecommerce": "woocommerce_manage_stock", "description": "description",
-						"liters": "alcohol_quantity", "prixach": "buying_standard_rate",
-						"origin": "alcohol_origin", "ar_alcool": "is_alcohol", "ar_marque": "brand"
+						"liters": "alcohol_quantity", "prixach": "buying_standard_rate", "origin": "alcohol_origin",
+						"ar_alcool": "is_alcohol", "brand": "brand", "ar_numero": "import_id",
 					}.get(header, "Don't Import")
 
 				elif self.doctype == "Item Price":
@@ -2671,7 +2674,7 @@ class Header(Row):
 						"insurance": "insurance",
 						"engine_type": "engine_type", "gearbox_type": "gearbox_type",
 						"external_color": "external_color", "fuel": "fuel", "dj_date1": "first_circulation",
-						"dj_date2": "last_antipollution", "dj_date3": "last_expertise", "dj_date4": "sale_date",
+						"dj_date2": "last_antipollution_control", "dj_date3": "last_expertise", "dj_date4": "sale_date",
 						"dj_date5": "order_date", "dj_prix1": "sale_price",
 						"customer_name": "customer", "registration_number": "registration_number",
 						"chassis_number": "chassis_number", "plate_number": "plate_number",
