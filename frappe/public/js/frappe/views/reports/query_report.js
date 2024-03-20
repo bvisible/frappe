@@ -965,11 +965,12 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 			this.datatable.options.showTotalRow === this.raw_data.add_total_row
 		) {
 			this.datatable.options.treeView = this.tree_report;
-			this.datatable.refresh(data, columns);
+			this.datatable.refresh(data.slice(0, this.get_filter_values().max_rows), columns); //// added .slice(0, this.get_filter_values().max_rows)
 		} else {
+			console.log(this.get_filter_values());
 			let datatable_options = {
 				columns: columns,
-				data: data,
+				data: data.slice(0, this.get_filter_values().max_rows), //// added .slice(0, this.get_filter_values().max_rows)
 				inlineFilters: true,
 				language: frappe.boot.lang,
 				translations: frappe.utils.datatable.get_translations(),
@@ -1395,7 +1396,7 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 			print_settings: print_settings,
 			landscape: landscape,
 			filters: this.get_filter_values(),
-			data: this.get_data_for_print(),
+			data: this.data, //// this.get_data_for_print(),
 			columns: this.get_columns_for_print(print_settings, custom_format),
 			original_data: this.data,
 			report: this,
@@ -1410,7 +1411,7 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 
 		const custom_format = this.report_settings.html_format || null;
 		const columns = this.get_columns_for_print(print_settings, custom_format);
-		const data = this.get_data_for_print();
+		const data = this.data; //// this.get_data_for_print();
 		const applied_filters = this.get_filter_values();
 
 		const filters_html = this.get_filters_html_for_print();
