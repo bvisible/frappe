@@ -402,7 +402,7 @@ function add_files(file_array) {
 				request_succeeded: false,
 				error_message: null,
 				uploading: false,
-				private: ['Item', "In-App Ads"].includes(frappe.router.current_route[1]) ? 0 : 1////!props.make_attachments_public,
+				private: ['Item', "In-App Ads"].includes(frappe.router.current_route[1]) || ['neoffice-wizard'].includes(frappe.router.current_route[0])? 0 : 1////!props.make_attachments_public,
 			};
 		});
 
