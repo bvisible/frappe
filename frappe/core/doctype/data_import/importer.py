@@ -20,6 +20,7 @@ from frappe.utils.xlsxutils import (
 )
 import requests #////
 from neoffice_ecommerce.neoffice_ecommerce.doctype.wordpress_settings.api.neo import call_bmr #////
+from neoffice_theme.events import get_item_tax_template_rate #////
 
 INVALID_VALUES = ("", None)
 MAX_ROWS_IN_PREVIEW = 10
@@ -1272,8 +1273,7 @@ class ImportFile:
 							description = None if not row[description_index] else row[description_index].replace("_x000D_", "<br>")
 							short_description = None if not row[short_description_index] else row[short_description_index].replace("_x000D_", "<br>")
 							is_vat = 0 if row[taxable_index] == "Aucune" else 1
-							default_tax = frappe.db.get_value("Company", frappe.defaults.get_global_default("company"), "default_tax")
-							tax_class = frappe.db.get_value("Easy Tax and Accounting", default_tax, "woocommerce_tax") if is_vat else None
+							tax_class = get_item_tax_template_rate([], row[category_index], return_tax_class=True)
 							if(len(attributes_value) == 0):
 								row.extend([manage_stock, manage_stock, is_parent, parent_sku, None, None, self.doctype_data.sync_with_woocommerce, self.doctype_data.warehouse, row[category_index], row[category_index],
 								            default_company, self.doctype_data.warehouse, stock, valuation_rate, price, additional_cat, description, short_description, is_vat, tax_class, "Kg", brand, brand, row[weight_index]])
@@ -1619,8 +1619,7 @@ class ImportFile:
 
 							company = frappe.defaults.get_global_default("company")
 							taxable_company = frappe.db.get_value("Company", company, "is_vat_company")
-							default_tax = frappe.db.get_value("Company", frappe.defaults.get_global_default("company"), "default_tax")
-							tax_class = frappe.db.get_value("Easy Tax and Accounting", default_tax, "woocommerce_tax") if taxable_company else None
+							tax_class = get_item_tax_template_rate([], item_group, return_tax_class=True)
 							standard_rate = row[selling_price_index]
 							description = ""
 							if description_index:
