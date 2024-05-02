@@ -138,7 +138,6 @@ frappe.ui.form.LinkSelector = class LinkSelector {
 						if (!me.results_auto_add.includes(firstLink.attr('data-value'))) {
 							firstLink.click();
 							me.results_auto_add.push(firstLink.attr('data-value'));
-							console.log(me.results_auto_add);
 						}
 					}
 				} else {
