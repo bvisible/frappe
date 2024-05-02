@@ -6,6 +6,9 @@ frappe.ui.form.LinkSelector = class LinkSelector {
 		/* help: Options: doctype, get_query, target */
 		$.extend(this, opts);
 
+		////
+		this.results_auto_add = [];
+
 		var me = this;
 		if (this.doctype != "[Select]") {
 			frappe.model.with_doctype(this.doctype, function (r) {
@@ -82,7 +85,7 @@ frappe.ui.form.LinkSelector = class LinkSelector {
 		) {
 			$.extend(args, this.target.fieldinfo[this.fieldname].get_query(cur_frm.doc));
 		}
-
+		
 		frappe.link_search(
 			this.doctype,
 			args,
@@ -128,6 +131,15 @@ frappe.ui.form.LinkSelector = class LinkSelector {
 								}
 								return false;
 							});
+					}
+					//// Auto add first result
+					if (results.length === 1) {
+						var firstLink = parent.find('.row a').first();
+						if (!me.results_auto_add.includes(firstLink.attr('data-value'))) {
+							firstLink.click();
+							me.results_auto_add.push(firstLink.attr('data-value'));
+							console.log(me.results_auto_add);
+						}
 					}
 				} else {
 					$(
