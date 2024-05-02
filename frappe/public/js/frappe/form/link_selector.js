@@ -204,8 +204,12 @@ frappe.ui.form.LinkSelector = class LinkSelector {
 							]);
 						}
 					},
+					/* //// 
 					__("Set Quantity"),
 					__("Set Quantity")
+					*/
+					__("Set Quantity for {0}", [value]),
+					__("Set Quantity for {0}", [value])
 				);
 			} else if (this.dynamic_link_field) {
 				let d = this.target.add_new_row();
