@@ -733,11 +733,17 @@ def sendmail(
 	"""
 
 	#//// added block
-	default_outgoing = db.get_value("Email Account", {"default_outgoing": 1}, "email_id")
-	if sender != default_outgoing:
-		reply_to = sender
-	else:
-		reply_to = None
+	disable_mailgun = db.get_value("Email Account", {"default_outgoing": 1}, "disable_mailgun")
+	if disable_mailgun:
+		default_outgoing = db.get_value("Email Account", {"default_outgoing": 1}, "email_id")
+		if sender != default_outgoing:
+			reply_to = sender
+		else:
+			reply_to = None
+	else :
+		from neoffice_theme.events import get_email_from_url
+		default_outgoing = get_email_from_url()
+
 	if session.user and session.user != "Guest" and session.user != "Administrator":
 		user = db.get_value("User", session.user, "full_name") + " | "
 	else:

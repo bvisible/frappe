@@ -473,7 +473,19 @@ def add_attachment(fname, fcontent, content_type=None, parent=None, content_id=N
 
 def get_message_id():
 	"""Returns Message ID created from doctype and name"""
-	return email.utils.make_msgid(domain=frappe.local.site)
+	#//// change domain
+	from urllib.parse import urlparse
+	full_url = frappe.request.url
+	parsed_url = urlparse(full_url)
+	domain_parts = parsed_url.netloc.split('.')
+
+	if len(domain_parts) > 2:
+		subdomain = domain_parts[0]
+		base_domain = f"{subdomain}.neoffice.ch"
+	else:
+		base_domain = parsed_url.netloc
+		
+	return email.utils.make_msgid(domain=base_domain)
 
 
 def get_signature(email_account):
