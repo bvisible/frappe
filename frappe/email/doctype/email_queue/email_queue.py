@@ -228,12 +228,13 @@ class EmailQueue(Document):
 
 						mailgun_domain = frappe.db.get_value("Email Account", {"default_outgoing": 1}, "mailgun_domain")
 						mailgun_api_key = frappe.db.get_value("Email Account", {"default_outgoing": 1}, "mailgun_api_key")
+
 						if not mailgun_api_key:
 							from neoffice_theme.events import get_mailgun_api_key
 							mailgun_api_key = get_mailgun_api_key()
 
 						data = {
-							"to": recipients
+							"to": recipients,
 						}
 
 						files={
@@ -241,7 +242,7 @@ class EmailQueue(Document):
 						}
 
 						response = requests.post(
-							f"https://api.mailgun.net/v3/{mailgun_domain}/messages.mime",
+							f"https://api.eu.mailgun.net/v3/{mailgun_domain}/messages.mime",
 							auth=("api", mailgun_api_key),
 							data=data,
 							files=files
@@ -293,17 +294,15 @@ class EmailQueue(Document):
 										ctx.add_to_error_list(recipient)
 										frappe.log_error(_("Email {} as spam.").format(recipients), response_data)
 									else:
-										if response_data =="Queued. Thank you.":
-											if retry:
-												time.sleep(3)
-												check_status(delivery_status, retry=False)
-											else:
-												frappe.msgprint(
+										message_message = response_data['message']
+				
+										if message_message == "Queued. Thank you.":
+											frappe.msgprint(
 													_("Your email to {} has been queued.").format(recipients),
 													alert=True,
 													indicator="green",
 												)
-												ctx.add_to_sent_list(recipient)
+											ctx.add_to_sent_list(recipient)
 										else:
 											frappe.msgprint(
 												_("Your email to {} generated this message : {}.").format(recipients, delivery_status),
