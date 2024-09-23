@@ -134,7 +134,7 @@ body {
 	}
 
 	.widget-head {
-		@include flex(flex, flex-start, center, null);
+		@include flex(flex, space-between, center, null);
 
 		.widget-label {
 			min-width: 0px;
@@ -551,6 +551,7 @@ body {
 	&.shortcut-widget-box {
 		cursor: pointer;
 		padding: 2px 7px;
+		align-items: flex-start;
 
 		&:hover {
 			--icon-stroke: var(--invert-neutral);
@@ -971,6 +972,10 @@ body {
 					.links-widget-box {
 						background-color: var(--bg-color) !important;
 					}
+
+					.workspace-footer {
+						display: none;
+					}
 				}
 			}
 
@@ -990,6 +995,12 @@ body {
 		box-shadow: none;
 		border-radius: var(--border-radius-lg);
 		padding: var(--padding-sm);
+	}
+
+	.workspace-footer {
+		height: 30px;
+		display: flex;
+		flex-direction: row-reverse;
 	}
 
 	.block-menu-item-icon svg {
@@ -1021,7 +1032,7 @@ body {
 			}
 
 			.drop-icon {
-				padding: 10px 12px 10px 2px;
+				padding: 0px 12px 0px 2px;
 			}
 
 			svg {
@@ -1281,6 +1292,11 @@ body {
 
 						.h4 {
 							@include get_textstyle("xl", "semibold");
+						}
+
+						.h5 {
+							font-weight: normal;
+							color: var(--text-light);
 						}
 
 						&:focus {

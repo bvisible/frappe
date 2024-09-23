@@ -87,10 +87,10 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 		return this.is_translatable() ? __(value) : value;
 	}
 	is_translatable() {
-		return in_list(frappe.boot?.translated_doctypes || [], this.get_options());
+		return (frappe.boot?.translated_doctypes || []).includes(this.get_options());
 	}
 	is_title_link() {
-		return in_list(frappe.boot?.link_title_doctypes || [], this.get_options());
+		return (frappe.boot?.link_title_doctypes || []).includes(this.get_options());
 	}
 	async set_link_title(value) {
 		const doctype = this.get_options();
@@ -219,10 +219,13 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 				) {
 					html += '<br><span class="small">' + __(d.description) + "</span>";
 				}
-				return $("<li></li>")
+				return $(`<div role="option">`)
+					.on("click", (event) => {
+						me.awesomplete.select(event.currentTarget, event.currentTarget);
+					})
 					.data("item.autocomplete", d)
 					.prop("aria-selected", "false")
-					.html(`<a><p title="${frappe.utils.escape_html(_label)}">${html}</p></a>`)
+					.html(`<p title="${frappe.utils.escape_html(_label)}">${html}</p>`)
 					.get(0);
 			},
 			sort: function () {
@@ -252,6 +255,7 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 					doctype: doctype,
 					ignore_user_permissions: me.df.ignore_user_permissions,
 					reference_doctype: me.get_reference_doctype() || "",
+					page_length: cint(frappe.boot.sysdefaults?.link_field_results_limit) || 10,
 				};
 
 				me.set_custom_query(args);
@@ -476,7 +480,8 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 				filter[3].push("...");
 			}
 
-			let value = filter[3] == null || filter[3] === "" ? __("empty") : String(filter[3]);
+			let value =
+				filter[3] == null || filter[3] === "" ? __("empty") : String(__(filter[3]));
 
 			return [__(label).bold(), __(filter[2]), value.bold()].join(" ");
 		}
@@ -507,6 +512,12 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 			});
 			return obj;
 		};
+
+		// apply link field filters
+		if (this.df.link_filters && !!this.df.link_filters.length) {
+			this.apply_link_field_filters();
+		}
+
 		if (this.get_query || this.df.get_query) {
 			var get_query = this.get_query || this.df.get_query;
 			if ($.isPlainObject(get_query)) {
@@ -569,38 +580,77 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 			$.extend(args.filters, this.df.filters);
 		}
 	}
+
+	apply_link_field_filters() {
+		let link_filters = JSON.parse(this.df.link_filters);
+		let filters = this.parse_filters(link_filters);
+		// take filters from the link field and add to the query
+		this.get_query = function () {
+			return {
+				filters,
+			};
+		};
+	}
+
+	parse_filters(link_filters) {
+		let filters = {};
+		link_filters.forEach((filter) => {
+			let [_, fieldname, operator, value] = filter;
+			if (value?.startsWith?.("eval:")) {
+				value = value.split("eval:")[1];
+				let context = {
+					doc: this.doc,
+					parent: this.doc.parenttype ? this.frm.doc : null,
+					frappe,
+				};
+				value = frappe.utils.eval(value, context);
+			}
+			filters[fieldname] = [operator, value];
+		});
+		return filters;
+	}
+
 	validate(value) {
 		// validate the value just entered
 		if (this._validated || this.df.options == "[Select]" || this.df.ignore_link_validation) {
 			return value;
 		}
 
-		return this.validate_link_and_fetch(this.df, this.get_options(), this.docname, value);
+		return this.validate_link_and_fetch(value);
 	}
-	validate_link_and_fetch(df, options, docname, value) {
-		if (!options) return;
+	validate_link_and_fetch(value) {
+		const options = this.get_options();
+		if (!options) {
+			return;
+		}
 
-		const fetch_map = this.fetch_map;
-		const columns_to_fetch = Object.values(fetch_map);
+		const columns_to_fetch = Object.values(this.fetch_map);
 
 		// if default and no fetch, no need to validate
-		if (!columns_to_fetch.length && df.__default_value === value) {
+		if (!columns_to_fetch.length && this.df.__default_value === value) {
 			return value;
 		}
 
-		function update_dependant_fields(response) {
+		const update_dependant_fields = (response) => {
 			let field_value = "";
-			for (const [target_field, source_field] of Object.entries(fetch_map)) {
-				if (value) field_value = response[source_field];
-				frappe.model.set_value(
-					df.parent,
-					docname,
-					target_field,
-					field_value,
-					df.fieldtype
-				);
+			for (const [target_field, source_field] of Object.entries(this.fetch_map)) {
+				if (value) {
+					field_value = response[source_field];
+				}
+
+				if (this.layout?.set_value) {
+					this.layout.set_value(target_field, field_value);
+				} else if (this.frm) {
+					frappe.model.set_value(
+						this.df.parent,
+						this.docname,
+						target_field,
+						field_value,
+						this.df.fieldtype
+					);
+				}
 			}
-		}
+		};
 
 		// to avoid unnecessary request
 		if (value) {
@@ -611,7 +661,9 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 					fields: columns_to_fetch,
 				})
 				.then((response) => {
-					if (!docname || !columns_to_fetch.length) return response.name;
+					if (!this.docname || !columns_to_fetch.length) {
+						return response.name;
+					}
 					update_dependant_fields(response);
 					return response.name;
 				});
@@ -621,8 +673,73 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 		}
 	}
 
+	fetch_map_for_quick_entry() {
+		let me = this;
+		let fetch_map = {};
+		function add_fetch(link_field, source_field, target_field, target_doctype) {
+			if (!target_doctype) target_doctype = "*";
+
+			if (!me.layout.fetch_dict) {
+				me.layout.fetch_dict = {};
+			}
+
+			// Target field kept as key because source field could be non-unique
+			me.layout.fetch_dict.setDefault(target_doctype, {}).setDefault(link_field, {})[
+				target_field
+			] = source_field;
+		}
+
+		function setup_add_fetch(df) {
+			let is_read_only_field =
+				[
+					"Data",
+					"Read Only",
+					"Text",
+					"Small Text",
+					"Currency",
+					"Check",
+					"Text Editor",
+					"Attach Image",
+					"Code",
+					"Link",
+					"Float",
+					"Int",
+					"Date",
+					"Select",
+					"Duration",
+					"Time",
+				].includes(df.fieldtype) ||
+				df.read_only == 1 ||
+				df.is_virtual == 1;
+
+			if (is_read_only_field && df.fetch_from && df.fetch_from.indexOf(".") != -1) {
+				var parts = df.fetch_from.split(".");
+				add_fetch(parts[0], parts[1], df.fieldname, df.parent);
+			}
+		}
+
+		$.each(this.layout.fields, (i, field) => setup_add_fetch(field));
+
+		for (const key of ["*", this.df.parent]) {
+			if (!this.layout.fetch_dict) {
+				this.layout.fetch_dict = {};
+			}
+			if (this.layout.fetch_dict[key] && this.layout.fetch_dict[key][this.df.fieldname]) {
+				Object.assign(fetch_map, this.layout.fetch_dict[key][this.df.fieldname]);
+			}
+		}
+
+		return fetch_map;
+	}
+
 	get fetch_map() {
 		const fetch_map = {};
+
+		// Create fetch_map from quick entry fields
+		if (!this.frm && this.layout && this.layout.fields) {
+			return this.fetch_map_for_quick_entry();
+		}
+
 		if (!this.frm) return fetch_map;
 
 		for (const key of ["*", this.df.parent]) {

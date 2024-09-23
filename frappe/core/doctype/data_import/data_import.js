@@ -393,7 +393,7 @@ frappe.ui.form.on("Data Import", {
 		html += other_warnings
 			.map((warning) => {
 				let header = "";
-				if (warning.col) {
+				if (columns && warning.col) {
 					let column_number = `<span class="text-uppercase">${__("Column {0}", [
 						warning.col,
 					])}</span>`;
@@ -421,15 +421,9 @@ frappe.ui.form.on("Data Import", {
 
 	render_import_log(frm) {
 		frappe.call({
-			method: "frappe.client.get_list",
+			method: "frappe.core.doctype.data_import.data_import.get_import_logs",
 			args: {
-				doctype: "Data Import Log",
-				filters: {
-					data_import: frm.doc.name,
-				},
-				fields: ["success", "docname", "messages", "exception", "row_indexes"],
-				limit_page_length: 5000,
-				order_by: "log_index",
+				data_import: frm.doc.name,
 			},
 			callback: function (r) {
 				let logs = r.message;
@@ -461,7 +455,6 @@ frappe.ui.form.on("Data Import", {
 							}
 						} else {
 							let messages = JSON.parse(log.messages || "[]")
-								.map(JSON.parse)
 								.map((m) => {
 									let title = m.title ? `<strong>${m.title}</strong>` : "";
 									let message = m.message ? `<div>${m.message}</div>` : "";
@@ -521,7 +514,7 @@ frappe.ui.form.on("Data Import", {
 	show_import_log(frm) {
 		frm.toggle_display("import_log_section", false);
 
-		if (frm.import_in_progress) {
+		if (frm.is_new() || frm.import_in_progress) {
 			return;
 		}
 

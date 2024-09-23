@@ -40,6 +40,7 @@ class S3BackupSettings(Document):
 		notify_email: DF.Data
 		secret_access_key: DF.Password
 		send_email_for_successful_backup: DF.Check
+
 	# end: auto-generated types
 	def validate(self):
 		if not self.enabled:
@@ -114,7 +115,7 @@ def take_backups_s3(retry_count=0, wizard=False, manual=False, demo=False): #///
 				"frappe.integrations.doctype.s3_backup_settings.s3_backup_settings.take_backups_s3",
 				queue="long",
 				timeout=1500,
-				**args
+				**args,
 			)
 		else:
 			notify()

@@ -11,6 +11,7 @@ from werkzeug.wrappers import Response
 
 import frappe
 from frappe import _
+from frappe.apps import get_apps, get_default_path, is_desk_apps
 from frappe.model.document import Document
 from frappe.utils import (
 	cint,
@@ -166,7 +167,12 @@ def get_home_page_via_hooks():
 
 def get_boot_data():
 	return {
-		"lang": "en",
+		"lang": frappe.local.lang or "en",
+		"apps_data": {
+			"apps": get_apps() or [],
+			"is_desk_apps": 1 if bool(is_desk_apps(get_apps())) else 0,
+			"default_path": get_default_path() or "",
+		},
 		"sysdefaults": {
 			"float_precision": cint(frappe.get_system_settings("float_precision")) or 3,
 			"date_format": frappe.get_system_settings("date_format") or "yyyy-mm-dd",
@@ -319,9 +325,9 @@ def extract_title(source, path):
 		# make title from name
 		title = (
 			os.path.basename(
-				path.rsplit(".",)[
-					0
-				].rstrip("/")
+				path.rsplit(
+					".",
+				)[0].rstrip("/")
 			)
 			.replace("_", " ")
 			.replace("-", " ")
@@ -367,7 +373,6 @@ def clear_cache(path=None):
 		"website_generator_routes",
 		"website_pages",
 		"website_full_index",
-		"sitemap_routes",
 		"languages_with_name",
 		"languages",
 	):

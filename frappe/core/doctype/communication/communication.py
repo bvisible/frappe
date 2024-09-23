@@ -133,7 +133,6 @@ class Communication(Document, CommunicationEmailMixin):
 			and self.uid
 			and self.uid != -1
 		):
-
 			email_flag_queue = frappe.db.get_value(
 				"Email Flag Queue", {"communication": self.name, "is_completed": 0}
 			)
@@ -306,7 +305,7 @@ class Communication(Document, CommunicationEmailMixin):
 		emails = split_emails(emails) if isinstance(emails, str) else (emails or [])
 		if exclude_displayname:
 			return [email.lower() for email in {parse_addr(email)[1] for email in emails} if email]
-		return [email.lower() for email in set(emails) if email]
+		return [email for email in set(emails) if email]
 
 	def to_list(self, exclude_displayname=True):
 		"""Returns to list."""
@@ -438,7 +437,7 @@ class Communication(Document, CommunicationEmailMixin):
 				frappe.db.commit()
 
 	def parse_email_for_timeline_links(self):
-		if not frappe.db.get_value("Email Account", self.email_account, "enable_automatic_linking"):
+		if not frappe.db.get_value("Email Account", filters={"enable_automatic_linking": 1}):
 			return
 
 		for doctype, docname in parse_email([self.recipients, self.cc, self.bcc]):
@@ -501,14 +500,15 @@ def on_doctype_update():
 	frappe.db.add_index("Communication", ["message_id(140)"])
 
 
-def has_permission(doc, ptype, user):
+def has_permission(doc, ptype, user=None, debug=False):
 	if ptype == "read":
 		if doc.reference_doctype == "Communication" and doc.reference_name == doc.name:
 			return
 
 		if doc.reference_doctype and doc.reference_name:
-			if frappe.has_permission(doc.reference_doctype, ptype="read", doc=doc.reference_name):
-				return True
+			return frappe.has_permission(
+				doc.reference_doctype, ptype="read", doc=doc.reference_name, user=user, debug=debug
+			)
 
 
 def get_permission_query_conditions_for_communication(user):
@@ -553,6 +553,7 @@ def get_contacts(email_strings: list[str], auto_create_contact=False) -> list[st
 				contact.insert(ignore_permissions=True)
 				contact_name = contact.name
 			except Exception:
+				contact_name = None
 				contact.log_error("Unable to add contact")
 
 		if contact_name:
@@ -648,8 +649,15 @@ def update_parent_document_on_communication(doc):
 	if status_field:
 		options = (status_field.options or "").splitlines()
 
-		# if status has a "Replied" option, then update the status for received communication
-		if ("Replied" in options) and doc.sent_or_received == "Received":
+		# if status has a "Open" option and status is "Replied", then update the status for received communication
+		if (
+			("Open" in options)
+			and parent.status == "Replied"
+			and doc.sent_or_received == "Received"
+			or (
+				parent.doctype == "Issue" and ("Open" in options) and doc.sent_or_received == "Received"
+			)  # For 'Issue', current status is not considered.
+		):
 			parent.db_set("status", "Open")
 			parent.run_method("handle_hold_time", "Replied")
 			apply_assignment_rule(parent)
