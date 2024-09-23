@@ -4,7 +4,8 @@
     "build": "node esbuild",
     "production": "node esbuild --production",
     "watch": "node esbuild --watch",
-    "coverage:report": "npx nyc report --reporter=clover"
+    "coverage:report": "npx nyc report --reporter=clover",
+    "postinstall": "mv ./node_modules/frappe-datatable /home/neoffice/frappe-bench/apps/neoffice_theme/neoffice_theme/modules/frappe-datatable"
   },
   "repository": {
     "type": "git",
@@ -47,7 +48,7 @@
     "fast-deep-equal": "^2.0.1",
     "fast-glob": "^3.2.5",
     "frappe-charts": "2.0.0-rc22",
-    "frappe-datatable": "github:bvisible/datatable",
+    "frappe-datatable": "^1.17.5",
     "frappe-gantt": "^0.6.0",
     "highlight.js": "^10.4.1",
     "html5-qrcode": "^2.3.8",

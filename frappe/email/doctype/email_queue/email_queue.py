@@ -295,13 +295,13 @@ class EmailQueue(Document):
 										frappe.log_error(_("Email {} as spam.").format(recipients), response_data)
 									else:
 										message_message = response_data['message']
-				
+
 										if message_message == "Queued. Thank you.":
 											frappe.msgprint(
-													_("Your email to {} has been queued.").format(recipients),
-													alert=True,
-													indicator="green",
-												)
+												_("Your email to {} has been queued.").format(recipients),
+												alert=True,
+												indicator="green",
+											)
 											ctx.add_to_sent_list(recipient)
 										else:
 											frappe.msgprint(

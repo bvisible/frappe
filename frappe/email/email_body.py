@@ -475,7 +475,7 @@ def get_message_id():
 	"""Returns Message ID created from doctype and name"""
 	#//// change domain
 	from urllib.parse import urlparse
-	full_url = frappe.request.url
+	full_url = frappe.utils.get_url()
 	parsed_url = urlparse(full_url)
 	domain_parts = parsed_url.netloc.split('.')
 

@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Your Shortcuts</b></span>\",\"col\":12}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"User\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Role\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Permission Manager\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"User Profile\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"User Type\",\"col\":3}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports & Masters</b></span>\",\"col\":12}},{\"type\":\"card\",\"data\":{\"card_name\":\"Users\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Logs\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Permissions\",\"col\":4}}]",
+ "content": "[{\"id\":\"7GuF29zw9u\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Acc\u00e8s rapide</b></span>\",\"col\":12}},{\"id\":\"pemrzZ5XMi\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"User\",\"col\":3}},{\"id\":\"_-I1AT8Lif\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Role\",\"col\":3}},{\"id\":\"GSEJahvlND\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Permission Manager\",\"col\":3}},{\"id\":\"BMWIO-Bl4r\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"User Profile\",\"col\":3}},{\"id\":\"tyJKOC196F\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"User Type\",\"col\":3}},{\"id\":\"iQT-VXxKpR\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"6P256jF68j\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Menu</b></span>\",\"col\":12}},{\"id\":\"4exDHMKoU2\",\"type\":\"card\",\"data\":{\"card_name\":\"Users\",\"col\":4}},{\"id\":\"AlJHiTAnRX\",\"type\":\"card\",\"data\":{\"card_name\":\"Logs\",\"col\":4}},{\"id\":\"INRvDTfCaS\",\"type\":\"card\",\"data\":{\"card_name\":\"Permissions\",\"col\":4}}]",
  "creation": "2020-03-02 15:12:16.754449",
  "custom_blocks": [],
  "docstatus": 0,
@@ -11,143 +11,8 @@
  "idx": 0,
  "is_hidden": 0,
  "label": "Users",
- "links": [
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Users",
-   "link_count": 0,
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "User",
-   "link_count": 0,
-   "link_to": "User",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Role",
-   "link_count": 0,
-   "link_to": "Role",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Role Profile",
-   "link_count": 0,
-   "link_to": "Role Profile",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Logs",
-   "link_count": 0,
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Activity Log",
-   "link_count": 0,
-   "link_to": "Activity Log",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Access Log",
-   "link_count": 0,
-   "link_to": "Access Log",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Permissions",
-   "link_count": 0,
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Role Permissions Manager",
-   "link_count": 0,
-   "link_to": "permission-manager",
-   "link_type": "Page",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "User Permissions",
-   "link_count": 0,
-   "link_to": "User Permission",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Role Permission for Page and Report",
-   "link_count": 0,
-   "link_to": "Role Permission for Page and Report",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "User",
-   "hidden": 0,
-   "is_query_report": 1,
-   "label": "Permitted Documents For User",
-   "link_count": 0,
-   "link_to": "Permitted Documents For User",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "DocShare",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Document Share Report",
-   "link_count": 0,
-   "link_to": "Document Share Report",
-   "link_type": "Report",
-   "onboard": 0,
-   "type": "Link"
-  }
- ],
- "modified": "2023-05-24 14:47:23.619182",
+ "links": [],
+ "modified": "2024-05-14 22:31:16.505009",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "Users",
@@ -156,36 +21,9 @@
  "parent_page": "",
  "public": 1,
  "quick_lists": [],
- "restrict_to_domain": "",
+ "restrict_to_domain": "Core",
  "roles": [],
- "sequence_id": 13.0,
- "shortcuts": [
-  {
-   "label": "User",
-   "link_to": "User",
-   "type": "DocType"
-  },
-  {
-   "label": "Role",
-   "link_to": "Role",
-   "type": "DocType"
-  },
-  {
-   "label": "Permission Manager",
-   "link_to": "permission-manager",
-   "type": "Page"
-  },
-  {
-   "label": "User Profile",
-   "link_to": "user-profile",
-   "type": "Page"
-  },
-  {
-   "doc_view": "",
-   "label": "User Type",
-   "link_to": "User Type",
-   "type": "DocType"
-  }
- ],
+ "sequence_id": 60.0,
+ "shortcuts": [],
  "title": "Users"
 }

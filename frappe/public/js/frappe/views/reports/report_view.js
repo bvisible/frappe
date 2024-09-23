@@ -17,24 +17,35 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 	setup_defaults() {
 		super.setup_defaults();
-		this.page_title = __("Report:") + " " + this.page_title;
+		////this.page_title = __("Report:") + " " + this.page_title;
+		this.page_title = this.page_title;
 		this.view = "Report";
 
 		const route = frappe.get_route();
-		if (route.length === 4) {
-			this.report_name = route[3];
+		////
+		if (route.length === 4 && (route[3] !== "Calendar" && route[3] !== "Kanban")) {
+			if (route[3] === "Report" || route[3] === "List") {
+				this.add_totals_row = this.view_user_settings.add_totals_row || 0;
+				this.chart_args = this.view_user_settings.chart_args;
+				return this.get_list_view_settings();
+			} else {
+				this.report_name = route[3];
+			}
 		}
-
+		////
 		if (this.report_name) {
+			////console.log(this.report_name);
 			return this.get_report_doc().then((doc) => {
 				this.report_doc = doc;
+				////console.log(this.report_doc);
 				this.report_doc.json = JSON.parse(this.report_doc.json);
 
 				this.filters = this.report_doc.json.filters;
 				this.order_by = this.report_doc.json.order_by;
 				this.add_totals_row = this.report_doc.json.add_totals_row;
 				this.page_title = __(this.report_name);
-				this.page_length = this.report_doc.json.page_length || 20;
+				////this.page_length = this.report_doc.json.page_length || 20;
+				this.page_length = 100;
 				this.order_by = this.report_doc.json.order_by || "modified desc";
 				this.chart_args = this.report_doc.json.chart_args;
 			});
@@ -98,7 +109,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		);
 		this.$paging_area
 			.find(".level-left")
-			.append(`<span class="comparison-message text-muted">${message}</span>`);
+			.after(`<span class="comparison-message text-muted">${message}</span>`);
 	}
 
 	setup_sort_selector() {
@@ -128,12 +139,232 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	}
 
 	before_refresh() {
+		////
+		if (this.$page.find('.layout-side-section').length > 0 ) {
+			this.$filter_section.prependTo(this.$page.find('.layout-side-section'));
+		}
+		let doctype = this.doctype;
+		let me = this;
+		if (!this.page.wrapper.find('.btn-settings').length) {
+			this.page.add_button(__("Settings"), function() {
+				let dialog = new frappe.ui.Dialog({
+					title: __("Settings"),
+					fields: [
+						{
+							fieldtype: "HTML",
+							fieldname: "actions",
+							options: `
+								<div style="display: flex; flex-direction: column; gap: 20px; max-width: 250px; margin: auto;">
+									<button class="btn btn-primary btn-add-column">${__("Add Column")}</button>
+									<button class="btn btn-default btn-push-settings">${__("Push Settings to All Users")}</button>
+									<button class="btn btn-default btn-delete-settings">${__("Delete Settings")}</button>
+									${frappe.session.user === "Administrator" ? `
+										<button class="btn btn-danger btn-save-global-settings">${__("Save as Global Default")}</button>
+									` : ''}
+								</div>
+							`
+						}
+					],
+					primary_action_label: __("Close"),
+					primary_action: function() {
+						dialog.hide();
+					}
+				});
+
+				// Attach event listeners to the buttons
+				dialog.fields_dict.actions.$wrapper.find(".btn-delete-settings").on("click", function() {
+					frappe.confirm(
+						__('Are you sure you want to delete the settings for this report?'),
+						() => {
+							frappe.call({
+								method: "frappe.desk.reportview.delete_user_report_settings",
+								args: {
+									doctype: doctype
+								},
+								callback: function(r) {
+									if (r.message) {
+										frappe.show_alert({
+											message: __("Settings for ") + doctype + __("deleted successfully"),
+											indicator: 'green'
+										});
+										// Refresh the page
+										setTimeout(() => {
+											frappe.ui.toolbar.clear_cache()
+										}, 1000);
+									}
+								}
+							});
+							dialog.hide();
+						}
+					);
+				});
+
+				dialog.fields_dict.actions.$wrapper.find(".btn-push-settings").on("click", function() {
+					frappe.confirm(
+						__('Are you sure you want to push the settings for this report to all users?'),
+						() => {
+							frappe.call({
+								method: "frappe.desk.reportview.push_user_report_settings_to_all",
+								args: {
+									doctype: doctype
+								},
+								callback: function(r) {
+									if (r.message) {
+										frappe.show_alert({
+											message: __("Settings for ") + doctype + __("pushed to all users successfully"),
+											indicator: 'green'
+										});
+									}
+								}
+							});
+							dialog.hide();
+						}
+					);
+				});
+
+				dialog.fields_dict.actions.$wrapper.find(".btn-save-global-settings").on("click", function() {
+					frappe.confirm(
+						__('Are you sure you want to save these settings as the global default?'),
+						() => {
+							let column_order = me.fields.map(field => `${field[1]}:${field[0]}`);
+							let column_widths = {};
+				
+							setTimeout(() => {
+								if (me.datatable && me.datatable.datamanager) {
+									column_widths = me.datatable.datamanager.getColumns(true).reduce((acc, curr) => {
+										acc[curr.id] = parseInt(curr.width);
+										return acc;
+									}, {});
+				
+								} else {
+									console.error("Datatable or datamanager is not initialized.");
+								}
+				
+								const settings = {
+									order: column_order,
+									widths: column_widths
+								};
+				
+								frappe.call({
+									method: "frappe.desk.reportview.save_global_report_settings",
+									args: {
+										doctype: me.doctype,
+										settings: JSON.stringify(settings)  // Sauvegarder en JSON string pour garder la même structure
+									},
+									callback: function(response) {
+										console.log("Settings sent to backend:", settings);
+				
+										if (response.message) {
+											frappe.show_alert({
+												message: __("Global default settings for ") + me.doctype + __(" saved successfully"),
+												indicator: 'green'
+											});
+										}
+									}
+								});
+								dialog.hide();
+							}, 20);
+						}
+					);
+				});				
+
+				dialog.fields_dict.actions.$wrapper.find(".btn-add-column").on("click", () => {
+					dialog.hide();
+					me.showAddColumnDialog();
+				});
+
+				dialog.show();
+			}).addClass('btn-settings').html(`<img src="/assets/neoffice_theme/icons/icon_settings.svg" alt="Settings" style="height: 15px; vertical-align: middle;">`);
+		}
+		if (!this.page.wrapper.find('.btn-export-excel').length) {
+			this.page.add_button('', function() {
+				frappe.call({
+					method: 'neoffice_theme.events.export_query',
+					args: {
+						data: cur_list.data,
+						file_format_type: 'Excel',
+						title: __(cur_list.doctype) + '_' + frappe.datetime.get_today(),
+					},
+					callback: function(response) {
+						if (response.message && response.message.file_url) {
+							window.location.href = response.message.file_url;
+						} else {
+							console.error("Failed to generate export file.");
+						}
+					}
+				});
+			}).addClass('btn-export-excel').html(`<img src="/assets/neoffice_theme/icons/icon_excel.svg" alt="Export Excel" style="height: 20px; vertical-align: middle;">`);
+		}		
+		////
 		if (this.report_doc) {
 			// don't parse frappe.route_options if this is a Custom Report
 			return Promise.resolve();
 		}
 		return super.before_refresh();
 	}
+
+	////
+	showAddColumnDialog() {
+		let columns_in_picker = [];
+		const columns = this.get_columns_for_picker();
+
+		columns_in_picker = columns[this.doctype]
+			.filter((df) => !this.is_column_added(df))
+			.map((df) => ({
+				label: __(df.label),
+				value: df.fieldname,
+			}));
+
+		delete columns[this.doctype];
+
+		for (let cdt in columns) {
+			columns[cdt]
+				.filter((df) => !this.is_column_added(df))
+				.map((df) => ({
+					label: __(df.label) + ` (${cdt})`,
+					value: df.fieldname + "," + cdt,
+				}))
+				.forEach((df) => columns_in_picker.push(df));
+		}
+
+		const d = new frappe.ui.Dialog({
+			title: __("Add Column"),
+			fields: [
+				{
+					label: __("Select Column"),
+					fieldname: "column",
+					fieldtype: "Autocomplete",
+					options: columns_in_picker,
+				}
+			],
+			primary_action: ({ column, insert_before }) => {
+				if (!columns_in_picker.map((col) => col.value).includes(column)) {
+					frappe.show_alert({
+						message: __("Invalid column"),
+						indicator: "orange",
+					});
+					d.hide();
+					return;
+				}
+
+				let doctype = this.doctype;
+				if (column.includes(",")) {
+					[column, doctype] = column.split(",");
+				}
+
+				let index = this.columns.length; // Default to adding at the end
+				if (insert_before) {
+					index = datatabe_col ? datatabe_col.colIndex - 1 : 0;
+				}
+
+				this.add_column_to_datatable(column, doctype, index);
+				d.hide();
+			},
+		});
+
+		d.show();
+	}
+	////
 
 	after_render() {
 		if (!this.report_doc) {
@@ -153,7 +384,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			fields: this.fields,
 			order_by: this.sort_selector.get_sql_string(),
 			add_totals_row: this.add_totals_row,
-			page_length: this.page_length,
+			////page_length: this.page_length,
+			page_length: 100,
 			column_widths: this.get_column_widths(),
 			group_by: this.group_by_control.get_settings(),
 			chart_args: this.get_chart_settings(),
@@ -164,7 +396,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			fields: this.report_doc.json.fields,
 			order_by: this.report_doc.json.order_by,
 			add_totals_row: this.report_doc.json.add_totals_row,
-			page_length: this.report_doc.json.page_length,
+			////page_length: this.report_doc.json.page_length,
+			page_length: 100,
 			column_widths: this.report_doc.json.column_widths,
 			group_by: this.report_doc.json.group_by,
 			chart_args: this.report_doc.json.chart_args,
@@ -201,9 +434,43 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		} else {
 			this.data = this.data.concat(data);
 		}
+		////
+		this.sort_data_by_likes();
+	}
+	////
+	sort_data_by_likes() {
+		this.data.sort((a, b) => {
+			const aLiked = JSON.parse(a._liked_by || "[]").includes(frappe.session.user);
+			const bLiked = JSON.parse(b._liked_by || "[]").includes(frappe.session.user);
+	
+			if (aLiked && !bLiked) {
+				return -1;
+			} else if (!aLiked && bLiked) {
+				return 1;
+			}
+			return 0;
+		});
 	}
 
-	render(force) {
+	async fetch_comment_counts(docnames) {
+		let comment_counts = {};
+		await frappe.call({
+			method: 'frappe.desk.reportview.get_comment_count',
+			args: {
+				doctype: this.doctype,
+				docnames: docnames
+			},
+			callback: function(r) {
+				if (r.message) {
+					comment_counts = r.message;
+				}
+			}
+		});
+		return comment_counts;
+	}	
+
+	////render(force) {
+	async render(force) {
 		if (this.data.length === 0) return;
 		this.render_count();
 		this.setup_columns();
@@ -214,6 +481,16 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			this.refresh_charts();
 		}
 
+		////
+		const docnames = this.data.map(d => d.name);
+    	const comment_counts = await this.fetch_comment_counts(docnames);
+
+		this.data = this.data.map(d => {
+			d._comment_count = comment_counts[d.name] || 0;
+			return d;
+		});
+		////
+
 		if (this.datatable && !force) {
 			this.datatable.refresh(this.get_data(this.data), this.columns);
 			return;
@@ -221,6 +498,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		this.setup_datatable(this.data);
 	}
 
+	////
 	render_count() {
 		if (this.list_view_settings?.disable_count) {
 			return;
@@ -234,6 +512,20 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		this.get_count_str().then((str) => {
 			$list_count.text(str);
 		});
+		setTimeout(() => {
+			this.isLoading = false;
+		}, 200);
+	}
+	////
+
+	get_count_element() {
+		let $count = this.$paging_area.find(".list-count");
+		if (!$count.length) {
+			$count = $("<span>")
+				.addClass("text-muted list-count")
+				.prependTo(this.$paging_area.find(".level-right"));
+		}
+		return $count;
 	}
 
 	on_update(data) {
@@ -335,7 +627,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 						columns_in_picker = columns[this.doctype]
 							.filter((df) => !this.is_column_added(df))
 							.map((df) => ({
-								label: __(df.label),
+								label: __(df.label, null, df.parent),
 								value: df.fieldname,
 							}));
 
@@ -345,7 +637,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 							columns[cdt]
 								.filter((df) => !this.is_column_added(df))
 								.map((df) => ({
-									label: __(df.label) + ` (${cdt})`,
+									label: __(df.label, null, df.parent) + ` (${cdt})`,
 									value: df.fieldname + "," + cdt,
 								}))
 								.forEach((df) => columns_in_picker.push(df));
@@ -398,7 +690,61 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				},
 			],
 		});
+		////
+		this.addResizeEvent();
+
 	}
+
+	////
+	async addResizeEvent() {
+		this.$datatable_wrapper.on('mouseup', '.dt-cell .dt-cell__resize-handle', async (e) => {
+			const $resizingCell = e.target.closest('.dt-cell');
+			const colIndex = parseInt($resizingCell.getAttribute('data-col-index'));
+			const col = this.datatable.datamanager.columns[colIndex];
+	
+			if (col) {
+				const newWidth = col.width;
+				await this.save_column_order_and_widths();
+			}
+		});
+	}
+	
+	save_column_order_and_widths(fields = this.fields) {
+		const column_order = fields.map(field => `${field[1]}:${field[0]}`);
+		var column_widths = {};
+		setTimeout(() => {
+			if (this.datatable && this.datatable.datamanager) {
+				column_widths = this.datatable.datamanager.getColumns(true).reduce((acc, curr) => {
+					acc[curr.id] = parseInt(curr.width);
+					return acc;
+				}, {});
+
+			} else {
+				console.error("Datatable or datamanager is not initialized.");
+			}
+			const settings = {
+				order: column_order,
+				widths: column_widths
+			};
+			
+			frappe.call({
+				method: 'frappe.desk.reportview.save_user_report_settings',
+				args: {
+					doctype: this.doctype,
+					settings: JSON.stringify(settings)
+				},
+				callback: function(response) {
+					/*if (response.message) {
+						frappe.show_alert({
+							message: __("Settings saved"),
+							indicator: "green"
+						});
+					}*/
+				}
+			});
+		}, 20);		
+	}
+	////
 
 	toggle_charts() {
 		// add
@@ -796,6 +1142,18 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		);
 		fields = fields.concat(cdt_name_fields);
 
+		////
+		if (this.columns.some(col => col.field === 'meta')) {
+			fields.push(
+				'name',
+				'modified', 
+				'_assign',
+				'_comment_count',
+				'_liked_by'
+			);
+		}
+		////
+
 		return fields;
 	}
 
@@ -811,6 +1169,10 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		this.fields.splice(col_index, 0, field);
 
 		this.add_currency_column(fieldname, doctype, col_index);
+
+		////
+		this.save_column_order_and_widths(this.fields);
+		////
 
 		this.build_fields();
 		this.setup_columns();
@@ -867,6 +1229,11 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		}
 
 		this.fields.splice(index, 1);
+
+		////
+		this.save_column_order_and_widths(this.fields);
+		////
+
 		this.build_fields();
 		this.setup_columns();
 		this.refresh();
@@ -882,6 +1249,11 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		_fields[index2] = temp;
 
 		this.fields = _fields;
+
+		////
+		this.save_column_order_and_widths(_fields);
+		////
+
 		this.build_fields();
 		this.setup_columns();
 		this.refresh();
@@ -890,14 +1262,16 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	get_columns_for_picker() {
 		let out = {};
 
-		const standard_fields_filter = (df) => !in_list(frappe.model.no_value_type, df.fieldtype);
+		const standard_fields_filter = (df) => !frappe.model.no_value_type.includes(df.fieldtype);
 
 		let doctype_fields = frappe.meta
 			.get_docfields(this.doctype)
 			.filter(standard_fields_filter);
 
 		// filter out docstatus field from picker
-		let std_fields = frappe.model.std_fields.filter((df) => df.fieldname !== "docstatus");
+		let std_fields = frappe.model.std_fields.filter(
+			(df) => !["docstatus", "_comments"].includes(df.fieldname)
+		);
 
 		// add status field derived from docstatus, if status is not a standard field
 		let has_status_values = false;
@@ -962,7 +1336,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 					return !df.hidden && df.fieldname !== "name";
 				})
 				.map((df) => ({
-					label: __(df.label),
+					label: __(df.label, null, df.parent),
 					value: df.fieldname,
 					checked: this.fields.find(
 						(f) => f[0] === df.fieldname && f[1] === this.doctype
@@ -978,7 +1352,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			const cdt = df.options;
 
 			dialog_fields.push({
-				label: __(df.label) + ` (${__(cdt)})`,
+				label: __(df.label, null, df.parent) + ` (${__(cdt)})`,
 				fieldname: df.options,
 				fieldtype: "MultiCheck",
 				columns: 2,
@@ -987,7 +1361,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 						return !df.hidden;
 					})
 					.map((df) => ({
-						label: __(df.label),
+						label: __(df.label, null, df.parent),
 						value: df.fieldname,
 						checked: this.fields.find((f) => f[0] === df.fieldname && f[1] === cdt),
 					})),
@@ -1004,36 +1378,242 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	setup_columns() {
 		// apply previous column width
 		let column_widths = null;
-		if (this.columns) {
-			column_widths = this.get_column_widths();
-		}
+		////
+		let doctype = this.doctype;
+		const default_settings = {
+			order: this.fields.map(field => `${field[1]}:${field[0]}`), // default order based on this.fields
+			widths: {} // empty widths, will calculate widths later
+		};
 
-		this.columns = [];
-		this.columns_map = {};
+		////if (this.columns) {
+		////	column_widths = this.get_column_widths();
+		////}
 
-		for (let f of this.fields) {
-			let column;
-			if (f[0] !== "docstatus") {
-				column = this.build_column(f);
-			} else {
-				// if status is not in fields append status column derived from docstatus
-				if (
-					!this.fields.includes(["status", this.doctype]) &&
-					!frappe.meta.has_field(this.doctype, "status")
-				) {
-					column = this.build_column(["docstatus", this.doctype]);
+		////
+		frappe.call({
+			method: 'frappe.desk.reportview.get_user_report_settings',
+			args: {
+				doctype: doctype
+			},
+			async: false,
+			callback: (response) => {	
+				let settings = default_settings;
+				if (response.message) {
+					if (typeof response.message === 'string') {
+						try {
+							settings = JSON.parse(response.message);
+						} catch (e) {
+							console.error("Failed to parse user report settings. Using default settings.", e);
+						}
+					}
 				}
-			}
+	
+				if (settings.order) {
+					this.fields = settings.order.map(field => {
+						const [parenttype, fieldname] = field.split(":");
+						return [fieldname, parenttype];
+					});
 
-			if (column) {
-				if (column_widths) {
-					column.width = column_widths[column.id] || column.width || 120;
 				}
-				this.columns.push(column);
-				this.columns_map[column.id] = column;
+				if (settings.widths) {
+					column_widths = settings.widths;
+				}
+				////
+				this.columns = [];
+				this.columns_map = {};
+
+				for (let f of this.fields) {
+					let column;
+					if (f[0] !== "docstatus") {
+						column = this.build_column(f);
+					} else {
+						// if status is not in fields append status column derived from docstatus
+						if (
+							!this.fields.includes(["status", this.doctype]) &&
+							!frappe.meta.has_field(this.doctype, "status")
+						) {
+							column = this.build_column(["docstatus", this.doctype]);
+						}
+					}
+
+					if (column) {
+						////if (column_widths) {
+						////	column.width = column_widths[column.id] || column.width || 120;
+						////}
+						//// Apply saved column widths
+						if (column_widths && column_widths[column.id] !== undefined) {
+							column.width = column_widths[column.id];
+						} else {
+							//column.width = column.width || this.calculateColumnWidth(column);
+							column.width = column.width || 140;
+						}
+						////
+
+						this.columns.push(column);
+						this.columns_map[column.id] = column;
+					}
+				}
+
+				////
+				this.columns.push({
+					id: "meta",
+					field: "meta",
+					name: __("Meta"),
+					content: __("Meta"),
+					docfield: { fieldtype: "Data" },
+					editable: false,
+					align: "left",
+					width: 150,
+				});
+				////
 			}
+		});
+	}		
+	
+
+	////
+	get_meta_html(doc) {
+		let html = "";
+		let settings_button = null;
+		if (this.settings.button && this.settings.button.show(doc)) {
+			settings_button = `
+				<span class="list-actions">
+					<button class="btn btn-action btn-default btn-xs"
+						data-name="${doc.name}" data-idx="${doc._idx}"
+						title="${this.settings.button.get_description(doc)}">
+						${this.settings.button.get_label(doc)}
+					</button>
+				</span>
+			`;
 		}
+	
+		const modified = comment_when(doc.modified, true);
+	
+		let assigned_to = ``;
+	
+		let assigned_users = JSON.parse(doc._assign || "[]");
+		if (assigned_users.length) {
+			assigned_to = `<div class="list-assignments d-flex align-items-center">
+					${frappe.avatar_group(assigned_users, 3, { filterable: true })[0].outerHTML}
+				</div>`;
+		}
+	
+		let comment_count = null;
+		if (this.list_view_settings && !this.list_view_settings.disable_comment_count) {
+			comment_count = $(`<span class="comment-count d-flex align-items-center"></span>`);
+			$(comment_count).append(`
+				${frappe.utils.icon("es-line-chat-alt")}
+				${doc._comment_count > 99 ? "99+" : doc._comment_count || 0}`);
+		}
+	
+		html += `
+			<div class="level-item list-row-activity hidden-xs" style="gap: 5px;">
+				<div class="hidden-md hidden-xs">
+					${settings_button || assigned_to}
+				</div>
+				<span class="modified">${modified} </span>
+				${comment_count ? $(comment_count).prop("outerHTML") : ""}
+				${comment_count ? '<span class="mx-2">·</span>' : ""}
+				<span class="list-row-like hidden-xs" style="margin-bottom: 1px;">
+					${this.neo_get_like_html(doc)}
+				</span>
+			</div>
+			<div class="level-item visible-xs text-right">
+				${this.get_indicator_dot(doc)}
+			</div>
+		`;
+	
+		return html;
 	}
+
+	neo_get_like_html(doc) {
+		const liked_by = JSON.parse(doc._liked_by || "[]");
+		const heart_class = liked_by.includes(frappe.session.user)
+			? "liked-by liked"
+			: "not-liked";
+		const title = liked_by.map((u) => frappe.user_info(u).fullname).join(", ");
+	
+		const div = document.createElement("div");
+		div.innerHTML = `
+			<span class="like-action ${heart_class}" data-liked-by="${doc._liked_by || '[]'}" data-doctype="${this.doctype}" data-name="${doc.name}" title="${title}" onclick="toggle_like(this, '${this.doctype}', '${doc.name}')">
+				${frappe.utils.icon("es-solid-heart", "sm", "like-icon")}
+			</span>
+			<span class="likes-count">
+				${liked_by.length > 99 ? __("99") + "+" : __(liked_by.length || "")}
+			</span>
+		`;
+	
+		// Assurez-vous que toggle_like est défini une seule fois
+		if (typeof window.toggle_like !== "function") {
+			window.toggle_like = function(element, doctype, name) {
+				const liked_by_str = element.getAttribute("data-liked-by") || "[]";
+				let liked_by;
+				try {
+					liked_by = JSON.parse(liked_by_str);
+				} catch (e) {
+					liked_by = [];
+				}
+				const user = frappe.session.user;
+				const liked = liked_by.includes(user);
+	
+				// Mettre à jour l'interface utilisateur
+				if (liked) {
+					element.classList.remove("liked-by", "liked");
+					element.classList.add("not-liked");
+					liked_by.splice(liked_by.indexOf(user), 1);
+				} else {
+					element.classList.remove("not-liked");
+					element.classList.add("liked-by", "liked");
+					liked_by.push(user);
+				}
+	
+				// Mettre à jour les attributs de l'élément
+				element.setAttribute("data-liked-by", JSON.stringify(liked_by));
+				element.setAttribute("title", liked_by.map((u) => frappe.user_info(u).fullname).join(", "));
+	
+				// Mettre à jour le compteur de likes
+				const likes_count_element = element.nextElementSibling;
+				likes_count_element.textContent = liked_by.length > 99 ? __("99") + "+" : __(liked_by.length || "");
+	
+				// Déterminer si l'utilisateur a aimé ou non
+				let add = liked ? "No" : "Yes";
+	
+				frappe.call({
+					method: "frappe.desk.like.toggle_like",
+					args: {
+						doctype: doctype,
+						name: name,
+						add: add,
+					},
+					callback: function(r) {
+						if (r.exc) {
+							console.log("Error updating like status.");
+						}
+					}
+				});
+			};
+		}
+	
+		return div.innerHTML;
+	}
+	
+	calculateColumnWidth(column) {
+		const charWidth = 10; // Approximate width of a character in pixels
+		let maxLength = column.content.length;
+	
+		this.data.forEach(row => {
+			const value = row[column.id];
+			if (value && value.length > maxLength) {
+				maxLength = value.length;
+			}
+		});
+	
+		// Add some padding to the calculated width
+		let calculatedWidth = (maxLength + 2) * charWidth;
+		// Limit to a maximum of 250 pixels
+		return Math.min(calculatedWidth, 250);
+	}
+	////
 
 	build_column(c) {
 		let [fieldname, doctype] = c;
@@ -1076,7 +1656,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		}
 		if (!docfield || docfield.report_hide) return;
 
-		let title = __(docfield.label);
+		let title = __(docfield.label, null, docfield.parent);
 		if (doctype !== this.doctype) {
 			title += ` (${__(doctype)})`;
 		}
@@ -1190,6 +1770,16 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 	build_row(d) {
 		return this.columns.map((col) => {
+			////
+			if (col.field === "meta") {
+				return {
+					name: d.name,
+					doctype: this.doctype,
+					content: this.get_meta_html(d),
+					editable: false,
+				};
+			}
+			////
 			if (col.docfield.parent !== this.doctype) {
 				// child table field
 				const cdt_field = (f) => `${col.docfield.parent}:${f}`;
@@ -1266,7 +1856,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				fields: this.fields,
 				order_by: this.sort_selector.get_sql_string(),
 				add_totals_row: this.add_totals_row,
-				page_length: this.page_length,
+				////page_length: this.page_length,
+				page_length: 100,
 				column_widths: this.get_column_widths(),
 				group_by: this.group_by_control.get_settings(),
 				chart_args: this.get_chart_settings(),
@@ -1475,7 +2066,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 					if (this.add_totals_row) {
 						const total_data = this.get_columns_totals(this.data);
 
-						total_data["name"] = __("Totals").bold();
+						total_data["name"] = __("Total");
+						total_data.is_total_row = true;
 						rows_in_order.push(total_data);
 					}
 
@@ -1522,6 +2114,10 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 							this.fields.map((f) => this.add_currency_column(f[0], f[1]));
 
+							////
+							this.save_column_order_and_widths();
+							////
+
 							this.reorder_fields();
 							this.build_fields();
 							this.setup_columns();
@@ -1556,12 +2152,22 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 					const selected_items = this.get_checked_items(true);
 
 					let extra_fields = null;
-					if (this.total_count > (this.count_without_children || args.page_length)) {
+					if (this.list_view_settings.disable_count) {
 						extra_fields = [
 							{
 								fieldtype: "Check",
 								fieldname: "export_all_rows",
-								label: __("Export All {0} rows?", [`<b>${this.total_count}</b>`]),
+								label: __("Export all matching rows?"),
+							},
+						];
+					} else if (
+						this.total_count > (this.count_without_children || args.page_length)
+					) {
+						extra_fields = [
+							{
+								fieldtype: "Check",
+								fieldname: "export_all_rows",
+								label: __("Export all {0} rows?", [`<b>${this.total_count}</b>`]),
 							},
 						];
 					}

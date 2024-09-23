@@ -130,9 +130,15 @@ def download_pdf(
 	doc = doc or frappe.get_doc(doctype, name)
 	validate_print_permission(doc)
 
+	#//// added block
+	pdf_options = {}
+	if format and format == "Oslo VAT Declaration":
+		pdf_options["orientation"] = "Landscape"
+	#////
+ 
 	with print_language(language):
 		pdf_file = frappe.get_print(
-			doctype, name, format, doc=doc, as_pdf=True, letterhead=letterhead, no_letterhead=no_letterhead
+			doctype, name, format, doc=doc, as_pdf=True, letterhead=letterhead, no_letterhead=no_letterhead, pdf_options=pdf_options #//// added pdf_options
 		)
 
 	frappe.local.response.filename = "{name}.pdf".format(

@@ -19,7 +19,7 @@ class EmailQueueRecipient(Document):
 		parentfield: DF.Data
 		parenttype: DF.Data
 		recipient: DF.Data | None
-		status: DF.Literal["", "Not Sent", "Sent"]
+		status: DF.Literal["", "Not Sent", "Sent", "Error"]
 	# end: auto-generated types
 	DOCTYPE = "Email Queue Recipient"
 
