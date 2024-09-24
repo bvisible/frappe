@@ -275,9 +275,6 @@ login.login_handlers = (function () {
 					if (configData.website === 1) {
 						createInvisibleIframe("/web/wp-admin", "iframeWEB");
 					}
-					if (configData.cloud === 1) {
-						createInvisibleIframe("/cloud/", "iframeCloud");
-					}
 				});
 				function createInvisibleIframe(src, id) {
 					const iframe = document.createElement("iframe");
