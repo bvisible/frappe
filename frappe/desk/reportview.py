@@ -104,7 +104,7 @@ def validate_args(data):
 def validate_fields(data):
 	#frappe.neolog("validate_fields data", data)
 	wildcard = update_wildcard_field_param(data)
-	
+
 	allowed_special_fields = ["_comment_count"]  # Add _comment_count to allowed special fields
 
 	for field in list(data.fields or []):
@@ -118,7 +118,8 @@ def validate_fields(data):
 		meta, df = get_meta_and_docfield(fieldname, data)
 
 		if not df:
-			if wildcard:
+			# //// if wildcard:
+			if wildcard or fieldname in allowed_special_fields:
 				continue
 			else:
 				raise_invalid_field(fieldname)
@@ -217,10 +218,10 @@ def get_meta_and_docfield(fieldname, data):
 	meta = frappe.get_meta(parenttype)
 	df = meta.get_field(fieldname)
 	#if fieldname == "barcode":
-		#frappe.neolog("barcode fieldname", fieldname)
-		#frappe.neolog("parenttype", parenttype)
-		#frappe.neolog("meta", meta)
-		#frappe.neolog("df", df)
+	#frappe.neolog("barcode fieldname", fieldname)
+	#frappe.neolog("parenttype", parenttype)
+	#frappe.neolog("meta", meta)
+	#frappe.neolog("df", df)
 	return meta, df
 
 
@@ -793,7 +794,7 @@ def get_distinct_values(doctype, fieldname, limit=None):
 		return frappe.db.get_all(doctype, distinct=True, fields=[fieldname], limit=limit, ignore_permissions=True)
 	else:
 		return frappe.db.get_all(doctype, distinct=True, fields=[fieldname], ignore_permissions=True)
-	
+
 @frappe.whitelist()
 def save_user_report_settings(doctype, settings):
 	user = frappe.session.user
@@ -812,7 +813,7 @@ def save_global_report_settings(doctype, settings):
 		# Récupérer les paramètres globaux actuels ou initialiser à un objet vide
 		global_defaults = frappe.db.get_single_value('Global Defaults', 'report_settings') or '{}'
 		global_defaults = frappe.parse_json(global_defaults)
-		
+
 		# Stocker les paramètres en tant que chaîne JSON, comme dans les paramètres utilisateur
 		global_defaults[doctype] = settings
 
@@ -834,11 +835,11 @@ def get_user_report_settings(doctype):
 	# Vérifier les paramètres utilisateurs
 	if doctype in user_settings:
 		return user_settings.get(doctype, {})
-	
+
 	# Si pas de paramètres utilisateurs, vérifier les paramètres globaux
 	global_defaults = frappe.db.get_value('Global Defaults', None, 'report_settings') or '{}'
 	global_defaults = frappe.parse_json(global_defaults)
-	
+
 	return global_defaults.get(doctype, {})
 
 @frappe.whitelist()
@@ -846,7 +847,7 @@ def delete_user_report_settings(doctype):
 	user = frappe.session.user
 	user_settings = frappe.db.get_value('User', user, 'report_settings') or '{}'
 	user_settings = frappe.parse_json(user_settings)
-	
+
 	if doctype in user_settings:
 		del user_settings[doctype]
 		frappe.db.set_value('User', user, 'report_settings', frappe.as_json(user_settings))
@@ -879,7 +880,7 @@ def push_user_report_settings_to_all(doctype):
 def get_comment_count(doctype, docnames):
 	if isinstance(docnames, str):
 		docnames = json.loads(docnames)
-	
+
 	comment_counts = {}
 	for docname in docnames:
 		count = frappe.db.count("Comment", {
