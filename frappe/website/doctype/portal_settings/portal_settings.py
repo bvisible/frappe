@@ -3,6 +3,7 @@
 
 import frappe
 from frappe.model.document import Document
+from frappe.website.path_resolver import validate_path
 
 
 class PortalSettings(Document):
@@ -20,6 +21,7 @@ class PortalSettings(Document):
 		default_role: DF.Link | None
 		hide_standard_menu: DF.Check
 		menu: DF.Table[PortalMenuItem]
+
 	# end: auto-generated types
 	def add_item(self, item):
 		"""insert new portal menu item if route is not set, or role is different"""
@@ -72,3 +74,7 @@ class PortalSettings(Document):
 		for menu_item in list(self.get("menu") + self.get("custom_menu")):
 			if menu_item.reference_doctype not in existing_doctypes:
 				self.remove(menu_item)
+
+	def validate(self):
+		if frappe.request and self.default_portal_home:
+			validate_path(self.default_portal_home)

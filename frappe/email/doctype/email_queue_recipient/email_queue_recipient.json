@@ -22,7 +22,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Status",
-   "options": "\nNot Sent\nSent",
+   "options": "\nNot Sent\nSent\nError",
    "search_index": 1
   },
   {

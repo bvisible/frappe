@@ -45,6 +45,10 @@ poplib._MAXLINE = 1_00_000
 THREAD_ID_PATTERN = re.compile(r"(?<=\[)[\w/-]+")
 WORDS_PATTERN = re.compile(r"\w+")
 
+ALTERNATE_CHARSET_MAP = {
+	"windows-874": "cp874",
+}
+
 
 class EmailSizeExceededError(frappe.ValidationError):
 	pass
@@ -237,9 +241,7 @@ class EmailServer:
 				).where(EmailAccount.name == self.settings.email_account_name).run()
 
 			sync_count = 100 if uid_validity else int(self.settings.initial_sync_count)
-			from_uid = (
-				1 if uidnext < (sync_count + 1) or (uidnext - sync_count) < 1 else uidnext - sync_count
-			)
+			from_uid = 1 if uidnext < (sync_count + 1) or (uidnext - sync_count) < 1 else uidnext - sync_count
 			# sync last 100 email
 			self.settings.email_sync_rule = f"UID {from_uid}:{uidnext}"
 			self.uid_reindexed = True
@@ -408,9 +410,9 @@ class Email:
 		_subject = decode_header(self.mail.get("Subject", "No Subject"))
 		self.subject = _subject[0][0] or ""
 
-		if _subject[0][1]:
+		if charset := _subject[0][1]:
 			# Encoding is known by decode_header (might also be unknown-8bit)
-			self.subject = safe_decode(self.subject, _subject[0][1])
+			self.subject = safe_decode(self.subject, charset, ALTERNATE_CHARSET_MAP)
 
 		if isinstance(self.subject, bytes):
 			# Fall back to utf-8 if the charset is unknown or decoding fails
@@ -445,9 +447,7 @@ class Email:
 		if not email:
 			return
 		decoded = ""
-		for part, encoding in decode_header(
-			frappe.as_unicode(email).replace('"', " ").replace("'", " ")
-		):
+		for part, encoding in decode_header(frappe.as_unicode(email).replace('"', " ").replace("'", " ")):
 			if encoding:
 				decoded += part.decode(encoding, "replace")
 			else:
@@ -514,11 +514,15 @@ class Email:
 
 	def get_payload(self, part):
 		charset = self.get_charset(part)
-
 		try:
 			return str(part.get_payload(decode=True), str(charset), "ignore")
 		except LookupError:
-			return part.get_payload()
+			try:
+				return str(
+					part.get_payload(decode=True), ALTERNATE_CHARSET_MAP.get(charset, "utf-8"), "ignore"
+				)
+			except Exception:
+				return part.get_payload()
 
 	def get_attachment(self, part):
 		# charset = self.get_charset(part)
@@ -672,8 +676,8 @@ class InboundMail(Email):
 		# replace inline images
 		content = self.content
 		for file in attachments:
-			if file.name in self.cid_map and self.cid_map[file.name]:
-				content = content.replace(f"cid:{self.cid_map[file.name]}", file.file_url)
+			if self.cid_map.get(file.name):
+				content = content.replace(f"cid:{self.cid_map[file.name]}", file.unique_url)
 		return content
 
 	def is_notification(self):
@@ -850,9 +854,7 @@ class InboundMail(Email):
 	@staticmethod
 	def get_users_linked_to_account(email_account):
 		"""Get list of users who linked to Email account."""
-		users = frappe.get_all(
-			"User Email", filters={"email_account": email_account.name}, fields=["parent"]
-		)
+		users = frappe.get_all("User Email", filters={"email_account": email_account.name}, fields=["parent"])
 		return list({user.get("parent") for user in users})
 
 	@staticmethod

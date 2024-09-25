@@ -1,7 +1,6 @@
 # Copyright (c) 2020, Frappe Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
 
-import io
 import json
 import os
 import re
@@ -20,15 +19,16 @@ from frappe.utils.xlsxutils import (
 )
 import requests #////
 from neoffice_ecommerce.neoffice_ecommerce.doctype.wordpress_settings.api.neo import call_bmr #////
+from neoffice_theme.events import get_item_tax_template_rate #////
 
 INVALID_VALUES = ("", None)
 MAX_ROWS_IN_PREVIEW = 10
 INSERT = "Insert New Records"
 UPDATE = "Update Existing Records"
 DURATION_PATTERN = re.compile(r"^(?:(\d+d)?((^|\s)\d+h)?((^|\s)\d+m)?((^|\s)\d+s)?)$")
-SPLIT_ROWS_AT = 40000 #//// added
+SPLIT_ROWS_AT = 50000 #//// added
 WC_SPLIT_ROWS_AT = 300 #//// added
-WC_CONTACT_SPLIT_ROWS_AT = 5000 #//// added
+WC_CONTACT_SPLIT_ROWS_AT = 1000 #//// added
 
 
 class Importer:
@@ -121,13 +121,14 @@ class Importer:
 		# Do not remove rows in case of retry after an error or pending data import
 		#//// added surrounding () and the or condition
 		if (
-			(self.data_import.status == "Partial Success"
+			(self.data_import.status in ("Partial Success", "Error")
 			 and len(import_log) >= self.data_import.payload_count)
 			or (self.data_import.status == "Split Import Started"
 			    and len(import_log) >= self.data_import.payload_count)
 		):
 			# remove previous failures from import log only in case of retry after partial success
 			import_log = [log for log in import_log if log.get("success")]
+			frappe.db.delete("Data Import Log", {"success": 0, "data_import": self.data_import.name})
 
 		# get successfully imported rows
 		imported_rows = []
@@ -171,8 +172,8 @@ class Importer:
 
 					if self.console:
 						update_progress_bar(
-							f"Importing {total_payload_count} records",
-							current_index,
+							f"Importing {self.doctype}: {total_payload_count} records",
+							current_index - 1,
 							total_payload_count,
 						)
 					elif total_payload_count > 5:
@@ -237,7 +238,13 @@ class Importer:
 		)
 
 		# set status
-		failures = [log for log in import_log if not log.get("success")]
+		successes = []
+		failures = []
+		for log in import_log:
+			if log.get("success"):
+				successes.append(log)
+			else:
+				failures.append(log)
 		#//// added
 		if self.data_import.db_get("last_line"):
 			if self.data_import.db_get("last_line") == self.data_import.total_lines:
@@ -251,12 +258,14 @@ class Importer:
 				status = "Split Import Started"
 		else:
 			#////
-			if len(failures) == total_payload_count:
-				status = "Pending"
-			elif len(failures) > 0:
+			if len(failures) >= total_payload_count and len(successes) == 0:
+				status = "Error"
+			elif len(failures) > 0 and len(successes) > 0:
 				status = "Partial Success"
-			else:
+			elif len(successes) == total_payload_count:
 				status = "Success"
+			else:
+				status = "Pending"
 
 		if self.console:
 			self.print_import_log(import_log)
@@ -794,7 +803,7 @@ class ImportFile:
 
 						elif self.doctype == "Item":
 							row.extend(["sync_with_woocommerce", "item_group", "maintain_stock", "default_warehouse", "default_company", "woocommerce_warehouse", "stock", "valuation_rate", "category_ecommerce", "standard_rate", "weight_uom", "woocommerce_taxable",
-							            "tax_class", "maintain_stock_ecommerce", "description", "liters", "origin"])
+							            "tax_class", "maintain_stock_ecommerce", "description", "liters", "origin", "brand"])
 							for (index, item) in enumerate(row):
 								if item == "ar_groupe":
 									category_index = index
@@ -914,7 +923,6 @@ class ImportFile:
 						elif self.doctype == "Supplier":
 							row.extend(["supplier_name", "supplier_type", "country", "supplier_group", "client_number"])
 							supplier_list = self.doctype_data.supplier_ad_numero.split(",") if self.doctype_data.supplier_ad_numero else []
-							frappe.neolog("supplier_list", supplier_list)
 							for (index, item) in enumerate(row):
 								#frappe.msgprint(item)
 								if item == "ad_numero":
@@ -1273,8 +1281,7 @@ class ImportFile:
 							description = None if not row[description_index] else row[description_index].replace("_x000D_", "<br>")
 							short_description = None if not row[short_description_index] else row[short_description_index].replace("_x000D_", "<br>")
 							is_vat = 0 if row[taxable_index] == "Aucune" else 1
-							default_tax = frappe.db.get_value("Company", frappe.defaults.get_global_default("company"), "default_tax")
-							tax_class = frappe.db.get_value("Easy Tax and Accounting", default_tax, "woocommerce_tax") if is_vat else None
+							tax_class = get_item_tax_template_rate([], row[category_index], return_tax_class=True)
 							if(len(attributes_value) == 0):
 								row.extend([manage_stock, manage_stock, is_parent, parent_sku, None, None, self.doctype_data.sync_with_woocommerce, self.doctype_data.warehouse, row[category_index], row[category_index],
 								            default_company, self.doctype_data.warehouse, stock, valuation_rate, price, additional_cat, description, short_description, is_vat, tax_class, "Kg", brand, brand, row[weight_index]])
@@ -1427,8 +1434,8 @@ class ImportFile:
 										else:
 											country = None
 									#country = "Suisse" if _(pycountry.countries.get(alpha_2=row[shipping_country_index]).name) == "Switzerland" else self.doctype_data.default_territory #!!!!
-									else:
-										country = self.doctype_data.default_territory
+									#else:
+									#country = self.doctype_data.default_territory
 									if final_name:
 										row.extend([final_name, customer_type, self.doctype_data.default_territory, 1, default_currency])
 								else:
@@ -1507,7 +1514,7 @@ class ImportFile:
 							item_group = None
 							if row[category_index]:
 								from neoffice_theme.events import get_full_group_tree
-								parent = get_full_group_tree(self.doctype_data.root_category)
+								parent = get_full_group_tree(self.doctype_data.root_category).split(">")[-1]
 								group_tree = parent + ">" + row[category_index]
 								item_group = parent
 								filtered_groups = frappe.get_all("Item Group", filters={"group_tree": group_tree})
@@ -1620,15 +1627,14 @@ class ImportFile:
 
 							company = frappe.defaults.get_global_default("company")
 							taxable_company = frappe.db.get_value("Company", company, "is_vat_company")
-							default_tax = frappe.db.get_value("Company", frappe.defaults.get_global_default("company"), "default_tax")
-							tax_class = frappe.db.get_value("Easy Tax and Accounting", default_tax, "woocommerce_tax") if taxable_company else None
+							tax_class = get_item_tax_template_rate([], item_group, return_tax_class=True)
 							standard_rate = row[selling_price_index]
 							description = ""
 							if description_index:
 								description = row[description_index]
 							row.extend([self.doctype_data.sync_with_woocommerce, item_group, manage_stock, self.doctype_data.warehouse, default_company,
 							            self.doctype_data.warehouse, stock, valuation_rate, item_group, standard_rate, "KG", taxable_company, tax_class, manage_stock,
-							            description, liters, final_origin])
+							            description, liters, final_origin, brand])
 
 						if self.doctype == "Data Archive":
 							customer_match = frappe.get_all("Customer", filters={'winbiz_address_number': row[address_id_index]})
@@ -1769,6 +1775,7 @@ class ImportFile:
 							if row[firstname_index]:
 								title_formatted += row[firstname_index]
 							title_formatted = title_formatted.strip()
+							title_formatted = title_formatted[0:115]
 
 							suffix = 1
 							base_title = title_formatted
@@ -1841,13 +1848,14 @@ class ImportFile:
 								full_name = base_name + " - " + str(suffix)
 							names_to_add.append(full_name.lower())
 
-							country = self.doctype_data.default_territory
+							#country = self.doctype_data.default_territory
 							company = frappe.defaults.get_global_default("company")
 							default_currency = frappe.get_value("Company", company, "default_currency")
 							if row[address_country_index]:
-								#countries = frappe.db.exists("Country", {"code": row[address_country_index].lower()})
-								#if countries:
-								country = "Suisse" if row[address_country_index] == "CH" else self.doctype_data.default_territory
+								country = frappe.db.exists("Country", {"code": row[address_country_index].lower()})
+								if not country:
+									country = "Switzerland"
+								#country = "Suisse" if row[address_country_index] == "CH" else self.doctype_data.default_territory
 								'''if (row[address_country_index]).upper() != "CH":
 									default_currency = "EUR"'''
 
@@ -2081,14 +2089,17 @@ class ImportFile:
 								added_lines += 1
 								title_formatted = str(row[shipping_firstname_index]) + " " + str(row[shipping_lastname_index]) if row[shipping_firstname_index] else str(row[shipping_company_index])
 								if row[shipping_country_index]:
-									countries = frappe.get_all("Country", filters={"code": row[shipping_country_index].lower()})
+									country = frappe.db.exists("Country", {"code": row[shipping_country_index].lower()})
+									'''countries = frappe.get_all("Country", filters={"code": row[shipping_country_index].lower()})
 									if countries:
 										country = countries[0].name
 									else:
-										country = None
+										country = None'''
 								#country = "Suisse" if _(pycountry.countries.get(alpha_2=row[shipping_country_index]).name) == "Switzerland" else self.doctype_data.default_territory #!!!!_(pycountry.countries.get(alpha_2=row[shipping_country_index]).name)
-								else:
-									country = None
+								'''else:
+									country = None'''
+								if not country:
+									country = "Switzerland"
 								if not frappe.get_all("Address", filters={"woocommerce_email": row[user_email_index], "address_type": "Shipping", "address_line1": row[shipping_address_1_index]}):
 									new_row.extend([row[user_email_index], title_formatted, "Shipping", row[shipping_address_1_index], row[shipping_address_2_index], row[shipping_city_index], row[shipping_state_index],
 									                row[shipping_postcode_index], country, row[billing_email_index], row[shipping_phone_index], "Customer", customer_name])
@@ -2193,7 +2204,7 @@ class ImportFile:
 					"read_only": col.df.read_only,
 				}
 
-		data = [[row.row_number] + row.as_list() for row in self.data]
+		data = [[row.row_number, *row.as_list()] for row in self.data]
 
 		warnings = self.get_warnings()
 
@@ -2234,7 +2245,6 @@ class ImportFile:
 			# subsequent rows that have blank values in parent columns
 			# are considered as child rows
 			parent_column_indexes = self.header.get_column_indexes(self.doctype)
-			parent_row_values = first_row.get_values(parent_column_indexes)
 
 			data_without_first_row = data[1:]
 			for row in data_without_first_row:
@@ -2328,7 +2338,9 @@ class Row:
 		if len_row != len_columns:
 			less_than_columns = len_row < len_columns
 			message = (
-				"Row has less values than columns" if less_than_columns else "Row has more values than columns"
+				"Row has less values than columns"
+				if less_than_columns
+				else "Row has more values than columns"
 			)
 			self.warnings.append(
 				{
@@ -2363,7 +2375,7 @@ class Row:
 		for key in frappe.model.default_fields + frappe.model.child_table_fields + ("__islocal",):
 			doc.pop(key, None)
 
-		for col, value in zip(columns, values):
+		for col, value in zip(columns, values, strict=False):
 			df = col.df
 			if value in INVALID_VALUES:
 				value = None
@@ -2459,7 +2471,7 @@ class Row:
 
 	def parse_value(self, value, col):
 		df = col.df
-		if isinstance(value, (datetime, date)) and df.fieldtype in ["Date", "Datetime"]:
+		if isinstance(value, datetime | date) and df.fieldtype in ["Date", "Datetime"]:
 			return value
 
 		value = cstr(value)
@@ -2482,7 +2494,7 @@ class Row:
 		return value
 
 	def get_date(self, value, column):
-		if isinstance(value, (datetime, date)):
+		if isinstance(value, datetime | date):
 			return value
 
 		date_format = column.date_format
@@ -2597,18 +2609,17 @@ class Header(Row):
 			elif self.doctype_data.import_source == "Winbiz":
 				if self.doctype == "Item":
 					map_to_field = {
-						"ar_abrege": "item_name", "ar_fn_ref": "item_code", "ar_desc": "woocommerce_long_description",
+						"ar_abrege": "item_name", "ar_code": "item_code", "ar_desc": "woocommerce_long_description",
 						"item_group": "item_group", "sync_with_woocommerce": "sync_with_woocommerce",
 						"maintain_stock": "is_stock_item", "default_warehouse": "item_defaults.default_warehouse",
 						"category_ecommerce": "category_ecommerce", "woocommerce_warehouse": "woocommerce_warehouse",
-						"stock": "opening_stock",
-						"valuation_rate": "valuation_rate", "standard_rate": "standard_rate",
+						"stock": "opening_stock", "valuation_rate": "valuation_rate", "standard_rate": "standard_rate",
 						"default_company": "item_defaults.company", "ar_codbar": "barcodes.barcode",
 						"ar_poids": "weight_per_unit", "weight_uom": "weight_uom",
 						"woocommerce_taxable": "woocommerce_taxable",
 						"maintain_stock_ecommerce": "woocommerce_manage_stock", "description": "description",
-						"liters": "alcohol_quantity", "prixach": "buying_standard_rate",
-						"origin": "alcohol_origin", "ar_alcool": "is_alcohol", "ar_marque": "brand"
+						"liters": "alcohol_quantity", "prixach": "buying_standard_rate", "origin": "alcohol_origin",
+						"ar_alcool": "is_alcohol", "brand": "brand", "ar_numero": "import_id",
 					}.get(header, "Don't Import")
 
 				elif self.doctype == "Item Price":
@@ -2671,7 +2682,7 @@ class Header(Row):
 						"insurance": "insurance",
 						"engine_type": "engine_type", "gearbox_type": "gearbox_type",
 						"external_color": "external_color", "fuel": "fuel", "dj_date1": "first_circulation",
-						"dj_date2": "last_antipollution", "dj_date3": "last_expertise", "dj_date4": "sale_date",
+						"dj_date2": "last_antipollution_control", "dj_date3": "last_expertise", "dj_date4": "sale_date",
 						"dj_date5": "order_date", "dj_prix1": "sale_price",
 						"customer_name": "customer", "registration_number": "registration_number",
 						"chassis_number": "chassis_number", "plate_number": "plate_number",
@@ -2816,7 +2827,7 @@ class Column:
 		"""
 
 		def guess_date_format(d):
-			if isinstance(d, (datetime, date, time)):
+			if isinstance(d, datetime | date | time):
 				if self.df.fieldtype == "Date":
 					return "%Y-%m-%d"
 				if self.df.fieldtype == "Datetime":
@@ -2866,9 +2877,7 @@ class Column:
 		if self.df.fieldtype == "Link":
 			# find all values that dont exist
 			values = list({cstr(v) for v in self.column_values if v})
-			exists = [
-				cstr(d.name) for d in frappe.get_all(self.df.options, filters={"name": ("in", values)})
-			]
+			exists = [cstr(d.name) for d in frappe.get_all(self.df.options, filters={"name": ("in", values)})]
 			not_exists = list(set(values) - set(exists))
 			if not_exists:
 				missing_values = ", ".join(not_exists)
@@ -3017,7 +3026,6 @@ def build_fields_dict_for_column_matching(parent_doctype):
 
 			label = (df.label or "").strip()
 			translated_label = _(label)
-			parent = df.parent or parent_doctype
 
 			if parent_doctype == doctype:
 				# for parent doctypes keys will be
@@ -3113,9 +3121,7 @@ def get_item_at_index(_list, i, default=None):
 
 
 def get_user_format(date_format):
-	return (
-		date_format.replace("%Y", "yyyy").replace("%y", "yy").replace("%m", "mm").replace("%d", "dd")
-	)
+	return date_format.replace("%Y", "yyyy").replace("%y", "yy").replace("%m", "mm").replace("%d", "dd")
 
 
 def df_as_json(df):

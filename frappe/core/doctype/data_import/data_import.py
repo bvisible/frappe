@@ -38,7 +38,6 @@ class DataImport(Document):
 		submit_after_import: DF.Check
 		template_options: DF.Code | None
 		template_warnings: DF.Code | None
-
 	# end: auto-generated types
 
 	def validate(self):
@@ -93,7 +92,8 @@ class DataImport(Document):
 	def start_import(self):
 		from frappe.utils.scheduler import is_scheduler_inactive
 
-		if is_scheduler_inactive() and not frappe.flags.in_test:
+		run_now = frappe.flags.in_test or frappe.conf.developer_mode
+		if is_scheduler_inactive() and not run_now:
 			frappe.throw(_("Scheduler is inactive. Cannot import data."), title=_("Scheduler Inactive"))
 
 		job_id = f"data_import::{self.name}"
@@ -106,7 +106,7 @@ class DataImport(Document):
 				event="data_import",
 				job_id=job_id,
 				data_import=self.name,
-				now=frappe.conf.developer_mode or frappe.flags.in_test,
+				now=run_now,
 			)
 			return True
 
@@ -130,7 +130,7 @@ def get_preview_from_template(data_import, import_file=None, google_sheets_url=N
 
 
 @frappe.whitelist()
-def form_start_import(data_import):
+def form_start_import(data_import: str):
 	return frappe.get_doc("Data Import", data_import).start_import()
 
 
@@ -154,9 +154,7 @@ def start_import(data_import):
 
 
 @frappe.whitelist()
-def download_template(
-	doctype, export_fields=None, export_records=None, export_filters=None, file_type="CSV"
-):
+def download_template(doctype, export_fields=None, export_records=None, export_filters=None, file_type="CSV"):
 	"""
 	Download template from Exporter
 	        :param doctype: Document Type
@@ -220,6 +218,20 @@ def get_import_status(data_import_name):
 	return import_status
 
 
+@frappe.whitelist()
+def get_import_logs(data_import: str):
+	doc = frappe.get_doc("Data Import", data_import)
+	doc.check_permission("read")
+
+	return frappe.get_all(
+		"Data Import Log",
+		fields=["success", "docname", "messages", "exception", "row_indexes"],
+		filters={"data_import": data_import},
+		limit_page_length=5000,
+		order_by="log_index",
+	)
+
+
 def import_file(doctype, file_path, import_type, submit_after_import=False, console=False):
 	"""
 	Import documents in from CSV or XLSX using data import.
@@ -271,10 +283,10 @@ def export_json(doctype, path, filters=None, or_filters=None, name=None, order_b
 			for key in del_keys:
 				if key in doc:
 					del doc[key]
-			for k, v in doc.items():
+			for v in doc.values():
 				if isinstance(v, list):
 					for child in v:
-						for key in del_keys + ("docstatus", "doctype", "modified", "name"):
+						for key in (*del_keys, "docstatus", "doctype", "modified", "name"):
 							if key in child:
 								del child[key]
 

@@ -1,3 +1,11 @@
-.warnings .warning {
+[data-fieldname="import_warnings_section"] {
+    display: inherit !important;
 	margin-bottom: 40px;
+    max-height: 500px;
+    overflow-x: hidden;
+}
+
+[data-fieldname="import_preview"] .dt-scrollable {
+    min-height: inherit;
+    overflow: inherit;
 }

@@ -70,6 +70,10 @@
   "send_me_a_copy",
   "allowed_in_mentions",
   "user_emails",
+  "workspace_section",
+  "default_workspace",
+  "app_section",
+  "default_app",
   "sb2",
   "defaults",
   "sb3",
@@ -328,6 +332,7 @@
    "hidden": 1,
    "label": "Reset Password Key",
    "no_copy": 1,
+   "permlevel": 1,
    "print_hide": 1,
    "read_only": 1
   },
@@ -462,7 +467,7 @@
    "read_only": 1
   },
   {
-   "default": "1",
+   "default": "2",
    "fieldname": "simultaneous_sessions",
    "fieldtype": "Int",
    "label": "Simultaneous Sessions"
@@ -626,6 +631,7 @@
    "fieldtype": "Datetime",
    "hidden": 1,
    "label": "Last Reset Password Key Generated On",
+   "permlevel": 1,
    "read_only": 1
   },
   {
@@ -700,6 +706,32 @@
    "fieldtype": "Small Text",
    "hidden": 1,
    "label": "Onboarding Status"
+  },
+  {
+   "description": "If left empty, the default workspace will be the last visited workspace",
+   "fieldname": "default_workspace",
+   "fieldtype": "Link",
+   "label": "Default Workspace",
+   "options": "Workspace"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "workspace_section",
+   "fieldtype": "Section Break",
+   "label": "Workspace"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "app_section",
+   "fieldtype": "Section Break",
+   "label": "App"
+  },
+  {
+   "description": "Redirect to the selected app after login",
+   "fieldname": "default_app",
+   "fieldtype": "Select",
+   "label": "Default App",
+   "options": ""
   }
  ],
  "icon": "fa fa-user",
@@ -762,7 +794,7 @@
    "link_fieldname": "user"
   }
  ],
- "modified": "2023-09-18 22:19:49.933972",
+ "modified": "2024-08-08 19:09:17.399748",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "User",
@@ -788,7 +820,7 @@
    "write": 1
   },
   {
-   "role": "All",
+   "role": "Desk User",
    "select": 1
   }
  ],

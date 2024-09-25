@@ -189,7 +189,7 @@
 				<div class="public-warning form-message blue"> {{ __("Change file visibility: Private => only visible by Neoffice user system. Public => visible by anyone (can be indexed by Google)") }}</div><!-- //// -->
 			</div>
 			<div class="flex align-center" v-if="show_upload_button && currently_uploading === -1">
-				<button class="btn btn-primary btn-sm margin-right" @click="upload_files">
+				<button class="btn btn-primary btn-sm margin-right" @click="() => upload_files()">
 					<span v-if="files.length === 1">
 						{{ __("Upload file") }}
 					</span>
@@ -402,7 +402,7 @@ function add_files(file_array) {
 				request_succeeded: false,
 				error_message: null,
 				uploading: false,
-				private: ['Item', "In-App Ads"].includes(frappe.router.current_route[1]) ? 0 : 1////!props.make_attachments_public,
+				private: ['Item', "In-App Ads"].includes(frappe.router.current_route[1]) || ['neoffice-wizard'].includes(frappe.router.current_route[0])? 0 : 1////!props.make_attachments_public,
 			};
 		});
 
@@ -475,7 +475,7 @@ function check_restrictions(file) {
 
 	return is_correct_type && valid_file_size;
 }
-function upload_files() {
+function upload_files(dialog) {
 	if (show_file_browser.value) {
 		return upload_via_file_browser();
 	}
@@ -485,6 +485,14 @@ function upload_files() {
 	if (props.as_dataurl) {
 		return return_as_dataurl();
 	}
+	if (!files.value.length) {
+		frappe.msgprint(__("Please select a file first."));
+		return Promise.reject();
+	}
+
+	dialog?.get_primary_btn().prop("disabled", true);
+	dialog?.get_secondary_btn().prop("disabled", true);
+
 	return frappe.run_serially(files.value.map((file, i) => () => upload_file(file, i)));
 }
 function upload_via_file_browser() {

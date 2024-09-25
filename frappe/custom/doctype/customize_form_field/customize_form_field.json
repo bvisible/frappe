@@ -24,6 +24,7 @@
   "no_copy",
   "allow_in_quick_entry",
   "translatable",
+  "link_filters",
   "column_break_7",
   "default",
   "precision",
@@ -129,6 +130,7 @@
   },
   {
    "default": "0",
+   "depends_on": "eval:!doc.is_virtual",
    "fieldname": "in_list_view",
    "fieldtype": "Check",
    "label": "In List View"
@@ -471,13 +473,18 @@
    "fieldname": "sort_options",
    "fieldtype": "Check",
    "label": "Sort Options"
+  },
+  {
+   "fieldname": "link_filters",
+   "fieldtype": "JSON",
+   "label": "Link Filters"
   }
  ],
  "idx": 1,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2023-12-08 15:52:37.525003",
+ "modified": "2024-02-01 15:56:39.171633",
  "modified_by": "Administrator",
  "module": "Custom",
  "name": "Customize Form Field",
