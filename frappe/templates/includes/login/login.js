@@ -256,16 +256,10 @@ login.login_handlers = (function () {
 
 				fetchJSONFile("/web/wp-content/neoconfig.json", function(configData) {
 					function handleMessage(event) {
-						if (event.data.source === 'wordpress' || event.data.source === 'nextcloud') {
+						if (event.data.source === 'wordpress') {
 							if (event.data.status === 'loggedIn') {
 								loggedInServices[event.data.source] = true;
-								if (configData.website === 1 && configData.cloud === 1 && loggedInServices.wordpress && loggedInServices.nextcloud) {
-									redirectAfterLogin();
-								}
-								else if (configData.website === 1 && configData.cloud === 0 && loggedInServices.wordpress) {
-									redirectAfterLogin();
-								}
-								else if (configData.website === 0 && configData.cloud === 1 && loggedInServices.nextcloud) {
+								if (configData.website === 1 && loggedInServices.wordpress ) {
 									redirectAfterLogin();
 								}
 							}
@@ -295,12 +289,12 @@ login.login_handlers = (function () {
 					let width = 0;
 					const step = 100 / (duration * 1000 / 10);
 					const loadingInterval = setInterval(() => {
-							if (width >= 100) {
-								clearInterval(loadingInterval);
-							} else {
-								width += step;
-								progressBar.style.width = width + "%";
-							}
+						if (width >= 100) {
+							clearInterval(loadingInterval);
+						} else {
+							width += step;
+							progressBar.style.width = width + "%";
+						}
 					}, 15);
 				}
 				startLoadingBar(10);
@@ -363,10 +357,10 @@ login.login_handlers = (function () {
 			}
 		},
 		401: get_error_handler({{ _("Invalid Login. Try again.") | tojson }}),
-		417: get_error_handler({{ _("Oops! Something went wrong.") | tojson }}),
-		404: get_error_handler({{ _("User does not exist.") | tojson }}),
-		500: get_error_handler({{ _("Something went wrong.") | tojson }})
-	};
+	417: get_error_handler({{ _("Oops! Something went wrong.") | tojson }}),
+	404: get_error_handler({{ _("User does not exist.") | tojson }}),
+	500: get_error_handler({{ _("Something went wrong.") | tojson }})
+};
 
 	return login_handlers;
 })();
