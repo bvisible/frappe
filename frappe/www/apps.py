@@ -7,6 +7,11 @@ from frappe.apps import get_apps
 
 
 def get_context():
+	#////
+	frappe.local.flags.redirect_location = "/app"
+	raise frappe.Redirect
+	#////
+
 	all_apps = get_apps()
 
 	system_default_app = frappe.get_system_settings("default_app")
