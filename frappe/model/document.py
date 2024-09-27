@@ -169,6 +169,8 @@ class Document(BaseDocument):
 			)
 
 			if not d:
+				#//// add flags.mute_messages
+				frappe.flags.mute_messages = True
 				frappe.throw(
 					_("{0} {1} not found").format(_(self.doctype), self.name), frappe.DoesNotExistError
 				)
