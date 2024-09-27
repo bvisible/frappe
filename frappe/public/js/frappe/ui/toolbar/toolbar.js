@@ -99,7 +99,7 @@ frappe.ui.toolbar.Toolbar = class {
 			}
 		});
 
-		$(document).on("page-change", function () {
+		$(document).on("page-change", function (e) {
 			var $help_links = $(".dropdown-help #help-links");
 			$help_links.html("");
 
@@ -120,19 +120,145 @@ frappe.ui.toolbar.Toolbar = class {
 				$help_links.next().show();
 			}
 
+			////
 			for (let i = 0; i < links.length; i++) {
-				var link = links[i];
-				var url = link.url;
-				$("<a>", {
-					href: url,
-					class: "dropdown-item",
-					text: __(link.label),
-					target: "_blank",
-				}).appendTo($help_links);
+				(function (url, label) {
+					var new_url = "https://www.neoffice.io/knowledgebase" + url.substring(url.lastIndexOf("/"));
+					$("<a>", {
+						href: "#",
+						class: "dropdown-item",
+						text: __(label),
+						click: function (e) {
+							e.preventDefault();
+							openKnowledgeBaseDialog(new_url);
+						}
+					}).appendTo($help_links);
+				})(links[i].url, links[i].label);
 			}
+
+			if($(".dropdown-help .help-links-count").length === 0) {
+				$("<span>", {
+					class: "text-muted small text-center help-links-count",
+					text: links.length,
+					style: "position: absolute; top: -12px; right: -3px; background-color: var(--group-mention-bg-color); border-radius: 50%; width: 16px; font-size: 12px; line-height: 18px; text-align: center;",
+				}).appendTo($(".dropdown-help"));
+			} else {
+				$(".dropdown-help .help-links-count").text(links.length);
+			}
+
+			if (links.length > 0) {
+				$("<hr>").appendTo($help_links);
+				$(".dropdown-help .help-links-count").show();
+			} else {
+				$(".dropdown-help .help-links-count").hide();
+			}
+
+			$("<a>", {
+				href: "#",
+				class: "dropdown-item",
+				text: __("Open Full Knowledge Base"),
+				click: function(e) {
+					e.preventDefault();
+					openKnowledgeBaseDialog("https://www.neoffice.io/knowledgebase/?iframe=1");
+				}
+			}).appendTo($help_links);
+
+			loadFormTour();
 
 			$(".dropdown-help .dropdown-menu").on("click", "a", show_results);
 		});
+
+		function openKnowledgeBaseDialog(url) {
+			var dialog = new frappe.ui.Dialog({
+				'title': __('Knowledge Base'),
+				'size': 'large',
+				'fields': [
+					{
+						'fieldname': 'html',
+						'fieldtype': 'HTML'
+					}
+				],
+			});
+			url = url + "?iframe=1";
+			var iframe_html = '<iframe src="' + url + '" style="width:100%; height:calc(100vh - 205px); border:none;"></iframe>';
+			dialog.fields_dict.html.$wrapper.html(iframe_html);
+
+			dialog.show();
+
+			dialog.$wrapper.find('.modal-dialog').attr("style", "max-width: 90vw!important");
+		}
+
+		function loadFormTour() {
+			setTimeout(function() {
+				if (frappe.router && frappe.router.current_route && frappe.router.current_route[0]) {
+					if (frappe.router.current_route[0] == "Workspaces") {
+						let workspace_name = frappe?.workspace?.current_page?.name;
+						if (workspace_name) {
+							frappe.call({
+								method: "frappe.client.get_list",
+								args: {
+									doctype: "Form Tour",
+									filters: {
+										workspace_name: workspace_name
+									},
+									fields: ["workspace_name"]
+								},
+								callback: function(response) {
+									if (response && response.message && response.message.length > 0) {
+										addFormTourLink("workspace_name", workspace_name);
+									}
+								}
+							});
+						}
+					} else if (frappe.router.current_route[0] == "Form" || frappe.router.current_route[0] == "List") {
+						let doctype = frappe.router.current_route[1];
+						frappe.call({
+							method: "frappe.client.get_list",
+							args: {
+								doctype: "Form Tour",
+								filters: {
+									reference_doctype: doctype
+								},
+								fields: ["reference_doctype"]
+							},
+							callback: function(response) {
+								if (response && response.message && response.message.length > 0) {
+									addFormTourLink(doctype, frappe.router.current_route[0]);
+								}
+							}
+						});
+					}
+				}
+			}, 1000);
+		}
+
+		function addFormTourLink(doctype, route) {
+			$("<a>", {
+				href: "#",
+				class: "dropdown-item",
+				text: __("Start Tour for ") + __(doctype),
+				click: function(e) {
+					e.preventDefault();
+					startFormTour(name, route);
+				}
+			}).appendTo($(".dropdown-help #help-links"));
+		}
+
+		function startFormTour(doctype, route) {
+			frappe.call({
+				method: 'neoffice_theme.events.reset_tour_for_current_user',
+				args: {
+					'type': 'reference_doctype',
+					'name': doctype,
+					'view': route
+				},
+				callback: function(r) {
+					frappe.dom.freeze();
+					location.reload();
+				}
+			});
+		}
+		////
 
 		var $result_modal = frappe.get_modal("", "");
 		$result_modal.addClass("help-modal");

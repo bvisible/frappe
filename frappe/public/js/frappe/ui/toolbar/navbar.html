@@ -12,14 +12,14 @@
 			<div class="collapse navbar-collapse justify-content-end">
 				<form class="form-inline fill-width justify-content-end" role="search" onsubmit="return false;">
 					{% if (frappe.boot.read_only) { %}
-						<span class="indicator-pill yellow no-indicator-dot" title="{%= __("Your site is undergoing maintenance or being updated.") %}">
-							{%= __("Read Only Mode") %}
-						</span>
+					<span class="indicator-pill yellow no-indicator-dot" title="{%= __("Your site is undergoing maintenance or being updated.") %}">
+					{%= __("Read Only Mode") %}
+					</span>
 					{% } %}
 					{% if (frappe.boot.user.impersonated_by) { %}
-						<span class="indicator-pill red no-indicator-dot" title="{%= __("You are impersonating as another user.") %}">
-							{%= __("Impersonating {0}", [frappe.boot.user.name]) %}
-						</span>
+					<span class="indicator-pill red no-indicator-dot" title="{%= __("You are impersonating as another user.") %}">
+					{%= __("Impersonating {0}", [frappe.boot.user.name]) %}
+					</span>
 					{% } %}
 					<div class="input-group search-bar text-muted hidden">
 						<input
@@ -83,13 +83,14 @@
 							aria-controls="toolbar-help"
 							aria-label="{{ __("Help Dropdown") }}"
 						>
-							<span>
+						<span>
 								{{ __("Help") }}
 								<svg class="es-icon icon-xs"><use href="#es-line-down"></use></svg>
 							</span>
 						</button>
 						<div class="dropdown-menu dropdown-menu-right" id="toolbar-help" role="menu">
 							<div id="help-links"></div>
+							<!-- ////
 							<div class="dropdown-divider documentation-links"></div>
 							{% for item in navbar_settings.help_dropdown %}
 								{% if (!item.hidden) { %}
@@ -106,6 +107,7 @@
 									{% } %}
 								{% } %}
 							{% endfor %}
+							-->
 						</div>
 					</li>
 					<li class="nav-item dropdown dropdown-navbar-user dropdown-mobile">
@@ -114,8 +116,9 @@
 							data-toggle="dropdown"
 							aria-label="{{ __("User Menu") }}"
 						>
-							{{ avatar }}
+						{{ avatar }}
 						</button>
+						<!-- ////
 						<div class="dropdown-menu dropdown-menu-right" id="toolbar-user" role="menu">
 							{% for item in navbar_settings.settings_dropdown %}
 								{% if (!item.hidden) { %}
@@ -133,6 +136,7 @@
 								{% } %}
 							{% endfor %}
 						</div>
+						-->
 					</li>
 				</ul>
 			</div>
@@ -144,7 +148,7 @@
 		<div class="container flex justify-between align-center mx-auto">
 			{{ navbar_settings.announcement_widget }}
 			<div class="close-message p-0 mr-2" style="position: relative;">
-			{{ frappe.utils.icon("close") }}
+				{{ frappe.utils.icon("close") }}
 			</div>
 		</div>
 	</div>

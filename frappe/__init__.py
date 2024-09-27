@@ -931,11 +931,16 @@ def is_whitelisted(method):
 
 	is_guest = session["user"] == "Guest"
 	if method not in whitelisted or is_guest and method not in guest_methods:
+		local.response["type"] = "redirect"
+		local.response["location"] = "/login"
+		local.response["status_code"] = 403
+		throw(_("You are not permitted to access this resource."), PermissionError, title=_("Method Not Allowed"))
+
+	#//// if method not in whitelisted or is_guest and method not in guest_methods:
 		#//// summary = _("You are not permitted to access this resource.")
 		#//// detail = _("Function {0} is not whitelisted.").format(bold(f"{method.__module__}.{method.__name__}"))
 		#//// msg = f"<details><summary>{summary}</summary>{detail}</details>"
-		msg = f"<meta http-equiv='Refresh' content='0' url='/login' />" #//// replacement
-		throw(msg, PermissionError, title=_("Method Not Allowed"))
+		#//// throw(msg, PermissionError, title=_("Method Not Allowed"))
 
 	if is_guest and method not in xss_safe_methods:
 		# strictly sanitize form_dict
