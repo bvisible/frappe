@@ -168,6 +168,9 @@ frappe.request.call = function (opts) {
 					return;
 				}
 			} else {
+				//// return to login
+				frappe.app.handle_session_expired();
+				/* ////
 				frappe.msgprint({
 					title: __("Not permitted"),
 					indicator: "red",
@@ -175,6 +178,7 @@ frappe.request.call = function (opts) {
 						"You do not have enough permissions to access this resource. Please contact your manager to get access."
 					),
 				});
+				//// */
 			}
 			opts.error_callback && opts.error_callback();
 		},
