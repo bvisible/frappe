@@ -62,7 +62,7 @@ frappe.views.Workspace = class Workspace {
 		`).appendTo(this.wrapper.find(".layout-side-section"));
 		this.sidebar = list_sidebar.find(".desk-sidebar");
 		this.body = this.wrapper.find(".layout-main-section");
-		this.prepare_new_and_edit();
+		//// this.prepare_new_and_edit();
 	}
 
 	async setup_pages(reload) {
@@ -94,6 +94,7 @@ frappe.views.Workspace = class Workspace {
 		}
 	}
 
+	/* ////
 	prepare_new_and_edit() {
 		this.$page = $(`
 		<div class="editor-js-container"></div>
@@ -131,6 +132,7 @@ frappe.views.Workspace = class Workspace {
 			});
 		});
 	}
+	//// */
 
 	get_pages() {
 		return frappe.xcall("frappe.desk.desktop.get_workspace_sidebar_items");
