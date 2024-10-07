@@ -62,7 +62,7 @@ frappe.views.Workspace = class Workspace {
 		`).appendTo(this.wrapper.find(".layout-side-section"));
 		this.sidebar = list_sidebar.find(".desk-sidebar");
 		this.body = this.wrapper.find(".layout-main-section");
-		//// this.prepare_new_and_edit();
+		this.prepare_new_and_edit();
 	}
 
 	async setup_pages(reload) {
@@ -94,25 +94,30 @@ frappe.views.Workspace = class Workspace {
 		}
 	}
 
-	/* ////
 	prepare_new_and_edit() {
+		/* ////
 		this.$page = $(`
-		<div class="editor-js-container"></div>
-		<div class="workspace-footer">
-			<button data-label="New" class="btn btn-default ellipsis btn-new-workspace">
-				<svg class="es-icon es-line icon-xs" style="" aria-hidden="true">
-					<use class="" href="#es-line-add"></use>
-				</svg>
-				<span class="hidden-xs" data-label="New">${__("New")}</span>
-			</button>
-			<button class="btn btn-default btn-sm mr-2 btn-edit-workspace" data-label="Edit">
-				<svg class="es-icon es-line  icon-xs" style="" aria-hidden="true">
-					<use class="" href="#es-line-edit"></use>
-				</svg>
-				<span class="hidden-xs" data-label="Edit">${__("Edit")}</span>
-			</button>
-		</div>
-	`).appendTo(this.body);
+			<div class="editor-js-container"></div>
+			<div class="workspace-footer">
+				<button data-label="New" class="btn btn-default ellipsis btn-new-workspace">
+					<svg class="es-icon es-line icon-xs" style="" aria-hidden="true">
+						<use class="" href="#es-line-add"></use>
+					</svg>
+					<span class="hidden-xs" data-label="New">${__("New")}</span>
+				</button>
+				<button class="btn btn-default btn-sm mr-2 btn-edit-workspace" data-label="Edit">
+					<svg class="es-icon es-line  icon-xs" style="" aria-hidden="true">
+						<use class="" href="#es-line-edit"></use>
+					</svg>
+					<span class="hidden-xs" data-label="Edit">${__("Edit")}</span>
+				</button>
+			</div>
+		`).appendTo(this.body);
+		*/
+		this.$page = $(`
+			<div class="editor-js-container"></div>
+		`).appendTo(this.body);
+		////
 
 		this.body.find(".btn-new-workspace").on("click", () => {
 			this.initialize_new_page(true);
@@ -132,7 +137,6 @@ frappe.views.Workspace = class Workspace {
 			});
 		});
 	}
-	//// */
 
 	get_pages() {
 		return frappe.xcall("frappe.desk.desktop.get_workspace_sidebar_items");
