@@ -4,6 +4,11 @@
 """build query for doclistview and return results"""
 
 import json
+import os
+import frappe
+
+from frappe.utils import make_xlsx
+from frappe.utils.file_manager import save_file
 from functools import lru_cache
 
 from sql_metadata import Parser
@@ -881,3 +886,98 @@ def get_comment_count(doctype, docnames):
 		comment_counts[docname] = count
 
 	return comment_counts
+
+@frappe.whitelist()
+def export_query(data=None, file_format_type='Excel', title='Exported Data'):
+    if data:
+        data = frappe.parse_json(data)
+        if not isinstance(data, list):
+            frappe.throw("Invalid data format")
+            
+        # Création des en-têtes et des lignes
+        if len(data) > 0:
+            headers = ["Sr"] + list(data[0].keys())
+        else:
+            headers = []
+            
+        rows = []
+        for i, row in enumerate(data):
+            rows.append([i + 1] + list(row.values()))
+            
+        content = []
+        content.append(headers)
+        content.extend(rows)
+        
+        if file_format_type == "Excel":
+            file_extension = "xlsx"
+            title = sanitize_title(title)
+            file_content = make_xlsx(content, title).getvalue()
+            file_name = f"{title}.{file_extension}"
+            file_path = os.path.join(frappe.get_site_path("private", "files"), file_name)
+            
+            # Écriture du fichier
+            with open(file_path, "wb") as f:
+                f.write(file_content)
+                
+            file_url = f"/private/files/{file_name}"
+            
+            # Création du document File
+            file_doc = frappe.get_doc({
+                "doctype": "File",
+                "file_name": file_name,
+                "file_url": file_url,
+                "is_private": 1
+            })
+            file_doc.insert()
+            
+            # Planification de la suppression du fichier
+            frappe.enqueue(
+                'frappe.desk.reportview.delete_file_after_download',
+                file_url=file_url,
+                file_name=file_doc.name,
+                timeout=300
+            )
+            
+            return {"file_url": file_doc.file_url}
+        else:
+            frappe.throw("Unsupported file format")
+    else:
+        frappe.throw("No data provided for export")
+
+def sanitize_title(title):
+    title = title.replace(" ", "_")
+    title = re.sub(r'[^\w\-]', '', title)
+    return title
+	
+
+@frappe.whitelist()
+def delete_file_after_download(file_url, file_name):
+    try:
+        file_doc = frappe.get_doc("File", file_name)
+        file_path = frappe.get_site_path(file_url.lstrip('/'))
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        file_doc.delete()
+    except Exception as e:
+        frappe.log_error(f"Failed to delete file {file_url}: {str(e)}")
+
+@frappe.whitelist()
+def set_global_default(db_field_name, value):
+    try:
+        doc = frappe.get_doc('Global Defaults')
+        setattr(doc, db_field_name, value)
+        doc.save(ignore_permissions=True)
+        frappe.db.commit()
+        return {
+            'status': 'success',
+            'message': f'{db_field_name} a été mis à jour avec succès.'
+        }
+    except Exception as e:
+        frappe.log_error(
+            frappe.get_traceback(),
+            f'Erreur lors de la mise à jour de {db_field_name}'
+        )
+        return {
+            'status': 'error',
+            'message': f'Erreur lors de la mise à jour de {db_field_name}: {str(e)}'
+        }
