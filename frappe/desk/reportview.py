@@ -833,7 +833,7 @@ def get_user_report_settings(doctype):
 		return user_settings.get(doctype, {})
 
 	# Si pas de paramètres utilisateurs, vérifier les paramètres globaux
-	global_defaults = frappe.db.get_value('Global Defaults', None, 'report_settings') or '{}'
+	global_defaults = frappe.db.get_value('System Settings', None, 'report_settings') or '{}'
 	global_defaults = frappe.parse_json(global_defaults)
 
 	return global_defaults.get(doctype, {})
