@@ -208,21 +208,34 @@ frappe.router = {
 	},
 
 	set_doctype_route(route) {
+		//// Changed for re-routing list to report
 		let doctype_route = this.routes[route[0]];
 
 		return frappe.model.with_doctype(doctype_route.doctype).then(() => {
 			// doctype route
 			let meta = frappe.get_meta(doctype_route.doctype);
+			let default_view_load = "Report";
 
-			if (route[1] && route[1] === "view" && route[2]) {
+			if (route.length === 1) {
+				route.push('view', 'list');
+			}
+
+			if (route[2] === "list") {
+				default_view_load = "Report";
+				route = ['List', doctype_route.doctype, default_view_load];
+			} else {
+				default_view_load = meta.force_re_route_to_default_view && meta.default_view
+					? meta.default_view
+					: route[2];
+			}
+	
+			if (route[1] && route[1] === "view" && route[2] && route[2] !== "list") {
 				route = this.get_standard_route_for_list(
 					route,
 					doctype_route,
-					meta.force_re_route_to_default_view && meta.default_view
-						? meta.default_view
-						: null
+					default_view_load
 				);
-			} else if (route[1] && route[1] !== "view") {
+			} else if (route[1] && route[1] !== "view" && route[2] !== "Report") {
 				let docname = route[1];
 				if (route.length > 2) {
 					docname = route.slice(1).join("/");
@@ -230,19 +243,22 @@ frappe.router = {
 				route = ["Form", doctype_route.doctype, docname];
 			} else if (frappe.model.is_single(doctype_route.doctype)) {
 				route = ["Form", doctype_route.doctype, doctype_route.doctype];
-			} else if (meta.default_view) {
-				if (meta.default_view === "Tree") {
-					route = ["Tree", doctype_route.doctype];
-				} else {
-					route = [
-						"List",
-						doctype_route.doctype,
-						this.list_views_route[meta.default_view.toLowerCase()],
-					];
-				}
-			} else {
-				route = ["List", doctype_route.doctype, "List"];
+			} else if (meta.default_view && default_view_load !== "list") {
+				route = [
+					default_view_load,
+					doctype_route.doctype,
+					this.list_views_route[meta.default_view.toLowerCase()],
+				];
+			} else if (default_view_load === "Report") {
+				route = ["List", doctype_route.doctype, "Report"];
 			}
+			
+			if (doctype_route.doctype === "ToDo" && (route[2] === "List" || route[2] === "Report")) {
+				route = ['List', 'ToDo', 'Kanban', 'ToDo'];
+			} else if (doctype_route.doctype === "Event" && (route[2] === "List" || route[2] === "Report")) {
+				route = ['List', 'Event', 'Calendar', 'default'];
+			} 
+	
 			// reset the layout to avoid using incorrect views
 			this.doctype_layout = doctype_route.doctype_layout;
 			return route;
