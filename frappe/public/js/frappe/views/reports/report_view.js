@@ -270,12 +270,12 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				});
 
 				dialog.show();
-			}).addClass('btn-settings').html(`<img src="/assets/neoffice_theme/icons/icon_settings.svg" alt="Settings" style="height: 15px; vertical-align: middle;">`);
+			}).addClass('btn-settings').html(`<img src="/assets/frappe/icons/timeless/icon-settings.svg" alt="Settings" style="height: 15px; vertical-align: middle;">`);
 		}
 		if (!this.page.wrapper.find('.btn-export-excel').length) {
 			this.page.add_button('', function() {
 				frappe.call({
-					method: 'neoffice_theme.events.export_query',
+					method: 'frappe.desk.reportview.export_query',
 					args: {
 						data: cur_list.data,
 						file_format_type: 'Excel',
@@ -289,7 +289,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 						}
 					}
 				});
-			}).addClass('btn-export-excel').html(`<img src="/assets/neoffice_theme/icons/icon_excel.svg" alt="Export Excel" style="height: 20px; vertical-align: middle;">`);
+			}).addClass('btn-export-excel').html(`<img src="/assets/frappe/icons/timeless/icon-excel.svg" alt="Export Excel" style="height: 20px; vertical-align: middle;">`);
 		}		
 		////
 		if (this.report_doc) {
