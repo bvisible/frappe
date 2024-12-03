@@ -94,6 +94,7 @@
   "encrypt_backup",
   "advanced_tab",
   "prepared_report_section",
+  "report_settings",
   "max_auto_email_report_per_user",
   "background_workers",
   "enable_scheduler",
@@ -485,6 +486,14 @@
    "fieldname": "allow_older_web_view_links",
    "fieldtype": "Check",
    "label": "Allow Older Web View Links (Insecure)"
+  },
+  {
+   "fieldname": "report_settings",
+   "fieldtype": "JSON",
+   "label": "Report settings",
+   "hidden": 1,
+   "read_only": 1,
+   "translatable": 0
   },
   {
    "default": "20",
