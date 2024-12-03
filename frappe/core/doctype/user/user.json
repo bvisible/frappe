@@ -45,6 +45,7 @@
   "mobile_no",
   "settings_tab",
   "desk_settings_section",
+  "report_settings",
   "mute_sounds",
   "desk_theme",
   "banner_image",
@@ -311,6 +312,14 @@
    "fieldtype": "Small Text",
    "label": "Bio",
    "no_copy": 1
+  },
+  {
+   "fieldname": "report_settings",
+   "fieldtype": "JSON",
+   "label": "Report settings",
+   "hidden": 1,
+   "read_only": 1,
+   "translatable": 0
   },
   {
    "default": "0",
