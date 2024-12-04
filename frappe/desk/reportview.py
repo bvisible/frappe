@@ -7,7 +7,7 @@ import json
 import os
 import frappe
 
-from frappe.utils import make_xlsx
+from frappe.utils.xlsxutils import make_xlsx
 from frappe.utils.file_manager import save_file
 from functools import lru_cache
 
