@@ -43,7 +43,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				this.add_totals_row = this.report_doc.json.add_totals_row;
 				this.page_title = __(this.report_name);
 				////this.page_length = this.report_doc.json.page_length || 20;
-				this.page_length = 100;
+				this.page_length = 500;
 				this.order_by = this.report_doc.json.order_by || "modified desc";
 				this.chart_args = this.report_doc.json.chart_args;
 			});
@@ -143,6 +143,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		}
 		let doctype = this.doctype;
 		let me = this;
+
 		if (!this.page.wrapper.find('.btn-settings').length) {
 			this.page.add_button(__("Settings"), function() {
 				let dialog = new frappe.ui.Dialog({
