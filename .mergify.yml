@@ -41,33 +41,23 @@ pull_request_rules:
 
             {{ body }}
 
-  - name: backport to develop
+  - name: backport to version-15
     conditions:
-      - label="backport develop"
+      - label="backport version-15"
     actions:
       backport:
         branches:
-          - develop
+          - version-15
         assignees:
           - "{{ author }}"
 
-  - name: backport to version-13-hotfix
+  - name: backport to version-15-hotfix
     conditions:
-      - label="backport version-13-hotfix"
+      - label="backport version-15-hotfix"
     actions:
       backport:
         branches:
-          - version-13-hotfix
-        assignees:
-          - "{{ author }}"
-
-  - name: backport to version-14-hotfix
-    conditions:
-      - label="backport version-14-hotfix"
-    actions:
-      backport:
-        branches:
-          - version-14-hotfix
+          - version-15-hotfix
         assignees:
           - "{{ author }}"
 
