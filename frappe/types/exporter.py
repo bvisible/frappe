@@ -9,6 +9,7 @@ Design goal:
 
 import ast
 import inspect
+import json
 import re
 import textwrap
 import tokenize
@@ -16,6 +17,7 @@ from keyword import iskeyword
 from pathlib import Path
 
 import frappe
+from frappe import scrub
 from frappe.types import DF
 
 field_template = "{field}: {type}"
@@ -58,10 +60,15 @@ class TypeExporter:
 
 		self.imports = {"from frappe.types import DF"}
 		self.indent = "\t"
-		self.controller_path = Path(inspect.getfile(get_controller(self.doctype)))
+		self.controller_path = (
+			Path(frappe.get_module_path(doc.module))
+			/ "doctype"
+			/ scrub(self.doctype)
+			/ f"{scrub(self.doctype)}.py"
+		)
 
 	def export_types(self):
-		self._guess_indetation()
+		self._guess_indentation()
 		new_code = self._generate_code()
 		self._replace_or_add_code(new_code)
 
@@ -76,12 +83,14 @@ class TypeExporter:
 			existing_block_start = code.find(first_line)
 			existing_block_end = code.find(last_line) + len(last_line)
 
-			code = code[:existing_block_start] + new_code + code[existing_block_end:]
+			code = code[:existing_block_start] + new_code + "\n\n" + code[existing_block_end:].lstrip("\n")
 		elif class_definition in code:  # Add just after class definition
 			# Regex by default will only match till line ends, span end is when we need to stop
 			if class_def := re.search(rf"class {despaced_name}\(.*", code):  # )
 				class_definition_end = class_def.span()[1] + 1
-				code = code[:class_definition_end] + new_code + "\n" + code[class_definition_end:]
+				code = (
+					code[:class_definition_end] + new_code + "\n\n" + code[class_definition_end:].lstrip("\n")
+				)
 
 		if self._validate_code(code):
 			self.controller_path.write_text(code)
@@ -136,7 +145,7 @@ class TypeExporter:
 
 		return f"from {filepath} import {class_name}", class_name
 
-	def _map_fieldtype(self, field) -> type | None:
+	def _map_fieldtype(self, field) -> str | None:
 		fieldtype = field.fieldtype.replace(" ", "")
 		field_definition = ""
 
@@ -161,6 +170,9 @@ class TypeExporter:
 		if field.fieldtype in non_nullable_types:
 			return False
 
+		if field.not_nullable:
+			return False
+
 		return not bool(field.reqd)
 
 	def _generic_parameters(self, field) -> str | None:
@@ -177,9 +189,9 @@ class TypeExporter:
 		elif field.fieldtype == "Select":
 			if not field.options:
 				# Could be dynamic
-				return
+				return "[None]"
 			options = [o.strip() for o in field.options.split("\n")]
-			return repr(options)
+			return json.dumps(options)
 
 	@staticmethod
 	def _validate_code(code) -> bool:
@@ -191,9 +203,9 @@ class TypeExporter:
 			frappe.msgprint(frappe._("Failed to export python type hints"), alert=True)
 			return False
 
-	def _guess_indetation(
+	def _guess_indentation(
 		self,
-	) -> str:
+	) -> None:
 		from token import INDENT
 
 		with self.controller_path.open() as f:
@@ -206,3 +218,4 @@ class TypeExporter:
 						# Ideally this should be longest common substring but I don't l33tc0de.
 						# If someone really needs it, add support via hooks.
 						self.indent = " " * 4
+					break

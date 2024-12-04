@@ -144,7 +144,15 @@ frappe.msgprint = function (msg, title, is_minimizable) {
 
 	if (data.message instanceof Array) {
 		let messages = data.message;
-		const exceptions = messages.map((m) => JSON.parse(m)).filter((m) => m.raise_exception);
+		const exceptions = messages
+			.map((m) => {
+				if (typeof m == "string") {
+					return JSON.parse(m);
+				} else {
+					return m;
+				}
+			})
+			.filter((m) => m.raise_exception);
 
 		// only show exceptions if any exceptions exist
 		if (exceptions.length) {
@@ -193,9 +201,7 @@ frappe.msgprint = function (msg, title, is_minimizable) {
 			data.primary_action.action = () => {
 				frappe.call({
 					method: data.primary_action.server_action,
-					args: {
-						args: data.primary_action.args,
-					},
+					args: data.primary_action.args,
 					callback() {
 						if (data.primary_action.hide_on_success) {
 							frappe.hide_msgprint();
@@ -222,7 +228,7 @@ frappe.msgprint = function (msg, title, is_minimizable) {
 		}
 
 		frappe.msg_dialog.set_primary_action(
-			__(data.primary_action.label || data.primary_action_label || "Done"),
+			__(data.primary_action.label) || __(data.primary_action_label) || __("Done"),
 			data.primary_action.action
 		);
 	} else {
@@ -234,7 +240,9 @@ frappe.msgprint = function (msg, title, is_minimizable) {
 
 	if (data.secondary_action) {
 		frappe.msg_dialog.set_secondary_action(data.secondary_action.action);
-		frappe.msg_dialog.set_secondary_action_label(__(data.secondary_action.label || "Close"));
+		frappe.msg_dialog.set_secondary_action_label(
+			__(data.secondary_action.label) || __("Close")
+		);
 	}
 
 	if (data.message == null) {

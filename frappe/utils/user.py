@@ -9,7 +9,7 @@ import frappe.share
 from frappe import _dict
 from frappe.boot import get_allowed_reports
 from frappe.core.doctype.domain_settings.domain_settings import get_active_modules
-from frappe.permissions import get_roles, get_valid_perms
+from frappe.permissions import AUTOMATIC_ROLES, get_roles, get_valid_perms
 from frappe.query_builder import DocType, Order
 from frappe.query_builder.functions import Concat_ws
 
@@ -32,6 +32,7 @@ class UserPermissions:
 		self.can_select = []
 		self.can_read = []
 		self.can_write = []
+		self.can_submit = []
 		self.can_cancel = []
 		self.can_delete = []
 		self.can_search = []
@@ -142,6 +143,9 @@ class UserPermissions:
 					else:
 						self.can_read.append(dt)
 
+			if p.get("submit"):
+				self.can_submit.append(dt)
+
 			if p.get("cancel"):
 				self.can_cancel.append(dt)
 
@@ -212,6 +216,7 @@ class UserPermissions:
 			[
 				"creation",
 				"desk_theme",
+				"code_editor_type",
 				"document_follow_notify",
 				"email",
 				"email_signature",
@@ -222,12 +227,21 @@ class UserPermissions:
 				"send_me_a_copy",
 				"user_type",
 				"onboarding_status",
+				"default_workspace",
 			],
 			as_dict=True,
 		)
 
 		if not self.can_read:
 			self.build_permissions()
+
+		if d.get("default_workspace"):
+			workspace = frappe.get_cached_doc("Workspace", d.default_workspace)
+			d.default_workspace = {
+				"name": workspace.name,
+				"public": workspace.public,
+				"title": workspace.title,
+			}
 
 		d.name = self.name
 		d.onboarding_status = frappe.parse_json(d.onboarding_status)
@@ -238,6 +252,7 @@ class UserPermissions:
 			"can_create",
 			"can_write",
 			"can_read",
+			"can_submit",
 			"can_cancel",
 			"can_delete",
 			"can_get_report",
@@ -285,7 +300,7 @@ def get_fullname_and_avatar(user: str) -> _dict:
 
 
 def get_system_managers(only_name: bool = False) -> list[str]:
-	"""returns all system manager's user details"""
+	"""Return all system manager's user details."""
 	HasRole = DocType("Has Role")
 	User = DocType("User")
 
@@ -325,7 +340,7 @@ def add_system_manager(
 	first_name: str | None = None,
 	last_name: str | None = None,
 	send_welcome_email: bool = False,
-	password: str = None,
+	password: str | None = None,
 ) -> "User":
 	# add user
 	user = frappe.new_doc("User")
@@ -347,7 +362,7 @@ def add_system_manager(
 	roles = frappe.get_all(
 		"Role",
 		fields=["name"],
-		filters={"name": ["not in", ("Administrator", "Guest", "All")]},
+		filters={"name": ["not in", AUTOMATIC_ROLES]},
 	)
 	roles = [role.name for role in roles]
 	user.add_roles(*roles)
@@ -376,6 +391,8 @@ def is_website_user(username: str | None = None) -> str | None:
 
 
 def is_system_user(username: str | None = None) -> str | None:
+	# TODO: Depracate this. Inefficient, incorrect. This function is meant to be used in emails only.
+	# Problem: Filters on email instead of PK, implicitly filters out disabled users.
 	return frappe.db.get_value(
 		"User",
 		{
@@ -383,6 +400,7 @@ def is_system_user(username: str | None = None) -> str | None:
 			"enabled": 1,
 			"user_type": "System User",
 		},
+		cache=True,
 	)
 
 

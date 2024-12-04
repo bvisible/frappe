@@ -1,12 +1,13 @@
 .filter-icon.active {
-	--icon-stroke: var(--text-on-blue);
+	--icon-stroke: var(--primary);
 }
 
 .filter-popover {
 	min-width: 500px;
 	min-height: 50px;
-	font-size: var(--text-md);
+	@include get_textstyle("base", "regular");
 	z-index: 1019;
+	border: 1px solid var(--border-color);
 }
 
 .filter-area {
@@ -30,16 +31,17 @@
 		}
 
 		.awesomplete {
-			ul[role="listbox"] {
+			& > ul,
+			& > [role="listbox"] {
 				min-width: 100%;
 				width: auto;
 
-				li {
+				& > li,
+				& > [role="option"] {
 					max-width: 300px;
 				}
 			}
 		}
-
 	}
 
 	.empty-filters {
@@ -92,7 +94,7 @@
 			}
 
 			.remove-filter {
-				font-size: var(--text-sm);
+				@include get_textstyle("sm", "regular");
 				color: var(--primary);
 			}
 
@@ -103,4 +105,3 @@
 		}
 	}
 }
-

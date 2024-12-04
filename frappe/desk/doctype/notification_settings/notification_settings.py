@@ -23,12 +23,14 @@ class NotificationSettings(Document):
 		enable_email_mention: DF.Check
 		enable_email_notifications: DF.Check
 		enable_email_share: DF.Check
+		enable_email_threads_on_assigned_document: DF.Check
 		enabled: DF.Check
 		energy_points_system_notifications: DF.Check
 		seen: DF.Check
 		subscribed_documents: DF.TableMultiSelect[NotificationSubscribedDocument]
 		user: DF.Link | None
 	# end: auto-generated types
+
 	def on_update(self):
 		from frappe.desk.notifications import clear_notification_config
 
@@ -57,9 +59,10 @@ def is_email_notifications_enabled_for_type(user, notification_type):
 		return False
 
 	fieldname = "enable_email_" + frappe.scrub(notification_type)
-	enabled = frappe.db.get_value("Notification Settings", user, fieldname)
+	enabled = frappe.db.get_value("Notification Settings", user, fieldname, ignore=True)
 	if enabled is None:
 		return True
+
 	return enabled
 
 
@@ -70,7 +73,7 @@ def create_notification_settings(user):
 		_doc.insert(ignore_permissions=True)
 
 
-def toggle_notifications(user: str, enable: bool = False):
+def toggle_notifications(user: str, enable: bool = False, ignore_permissions=False):
 	try:
 		settings = frappe.get_doc("Notification Settings", user)
 	except frappe.DoesNotExistError:
@@ -79,7 +82,7 @@ def toggle_notifications(user: str, enable: bool = False):
 
 	if settings.enabled != enable:
 		settings.enabled = enable
-		settings.save()
+		settings.save(ignore_permissions=ignore_permissions)
 
 
 @frappe.whitelist()
@@ -111,6 +114,21 @@ def get_permission_query_conditions(user):
 		return """(`tabNotification Settings`.name != 'Administrator')"""
 
 	return f"""(`tabNotification Settings`.name = {frappe.db.escape(user)})"""
+
+
+def has_permission(doc, ptype="read", user=None):
+	# - Administrator can access everything.
+	# - System managers can access everything except admin.
+	# - Everyone else can only access their document.
+	user = user or frappe.session.user
+
+	if user == "Administrator":
+		return True
+
+	if "System Manager" in frappe.get_roles(user):
+		return doc.name != "Administrator"
+
+	return doc.name == user
 
 
 @frappe.whitelist()

@@ -9,7 +9,7 @@ body {
 // 	overflow-x: hidden;  //Prevent scroll on narrow devices
 // }
 
-@media(max-width: 991px) {
+@media (max-width: 991px) {
 	.intro-area,
 	.footnote-area {
 		padding: 15px;
@@ -36,7 +36,6 @@ body {
 			margin-top: var(--margin-sm);
 			margin-right: var(--margin-xs);
 		}
-
 
 		.page-head .sub-heading {
 			font-size: var(--text-xs);
@@ -72,7 +71,7 @@ body {
 		white-space: nowrap;
 		text-overflow: ellipsis;
 
-		@media(max-width: 480px) {
+		@media (max-width: 480px) {
 			li > a {
 				width: 100px;
 			}
@@ -90,7 +89,7 @@ body {
 	}
 
 	// select all except last 2
-	#navbar-breadcrumbs li:not(:nth-last-child(-n+1)) {
+	#navbar-breadcrumbs li:not(:nth-last-child(-n + 1)) {
 		display: none;
 	}
 
@@ -117,7 +116,7 @@ body {
 
 	.sidebar .user-menu {
 		padding: 9px 14px;
-		background-color: var(--navbar-bg);
+		background-color: var(--subtle-accent);
 
 		position: absolute;
 		left: 0;
@@ -128,38 +127,13 @@ body {
 	.sidebar .user-menu img {
 		margin-top: -1px;
 	}
-
-	// body[data-route=""],
-	// body[data-route="desktop"] {
-	// 	.navbar .navbar-home {
-	// 		// display: none !important;
-	// 		&:before {
-	// 			display: none;
-	// 		}
-	// 		img {
-	// 			margin-top: 0;
-	// 		}
-	// 	}
-
-	// 	.toggle-sidebar {
-	// 		display: none !important;
-	// 	}
-	// }
-
-	// body[data-sidebar="0"] {
-	// 	.toggle-sidebar {
-	// 		display: none !important;
-	// 	}
-	// }
 }
 
-@media(max-width: 767px) {
-
-	body[data-route^="Form"]{
+@media (max-width: 767px) {
+	body[data-route^="Form"] {
 		.page-title {
 			.title-text {
-				font-size: var(--text-lg);
-				max-width: 300px;
+				@include get_textstyle("lg", "regular");
 			}
 
 			.indicator {
@@ -199,6 +173,10 @@ body {
 	.layout-main-section {
 		border-left-color: transparent !important;
 		border-right-color: transparent !important;
+	}
+
+	.layout-side-section {
+		max-width: 0px;
 	}
 
 	// listviews
@@ -249,14 +227,13 @@ body {
 				top: 4px;
 
 				// bigger indicators for list
-				.indicator::before, .indicator::after {
+				.indicator::before,
+				.indicator::after {
 					height: 12px;
 					width: 12px;
 					border-radius: 12px;
 				}
-
 			}
-
 		}
 
 		.list-row-right.no-right-column {
@@ -265,49 +242,6 @@ body {
 			right: 10px;
 			left: -10px;
 			width: 100%;
-
-		}
-	}
-
-	#page-chat {
-		.layout-side-section {
-			position: relative;
-			left: 0px;
-			border-right: 1px solid var(--border-color);
-			padding-left: 0px;
-			float: left;
-
-			// hack! to prevent overlap of borders
-			width: 76px;
-		}
-
-		.layout-main-section-wrapper {
-			position: absolute;
-			left: 75px;
-			right: 0px;
-			border-left: 1px solid var(--border-color);
-			float: left;
-		}
-
-		.module-sidebar-item {
-			margin: 0px;
-
-			.chat-sidebar-link {
-				padding: var(--padding-md);
-			}
-		}
-
-		.timeline-head {
-			padding: 15px 15px 7px;
-		}
-
-		.list-row {
-			padding: 7px 0px;
-		}
-
-		.message-row-right {
-			margin-top: var(--margin-sm);
-			text-align: left;
 		}
 	}
 
@@ -339,12 +273,13 @@ body {
 						margin-right: 0;
 					}
 				}
-				.comment-header{
+				.comment-header {
 					padding: 7px 10px;
 					.links-active {
 						padding-right: 10px;
 					}
-					.reply-link, .reply-link-all {
+					.reply-link,
+					.reply-link-all {
 						margin-left: 0;
 					}
 					.asset-details {
@@ -357,10 +292,10 @@ body {
 				.reply {
 					padding: 10px;
 				}
-				.commented-on-small{
+				.commented-on-small {
 					display: inline-block;
 				}
-				.commented-on-small{
+				.commented-on-small {
 					display: inline-block;
 				}
 			}
@@ -377,6 +312,14 @@ body {
 		}
 		.asset-details {
 			line-height: 24px; /*Height of avtar image -36px to align text center vertically*/
+		}
+	}
+}
+
+@media (max-width: 412px) {
+	body[data-route^="Form"] {
+		.page-title .title-text {
+			max-width: 28vw;
 		}
 	}
 }

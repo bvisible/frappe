@@ -9,15 +9,15 @@ from werkzeug.test import TestResponse
 
 import frappe
 from frappe.integrations.oauth2 import encode_params
-from frappe.test_runner import make_test_records
+from frappe.tests import IntegrationTestCase
 from frappe.tests.test_api import get_test_client, make_request, suppress_stdout
-from frappe.tests.utils import FrappeTestCase
+from frappe.tests.utils import make_test_records
 
 if TYPE_CHECKING:
 	from frappe.integrations.doctype.social_login_key.social_login_key import SocialLoginKey
 
 
-class FrappeRequestTestCase(FrappeTestCase):
+class FrappeRequestTestCase(IntegrationTestCase):
 	@property
 	def sid(self) -> str:
 		if not getattr(self, "_sid", None):
@@ -316,7 +316,7 @@ class TestOAuth20(FrappeRequestTestCase):
 		frappe.db.commit()
 
 	def test_openid_code_id_token(self):
-		client = update_client_for_auth_code_grant(self.client_id)
+		update_client_for_auth_code_grant(self.client_id)
 		nonce = frappe.generate_hash()
 
 		# Go to Authorize url
@@ -391,9 +391,7 @@ def check_valid_openid_response(access_token=None, client: "FrappeRequestTestCas
 
 
 def login(session):
-	session.post(
-		get_full_url("/api/method/login"), data={"usr": "test@example.com", "pwd": "Eastern_43A1W"}
-	)
+	session.post(get_full_url("/api/method/login"), data={"usr": "test@example.com", "pwd": "Eastern_43A1W"})
 
 
 def get_full_url(endpoint):

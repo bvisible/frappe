@@ -15,7 +15,7 @@ from frappe.email.doctype.newsletter.newsletter import (
 	send_scheduled_email,
 )
 from frappe.email.queue import flush
-from frappe.tests.utils import FrappeTestCase
+from frappe.tests import IntegrationTestCase
 from frappe.utils import add_days, getdate
 
 emails = [
@@ -96,6 +96,8 @@ class TestNewsletterMixin:
 			newsletter.send_emails()
 			return newsletter.name
 
+		return newsletter
+
 	@staticmethod
 	def get_newsletter(**kwargs) -> "Newsletter":
 		"""Generate and return Newsletter object"""
@@ -132,7 +134,7 @@ class TestNewsletterMixin:
 		return newsletter
 
 
-class TestNewsletter(TestNewsletterMixin, FrappeTestCase):
+class TestNewsletter(TestNewsletterMixin, IntegrationTestCase):
 	def test_send(self):
 		self.send_newsletter()
 
@@ -145,11 +147,9 @@ class TestNewsletter(TestNewsletterMixin, FrappeTestCase):
 	def test_unsubscribe(self):
 		name = self.send_newsletter()
 		to_unsubscribe = choice(emails)
-		group = frappe.get_all(
-			"Newsletter Email Group", filters={"parent": name}, fields=["email_group"]
-		)
+		group = frappe.get_all("Newsletter Email Group", filters={"parent": name}, fields=["email_group"])
 
-		flush(from_test=True)
+		flush()
 		confirmed_unsubscribe(to_unsubscribe, group[0].email_group)
 
 		name = self.send_newsletter()
@@ -162,7 +162,9 @@ class TestNewsletter(TestNewsletterMixin, FrappeTestCase):
 				self.assertTrue(email in recipients)
 
 	def test_schedule_send(self):
-		self.send_newsletter(schedule_send=add_days(getdate(), -1))
+		newsletter = self.send_newsletter(schedule_send=add_days(getdate(), 1))
+		newsletter.db_set("schedule_send", add_days(getdate(), -1))  # Set date in past
+		send_scheduled_email()
 
 		email_queue_list = [frappe.get_doc("Email Queue", e.name) for e in frappe.get_all("Email Queue")]
 		self.assertEqual(len(email_queue_list), 4)

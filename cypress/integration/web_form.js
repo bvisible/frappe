@@ -34,7 +34,7 @@ context("Web Form", () => {
 
 		cy.url().should("include", "/note/new");
 
-		cy.request("/api/method/logout");
+		cy.call("logout");
 		cy.visit("/note");
 
 		cy.url().should("include", "/note/new");
@@ -49,6 +49,7 @@ context("Web Form", () => {
 	});
 
 	it("Login Required", () => {
+		cy.call("logout");
 		cy.login("Administrator");
 		cy.visit("/app/web-form/note");
 
@@ -86,6 +87,10 @@ context("Web Form", () => {
 		cy.visit("/app/web-form/note");
 
 		cy.findByRole("tab", { name: "Settings" }).click();
+
+		cy.wait(100);
+		cy.get(".section-head").contains("List Settings").scrollIntoView();
+
 		cy.fill_field("list_title", "Note List");
 
 		cy.save();
@@ -155,6 +160,7 @@ context("Web Form", () => {
 
 		cy.findByRole("tab", { name: "Customization" }).click();
 		cy.fill_field("breadcrumbs", '[{"label": _("Notes"), "route":"note"}]', "Code");
+		cy.wait(2000);
 		cy.get(".form-tabs .nav-item .nav-link").contains("Customization").click();
 		cy.save();
 
@@ -193,7 +199,7 @@ context("Web Form", () => {
 		cy.url().should("include", "/note/list");
 		cy.get(".web-list-table tbody tr:last").click();
 
-		cy.get(".web-form-actions a").contains("Edit Response").click();
+		cy.get(".web-form-actions a").contains("Edit").click();
 		cy.url().should("include", "/edit");
 
 		// Editable Field
@@ -247,7 +253,7 @@ context("Web Form", () => {
 	it("Navigate and Submit a WebForm", () => {
 		cy.visit("/update-profile");
 
-		cy.get(".web-form-actions a").contains("Edit Response").click();
+		cy.get(".web-form-actions a").contains("Edit").click();
 
 		cy.fill_field("middle_name", "_Test User");
 
@@ -259,7 +265,7 @@ context("Web Form", () => {
 		cy.call("frappe.tests.ui_test_helpers.update_webform_to_multistep").then(() => {
 			cy.visit("/update-profile-duplicate");
 
-			cy.get(".web-form-actions a").contains("Edit Response").click();
+			cy.get(".web-form-actions a").contains("Edit").click();
 
 			cy.fill_field("middle_name", "_Test User");
 

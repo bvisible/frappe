@@ -3,7 +3,7 @@ export default class Tab {
 		this.layout = layout;
 		this.df = df || {};
 		this.frm = frm;
-		this.doctype = this.frm.doctype;
+		this.doctype = this.frm?.doctype ?? this.df.parent;
 		this.label = this.df && this.df.label;
 		this.tab_link_container = tab_link_container;
 		this.tabs_content = tabs_content;
@@ -21,8 +21,8 @@ export default class Tab {
 					data-fieldname="${this.df.fieldname}"
 					href="#${id}"
 					role="tab"
-					aria-controls="${this.label}">
-						${__(this.label)}
+					aria-controls="${id}">
+						${__(this.label, null, this.doctype)}
 				</a>
 			</li>
 		`).appendTo(this.tab_link_container);
@@ -76,6 +76,7 @@ export default class Tab {
 	add_field(fieldobj) {
 		fieldobj.tab = this;
 	}
+
 	replace_field(fieldobj) {
 		fieldobj.tab = this;
 	}
@@ -96,7 +97,7 @@ export default class Tab {
 
 	setup_listeners() {
 		this.tab_link.find(".nav-link").on("shown.bs.tab", () => {
-			this?.frm.set_active_tab?.(this);
+			this.frm?.set_active_tab?.(this);
 		});
 	}
 }

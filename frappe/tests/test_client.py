@@ -3,12 +3,13 @@
 from unittest.mock import patch
 
 import frappe
-from frappe.tests.utils import FrappeTestCase
+from frappe.tests import IntegrationTestCase
+from frappe.utils import get_site_url
 
 
-class TestClient(FrappeTestCase):
+class TestClient(IntegrationTestCase):
 	def test_set_value(self):
-		todo = frappe.get_doc(dict(doctype="ToDo", description="test")).insert()
+		todo = frappe.get_doc(doctype="ToDo", description="test").insert()
 		frappe.set_value("ToDo", todo.name, "description", "test 1")
 		self.assertEqual(frappe.get_value("ToDo", todo.name, "description"), "test 1")
 
@@ -134,16 +135,15 @@ class TestClient(FrappeTestCase):
 			"accept": "application/json",
 			"content-type": "application/json",
 		}
-		url = (
-			f"http://{frappe.local.site}:{frappe.conf.webserver_port}/api/method/frappe.client.get_list"
-		)
+		url = get_site_url(frappe.local.site)
+		url += "/api/method/frappe.client.get_list"
+
 		res = requests.post(url, json=params, headers=headers)
 		self.assertEqual(res.status_code, 200)
 		data = res.json()
 		first_item = data["message"][0]
 		self.assertTrue("name" in first_item)
 		self.assertTrue("modified" in first_item)
-		frappe.local.login_manager.logout()
 
 	def test_client_get(self):
 		from frappe.client import get

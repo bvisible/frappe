@@ -1,16 +1,15 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and contributors
 # License: MIT. See LICENSE
 
-from os.path import abspath
+from os.path import abspath, splitext
 from os.path import exists as path_exists
 from os.path import join as join_path
-from os.path import splitext
+from pathlib import Path
 from typing import Optional
 
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import get_path
 
 
 class WebsiteTheme(Document):
@@ -46,6 +45,7 @@ class WebsiteTheme(Document):
 		theme_scss: DF.Code | None
 		theme_url: DF.Data | None
 	# end: auto-generated types
+
 	def validate(self):
 		self.validate_if_customizable()
 		self.generate_bootstrap_theme()
@@ -54,9 +54,9 @@ class WebsiteTheme(Document):
 		if (
 			not self.custom
 			and frappe.local.conf.get("developer_mode")
-			and not (frappe.flags.in_import or frappe.flags.in_test)
+			and not frappe.flags.in_import
+			and not frappe.flags.in_test
 		):
-
 			self.export_doc()
 
 		self.clear_cache_if_current_theme()
@@ -70,9 +70,7 @@ class WebsiteTheme(Document):
 
 	def on_trash(self):
 		if self.is_standard_and_not_valid_user():
-			frappe.throw(
-				_("You are not allowed to delete a standard Website Theme"), frappe.PermissionError
-			)
+			frappe.throw(_("You are not allowed to delete a standard Website Theme"), frappe.PermissionError)
 
 	def validate_if_customizable(self):
 		if self.is_standard_and_not_valid_user():
@@ -111,7 +109,7 @@ class WebsiteTheme(Document):
 		content = content.replace("\n", "\\n")
 		command = ["node", "generate_bootstrap_theme.js", output_path, content]
 
-		process = Popen(command, cwd=frappe.get_app_path("frappe", ".."), stdout=PIPE, stderr=PIPE)
+		process = Popen(command, cwd=frappe.get_app_source_path("frappe"), stdout=PIPE, stderr=PIPE)
 
 		stderr = process.communicate()[1]
 
@@ -127,9 +125,15 @@ class WebsiteTheme(Document):
 	def delete_old_theme_files(self, folder_path):
 		import os
 
+		theme_files: list[Path] = []
 		for fname in os.listdir(folder_path):
 			if fname.startswith(frappe.scrub(self.name) + "_") and fname.endswith(".css"):
-				os.remove(os.path.join(folder_path, fname))
+				theme_files.append(Path(folder_path) / fname)
+
+		theme_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+		# Keep 3 recent files
+		for old_file in theme_files[2:]:
+			old_file.unlink()
 
 	@frappe.whitelist()
 	def set_as_default(self):
@@ -168,9 +172,7 @@ def get_scss(website_theme):
 	imports_to_include = [d for d in available_imports if not d.startswith(apps_to_ignore)]
 	context = website_theme.as_dict()
 	context["website_theme_scss"] = imports_to_include
-	return frappe.render_template(
-		"frappe/website/doctype/website_theme/website_theme_template.scss", context
-	)
+	return frappe.render_template("frappe/website/doctype/website_theme/website_theme_template.scss", context)
 
 
 def get_scss_paths():
@@ -181,15 +183,13 @@ def get_scss_paths():
 	returned set will contain 'frappe/public/scss/website[.bundle]'.
 	"""
 	import_path_list = []
-	bench_path = frappe.utils.get_bench_path()
 
 	scss_files = ["public/scss/website.scss", "public/scss/website.bundle.scss"]
 	for app in frappe.get_installed_apps():
 		for scss_file in scss_files:
-			relative_path = join_path(app, scss_file)
-			full_path = get_path("apps", app, relative_path, base=bench_path)
+			full_path = frappe.get_app_path(app, scss_file)
 			if path_exists(full_path):
-				import_path = splitext(relative_path)[0]
+				import_path = splitext(join_path(app, scss_file))[0]
 				import_path_list.append(import_path)
 
 	return import_path_list

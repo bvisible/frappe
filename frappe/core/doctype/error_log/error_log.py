@@ -21,7 +21,17 @@ class ErrorLog(Document):
 		reference_doctype: DF.Link | None
 		reference_name: DF.Data | None
 		seen: DF.Check
+		trace_id: DF.Data | None
 	# end: auto-generated types
+
+	def validate(self):
+		self.method = str(self.method)
+		self.error = str(self.error)
+
+		if len(self.method) > 140:
+			self.error = f"{self.method}\n{self.error}"
+			self.method = self.method[:140]
+
 	def onload(self):
 		if not self.seen and not frappe.flags.read_only:
 			self.db_set("seen", 1, update_modified=0)
@@ -30,7 +40,7 @@ class ErrorLog(Document):
 	@staticmethod
 	def clear_old_logs(days=30):
 		table = frappe.qb.DocType("Error Log")
-		frappe.db.delete(table, filters=(table.modified < (Now() - Interval(days=days))))
+		frappe.db.delete(table, filters=(table.creation < (Now() - Interval(days=days))))
 
 
 @frappe.whitelist()

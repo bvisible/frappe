@@ -8,6 +8,8 @@
  "field_order": [
   "file_name",
   "is_private",
+  "column_break_7jmm",
+  "file_type",
   "preview",
   "preview_html",
   "section_break_5",
@@ -105,6 +107,7 @@
    "fieldtype": "Link",
    "hidden": 1,
    "label": "Folder",
+   "length": 255,
    "options": "File",
    "read_only": 1
   },
@@ -169,13 +172,25 @@
    "fieldtype": "Check",
    "label": "Uploaded To Google Drive",
    "read_only": 1
+  },
+  {
+   "fieldname": "column_break_7jmm",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "file_type",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "File Type",
+   "read_only": 1
   }
  ],
  "force_re_route_to_default_view": 1,
  "icon": "fa fa-file",
  "idx": 1,
  "links": [],
- "modified": "2023-08-02 09:43:51.178011",
+ "modified": "2024-05-09 11:46:42.917146",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "File",
@@ -202,8 +217,8 @@
    "write": 1
   }
  ],
- "sort_field": "modified",
- "sort_order": "ASC",
+ "sort_field": "creation",
+ "sort_order": "DESC",
  "states": [],
  "title_field": "file_name",
  "track_changes": 1

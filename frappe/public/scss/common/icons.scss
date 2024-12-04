@@ -9,12 +9,21 @@
 	background-position: 50% 50%;
 	fill: var(--icon-fill);
 	stroke: var(--icon-stroke);
+	stroke-width: 1.25px;
+}
+
+.es-icon {
+	@extend .icon;
+	// es-icons need to be "filled"
+	fill: var(--icon-stroke);
+	stroke-width: 0;
 }
 
 /* like icon */
 use.like-icon {
+	--icon-stroke: transparent;
 	cursor: pointer;
-	stroke: var(--gray-500);
+	stroke: var(--icon-stroke);
 }
 
 #icon-file-large {
@@ -26,7 +35,7 @@ use.like-icon {
 }
 
 #icon-close {
-	fill: var(--gray-600);
+	fill: var(--invert-neutral);
 }
 
 .icon > .close-alt {
@@ -34,9 +43,10 @@ use.like-icon {
 }
 
 .liked {
-	use.like-icon {
-		stroke: none;
-		fill: var(--red-500);
+	.like-icon,
+	.like-icon use {
+		--icon-stroke: var(--invert-neutral);
+		fill: var(--invert-neutral);
 	}
 }
 
@@ -62,8 +72,8 @@ use.like-icon {
 }
 
 .icon-xl {
-	width: 75px;
-	height: 75px;
+	width: 40px;
+	height: 40px;
 }
 
 .no-stroke {

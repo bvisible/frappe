@@ -82,7 +82,6 @@ def run_all(skip_failing: bool = False, patch_type: PatchType | None = None) -> 
 
 
 def get_all_patches(patch_type: PatchType | None = None) -> list[str]:
-
 	if patch_type and not isinstance(patch_type, PatchType):
 		frappe.throw(f"Unsupported patch type specified: {patch_type}")
 
@@ -100,8 +99,7 @@ def get_patches_from_app(app: str, patch_type: PatchType | None = None) -> list[
 	        1. ini like file with section for different patch_type
 	        2. plain text file with each line representing a patch.
 	"""
-
-	patches_file = frappe.get_pymodule_path(app, "patches.txt")
+	patches_file = frappe.get_app_path(app, "patches.txt")
 
 	try:
 		return parse_as_configfile(patches_file, patch_type)

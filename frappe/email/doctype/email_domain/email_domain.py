@@ -1,12 +1,13 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and contributors
 # License: MIT. See LICENSE
 
+import imaplib
+import poplib
 import smtplib
 from functools import wraps
 
 import frappe
 from frappe import _
-from frappe.email.receive import Timed_IMAP4, Timed_IMAP4_SSL, Timed_POP3, Timed_POP3_SSL
 from frappe.email.utils import get_port
 from frappe.model.document import Document
 from frappe.utils import cint
@@ -72,7 +73,10 @@ class EmailDomain(Document):
 		use_ssl_for_outgoing: DF.Check
 		use_starttls: DF.Check
 		use_tls: DF.Check
+		validate_ssl_certificate: DF.Check
+		validate_ssl_certificate_for_outgoing: DF.Check
 	# end: auto-generated types
+
 	def validate(self):
 		"""Validate POP3/IMAP and SMTP connections."""
 
@@ -101,12 +105,12 @@ class EmailDomain(Document):
 		self.incoming_port = get_port(self)
 
 		if self.use_imap:
-			conn_method = Timed_IMAP4_SSL if self.use_ssl else Timed_IMAP4
+			conn_method = imaplib.IMAP4_SSL if self.use_ssl else imaplib.IMAP4
 		else:
-			conn_method = Timed_POP3_SSL if self.use_ssl else Timed_POP3
+			conn_method = poplib.POP3_SSL if self.use_ssl else poplib.POP3
 
 		self.use_starttls = cint(self.use_imap and self.use_starttls and not self.use_ssl)
-		incoming_conn = conn_method(self.email_server, port=self.incoming_port)
+		incoming_conn = conn_method(self.email_server, port=self.incoming_port, timeout=30)
 		incoming_conn.logout() if self.use_imap else incoming_conn.quit()
 
 	@handle_error("outgoing")
@@ -119,4 +123,4 @@ class EmailDomain(Document):
 		elif self.use_tls:
 			self.smtp_port = self.smtp_port or 587
 
-		conn_method((self.smtp_server or ""), cint(self.smtp_port) or 0).quit()
+		conn_method((self.smtp_server or ""), cint(self.smtp_port), timeout=30).quit()

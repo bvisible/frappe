@@ -139,6 +139,25 @@ frappe.ui.form.AssignToDialog = class AssignToDialog {
 
 		me.dialog.set_value("assign_to", assign_to);
 	}
+	user_group_list() {
+		let me = this;
+		let user_group = me.dialog.get_value("assign_to_user_group");
+		me.dialog.set_value("assign_to_me", 0);
+
+		if (user_group) {
+			let user_group_members = [];
+			frappe.db
+				.get_list("User Group Member", {
+					parent_doctype: "User Group",
+					filters: { parent: user_group },
+					fields: ["user"],
+				})
+				.then((response) => {
+					user_group_members = response.map((group_member) => group_member.user);
+					me.dialog.set_value("assign_to", user_group_members);
+				});
+		}
+	}
 	set_description_from_doc() {
 		let me = this;
 
@@ -156,6 +175,13 @@ frappe.ui.form.AssignToDialog = class AssignToDialog {
 				fieldname: "assign_to_me",
 				default: 0,
 				onchange: () => me.assign_to_me(),
+			},
+			{
+				label: __("Assign To User Group"),
+				fieldtype: "Link",
+				fieldname: "assign_to_user_group",
+				options: "User Group",
+				onchange: () => me.user_group_list(),
 			},
 			{
 				fieldtype: "MultiSelectPills",
@@ -288,6 +314,13 @@ frappe.ui.form.AssignmentDialog = class {
 			assign_to: assignment,
 		});
 	}
+	close_assignment(assignment) {
+		return frappe.xcall("frappe.desk.form.assign_to.close", {
+			doctype: this.frm.doctype,
+			name: this.frm.docname,
+			assign_to: assignment,
+		});
+	}
 	update_assignment(assignment) {
 		const in_the_list = this.assignment_list.find(`[data-user="${assignment}"]`).length;
 		if (!in_the_list) {
@@ -295,22 +328,40 @@ frappe.ui.form.AssignmentDialog = class {
 		}
 	}
 	get_assignment_row(assignment) {
-		let row = $(`
+		const row = $(`
 			<div class="dialog-assignment-row" data-user="${assignment}">
-				<span>
+				<div class="assignee">
 					${frappe.avatar(assignment)}
 					${frappe.user.full_name(assignment)}
-				</span>
+				</div>
+				<div class="btn-group btn-group-sm" role="group" aria-label="Actions">
+				</div>
 			</div>
 		`);
 
-		if (assignment === frappe.session.user || this.frm.perm[0].write) {
-			row.append(`
-				<span class="remove-btn cursor-pointer">
-					${frappe.utils.icon("close")}
-				</span>
+		const btn_group = row.find(".btn-group");
+
+		if (assignment === frappe.session.user) {
+			btn_group.append(`
+				<button type="button" class="btn btn-default complete-btn" title="${__("Done")}">
+					${frappe.utils.icon("tick", "xs")}
+				</button>
 			`);
-			row.find(".remove-btn").click(() => {
+			btn_group.find(".complete-btn").click(() => {
+				this.close_assignment(assignment).then((assignments) => {
+					row.remove();
+					this.render(assignments);
+				});
+			});
+		}
+
+		if (assignment === frappe.session.user || this.frm.perm[0].write) {
+			btn_group.append(`
+				<button type="button" class="btn btn-default remove-btn" title="${__("Cancel")}">
+				${frappe.utils.icon("close")}
+				</button>
+			`);
+			btn_group.find(".remove-btn").click(() => {
 				this.remove_assignment(assignment).then((assignments) => {
 					row.remove();
 					this.render(assignments);

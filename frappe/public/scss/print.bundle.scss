@@ -1,7 +1,7 @@
+@import "./desk/variables";
 @import "frappe/public/css/bootstrap.css";
 @import "./common/quill";
 
-@import "./desk/variables";
 @import "~bootstrap/scss/utilities/spacing";
 @import "./desk/css_variables";
 @import "./element/checkbox";
@@ -45,4 +45,9 @@
 	* {
 		overflow-wrap: anywhere;
 	}
+}
+
+/* prevent newline and right alignment of number fields in printed report filters */
+.filter-row div {
+	display: inline-block;
 }

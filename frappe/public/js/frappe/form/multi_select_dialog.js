@@ -16,6 +16,8 @@ frappe.ui.form.MultiSelectDialog = class MultiSelectDialog {
 		this.fields = this.get_fields();
 
 		this.make();
+
+		this.selected_fields = new Set();
 	}
 
 	get_fields() {
@@ -258,6 +260,8 @@ frappe.ui.form.MultiSelectDialog = class MultiSelectDialog {
 					label: df_prop.label,
 					fieldname: setter,
 					options: df_prop.options,
+					read_only:
+						(this?.read_only_setters && this.read_only_setters.includes(setter)) || 0,
 					default: this.setters[setter],
 				});
 			});
@@ -276,7 +280,7 @@ frappe.ui.form.MultiSelectDialog = class MultiSelectDialog {
 			).options;
 			columns[0].push({
 				fieldtype: "Check",
-				label: __("Select {0}", [this.child_doctype]),
+				label: __("Select {0}", [__(this.child_doctype)]),
 				fieldname: "allow_child_item_selection",
 				onchange: this.toggle_child_selection.bind(this),
 			});
@@ -337,12 +341,25 @@ frappe.ui.form.MultiSelectDialog = class MultiSelectDialog {
 			if (!$(e.target).is(":checkbox") && !$(e.target).is("a")) {
 				$(this).find(":checkbox").trigger("click");
 			}
+			let name = $(this).attr("data-item-name").trim();
+			if ($(this).find(":checkbox").is(":checked")) {
+				me.selected_fields.add(name);
+			} else {
+				me.selected_fields.delete(name);
+			}
 		});
 
 		this.$results.on("click", ".list-item--head :checkbox", (e) => {
-			this.$results
-				.find(".list-item-container .list-row-check")
-				.prop("checked", $(e.target).is(":checked"));
+			let checked = $(e.target).is(":checked");
+			this.$results.find(".list-item-container .list-row-check").each(function () {
+				$(this).prop("checked", checked);
+				const name = $(this).closest(".list-item-container").attr("data-item-name").trim();
+				if (checked) {
+					me.selected_fields.add(name);
+				} else {
+					me.selected_fields.delete(name);
+				}
+			});
 		});
 
 		this.$parent.find(".input-with-feedback").on("change", () => {
@@ -510,12 +527,12 @@ frappe.ui.form.MultiSelectDialog = class MultiSelectDialog {
 
 	empty_list() {
 		// Store all checked items
-		let checked = this.get_checked_items().map((item) => {
-			return {
+		let checked = this.results
+			.filter((result) => this.selected_fields.has(result.name))
+			.map((item) => ({
 				...item,
 				checked: true,
-			};
-		});
+			}));
 
 		// Remove **all** items
 		this.$results.find(".list-item-container").remove();
@@ -576,22 +593,22 @@ frappe.ui.form.MultiSelectDialog = class MultiSelectDialog {
 			no_spinner: true,
 			args: args,
 		});
-		const more = res.values.length && res.values.length > this.page_length ? 1 : 0;
+		const more = res.message.length && res.message.length > this.page_length ? 1 : 0;
 
-		return [res, more];
+		return [res.message, more];
 	}
 
 	async get_results() {
 		const args = this.get_args_for_search();
-		const [res, more] = await this.perform_search(args);
+		let [results, more] = await this.perform_search(args);
 
 		if (more) {
-			res.values = res.values.splice(0, this.page_length);
+			results = results.splice(0, this.page_length);
 		}
 
 		this.results = [];
-		if (res.values.length) {
-			res.values.forEach((result) => {
+		if (results.length) {
+			results.forEach((result) => {
 				result.checked = 0;
 				this.results.push(result);
 			});
@@ -602,11 +619,11 @@ frappe.ui.form.MultiSelectDialog = class MultiSelectDialog {
 	async get_filtered_parents_for_child_search() {
 		const parent_search_args = this.get_args_for_search();
 		parent_search_args.filter_fields = ["name"];
-		const [response, _] = await this.perform_search(parent_search_args);
+		const [results, _] = await this.perform_search(parent_search_args);
 
 		let parent_names = [];
-		if (response.values.length) {
-			parent_names = response.values.map((v) => v.name);
+		if (results.length) {
+			parent_names = results.map((v) => v.name);
 		}
 		return parent_names;
 	}

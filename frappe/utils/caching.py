@@ -1,11 +1,13 @@
 # Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and Contributors
 # License: MIT. Check LICENSE
 
+import datetime
 import json
 from collections import defaultdict
 from collections.abc import Callable
-from datetime import datetime, timedelta
 from functools import wraps
+
+import pytz
 
 import frappe
 
@@ -20,23 +22,31 @@ def __generate_request_cache_key(args: tuple, kwargs: dict):
 
 
 def request_cache(func: Callable) -> Callable:
-	"""Decorator to cache function calls mid-request. Cache is stored in
-	frappe.local.request_cache. The cache only persists for the current request
-	and is cleared when the request is over. The function is called just once
-	per request with the same set of (kw)arguments.
+	"""
+	Decorator to cache function calls mid-request.
 
+	Cache is stored in `frappe.local.request_cache`.
+
+	The cache only persists for the current request and is cleared when the request is over.
+
+	The function is called just once per request with the same set of (kw)arguments.
+
+	---
 	Usage:
+	```
 	        from frappe.utils.caching import request_cache
 
 	        @request_cache
 	        def calculate_pi(num_terms=0):
-	                import math, time
-	                print(f"{num_terms = }")
-	                time.sleep(10)
-	                return math.pi
+	            import math, time
 
-	        calculate_pi(10) # will calculate value
-	        calculate_pi(10) # will return value from cache
+	            print(f"{num_terms = }")
+	            time.sleep(10)
+	            return math.pi
+
+	        calculate_pi(10)  # will calculate value
+	        calculate_pi(10)  # will return value from cache
+	```
 	"""
 
 	@wraps(func)
@@ -62,30 +72,39 @@ def request_cache(func: Callable) -> Callable:
 
 
 def site_cache(ttl: int | None = None, maxsize: int | None = None) -> Callable:
-	"""Decorator to cache method calls across requests. The cache is stored in
-	frappe.utils.caching._SITE_CACHE. The cache persists on the parent process.
+	"""
+	Decorator to cache method calls across requests.
+
+	The cache is stored in `frappe.utils.caching._SITE_CACHE`.
+
+	The cache persists on the parent process.
+
 	It offers a light-weight cache for the current process without the additional
 	overhead of serializing / deserializing Python objects.
 
 	Note: This cache isn't shared among workers. If you need to share data across
 	workers, use redis (frappe.cache API) instead.
 
+	---
 	Usage:
+	```
 	        from frappe.utils.caching import site_cache
 
 	        @site_cache
 	        def calculate_pi():
-	                import math, time
-	                precision = get_precision("Math Constant", "Pi") # depends on site data
-	                return round(math.pi, precision)
+	            import math, time
+
+	            precision = get_precision("Math Constant", "Pi") # depends on site data
+	            return round(math.pi, precision)
 
 	        calculate_pi(10) # will calculate value
 	        calculate_pi(10) # will return value from cache
 	        calculate_pi.clear_cache() # clear this function's cache for all sites
 	        calculate_pi(10) # will calculate value
+	```
 	"""
 
-	def time_cache_wrapper(func: Callable = None) -> Callable:
+	def time_cache_wrapper(func: Callable | None = None) -> Callable:
 		func_key = f"{func.__module__}.{func.__name__}"
 
 		def clear_cache():
@@ -96,7 +115,7 @@ def site_cache(ttl: int | None = None, maxsize: int | None = None) -> Callable:
 
 		if ttl is not None and not callable(ttl):
 			func.ttl = ttl
-			func.expiration = datetime.utcnow() + timedelta(seconds=func.ttl)
+			func.expiration = datetime.datetime.now(pytz.UTC) + datetime.timedelta(seconds=func.ttl)
 
 		if maxsize is not None and not callable(maxsize):
 			func.maxsize = maxsize
@@ -106,9 +125,9 @@ def site_cache(ttl: int | None = None, maxsize: int | None = None) -> Callable:
 			if getattr(frappe.local, "initialised", None):
 				func_call_key = json.dumps((args, kwargs))
 
-				if hasattr(func, "ttl") and datetime.utcnow() >= func.expiration:
+				if hasattr(func, "ttl") and datetime.datetime.now(pytz.UTC) >= func.expiration:
 					func.clear_cache()
-					func.expiration = datetime.utcnow() + timedelta(seconds=func.ttl)
+					func.expiration = datetime.datetime.now(pytz.UTC) + datetime.timedelta(seconds=func.ttl)
 
 				if hasattr(func, "maxsize") and len(_SITE_CACHE[func_key][frappe.local.site]) >= func.maxsize:
 					_SITE_CACHE[func_key][frappe.local.site].pop(
@@ -130,16 +149,16 @@ def site_cache(ttl: int | None = None, maxsize: int | None = None) -> Callable:
 	return time_cache_wrapper
 
 
-def redis_cache(ttl: int | None = 3600, user: str | bool | None = None) -> Callable:
+def redis_cache(ttl: int | None = 3600, user: str | bool | None = None, shared: bool = False) -> Callable:
 	"""Decorator to cache method calls and its return values in Redis
 
 	args:
 	        ttl: time to expiry in seconds, defaults to 1 hour
 	        user: `true` should cache be specific to session user.
+	        shared: `true` should cache be shared across sites
 	"""
 
-	def wrapper(func: Callable = None) -> Callable:
-
+	def wrapper(func: Callable | None = None) -> Callable:
 		func_key = f"{func.__module__}.{func.__qualname__}"
 
 		def clear_cache():
@@ -151,13 +170,12 @@ def redis_cache(ttl: int | None = 3600, user: str | bool | None = None) -> Calla
 		@wraps(func)
 		def redis_cache_wrapper(*args, **kwargs):
 			func_call_key = func_key + "::" + str(__generate_request_cache_key(args, kwargs))
-			if frappe.cache.exists(func_call_key):
-				return frappe.cache.get_value(func_call_key, user=user)
-			else:
-				val = func(*args, **kwargs)
-				ttl = getattr(func, "ttl", 3600)
-				frappe.cache.set_value(func_call_key, val, expires_in_sec=ttl, user=user)
-				return val
+			if frappe.cache.exists(func_call_key, user=user, shared=shared):
+				return frappe.cache.get_value(func_call_key, user=user, shared=shared)
+			val = func(*args, **kwargs)
+			ttl = getattr(func, "ttl", 3600)
+			frappe.cache.set_value(func_call_key, val, expires_in_sec=ttl, user=user, shared=shared)
+			return val
 
 		return redis_cache_wrapper
 

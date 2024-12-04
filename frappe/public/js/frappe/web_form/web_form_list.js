@@ -57,7 +57,7 @@ export default class WebFormList {
 							options: field.options,
 							input_class: "input-xs",
 							only_select: true,
-							label: __(field.label),
+							label: __(field.label, null, field.parent),
 							onchange: (event) => {
 								this.add_filter(field.fieldname, input.value, field.fieldtype);
 								this.refresh();
@@ -70,13 +70,13 @@ export default class WebFormList {
 
 					$(input.wrapper)
 						.addClass("col-md-2")
-						.attr("title", __(field.label))
+						.attr("title", __(field.label, null, field.parent))
 						.tooltip({
 							delay: { show: 600, hide: 100 },
 							trigger: "hover",
 						});
 
-					input.$input.attr("placeholder", __(field.label));
+					input.$input.attr("placeholder", __(field.label, null, field.parent));
 					this.filter_input.push(input);
 				});
 				this.refresh();
@@ -109,6 +109,12 @@ export default class WebFormList {
 	}
 
 	fetch_data() {
+		if (this.condition_json && JSON.parse(this.condition_json)) {
+			let filter = frappe.utils.get_filter_from_json(this.condition_json, this.doctype);
+			filter = frappe.utils.get_filter_as_json(filter);
+			this.filters = Object.assign(this.filters, JSON.parse(filter));
+		}
+
 		let args = {
 			method: "frappe.www.list.get_list_data",
 			args: {
@@ -227,12 +233,9 @@ export default class WebFormList {
 		let empty_state = $(`
 			<div class="no-result text-muted flex justify-center align-center">
 				<div class="text-center">
-					<div>
-						<img
-							src="/assets/frappe/images/ui-states/list-empty-state.svg"
-							alt="Generic Empty State"
-							class="null-state">
-					</div>
+					<svg class="mb-4 icon icon-xl" style="stroke: var(--text-light);">
+						<use href="#icon-small-file"></use>
+					</svg>
 					<p class="small mb-2">${__("No {0} found", [__(this.doctype)])}</p>
 					${new_button}
 				</div>

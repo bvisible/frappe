@@ -21,6 +21,10 @@ class FileUploader {
 		attach_doc_image,
 		frm,
 		make_attachments_public,
+		allow_web_link,
+		allow_take_photo,
+		allow_toggle_private,
+		allow_toggle_optimize,
 	} = {}) {
 		frm && frm.attachments.max_reached(true);
 
@@ -28,6 +32,16 @@ class FileUploader {
 			this.make_dialog(dialog_title);
 		} else {
 			this.wrapper = wrapper.get ? wrapper.get(0) : wrapper;
+		}
+
+		if (restrictions && !restrictions.allowed_file_types) {
+			// apply global allow list if present
+			let allowed_extensions = frappe.sys_defaults?.allowed_file_extensions;
+			if (allowed_extensions) {
+				restrictions.allowed_file_types = allowed_extensions
+					.split("\n")
+					.map((ext) => `.${ext}`);
+			}
 		}
 
 		let app = createApp(FileUploaderComponent, {
@@ -45,6 +59,10 @@ class FileUploader {
 			disable_file_browser,
 			attach_doc_image,
 			make_attachments_public,
+			allow_web_link,
+			allow_take_photo,
+			allow_toggle_private,
+			allow_toggle_optimize,
 		});
 		SetVueGlobals(app);
 		this.uploader = app.mount(this.wrapper);
@@ -103,9 +121,7 @@ class FileUploader {
 	}
 
 	upload_files() {
-		this.dialog && this.dialog.get_primary_btn().prop("disabled", true);
-		this.dialog && this.dialog.get_secondary_btn().prop("disabled", true);
-		return this.uploader.upload_files();
+		return this.uploader.upload_files(this.dialog);
 	}
 
 	make_dialog(title) {

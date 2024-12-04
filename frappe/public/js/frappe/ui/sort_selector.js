@@ -23,25 +23,34 @@ frappe.ui.SortSelector = class SortSelector {
 
 		// order
 		this.wrapper.find(".btn-order").on("click", function () {
-			let btn = $(this);
 			const order = $(this).attr("data-value") === "desc" ? "asc" : "desc";
-			const title =
-				$(this).attr("data-value") === "desc" ? __("ascending") : __("descending");
-
-			btn.attr("data-value", order);
-			btn.attr("title", title);
-			me.sort_order = order;
-			const icon_name = order === "asc" ? "sort-ascending" : "sort-descending";
-			btn.find(".sort-order").html(frappe.utils.icon(icon_name, "sm"));
+			me.set_value(me.sort_by, order);
 			(me.onchange || me.change)(me.sort_by, me.sort_order);
 		});
 
 		// select field
 		this.wrapper.find(".dropdown-menu a.option").on("click", function () {
-			me.sort_by = $(this).attr("data-value");
-			me.wrapper.find(".dropdown-text").html($(this).html());
+			me.set_value($(this).attr("data-value"), me.sort_order);
 			(me.onchange || me.change)(me.sort_by, me.sort_order);
 		});
+	}
+	set_value(sort_by, sort_order) {
+		const $btn = this.wrapper.find(".btn-order");
+		const $icon = $btn.find(".sort-order");
+		const $text = this.wrapper.find(".dropdown-text");
+
+		if (this.sort_by !== sort_by) {
+			this.sort_by = sort_by;
+			$text.html(__(this.get_label(sort_by)));
+		}
+		if (this.sort_order !== sort_order) {
+			this.sort_order = sort_order;
+			const title = sort_order === "desc" ? __("ascending") : __("descending");
+			const icon_name = sort_order === "asc" ? "sort-ascending" : "sort-descending";
+			$btn.attr("data-value", sort_order);
+			$btn.attr("title", title);
+			$icon.html(frappe.utils.icon(icon_name, "sm"));
+		}
 	}
 	prepare_args() {
 		var me = this;
@@ -55,7 +64,7 @@ frappe.ui.SortSelector = class SortSelector {
 			this.args = {};
 
 			if (order_by.includes("`.`")) {
-				// scrub table name (separated by dot), like `tabTime Log`.`modified` desc`
+				// scrub table name (separated by dot), like `tabTime Log`.`creation` desc`
 				order_by = order_by.split(".")[1];
 			}
 
@@ -94,15 +103,13 @@ frappe.ui.SortSelector = class SortSelector {
 
 		var { meta_sort_field, meta_sort_order } = this.get_meta_sort_field();
 
-		if (!this.args.sort_by) {
-			if (meta_sort_field) {
-				this.args.sort_by = meta_sort_field;
-				this.args.sort_order = meta_sort_order;
-			} else {
-				// default
-				this.args.sort_by = "modified";
-				this.args.sort_order = "desc";
-			}
+		if (meta_sort_field) {
+			this.args.sort_by = meta_sort_field;
+			this.args.sort_order = meta_sort_order;
+		} else {
+			// default
+			this.args.sort_by = "creation";
+			this.args.sort_order = "desc";
 		}
 
 		if (!this.args.sort_by_label) {
@@ -154,7 +161,7 @@ frappe.ui.SortSelector = class SortSelector {
 
 		// set default
 		this.sort_by = this.args.sort_by;
-		this.sort_order = this.args.sort_order;
+		this.sort_order = this.args.sort_order = this.args.sort_order.toLowerCase();
 	}
 	get_meta_sort_field() {
 		var meta = frappe.get_meta(this.doctype);
@@ -166,15 +173,15 @@ frappe.ui.SortSelector = class SortSelector {
 			};
 		}
 
-		if (meta.sort_field && meta.sort_field.includes(",")) {
+		if (meta.sort_field) {
 			var parts = meta.sort_field.split(",")[0].split(" ");
 			return {
 				meta_sort_field: parts[0],
-				meta_sort_order: parts[1],
+				meta_sort_order: meta.sort_order ? meta.sort_order.toLowerCase() : "",
 			};
 		} else {
 			return {
-				meta_sort_field: meta.sort_field || "modified",
+				meta_sort_field: meta.sort_field || "creation",
 				meta_sort_order: meta.sort_order ? meta.sort_order.toLowerCase() : "",
 			};
 		}
@@ -187,7 +194,14 @@ frappe.ui.SortSelector = class SortSelector {
 		}
 	}
 	get_sql_string() {
-		// build string like `tabTask`.`subject` desc
-		return "`tab" + this.doctype + "`.`" + this.sort_by + "` " + this.sort_order;
+		// build string like: `tabSales Invoice`.subject, `tabSales Invoice`.name desc
+		const table_name = "`tab" + this.doctype + "`";
+		const sort_by = `${table_name}.${this.sort_by}`;
+		if (!["name", "creation", "modified"].includes(this.sort_by)) {
+			// add name column for deterministic ordering
+			return `${sort_by} ${this.sort_order}, ${table_name}.name ${this.sort_order}`;
+		} else {
+			return `${sort_by} ${this.sort_order}`;
+		}
 	}
 };

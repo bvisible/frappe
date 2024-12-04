@@ -10,16 +10,17 @@ frappe.request.ajax_count = 0;
 frappe.request.waiting_for_ajax = [];
 frappe.request.logs = {};
 
-frappe.xcall = function (method, params) {
+frappe.xcall = function (method, params, type) {
 	return new Promise((resolve, reject) => {
 		frappe.call({
 			method: method,
 			args: params,
+			type: type || "POST",
 			callback: (r) => {
 				resolve(r.message);
 			},
 			error: (r) => {
-				reject(r.message);
+				reject(r?.message);
 			},
 		});
 	});
@@ -88,7 +89,11 @@ frappe.call = function (opts) {
 
 	let url = opts.url;
 	if (!url) {
-		url = "/api/method/" + args.cmd;
+		let prefix = "/api/method/";
+		if (opts.api_version) {
+			prefix = `/api/${opts.api_version}/method/`;
+		}
+		url = prefix + args.cmd;
 		if (window.cordova) {
 			let host = frappe.request.url;
 			host = host.slice(0, host.length - 1);
@@ -116,6 +121,7 @@ frappe.call = function (opts) {
 		// show_spinner: !opts.no_spinner,
 		async: opts.async,
 		silent: opts.silent,
+		api_version: opts.api_version,
 		url,
 	});
 };
@@ -133,6 +139,7 @@ frappe.request.call = function (opts) {
 			} else {
 				frappe.app.handle_session_expired();
 			}
+			opts.error_callback && opts.error_callback();
 		},
 		404: function (xhr) {
 			frappe.msgprint({
@@ -140,6 +147,7 @@ frappe.request.call = function (opts) {
 				indicator: "red",
 				message: __("The resource you are looking for is not available"),
 			});
+			opts.error_callback && opts.error_callback();
 		},
 		403: function (xhr) {
 			if (frappe.session.user === "Guest" && frappe.session.logged_in_user !== "Guest") {
@@ -169,6 +177,7 @@ frappe.request.call = function (opts) {
 					),
 				});
 			}
+			opts.error_callback && opts.error_callback();
 		},
 		508: function (xhr) {
 			frappe.utils.play_sound("error");
@@ -179,6 +188,7 @@ frappe.request.call = function (opts) {
 					"Another transaction is blocking this one. Please try again in a few seconds."
 				),
 			});
+			opts.error_callback && opts.error_callback();
 		},
 		413: function (data, xhr) {
 			frappe.msgprint({
@@ -188,6 +198,7 @@ frappe.request.call = function (opts) {
 					(frappe.boot.max_file_size || 5242880) / 1048576,
 				]),
 			});
+			opts.error_callback && opts.error_callback();
 		},
 		417: function (xhr) {
 			var r = xhr.responseJSON;
@@ -220,6 +231,7 @@ frappe.request.call = function (opts) {
 		},
 		502: function (xhr) {
 			frappe.msgprint(__("Internal Server Error"));
+			opts.error_callback && opts.error_callback();
 		},
 	};
 
@@ -256,7 +268,7 @@ frappe.request.call = function (opts) {
 			},
 			opts.headers
 		),
-		cache: false,
+		cache: window.dev_server ? false : true,
 	};
 
 	if (opts.args && opts.args.doctype) {
@@ -438,12 +450,18 @@ frappe.request.cleanup = function (opts, r) {
 		}
 
 		// show messages
-		if (r._server_messages && !opts.silent) {
+		//
+		let messages;
+		if (opts.api_version == "v2") {
+			messages = r.messages;
+		} else if (r._server_messages) {
+			messages = JSON.parse(r._server_messages);
+		}
+		if (messages && !opts.silent) {
 			// show server messages if no handlers exist
 			if (handlers.length === 0) {
-				r._server_messages = JSON.parse(r._server_messages);
 				frappe.hide_msgprint();
-				frappe.msgprint(r._server_messages);
+				frappe.msgprint(messages);
 			}
 		}
 
@@ -466,8 +484,8 @@ frappe.request.cleanup = function (opts, r) {
 			if (opts.args) {
 				console.log("======== arguments ========");
 				console.log(opts.args);
-				console.log("========");
 			}
+			console.log("======== debug messages ========");
 			$.each(JSON.parse(r._debug_messages), function (i, v) {
 				console.log(v);
 			});
@@ -523,6 +541,9 @@ frappe.request.report_error = function (xhr, request_opts) {
 
 	const copy_markdown_to_clipboard = () => {
 		const code_block = (snippet) => "```\n" + snippet + "\n```";
+
+		let request_data = Object.assign({}, request_opts);
+		request_data.request_id = xhr.getResponseHeader("X-Frappe-Request-Id");
 		const traceback_info = [
 			"### App Versions",
 			code_block(JSON.stringify(frappe.boot.versions, null, "\t")),
@@ -531,7 +552,7 @@ frappe.request.report_error = function (xhr, request_opts) {
 			"### Traceback",
 			code_block(exc),
 			"### Request Data",
-			code_block(JSON.stringify(request_opts, null, "\t")),
+			code_block(JSON.stringify(request_data, null, "\t")),
 			"### Response Data",
 			code_block(JSON.stringify(data, null, "\t")),
 		].join("\n");
@@ -584,21 +605,19 @@ frappe.request.report_error = function (xhr, request_opts) {
 		if (!frappe.error_dialog) {
 			frappe.error_dialog = new frappe.ui.Dialog({
 				title: __("Server Error"),
-				primary_action_label: __("Report"),
-				primary_action: () => {
-					if (error_report_email) {
-						show_communication();
-					} else {
-						frappe.msgprint(__("Support Email Address Not Specified"));
-					}
+			});
+
+			if (error_report_email) {
+				frappe.error_dialog.set_primary_action(__("Report"), () => {
+					show_communication();
 					frappe.error_dialog.hide();
-				},
-				secondary_action_label: __("Copy error to clipboard"),
-				secondary_action: () => {
+				});
+			} else {
+				frappe.error_dialog.set_primary_action(__("Copy error to clipboard"), () => {
 					copy_markdown_to_clipboard();
 					frappe.error_dialog.hide();
-				},
-			});
+				});
+			}
 			frappe.error_dialog.wrapper.classList.add("msgprint-dialog");
 		}
 

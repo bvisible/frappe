@@ -4,8 +4,11 @@
 frappe.ui.form.on("Number Card", {
 	refresh: function (frm) {
 		if (!frappe.boot.developer_mode && frm.doc.is_standard) {
-			frm.disable_form();
+			frm.disable_save();
+		} else {
+			frm.enable_save();
 		}
+
 		frm.set_df_property("filters_section", "hidden", 1);
 		frm.set_df_property("dynamic_filters_section", "hidden", 1);
 		frm.trigger("set_options");
@@ -19,12 +22,7 @@ frappe.ui.form.on("Number Card", {
 		}
 
 		if (frm.doc.type == "Custom") {
-			if (!frappe.boot.developer_mode) {
-				frm.disable_form();
-			}
 			frm.filters = eval(frm.doc.filters_config);
-			frm.trigger("set_filters_description");
-			frm.trigger("set_method_description");
 			frm.trigger("render_filters_table");
 		}
 		frm.trigger("set_parent_document_type");
@@ -35,7 +33,7 @@ frappe.ui.form.on("Number Card", {
 	},
 
 	create_add_to_dashboard_button: function (frm) {
-		frm.add_custom_button("Add Card to Dashboard", () => {
+		frm.add_custom_button(__("Add Card to Dashboard"), () => {
 			const dialog = frappe.dashboard_utils.get_add_to_dashboard_dialog(
 				frm.doc.name,
 				"Number Card",
@@ -68,47 +66,7 @@ frappe.ui.form.on("Number Card", {
 		frm.set_df_property("dynamic_filters_section", "hidden", 1);
 	},
 
-	set_filters_description: function (frm) {
-		if (frm.doc.type == "Custom") {
-			frm.fields_dict.filters_config.set_description(`
-		Set the filters here. For example:
-<pre class="small text-muted">
-<code>
-[{
-	fieldname: "company",
-	label: __("Company"),
-	fieldtype: "Link",
-	options: "Company",
-	default: frappe.defaults.get_user_default("Company"),
-	reqd: 1
-},
-{
-	fieldname: "account",
-	label: __("Account"),
-	fieldtype: "Link",
-	options: "Account",
-	reqd: 1
-}]
-</code></pre>`);
-		}
-	},
-
-	set_method_description: function (frm) {
-		if (frm.doc.type == "Custom") {
-			frm.fields_dict.method.set_description(`
-		Set the path to a whitelisted function that will return the number on the card in the format:
-<pre class="small text-muted">
-<code>
-{
-	"value": value,
-	"fieldtype": "Currency"
-}
-</code></pre>`);
-		}
-	},
-
 	type: function (frm) {
-		frm.trigger("set_filters_description");
 		if (frm.doc.type == "Report") {
 			frm.set_query("report_name", () => {
 				return {
@@ -315,6 +273,9 @@ frappe.ui.form.on("Number Card", {
 		}
 
 		table.on("click", () => {
+			if (!frappe.boot.developer_mode && frm.doc.is_standard) {
+				frappe.throw(__("Cannot edit filters for standard number cards"));
+			}
 			let dialog = new frappe.ui.Dialog({
 				title: __("Set Filters"),
 				fields: fields.filter((f) => !is_dynamic_filter(f)),
@@ -331,7 +292,7 @@ frappe.ui.form.on("Number Card", {
 						frm.trigger("render_filters_table");
 					}
 				},
-				primary_action_label: "Set",
+				primary_action_label: __("Set"),
 			});
 
 			if (is_document_type) {
@@ -361,7 +322,7 @@ frappe.ui.form.on("Number Card", {
 	},
 
 	render_dynamic_filters_table(frm) {
-		if (!frappe.boot.developer_mode || !frm.doc.is_standard || frm.doc.type == "Custom") {
+		if (frm.doc.type == "Custom") {
 			return;
 		}
 
@@ -399,6 +360,9 @@ frappe.ui.form.on("Number Card", {
 		);
 
 		frm.dynamic_filter_table.on("click", () => {
+			if (!frappe.boot.developer_mode && frm.doc.is_standard) {
+				frappe.throw(__("Cannot edit filters for standard number cards"));
+			}
 			let dialog = new frappe.ui.Dialog({
 				title: __("Set Dynamic Filters"),
 				fields: fields,
@@ -420,7 +384,7 @@ frappe.ui.form.on("Number Card", {
 					}
 					frm.trigger("set_dynamic_filters_in_table");
 				},
-				primary_action_label: "Set",
+				primary_action_label: __("Set"),
 			});
 
 			dialog.show();

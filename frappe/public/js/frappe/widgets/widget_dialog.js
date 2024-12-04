@@ -32,12 +32,45 @@ class WidgetDialog {
 	}
 
 	get_title() {
-		// DO NOT REMOVE: Comment to load translation
-		// __("New Chart") __("New Shortcut") __("Edit Chart") __("Edit Shortcut")
+		if (this.editing) {
+			switch (this.type) {
+				case "chart":
+					return __("Edit Chart");
+				case "shortcut":
+					return __("Edit Shortcut");
+				case "links":
+					return __("Edit Links");
+				case "number_card":
+					return __("Edit Number Card");
+				case "onboarding":
+					return __("Edit Onboarding");
+				case "quick_list":
+					return __("Edit Quick List");
+				case "custom_block":
+					return __("Edit Custom Block");
+				default:
+					return __("Edit {0}", [__(frappe.model.unscrub(this.type))]);
+			}
+		}
 
-		let action = this.editing ? "Edit" : "Add";
-		let label = (action = action + " " + frappe.model.unscrub(this.type));
-		return __(label);
+		switch (this.type) {
+			case "chart":
+				return __("New Chart");
+			case "shortcut":
+				return __("New Shortcut");
+			case "links":
+				return __("New Links");
+			case "number_card":
+				return __("New Number Card");
+			case "onboarding":
+				return __("New Onboarding");
+			case "quick_list":
+				return __("New Quick List");
+			case "custom_block":
+				return __("New Custom Block");
+			default:
+				return __("New {0}", [__(frappe.model.unscrub(this.type))]);
+		}
 	}
 
 	get_fields() {
@@ -101,7 +134,7 @@ class ChartDialog extends WidgetDialog {
 			{
 				fieldtype: "Link",
 				fieldname: "chart_name",
-				label: "Chart Name",
+				label: __("Chart Name"),
 				options: "Dashboard Chart",
 				reqd: 1,
 			},
@@ -128,7 +161,7 @@ class QuickListDialog extends WidgetDialog {
 			{
 				fieldtype: "Link",
 				fieldname: "document_type",
-				label: "DocType",
+				label: __("DocType"),
 				options: "DocType",
 				reqd: 1,
 				onchange: () => {
@@ -145,13 +178,9 @@ class QuickListDialog extends WidgetDialog {
 				},
 			},
 			{
-				fieldtype: "Column Break",
-				fieldname: "column_break_4",
-			},
-			{
 				fieldtype: "Data",
 				fieldname: "label",
-				label: "Label",
+				label: __("Label"),
 			},
 			{
 				fieldtype: "Section Break",
@@ -182,7 +211,7 @@ class QuickListDialog extends WidgetDialog {
 	process_data(data) {
 		if (this.filter_group) {
 			let filters = this.filter_group.get_filters();
-			data.quick_list_filter = frappe.utils.get_filter_as_json(filters);
+			data.quick_list_filter = JSON.stringify(filters);
 		}
 
 		data.label = data.label ? data.label : data.document_type;
@@ -200,7 +229,7 @@ class OnboardingDialog extends WidgetDialog {
 			{
 				fieldtype: "Link",
 				fieldname: "onboarding_name",
-				label: "Onboarding Name",
+				label: __("Onboarding Name"),
 				options: "Module Onboarding",
 				reqd: 1,
 			},
@@ -219,7 +248,13 @@ class CardDialog extends WidgetDialog {
 			{
 				fieldtype: "Data",
 				fieldname: "label",
-				label: "Label",
+				label: __("Label"),
+			},
+			{
+				fieldtype: "HTML Editor",
+				fieldname: "description",
+				label: __("Description"),
+				max_height: "7rem",
 			},
 			{
 				fieldname: "links",
@@ -232,21 +267,10 @@ class CardDialog extends WidgetDialog {
 				},
 				fields: [
 					{
-						fieldname: "label",
-						fieldtype: "Data",
-						in_list_view: 1,
-						label: "Label",
-					},
-					{
-						fieldname: "icon",
-						fieldtype: "Icon",
-						label: "Icon",
-					},
-					{
 						fieldname: "link_type",
 						fieldtype: "Select",
 						in_list_view: 1,
-						label: "Link Type",
+						label: __("Link Type"),
 						reqd: 1,
 						options: ["DocType", "Page", "Report"],
 					},
@@ -254,38 +278,54 @@ class CardDialog extends WidgetDialog {
 						fieldname: "link_to",
 						fieldtype: "Dynamic Link",
 						in_list_view: 1,
-						label: "Link To",
+						label: __("Link To"),
 						reqd: 1,
 						get_options: (df) => {
 							return df.doc.link_type;
 						},
+						get_query: function (df) {
+							if (df.link_type == "DocType") {
+								return {
+									filters: {
+										istable: 0,
+									},
+								};
+							}
+						},
 					},
 					{
-						fieldname: "column_break_7",
-						fieldtype: "Column Break",
+						fieldname: "label",
+						fieldtype: "Data",
+						in_list_view: 1,
+						label: __("Label"),
+					},
+					{
+						fieldname: "icon",
+						fieldtype: "Icon",
+						label: "Icon",
 					},
 					{
 						fieldname: "dependencies",
 						fieldtype: "Data",
-						label: "Dependencies",
+						label: __("Dependencies"),
 					},
 					{
 						fieldname: "only_for",
 						fieldtype: "Link",
-						label: "Only for",
+						label: __("Only for"),
 						options: "Country",
 					},
 					{
 						default: "0",
 						fieldname: "onboard",
 						fieldtype: "Check",
-						label: "Onboard",
+						label: __("Onboard"),
 					},
 					{
 						default: "0",
 						fieldname: "is_query_report",
 						fieldtype: "Check",
-						label: "Is Query Report",
+						label: __("Is Query Report"),
 					},
 				],
 			},
@@ -348,9 +388,10 @@ class ShortcutDialog extends WidgetDialog {
 			{
 				fieldtype: "Select",
 				fieldname: "type",
-				label: "Type",
+				label: __("Type"),
 				reqd: 1,
 				options: "DocType\nReport\nPage\nDashboard\nURL",
+				initial_value: "DocType",
 				onchange: () => {
 					if (this.dialog.get_value("type") == "DocType") {
 						this.dialog.fields_dict.link_to.get_query = () => {
@@ -368,18 +409,9 @@ class ShortcutDialog extends WidgetDialog {
 				},
 			},
 			{
-				fieldtype: "Data",
-				fieldname: "label",
-				label: "Label",
-			},
-			{
-				fieldtype: "Column Break",
-				fieldname: "column_break_4",
-			},
-			{
 				fieldtype: "Dynamic Link",
 				fieldname: "link_to",
-				label: "Link To",
+				label: __("Link To"),
 				options: "type",
 				onchange: () => {
 					const doctype = this.dialog.get_value("link_to");
@@ -396,6 +428,7 @@ class ShortcutDialog extends WidgetDialog {
 
 							const views = ["List", "Report Builder", "Dashboard", "New"];
 							if (meta.is_tree === 1) views.push("Tree");
+							if (meta.image_field) views.push("Image");
 							if (frappe.boot.calendars.includes(doctype)) views.push("Calendar");
 
 							const response = await frappe.db.get_value(
@@ -416,9 +449,13 @@ class ShortcutDialog extends WidgetDialog {
 			},
 			{
 				fieldtype: "Data",
+				fieldname: "label",
+				label: __("Label"),
+			},
+			{
+				fieldtype: "Data",
 				fieldname: "url",
-				label: "URL",
-				options: "URL",
+				label: __("URL"),
 				default: "",
 				depends_on: (s) => s.type == "URL",
 				mandatory_depends_on: (s) => s.type == "URL",
@@ -426,8 +463,8 @@ class ShortcutDialog extends WidgetDialog {
 			{
 				fieldtype: "Select",
 				fieldname: "doc_view",
-				label: "DocType View",
-				options: "List\nReport Builder\nDashboard\nTree\nNew\nCalendar\nKanban",
+				label: __("DocType View"),
+				options: "List\nReport Builder\nDashboard\nTree\nNew\nCalendar\nKanban\nImage",
 				description: __(
 					"Which view of the associated DocType should this shortcut take you to?"
 				),
@@ -458,7 +495,7 @@ class ShortcutDialog extends WidgetDialog {
 			{
 				fieldtype: "Link",
 				fieldname: "kanban_board",
-				label: "Kanban Board",
+				label: __("Kanban Board"),
 				options: "Kanban Board",
 				depends_on: () => {
 					let doc_view = this.dialog?.get_value("doc_view");
@@ -510,10 +547,6 @@ class ShortcutDialog extends WidgetDialog {
 				},
 			},
 			{
-				fieldtype: "Column Break",
-				fieldname: "column_break_3",
-			},
-			{
 				fieldtype: "Data",
 				fieldname: "format",
 				label: __("Format"),
@@ -540,13 +573,17 @@ class ShortcutDialog extends WidgetDialog {
 	process_data(data) {
 		if (this.dialog.get_value("type") == "DocType" && this.filter_group) {
 			let filters = this.filter_group.get_filters();
-			data.stats_filter = frappe.utils.get_filter_as_json(filters);
+			data.stats_filter = JSON.stringify(filters);
 		}
 
 		data.label = data.label ? data.label : frappe.model.unscrub(data.link_to);
 
 		if (data.url) {
-			!validate_url(data.url) &&
+			let _url = data.url;
+			if (data.url.startsWith("/")) {
+				_url = frappe.urllib.get_base_url() + data.url;
+			}
+			!validate_url(_url) &&
 				frappe.throw({
 					message: __("<b>{0}</b> is not a valid URL", [data.url]),
 					title: __("Invalid URL"),
@@ -644,10 +681,6 @@ class NumberCardDialog extends WidgetDialog {
 				label: __("Color"),
 				fieldname: "color",
 				fieldtype: "Color",
-			},
-			{
-				fieldtype: "Column Break",
-				fieldname: "cb_1",
 			},
 			{
 				label: __("Function"),

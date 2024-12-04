@@ -50,10 +50,28 @@ export default class OnboardingWidget extends Widget {
 
 		let $step = $(`<a class="onboarding-step ${status}">
 				<div class="step-title">
-					<div class="step-index step-pending">${__(index + 1)}</div>
-					<div class="step-index step-skipped">${frappe.utils.icon("tick", "xs")}</div>
-					<div class="step-index step-complete">${frappe.utils.icon("tick", "xs")}</div>
-					<div>${__(step.title)}</div>
+					<div class="step-index step-pending">${frappe.utils.icon(
+						"es-line-success",
+						"md",
+						"",
+						"",
+						"step-icon"
+					)}</div>
+					<div class="step-index step-skipped">${frappe.utils.icon(
+						"es-line-close-circle",
+						"md",
+						"",
+						"--icon-stroke: var(--gray-600);",
+						"step-icon"
+					)}</div>
+					<div class="step-index step-complete">${frappe.utils.icon(
+						"es-solid-success",
+						"md",
+						"",
+						"",
+						"step-icon"
+					)}</div>
+					<div class="step-text">${__(step.title)}</div>
 				</div>
 			</a>`);
 
@@ -106,14 +124,14 @@ export default class OnboardingWidget extends Widget {
 			set_description();
 
 			if (step.intro_video_url) {
-				$(`<button class="btn btn-primary btn-sm">${__("Watch Tutorial")}</button>`)
+				$(`<button class="btn btn-default btn-sm">${__("Watch Tutorial")}</button>`)
 					.appendTo(this.step_footer)
 					.on("click", toggle_video);
 			} else {
 				$(
-					`<button class="btn btn-primary btn-sm">${__(
-						step.action_label || step.action
-					)}</button>`
+					`<button class="btn btn-default btn-sm">${
+						__(step.action_label) || __(step.action)
+					}</button>`
 				)
 					.appendTo(this.step_footer)
 					.on("click", () => actions[step.action](step));
@@ -121,8 +139,8 @@ export default class OnboardingWidget extends Widget {
 		};
 
 		const set_description = () => {
-			let content = step.description
-				? frappe.markdown(step.description)
+			let content = __(step.description)
+				? frappe.markdown(__(step.description))
 				: `<h1>${__(step.title)}</h1>`;
 
 			if (step.action === "Create Entry") {
@@ -150,20 +168,15 @@ export default class OnboardingWidget extends Widget {
 			});
 
 			$(
-				`<button class="btn btn-primary btn-sm">${__(
-					step.action_label || step.action
-				)}</button>`
+				`<button class="btn btn-primary btn-sm">${
+					__(step.action_label) || __(step.action)
+				}</button>`
 			)
 				.appendTo(this.step_footer)
 				.on("click", () => {
 					plyr.pause();
 					actions[step.action](step);
 				});
-
-			// Fire only once, on hashchange
-			$(window).one("hashchange", () => {
-				plyr.pause();
-			});
 
 			$(`<button class="btn btn-secondary ml-2 btn-sm">${__("Back")}</button>`)
 				.appendTo(this.step_footer)
@@ -556,7 +569,7 @@ export default class OnboardingWidget extends Widget {
 
 		this.action_area.empty();
 		const dismiss = $(
-			`<div class="small" style="cursor:pointer;">${__(
+			`<div class="btn btn-sm btn-secondary small" style="cursor:pointer;">${__(
 				"Dismiss",
 				null,
 				"Stop showing the onboarding widget."

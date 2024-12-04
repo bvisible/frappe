@@ -17,6 +17,9 @@ def savedocs(doc, action):
 	"""save / submit / update doclist"""
 	doc = frappe.get_doc(json.loads(doc))
 	capture_doc(doc, action)
+	if doc.get("__islocal") and doc.name.startswith("new-" + doc.doctype.lower().replace(" ", "-")):
+		# required to relink missing attachments if they exist.
+		doc.__temporary_name = doc.name
 	set_local_name(doc)
 
 	# action
@@ -54,6 +57,17 @@ def cancel(doctype=None, name=None, workflow_state_fieldname=None, workflow_stat
 	doc.cancel()
 	send_updated_docs(doc)
 	frappe.msgprint(frappe._("Cancelled"), indicator="red", alert=True)
+
+
+@frappe.whitelist()
+def discard(doctype: str, name: str | int):
+	"""discard a draft document"""
+	doc = frappe.get_doc(doctype, name)
+	capture_doc(doc, "Discard")
+
+	doc.discard()
+	send_updated_docs(doc)
+	frappe.msgprint(frappe._("Discarded"), indicator="red", alert=True)
 
 
 def send_updated_docs(doc):

@@ -31,6 +31,9 @@ frappe.setup = {
 };
 
 frappe.pages["setup-wizard"].on_page_load = function (wrapper) {
+	if (frappe.boot.setup_complete) {
+		window.location.href = frappe.boot.apps_data.default_path || "/app";
+	}
 	let requires = frappe.boot.setup_wizard_requires || [];
 	frappe.require(requires, function () {
 		frappe.call({
@@ -193,7 +196,7 @@ frappe.setup.SetupWizard = class SetupWizard extends frappe.ui.Slides {
 					this.abort_setup(r.message.fail);
 				}
 			},
-			error: () => this.abort_setup("Error in setup"),
+			error: () => this.abort_setup(),
 		});
 	}
 
@@ -204,13 +207,17 @@ frappe.setup.SetupWizard = class SetupWizard extends frappe.ui.Slides {
 		}
 		setTimeout(function () {
 			// Reload
-			window.location.href = "/app";
+			window.location.href = frappe.boot.apps_data.default_path || "/app";
 		}, 2000);
 	}
 
 	abort_setup(fail_msg) {
 		this.$working_state.find(".state-icon-container").html("");
-		fail_msg = fail_msg ? fail_msg : __("Failed to complete setup");
+		fail_msg = fail_msg
+			? fail_msg
+			: frappe.last_response.setup_wizard_failure_message
+			? frappe.last_response.setup_wizard_failure_message
+			: __("Failed to complete setup");
 
 		this.update_setup_message("Could not start up: " + fail_msg);
 
@@ -342,12 +349,16 @@ frappe.setup.SetupWizardSlide = class SetupWizardSlide extends frappe.ui.Slide {
 	setup_telemetry_events() {
 		let me = this;
 		this.fields.filter(frappe.model.is_value_type).forEach((field) => {
-			me.get_input(field.fieldname).on("change", function () {
-				frappe.telemetry.capture(`${field.fieldname}_set`, "setup");
-				if (field.fieldname == "enable_telemetry" && !me.get_value("enable_telemetry")) {
-					frappe.telemetry.disable();
-				}
-			});
+			field.fieldname &&
+				me.get_input(field.fieldname)?.on?.("change", function () {
+					frappe.telemetry.capture(`${field.fieldname}_set`, "setup");
+					if (
+						field.fieldname == "enable_telemetry" &&
+						!me.get_value("enable_telemetry")
+					) {
+						frappe.telemetry.disable();
+					}
+				});
 		});
 	}
 };
@@ -386,7 +397,6 @@ frappe.setup.slides_settings = [
 				fieldtype: "Select",
 				reqd: 1,
 			},
-			{ fieldtype: "Column Break" },
 			{
 				fieldname: "currency",
 				label: __("Currency"),
@@ -399,9 +409,10 @@ frappe.setup.slides_settings = [
 			},
 			{
 				fieldname: "enable_telemetry",
-				label: __("Allow Sending Usage Data for Improving Applications"),
+				label: __("Allow sending usage data for improving applications"),
 				fieldtype: "Check",
-				default: 1,
+				default: cint(frappe.telemetry.can_enable()),
+				depends_on: "eval:frappe.telemetry.can_enable()",
 			},
 		],
 
@@ -452,23 +463,28 @@ frappe.setup.slides_settings = [
 				fieldtype: "Data",
 				options: "Email",
 			},
-			{ fieldname: "password", label: __("Password"), fieldtype: "Password" },
+			{
+				fieldname: "password",
+				label:
+					frappe.session.user === "Administrator"
+						? __("Password")
+						: __("Update Password"),
+				fieldtype: "Password",
+				length: 512,
+			},
 		],
 
 		onload: function (slide) {
 			if (frappe.session.user !== "Administrator") {
-				slide.form.fields_dict.email.$wrapper.toggle(false);
-				slide.form.fields_dict.password.$wrapper.toggle(false);
-
-				// remove password field
-				delete slide.form.fields_dict.password;
-
-				if (frappe.boot.user.first_name || frappe.boot.user.last_name) {
+				const { first_name, last_name, email } = frappe.boot.user;
+				if (first_name || last_name) {
 					slide.form.fields_dict.full_name.set_input(
-						[frappe.boot.user.first_name, frappe.boot.user.last_name].join(" ").trim()
+						[first_name, last_name].join(" ").trim()
 					);
 				}
-				delete slide.form.fields_dict.email;
+				slide.form.fields_dict.email.set_input(email);
+				slide.form.fields_dict.email.df.read_only = 1;
+				slide.form.fields_dict.email.refresh();
 			} else {
 				slide.form.fields_dict.email.df.reqd = 1;
 				slide.form.fields_dict.email.refresh();
@@ -596,9 +612,11 @@ frappe.setup.utils = {
 			Bind a slide's country, timezone and currency fields
 		*/
 		slide.get_input("country").on("change", function () {
-			let country = slide.get_input("country").val();
-			let $timezone = slide.get_input("timezone");
 			let data = frappe.setup.data.regional_data;
+			let country = slide.get_input("country").val();
+			if (!(country in data.country_info)) return;
+
+			let $timezone = slide.get_input("timezone");
 
 			$timezone.empty();
 

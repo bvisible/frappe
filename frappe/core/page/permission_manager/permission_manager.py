@@ -12,6 +12,7 @@ from frappe.core.doctype.doctype.doctype import (
 from frappe.exceptions import DoesNotExistError
 from frappe.modules.import_file import get_file_path, read_doc_from_file
 from frappe.permissions import (
+	AUTOMATIC_ROLES,
 	add_permission,
 	get_all_perms,
 	get_linked_doctypes,
@@ -44,7 +45,7 @@ def get_roles_and_doctypes():
 	if frappe.session.user != "Administrator":
 		custom_user_type_roles = frappe.get_all("User Type", filters={"is_standard": 0}, fields=["role"])
 		restricted_roles.extend(row.role for row in custom_user_type_roles)
-		restricted_roles.append("All")
+		restricted_roles.extend(AUTOMATIC_ROLES)
 
 	roles = frappe.get_all(
 		"Role",
@@ -108,8 +109,8 @@ def add(parent, role, permlevel):
 
 
 @frappe.whitelist()
-def update(doctype, role, permlevel, ptype, value=None):
-	"""Update role permission params
+def update(doctype: str, role: str, permlevel: int, ptype: str, value=None, if_owner=0) -> str | None:
+	"""Update role permission params.
 
 	Args:
 	        doctype (str): Name of the DocType to update params for
@@ -118,15 +119,22 @@ def update(doctype, role, permlevel, ptype, value=None):
 	        ptype (str): permission type, example "read", "delete", etc.
 	        value (None, optional): value for ptype, None indicates False
 
-	Returns:
-	        str: Refresh flag is permission is updated successfully
+	Return:
+	        str: Refresh flag if permission is updated successfully
 	"""
 
 	def clear_cache():
 		frappe.clear_cache(doctype=doctype)
 
 	frappe.only_for("System Manager")
-	out = update_permission_property(doctype, role, permlevel, ptype, value)
+
+	if ptype == "report" and value == "1" and if_owner == "1":
+		frappe.throw(_("Cannot set 'Report' permission if 'Only If Creator' permission is set"))
+
+	out = update_permission_property(doctype, role, permlevel, ptype, value, if_owner=if_owner)
+
+	if ptype == "if_owner" and value == "1":
+		update_permission_property(doctype, role, permlevel, "report", "0", if_owner=value)
 
 	frappe.db.after_commit.add(clear_cache)
 
@@ -134,11 +142,15 @@ def update(doctype, role, permlevel, ptype, value=None):
 
 
 @frappe.whitelist()
-def remove(doctype, role, permlevel):
+def remove(doctype, role, permlevel, if_owner=0):
 	frappe.only_for("System Manager")
 	setup_custom_perms(doctype)
 
-	frappe.db.delete("Custom DocPerm", {"parent": doctype, "role": role, "permlevel": permlevel})
+	custom_docperms = frappe.db.get_values(
+		"Custom DocPerm", {"parent": doctype, "role": role, "permlevel": permlevel, "if_owner": if_owner}
+	)
+	for name in custom_docperms:
+		frappe.delete_doc("Custom DocPerm", name, ignore_permissions=True)
 
 	if not frappe.get_all("Custom DocPerm", {"parent": doctype}):
 		frappe.throw(_("There must be atleast one permission rule."), title=_("Cannot Remove"))

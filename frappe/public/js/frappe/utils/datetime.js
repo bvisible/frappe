@@ -82,6 +82,10 @@ $.extend(frappe.datetime, {
 		return moment(d1).diff(d2, "hours");
 	},
 
+	get_minute_diff: function (d1, d2) {
+		return moment(d1).diff(d2, "minutes");
+	},
+
 	get_day_diff: function (d1, d2) {
 		return moment(d1).diff(d2, "days");
 	},
@@ -163,7 +167,9 @@ $.extend(frappe.datetime, {
 	},
 
 	get_datetime_as_string: function (d) {
-		return moment(d).format("YYYY-MM-DD HH:mm:ss");
+		let time_format = frappe?.boot?.sysdefaults?.time_format || frappe.defaultTimeFormat;
+		let datetime_format = frappe.defaultDateFormat + " " + time_format;
+		return moment(d).format(datetime_format);
 	},
 
 	user_to_str: function (val, only_time = false) {

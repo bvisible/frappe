@@ -3,6 +3,7 @@
 
 import json
 import os
+from pathlib import Path
 
 import frappe
 from frappe.model.document import Document
@@ -18,12 +19,19 @@ class ModuleDef(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
-		app_name: DF.Literal
+		app_name: DF.Literal[None]
 		custom: DF.Check
 		module_name: DF.Data
 		package: DF.Link | None
 		restrict_to_domain: DF.Link | None
 	# end: auto-generated types
+
+	def validate(self):
+		from frappe.modules.utils import get_module_app
+
+		if not self.app_name and not self.custom:
+			self.app_name = get_module_app(self.name)
+
 	def on_update(self):
 		"""If in `developer_mode`, create folder for module and
 		add in `modules.txt` of app if missing."""
@@ -46,7 +54,7 @@ class ModuleDef(Document):
 		if not frappe.local.module_app.get(frappe.scrub(self.name)):
 			with open(frappe.get_app_path(self.app_name, "modules.txt")) as f:
 				content = f.read()
-				if not self.name in content.splitlines():
+				if self.name not in content.splitlines():
 					modules = list(filter(None, content.splitlines()))
 					modules.append(self.name)
 
@@ -63,21 +71,23 @@ class ModuleDef(Document):
 		if not frappe.conf.get("developer_mode") or frappe.flags.in_uninstall or self.custom:
 			return
 
-		modules = None
 		if frappe.local.module_app.get(frappe.scrub(self.name)):
-			delete_folder(self.module_name, "Module Def", self.name)
-			with open(frappe.get_app_path(self.app_name, "modules.txt")) as f:
-				content = f.read()
-				if self.name in content.splitlines():
-					modules = list(filter(None, content.splitlines()))
-					modules.remove(self.name)
+			frappe.db.after_commit.add(self.delete_module_from_file)
 
-			if modules:
-				with open(frappe.get_app_path(self.app_name, "modules.txt"), "w") as f:
-					f.write("\n".join(modules))
+	def delete_module_from_file(self):
+		delete_folder(self.module_name, "Module Def", self.name)
+		modules = []
 
-				frappe.clear_cache()
-				frappe.setup_module_map()
+		modules_txt = Path(frappe.get_app_path(self.app_name, "modules.txt"))
+		modules = [m for m in modules_txt.read_text().splitlines() if m]
+
+		if self.name in modules:
+			modules.remove(self.name)
+
+		if modules:
+			modules_txt.write_text("\n".join(modules))
+			frappe.clear_cache()
+			frappe.setup_module_map()
 
 
 @frappe.whitelist()

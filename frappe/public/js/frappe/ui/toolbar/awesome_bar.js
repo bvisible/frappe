@@ -29,16 +29,27 @@ frappe.search.AwesomeBar = class AwesomeBar {
 				};
 			},
 			item: function (item, term) {
-				var d = this.get_item(item.value);
-				var name = __(d.label || d.value);
-				var html = "<span>" + name + "</span>";
+				const d = this.get_item(item.value);
+				let target = "#";
+				if (d.route) {
+					target = frappe.router.make_url(
+						frappe.router.convert_from_standard_route(
+							frappe.router.get_route_from_arguments(
+								typeof d.route === "string" ? [d.route] : d.route
+							)
+						)
+					);
+				}
+				let html = `<span>${__(d.label || d.value)}</span>`;
+
 				if (d.description && d.value !== d.description) {
 					html +=
 						'<br><span class="text-muted ellipsis">' + __(d.description) + "</span>";
 				}
+
 				return $("<li></li>")
 					.data("item.autocomplete", d)
-					.html(`<a style="font-weight:normal">${html}</a>`)
+					.html(`<a style="font-weight:normal" href="${target}">${html}</a>`)
 					.get(0);
 			},
 			sort: function (a, b) {
@@ -110,6 +121,10 @@ frappe.search.AwesomeBar = class AwesomeBar {
 				let event = o.originalEvent;
 				if (event.ctrlKey || event.metaKey) {
 					frappe.open_in_new_tab = true;
+				}
+				if (item.route[0].startsWith("https://")) {
+					window.open(item.route[0], "_blank");
+					return;
 				}
 				frappe.set_route(item.route);
 			}
@@ -201,7 +216,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 				frappe.search.utils.get_workspaces(txt),
 				frappe.search.utils.get_dashboards(txt),
 				frappe.search.utils.get_recent_pages(txt || ""),
-				frappe.search.utils.get_executables(txt)
+				frappe.search.utils.get_executables(txt),
+				frappe.search.utils.get_marketplace_apps(txt)
 			);
 		if (txt.charAt(0) === "#") {
 			options = frappe.tags.utils.get_tags(txt);
@@ -301,7 +317,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		var route = frappe.get_route();
 		if (route[0] === "List" && txt.indexOf(" in") === -1) {
 			// search in title field
-			var meta = frappe.get_meta(frappe.container.page.list_view.doctype);
+			const doctype = frappe.container.page?.list_view?.doctype;
+			if (!doctype) return;
+			var meta = frappe.get_meta(doctype);
 			var search_field = meta.title_field || "name";
 			var options = {};
 			options[search_field] = ["like", "%" + txt + "%"];
@@ -320,6 +338,11 @@ frappe.search.AwesomeBar = class AwesomeBar {
 	}
 
 	make_calculator(txt) {
+		function getDecimalPlaces(num) {
+			if (Math.floor(num) === num) return 0;
+			return num.toString().split(".")[1].length || 0;
+		}
+
 		var first = txt.substr(0, 1);
 		if (first == parseInt(first) || first === "(" || first === "=") {
 			if (first === "=") {
@@ -327,11 +350,29 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			}
 			try {
 				var val = eval(txt);
-				var formatted_value = __("{0} = {1}", [txt, (val + "").bold()]);
+
+				// Split the input to find the numbers and their decimal places
+				var numbers = txt.match(/[+-]?([0-9]*[.])?[0-9]+/g);
+				var maxDecimalPlaces = 0;
+				if (numbers) {
+					maxDecimalPlaces = Math.max(
+						...numbers.map((num) => getDecimalPlaces(parseFloat(num)))
+					);
+				}
+
+				// Use a default precision of 2 decimal places if no decimal places are found
+				if (maxDecimalPlaces === 0) {
+					maxDecimalPlaces = 2;
+				}
+
+				// Adjust the result to the maximum number of decimal places found or default precision
+				var rounded_val = parseFloat(val.toFixed(maxDecimalPlaces));
+
+				var formatted_value = __("{0} = {1}", [txt, (rounded_val + "").bold()]);
 				this.options.push({
 					label: formatted_value,
-					value: __("{0} = {1}", [txt, val]),
-					match: val,
+					value: __("{0} = {1}", [txt, rounded_val]),
+					match: rounded_val,
 					index: 80,
 					default: "Calculator",
 					onclick: function () {

@@ -1,12 +1,13 @@
 import frappe
 from frappe import _
+from frappe.permissions import AUTOMATIC_ROLES
 from frappe.utils import add_to_date, now
 
 UI_TEST_USER = "frappe@example.com"
 
 
 def whitelist_for_tests(fn):
-	if frappe.request and not (frappe.flags.in_test or getattr(frappe.local, "dev_server", 0)):
+	if frappe.request and not frappe.flags.in_test and not getattr(frappe.local, "dev_server", 0):
 		frappe.throw("Cannot run UI tests. Use a development server with `bench start`")
 
 	return frappe.whitelist()(fn)
@@ -129,6 +130,7 @@ def create_doctype(name, fields):
 			"doctype": "DocType",
 			"module": "Core",
 			"custom": 1,
+			"autoname": "autoincrement",
 			"fields": fields,
 			"permissions": [{"role": "System Manager", "read": 1}],
 			"name": name,
@@ -241,9 +243,7 @@ def create_web_page(title, route, single_thread):
 	web_page = frappe.db.exists("Web Page", {"route": route})
 	if web_page:
 		return web_page
-	web_page = frappe.get_doc(
-		{"doctype": "Web Page", "title": title, "route": route, "published": True}
-	)
+	web_page = frappe.get_doc({"doctype": "Web Page", "title": title, "route": route, "published": True})
 	web_page.save()
 
 	web_page.append(
@@ -400,7 +400,6 @@ def insert_translations():
 
 @whitelist_for_tests
 def create_blog_post():
-
 	blog_category = frappe.get_doc(
 		{"name": "general", "doctype": "Blog Category", "title": "general"}
 	).insert(ignore_if_duplicate=True)
@@ -444,13 +443,14 @@ def create_test_user(username=None):
 
 	user.reload()
 
-	blocked_roles = {"Administrator", "Guest", "All"}
 	all_roles = set(frappe.get_all("Role", pluck="name"))
 
-	for role in all_roles - blocked_roles:
+	for role in all_roles - set(AUTOMATIC_ROLES):
 		user.append("roles", {"role": role})
 
 	user.save()
+
+	frappe.db.set_single_value("Workspace Settings", "workspace_setup_completed", 1)
 
 
 @whitelist_for_tests
@@ -580,6 +580,15 @@ def create_kanban():
 
 @whitelist_for_tests
 def create_todo(description):
+	return frappe.get_doc({"doctype": "ToDo", "description": description}).insert()
+
+
+@whitelist_for_tests
+def create_todo_with_attachment_limit(description):
+	from frappe.custom.doctype.property_setter.property_setter import make_property_setter
+
+	make_property_setter("ToDo", None, "max_attachments", 12, "int", for_doctype=True)
+
 	return frappe.get_doc({"doctype": "ToDo", "description": description}).insert()
 
 

@@ -53,7 +53,6 @@ frappe.provide("frappe.views");
 				var state = context.state;
 				var _cards = cards
 					.map((card) => prepare_card(card, state))
-					.concat(state.cards)
 					.uniqBy((card) => card.name);
 
 				context.commit("update_state", {
@@ -303,7 +302,7 @@ frappe.provide("frappe.views");
 			// update cards internally
 			opts.cards = cards;
 
-			if (self.wrapper.find(".kanban").length > 0 && self.cur_list.start !== 0) {
+			if (self.wrapper.find(".kanban").length > 0) {
 				store.dispatch("update_cards", cards);
 			} else {
 				init();
@@ -377,8 +376,13 @@ frappe.provide("frappe.views");
 		}
 
 		function bind_add_column() {
-			if (!self.board_perms.write) {
+			let doctype = self.cur_list.doctype;
+			let fieldname = self.cur_list.board.field_name;
+			const is_custom_field = frappe.meta.get_docfield(doctype, fieldname)?.is_custom_field;
+
+			if (!self.board_perms.write || !is_custom_field) {
 				// If no write access to board, editing board (by adding column) should be blocked
+				// If standard field then users can't add options
 				self.$kanban_board.find(".add-new-column").remove();
 				return;
 			}
@@ -729,9 +733,11 @@ frappe.provide("frappe.views");
 			let fields = [];
 			for (let field_name of cur_list.board.fields) {
 				let field =
-					frappe.meta.get_docfield(card.doctype, field_name, card.name) ||
+					frappe.meta.docfield_map[card.doctype]?.[field_name] ||
 					frappe.model.get_std_field(field_name);
-				let label = cur_list.board.show_labels ? `<span>${__(field.label)}: </span>` : "";
+				let label = cur_list.board.show_labels
+					? `<span>${__(field.label, null, field.parent)}: </span>`
+					: "";
 				let value = frappe.format(card.doc[field_name], field);
 				fields.push(`
 					<div class="text-muted text-truncate">
@@ -757,7 +763,7 @@ frappe.provide("frappe.views");
 
 			if (card.comment_count > 0)
 				html += `<span class="list-comment-count small text-muted ">
-					${frappe.utils.icon("small-message")}
+					${frappe.utils.icon("es-line-chat-alt")}
 					${card.comment_count}
 				</span>`;
 

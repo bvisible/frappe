@@ -217,7 +217,7 @@
   }
  ],
  "links": [],
- "modified": "2021-12-02 10:56:04.448580",
+ "modified": "2024-03-23 16:03:33.078443",
  "modified_by": "Administrator",
  "module": "Desk",
  "name": "Onboarding Step",
@@ -242,13 +242,14 @@
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "All",
+   "role": "Desk User",
    "share": 1
   }
  ],
  "quick_entry": 1,
  "read_only": 1,
- "sort_field": "modified",
+ "sort_field": "creation",
  "sort_order": "DESC",
+ "states": [],
  "track_changes": 1
 }

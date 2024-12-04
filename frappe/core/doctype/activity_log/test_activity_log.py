@@ -4,22 +4,34 @@ import time
 
 import frappe
 from frappe.auth import CookieManager, LoginManager
-from frappe.tests.utils import FrappeTestCase
+from frappe.tests import IntegrationTestCase, UnitTestCase
 
 
-class TestActivityLog(FrappeTestCase):
+class UnitTestActivityLog(UnitTestCase):
+	"""
+	Unit tests for ActivityLog.
+	Use this class for testing individual functions and methods.
+	"""
+
+	pass
+
+
+class TestActivityLog(IntegrationTestCase):
+	def setUp(self) -> None:
+		frappe.set_user("Administrator")
+
 	def test_activity_log(self):
-
 		# test user login log
 		frappe.local.form_dict = frappe._dict(
 			{
 				"cmd": "login",
 				"sid": "Guest",
-				"pwd": frappe.conf.admin_password or "admin",
+				"pwd": self.ADMIN_PASSWORD or "admin",
 				"usr": "Administrator",
 			}
 		)
 
+		frappe.local.request_ip = "127.0.0.1"
 		frappe.local.cookie_manager = CookieManager()
 		frappe.local.login_manager = LoginManager()
 
@@ -57,9 +69,10 @@ class TestActivityLog(FrappeTestCase):
 		update_system_settings({"allow_consecutive_login_attempts": 3, "allow_login_after_fail": 5})
 
 		frappe.local.form_dict = frappe._dict(
-			{"cmd": "login", "sid": "Guest", "pwd": "admin", "usr": "Administrator"}
+			{"cmd": "login", "sid": "Guest", "pwd": self.ADMIN_PASSWORD, "usr": "Administrator"}
 		)
 
+		frappe.local.request_ip = "127.0.0.1"
 		frappe.local.cookie_manager = CookieManager()
 		frappe.local.login_manager = LoginManager()
 
