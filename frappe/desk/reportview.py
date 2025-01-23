@@ -818,22 +818,20 @@ def save_user_report_settings(doctype, settings):
 @frappe.whitelist()
 def save_global_report_settings(doctype, settings):
 	if frappe.session.user == "Administrator":
-		from neoffice_custom_fields.events import push_default_report_views
-		# Récupérer les paramètres globaux actuels ou initialiser à un objet vide
-		global_defaults = frappe.db.get_single_value('Global Defaults', 'report_settings') or '{}'
+		# Retrieve the current global parameters or initialise to an empty object
+		global_defaults = frappe.db.get_single_value('System Settings', 'report_settings') or '{}'
 		global_defaults = frappe.parse_json(global_defaults)
 
-		# Stocker les paramètres en tant que chaîne JSON, comme dans les paramètres utilisateur
+		# Store parameters as a JSON string, as in user parameters
 		global_defaults[doctype] = settings
 
-		# Sauvegarder les paramètres globaux dans Global Defaults
-		frappe.db.set_value('Global Defaults', None, 'report_settings', frappe.as_json(global_defaults))
+		# Save global settings in Global Defaults
+		frappe.db.set_value('System Settings', None, 'report_settings', frappe.as_json(global_defaults))
 		frappe.db.commit()
-		push_default_report_views()
 
 		return {"message": f"Global default settings for {doctype} saved successfully"}
 	else:
-		frappe.throw(_("You do not have permission to set global defaults"))
+		frappe.throw(_("You do not have permission to set System Settings"))
 
 @frappe.whitelist()
 def get_user_report_settings(doctype):
