@@ -55,7 +55,6 @@ website_route_rules = [
 	{"from_route": "/newsletters", "to_route": "Newsletter"},
 	{"from_route": "/profile", "to_route": "me"},
 	{"from_route": "/app/<path:app_path>", "to_route": "app"},
-	{"from_route": "/billing/<path:app_path>", "to_route": "billing"},
 ]
 
 website_redirects = [
@@ -204,6 +203,7 @@ scheduler_events = {
 			"frappe.email.doctype.email_account.email_account.notify_unreplied",
 			"frappe.utils.global_search.sync_global_search",
 			"frappe.deferred_insert.save_to_db",
+			"frappe.automation.doctype.reminder.reminder.send_reminders",
 		],
 		# 10 minutes
 		"0/10 * * * *": [
@@ -221,7 +221,6 @@ scheduler_events = {
 	"all": [
 		"frappe.email.queue.flush",
 		"frappe.monitor.flush",
-		"frappe.automation.doctype.reminder.reminder.send_reminders",
 	],
 	"hourly": [
 		"frappe.model.utils.link_count.update_link_count",
@@ -473,13 +472,6 @@ standard_navbar_items = [
 		"is_standard": 1,
 	},
 	{
-		"item_label": "Manage Billing",
-		"item_type": "Route",
-		"route": "/billing",
-		"is_standard": 1,
-		"condition": "frappe.boot.fc_communication_secret && frappe.boot.setup_complete && !frappe.is_mobile() && frappe.user.has_role('System Manager')",
-	},
-	{
 		"item_label": "Session Defaults",
 		"item_type": "Action",
 		"action": "frappe.ui.toolbar.setup_session_defaults()",
@@ -570,4 +562,7 @@ persistent_cache_keys = [
 	"insert_queue_for_*",  # Deferred Insert
 	"recorder-*",  # Recorder
 	"global_search_queue",
+	"monitor-transactions",
+	"rate-limit-counter-*",
+	"rl:*",
 ]
