@@ -7,9 +7,13 @@
 <script>
 	window.is_404 = true;
 </script>
+<!-- //// add lotie animation -->
+<script src="https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.mjs" type="module"></script>
+<dotlottie-player src="/assets/frappe/lottie/animation-404.json" background="transparent" speed="1" style="max-width: 500px;margin: -15px auto 0 auto;" loop autoplay></dotlottie-player>
+<!-- //// end -->
 
 <div class="error-page">
-	<img class="img-404" src="/assets/frappe/images/ui-states/404.png" />
+	<!--<img class="img-404" src="/assets/frappe/images/ui-states/404.png" />-->
 	<div>
 		<h2 class="mb-1 mt-4">
 			{{ _("There's nothing here") }}
