@@ -280,6 +280,13 @@ $.extend(frappe.model, {
 
 	copy_doc: function (doc, from_amend, parent_doc, parentfield) {
 		let no_copy_list = ["name", "amended_from", "amendment_date", "cancel_reason"];
+
+		//// added if
+		if (doc.doctype == "Item"){
+			no_copy_list.push(...["item_code", "item_name", "stock_on_hand", "opening_stock"]);
+		}
+		////
+
 		let newdoc = frappe.model.get_new_doc(doc.doctype, parent_doc, parentfield);
 
 		for (let key in doc) {

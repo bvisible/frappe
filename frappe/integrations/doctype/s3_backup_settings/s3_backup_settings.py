@@ -19,6 +19,8 @@ from frappe.model.document import Document
 from frappe.utils import cint
 from frappe.utils.background_jobs import enqueue
 
+import zipfile #//// added
+import shutil #//// added
 
 class S3BackupSettings(Document):
 	# begin: auto-generated types
@@ -101,10 +103,10 @@ def take_backups_if(freq):
 
 
 @frappe.whitelist()
-def take_backups_s3(retry_count=0):
+def take_backups_s3(retry_count=0, wizard=False, manual=False, demo=False): #//// added wizard=False, manual=False, demo=False
 	try:
 		validate_file_size()
-		backup_to_s3()
+		backup_to_s3(wizard, manual, demo) #//// added wizard, manual, demo
 		send_email(True, "Amazon S3", "S3 Backup Settings", "notify_email")
 	except JobTimeoutException:
 		if retry_count < 2:
@@ -125,8 +127,92 @@ def notify():
 	error_message = frappe.get_traceback()
 	send_email(False, "Amazon S3", "S3 Backup Settings", "notify_email", error_message)
 
+def delete_backups():
+	# //// Add fuctionality to delete backups
+    # specify the path
+    path = "/mnt/neoffice/private/backups"
+    # specify the days
+    days = 3
+    # converting days to seconds
+    # time.time() returns current time in seconds
+    seconds = time.time() - (days * 24 * 60 * 60 - 3600) # days - 1 hour
+    # checking whether the file is present in path or not
+    if os.path.exists(path):
+        # iterating over each and every folder and file in the path
+        for root_folder, folders, files in os.walk(path):
+            # checking the current directory files
+            for file in files:
 
-def backup_to_s3():
+                # file path
+                file_path = os.path.join(root_folder, file)
+
+                # comparing the days
+                if seconds >= get_file_or_folder_age(file_path):
+
+                    # invoking the remove_file function
+                    remove_file(file_path)
+        else:
+            # if the path is not a directory
+            # comparing with the days
+            if seconds >= get_file_or_folder_age(path):
+
+                # invoking the file
+                remove_file(path)
+
+def backup_to_s3(wizard=False, manual=False, demo=False): #//// added wizard=False, manual=False, demo=False
+	# //// added block
+	def zip_directory(folder_path, zip_path):
+		with zipfile.ZipFile(zip_path, mode='w') as zipf:
+			len_dir_path = len(folder_path)
+			for root, _, files in os.walk(folder_path):
+				for file in files:
+					file_path = os.path.join(root, file)
+					zipf.write(file_path, file_path[len_dir_path:])
+
+	def IsPathValid(path, ignoreDir, ignoreExt):
+		splited = None
+		if os.path.isfile(path):
+			if ignoreExt:
+				_, ext = os.path.splitext(path)
+				if ext in ignoreExt:
+					return False
+
+			splited = os.path.dirname(path).split('\\/')
+		else:
+			if not ignoreDir:
+				return True
+			splited = path.split('\\/')
+
+		for s in splited:
+			if s in ignoreDir:  # You can also use set.intersection or [x for],
+				return False
+
+		return True
+
+	def zipDirHelper(path, rootDir, zf, ignoreDir=[], ignoreExt=[]):
+		# zf is zipfile handle
+		if os.path.isfile(path):
+			if IsPathValid(path, ignoreDir, ignoreExt):
+				relative = os.path.relpath(path, rootDir)
+				zf.write(path, relative)
+		elif os.path.isdir(path):
+			# Add the directory (empty or not) to the zip file if it's valid
+			if IsPathValid(path, ignoreDir, ignoreExt):
+				# Ensure the directory path in the zip file ends with '/'
+				relative_dir = os.path.relpath(path, rootDir) + '/'
+				zf.writestr(relative_dir, '')
+
+			# Recursively process all subdirectories and files
+			for subFileOrDir in os.listdir(path):
+				joinedPath = os.path.join(path, subFileOrDir)
+				zipDirHelper(joinedPath, rootDir, zf, ignoreDir, ignoreExt)
+
+	def ZipDir(path, zf, ignoreDir = [], ignoreExt = []):
+		rootDir = path if os.path.isdir(path) else os.path.dirname(path)
+		zipDirHelper(path, rootDir, zf, ignoreDir, ignoreExt)
+		pass
+	#////
+
 	from frappe.utils import get_backups_path
 	from frappe.utils.backups import new_backup
 
@@ -174,6 +260,62 @@ def backup_to_s3():
 	folder = os.path.basename(db_filename)[:15] + "/"
 	# for adding datetime to folder name
 
+	#//// added
+	cloud_zipname = db_filename.replace('database.sql.gz', 'cloud.zip')
+	base_file_path = os.path.join(get_backups_path(), os.path.basename(db_filename)[:15])
+	frappe.neolog("base_file_path", "{}".format(base_file_path)) #///
+	if wizard == 1 or wizard == '1':
+		add_word = '_wizard'
+		new_base_file_path = '/mnt/neoffice/private/wizard_backup/'
+	elif manual == 1 or manual == '1':
+		add_word = '_manual'
+		new_base_file_path = '/mnt/neoffice/private/manual_backup/'
+	elif demo == 1 or demo == '1':
+		add_word = '_demo'
+		new_base_file_path = '/mnt/neoffice/private/demo_backup/'
+	if wizard == 1 or wizard == '1' or manual == 1 or manual == '1' or demo == 1 or demo == '1':
+		try:
+			os.rename(db_filename, db_filename.replace('database.sql.gz', 'database'+add_word+'.sql.gz'))
+		except OSError as error:
+			frappe.neolog(f"Error renaming file: {error}")
+		try:
+			os.rename(site_config, site_config.replace('site_config_backup', 'site_config_backup'+add_word))
+		except OSError as error:
+			frappe.neolog(f"Error renaming file: {error}")
+		if backup_files:
+			try:
+				os.rename(files_filename, files_filename.replace('files.tar', 'files'+add_word+'.tar'))
+			except OSError as error:
+				frappe.neolog(f"Error renaming file: {error}")
+			try:
+				os.rename(private_files, private_files.replace('files.tar', 'files'+add_word+'.tar'))
+			except OSError as error:
+				frappe.neolog(f"Error renaming file: {error}")
+		base_file_path = new_base_file_path
+		if not os.path.exists(base_file_path):
+			os.makedirs(base_file_path, exist_ok=True)
+		old_db_filename = db_filename.replace('database.sql.gz', 'database'+add_word+'.sql.gz')
+		old_site_config = site_config.replace('site_config_backup', 'site_config_backup'+add_word)
+		old_cloud_zipname = cloud_zipname.replace('cloud.zip', 'cloud'+add_word+'.zip')
+		db_filename = base_file_path + old_db_filename[old_db_filename.rfind('/')+1:]
+		site_config = base_file_path + old_site_config[old_site_config.rfind('/')+1:]
+		cloud_zipname = base_file_path + old_cloud_zipname[old_cloud_zipname.rfind('/')+1:]
+		shutil.move(old_db_filename, db_filename)
+		shutil.move(old_site_config, site_config)
+		if backup_files:
+			old_files_filename = files_filename.replace('files.tar', 'files'+add_word+'.tar')
+			old_private_files = private_files.replace('files.tar', 'files'+add_word+'.tar')
+			files_filename = base_file_path + old_files_filename[old_files_filename.rfind('/')+1:]
+			private_files = base_file_path + old_private_files[old_private_files.rfind('/')+1:]
+			shutil.move(old_files_filename, files_filename)
+			shutil.move(old_private_files, private_files)
+		frappe.neolog("db_filename / site_config", "{}   {}".format(db_filename, site_config)) #//// added
+	theZipFile_cloud = zipfile.ZipFile(cloud_zipname, 'w')
+	ZipDir('/mnt/neoffice/data', theZipFile_cloud, ignoreDir=[], ignoreExt=[".log"])
+	zip_directory('/mnt/neoffice/data', cloud_zipname)
+	upload_file_to_s3(cloud_zipname, folder, conn, bucket)
+	#////
+
 	upload_file_to_s3(db_filename, folder, conn, bucket)
 	upload_file_to_s3(site_config, folder, conn, bucket)
 
@@ -184,8 +326,17 @@ def backup_to_s3():
 		if files_filename:
 			upload_file_to_s3(files_filename, folder, conn, bucket)
 
+	delete_backups() #//// added
+
 
 def upload_file_to_s3(filename, folder, conn, bucket):
-	destpath = os.path.join(folder, os.path.basename(filename))
-	print("Uploading file:", filename)
-	conn.upload_file(filename, bucket, destpath)  # Requires PutObject permission
+	# get url instance //// add domain and change destpath
+	domain = frappe.utils.get_url()
+	destpath = domain.replace('https://', '') + " - " + frappe.db.get_single_value('Global Defaults', 'default_company') + "/" + os.path.join(folder, os.path.basename(filename)) #//// destpath = os.path.join(folder, os.path.basename(filename))
+	try:
+		print("Uploading file:", filename)
+		conn.upload_file(filename, bucket, destpath)  # Requires PutObject permission
+
+	except Exception as e:
+		frappe.log_error("Error uploading file", e)
+		print("Error uploading: %s" % (e))

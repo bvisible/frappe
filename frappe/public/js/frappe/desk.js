@@ -97,6 +97,15 @@ frappe.Application = class Application {
 
 		$(document).trigger("app_ready");
 
+		//// added
+		readJSONFile("/neoconfig.json", function(data_config){
+			var data_config = JSON.parse(data_config);
+			if (data_config["first_run"] == 1){
+				frappe.set_route("neoffice-wizard/0")
+			}
+		});
+		////
+
 		if (frappe.boot.messages) {
 			frappe.msgprint(frappe.boot.messages);
 		}

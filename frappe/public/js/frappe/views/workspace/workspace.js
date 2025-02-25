@@ -140,6 +140,9 @@ frappe.views.Workspace = class Workspace {
 		item.indicator_color =
 			item.indicator_color || this.indicator_colors[Math.floor(Math.random() * 12)];
 
+		//// add link and change link in return
+		const link = item.custom_link || (item.public ? frappe.router.slug(item.title) : "private/" + frappe.router.slug(item.title));
+
 		return $(`
 			<div
 				class="sidebar-item-container ${item.is_editable ? "is-draggable" : ""}"
@@ -150,11 +153,7 @@ frappe.views.Workspace = class Workspace {
 			>
 				<div class="desk-sidebar-item standard-sidebar-item ${item.selected ? "selected" : ""}">
 					<a
-						href="/app/${
-							item.public
-								? frappe.router.slug(item.title)
-								: "private/" + frappe.router.slug(item.title)
-						}"
+						href="/app/${link}"
 						class="item-anchor ${item.is_editable ? "" : "block-click"}" title="${__(item.title)}"
 					>
 						<span class="sidebar-item-icon" item-icon=${item.icon || "folder-normal"}>
@@ -301,13 +300,39 @@ frappe.views.Workspace = class Workspace {
 		) {
 			$drop_icon.removeClass("hidden");
 		}
+
+		//// Check local storage for saved state
+		let existingArray = JSON.parse(localStorage.getItem("list_sidebar_open") || '[]');
+		if (existingArray.includes(item.title)) {
+			$child_item_section.removeClass("hidden");
+			$drop_icon.find("use").attr("href", "#es-line-up");
+		} else {
+			$child_item_section.addClass("hidden");
+			$drop_icon.find("use").attr("href", "#es-line-down");
+		}
+
 		$drop_icon.on("click", () => {
+			let existingArray = JSON.parse(localStorage.getItem("list_sidebar_open") || '[]');
 			let icon =
 				$drop_icon.find("use").attr("href") === "#es-line-down"
 					? "#es-line-up"
 					: "#es-line-down";
 			$drop_icon.find("use").attr("href", icon);
 			$child_item_section.toggleClass("hidden");
+			//// Save state to local storage
+			if($drop_icon.find("use").attr("href") === "#es-line-down") {
+				if (existingArray.includes(item.title)) {
+					existingArray.splice(existingArray.indexOf(item.title), 1);
+					localStorage.setItem("list_sidebar_open", JSON.stringify(existingArray));
+				}
+				//localStorage.setItem(item.title, "closed");
+			} else {
+				if (!existingArray.includes(item.title)) {
+					existingArray.push(item.title);
+					localStorage.setItem("list_sidebar_open", JSON.stringify(existingArray));
+				}
+				//localStorage.setItem(item.title, "open");
+			}
 		});
 	}
 
@@ -498,14 +523,14 @@ frappe.views.Workspace = class Workspace {
 		}
 
 		this.clear_page_actions();
-		if (current_page.is_editable) {
+		if (current_page.is_editable && frappe.session.user == "Administrator") { //// add check if user is administrator
 			this.body.find(".btn-edit-workspace").removeClass("hide");
 		} else {
 			this.body.find(".btn-edit-workspace").addClass("hide");
 		}
 
 		// need to add option for icons in inner buttons as well
-		if (this.has_create_access) {
+		if (this.has_create_access && frappe.session.user == "Administrator") { //// add check if user is administrator
 			this.body.find(".btn-new-workspace").removeClass("hide");
 		} else {
 			this.body.find(".btn-new-workspace").addClass("hide");

@@ -147,7 +147,7 @@ def update_order_for_single_card(board_name, docname, from_colname, to_colname, 
 	if from_colname == to_colname:
 		from_col_order = to_col_order
 
-	if from_col_order:
+	if old_index < len(from_col_order): #//// added if condition
 		to_col_order.insert(new_index, from_col_order.pop(old_index))
 
 	# save updated order

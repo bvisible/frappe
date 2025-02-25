@@ -186,6 +186,8 @@
 					@toggle_optimize="file.optimize = !file.optimize"
 					@toggle_image_cropper="toggle_image_cropper(i)"
 				/>
+			<div class="public-warning form-message blue"> {{ __("Change file visibility: Private => only visible by Neoffice user system. Public => visible by anyone (can be indexed by Google)") }}</div><!-- //// -->
+
 			</div>
 			<div class="flex align-center" v-if="show_upload_button && currently_uploading === -1">
 				<button class="btn btn-primary btn-sm margin-right" @click="() => upload_files()">
@@ -596,7 +598,18 @@ function upload_file(file, i) {
 				} else if (xhr.status === 413) {
 					file.failed = true;
 					file.error_message = "Size exceeds the maximum allowed file size.";
-				} else {
+				} 
+				//// added else if
+				else if (xhr.status === 500) {
+					file.failed = true;
+					if (typeof response !== 'undefined') {
+						file.error_message = response._error_message;
+					} else {
+						file.error_message = __('File not supported.');
+					}
+				}
+				////
+				else {
 					file.failed = true;
 					file.error_message =
 						xhr.status === 0

@@ -44,7 +44,8 @@ frappe.views.BaseList = class BaseList {
 		this.user_settings = frappe.get_user_settings(this.doctype);
 
 		this.start = 0;
-		this.page_length = frappe.is_large_screen() ? 100 : 20;
+		////this.page_length = frappe.is_large_screen() ? 100 : 20;
+		this.page_length = 100;
 		this.data = [];
 		this.method = "frappe.desk.reportview.get";
 
@@ -416,7 +417,8 @@ frappe.views.BaseList = class BaseList {
 
 		this.$paging_area.on("click", ".btn-more", (e) => {
 			this.start += this.page_length;
-			this.page_length = this.selected_page_count || 20;
+			//// this.page_length = this.selected_page_count || 20; 
+			this.page_length = this.selected_page_count || 100; //// up 20 => 100
 			this.refresh();
 		});
 	}

@@ -162,7 +162,15 @@ def validate_email_address(email_str, throw=False):
 	"""Validates the email string"""
 	email = email_str = (email_str or "").strip()
 
+	#//// added function to check if email is valid
+	def add_brackets_if_missing(e):
+		if " " in e and "<" not in e and ">" not in e:
+			e = f"<{e}>"
+		return e
+
 	def _check(e):
+		#//// added function to check if email is valid
+		e = add_brackets_if_missing(e)
 		_valid = True
 		if not e:
 			_valid = False

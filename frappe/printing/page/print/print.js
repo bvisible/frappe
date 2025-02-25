@@ -54,6 +54,19 @@ frappe.ui.form.PrintView = class {
 		this.setup_menu();
 		this.setup_toolbar();
 		this.setup_sidebar();
+		//// added
+		frappe.db.get_list('Language', {filters: {"enabled":1}, fields: ['language_code']}).then(r => {
+			let array_code = []
+			r.forEach(function(item) {
+				array_code.push(item.language_code)
+			})
+			$('select[data-fieldname="language"] option').each(function() {
+				if ( !array_code.includes($(this).val()) ) {
+					$(this).remove();
+				}
+			});
+		});
+		////
 		this.setup_keyboard_shortcuts();
 	}
 
@@ -62,13 +75,14 @@ frappe.ui.form.PrintView = class {
 	}
 
 	setup_toolbar() {
-		this.page.set_primary_action(__("Print"), () => this.printit(), "printer");
+		/*////commented this.page.set_primary_action(__("Print"), () => this.printit(), "printer");*/
 
 		this.page.add_button(__("Full Page"), () => this.render_page("/printview?"), {
 			icon: "full-page",
 		});
 
-		this.page.add_button(__("PDF"), () => this.render_pdf(), { icon: "small-file" });
+		//// this.page.add_button(__("PDF"), () => this.render_pdf(), { icon: "small-file" });
+		this.page.add_button(__("PDF and printing"), () => this.render_pdf(), { icon: "small-file" });
 
 		this.page.add_button(__("Refresh"), () => this.refresh_print_format(), {
 			icon: "refresh",
@@ -185,6 +199,8 @@ frappe.ui.form.PrintView = class {
 		this.setup_customize_dialog();
 
 		// print designer link
+		//// 
+		/* 
 		if (Object.keys(frappe.boot.versions).includes("print_designer")) {
 			this.page.add_inner_message(`
 			<a style="line-height: 2.4" href="/app/print-designer?doctype=${this.frm.doctype}">
@@ -197,7 +213,7 @@ frappe.ui.form.PrintView = class {
 				${__("Try the new Print Designer")}
 			</a>
 			`);
-		}
+		}*/ ////
 		let tasks = [
 			this.set_default_print_format,
 			this.set_default_print_language,

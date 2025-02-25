@@ -1,8 +1,8 @@
 // Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 // MIT License. See license.txt
 
-import GridRow from "./grid_row";
 import GridPagination from "./grid_pagination";
+import GridRow from "./grid_row";
 
 frappe.ui.form.get_open_grid_form = function () {
 	return $(".grid-row-open").data("grid_row");
@@ -464,6 +464,11 @@ export default class Grid {
 		this.refresh_remove_rows_button();
 
 		this.wrapper.trigger("change");
+
+		//// added to handle freeline and subtotal
+		this.wrapper.find('[data-name="Freeline"]').parents(".data-row").addClass("freeline");
+		this.wrapper.find('[data-name="Subtotal"]').parents(".data-row").addClass("subtotal");
+		////
 	}
 
 	render_result_rows($rows, append_row) {
@@ -945,6 +950,8 @@ export default class Grid {
 
 		this.visible_columns = [];
 
+		let limit_colsize = (this.frm && this.frm.doctype == "VAT Declaration" && this.df.fieldname.includes("_details")) ? 20 : 11; //// added
+
 		for (var ci in fields) {
 			var _df = fields[ci];
 
@@ -981,18 +988,18 @@ export default class Grid {
 				}
 
 				total_colsize += df.colsize;
-				if (total_colsize > 11) return false;
+				if (total_colsize > limit_colsize) return false; //// replaced 11 with limit_colsize
 				this.visible_columns.push([df, df.colsize]);
 			}
 		}
 
 		// redistribute if total-col size is less than 12
 		var passes = 0;
-		while (total_colsize < 11 && passes < 12) {
+		while (total_colsize < limit_colsize && passes < limit_colsize+1) { //// replaced 11 with limit_colsize and 12 with limit_colsize+1
 			for (var i in this.visible_columns) {
 				var df = this.visible_columns[i][0];
 				var colsize = this.visible_columns[i][1];
-				if (colsize > 1 && colsize < 11 && frappe.model.is_non_std_field(df.fieldname)) {
+				if (colsize > 1 && colsize < 11 && frappe.model.is_non_std_field(df.fieldname)) { //// maybe replace here
 					if (
 						passes < 3 &&
 						["Int", "Currency", "Float", "Check", "Percent"].indexOf(df.fieldtype) !==
@@ -1006,7 +1013,7 @@ export default class Grid {
 					total_colsize++;
 				}
 
-				if (total_colsize > 10) break;
+				if (total_colsize > limit_colsize-1) break; //// replaced 10 with limit_colsize-1
 			}
 			passes++;
 		}

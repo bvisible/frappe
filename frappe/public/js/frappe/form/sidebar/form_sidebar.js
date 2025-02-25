@@ -1,11 +1,11 @@
+import { get_user_link, get_user_message } from "../footer/version_timeline_content_builder";
 import "./assign_to";
 import "./attachments";
-import "./share";
-import "./review";
 import "./document_follow";
-import "./user_image";
 import "./form_sidebar_users";
-import { get_user_link, get_user_message } from "../footer/version_timeline_content_builder";
+import "./review";
+import "./share";
+import "./user_image";
 
 frappe.ui.form.Sidebar = class {
 	constructor(opts) {
@@ -40,6 +40,7 @@ frappe.ui.form.Sidebar = class {
 		this.setup_keyboard_shortcuts();
 		this.show_auto_repeat_status();
 		frappe.ui.form.setup_user_image_event(this.frm);
+		this.make_sidebar_menu(this.sidebar); //// added
 
 		this.refresh();
 	}
@@ -281,6 +282,86 @@ frappe.ui.form.Sidebar = class {
 				this.frm.assign_to.refresh();
 				this.frm.attachments.refresh();
 			},
+		});
+	}
+
+	//// added function
+	make_sidebar_menu(sidebar) {
+		const sidebar_item_container = (item) => {
+			const link = item.custom_link || (item.public ? frappe.router.slug(item.title) : "private/" + frappe.router.slug(item.title));
+			return `
+		  <div class="sidebar-item-container ${item.is_editable ? "is-draggable" : ""}" data-parent="${item.parent_page}" data-name="${item.title}" data-public="${item.public || 0}">
+			<div class="desk-sidebar-item standard-sidebar-item ${item.selected ? "selected" : ""}">
+			  <a href="/app/${link}" class="item-anchor ${item.is_editable ? "" : "block-click"}" title="${__(item.title)}">
+				<span class="sidebar-item-icon" data-icon=${item.icon || "folder-normal"}>${frappe.utils.icon(item.icon || "folder-normal", "md")}</span>
+				<span class="sidebar-item-label">${__(item.title)}<span>
+			  </a>
+			  <div class="sidebar-item-control"></div>
+			</div>
+			<div class="sidebar-child-item nested-container hidden"></div>
+		  </div>`;
+		};
+
+		frappe.call({
+			method: "frappe.desk.desktop.get_workspace_sidebar_items",
+			callback: function (r) {
+				const pages = r.message.pages;
+				let html_sidebar_menu = '';
+				pages.forEach(element => {
+					html_sidebar_menu += sidebar_item_container(element);
+				});
+				$(sidebar).append(`<div class="desk-sidebar list-unstyled sidebar-menu"><div class="standard-sidebar-section nested-container" data-title="Public">${html_sidebar_menu}</div></div>`);
+
+				const $sidebarSections = $(sidebar).find('.standard-sidebar-section').not(".hidden");
+				const $nonLabelItems = $sidebarSections.children().not(".standard-sidebar-label");
+
+				$nonLabelItems.each(function () {
+					const $currentElement = $(this);
+					const itemname = $currentElement.data("name");
+					const itemparent = $currentElement.data("parent");
+
+					if (itemparent) {
+						const $selectoritemname = $sidebarSections.find(`[data-name="${itemname}"].sidebar-item-container`);
+						const $selectoritemparent = $sidebarSections.find(`[data-name="${itemparent}"].sidebar-item-container`);
+						const $selectoritemparentcontent = $selectoritemparent.children('.sidebar-child-item.nested-container');
+						const $selectoritemparentbtn = $selectoritemparent.find('.desk-sidebar-item > .sidebar-item-control');
+
+						if ($selectoritemparentbtn.find('.drop-icon').length == 0) {
+							const itemparentbtn = `<span class="drop-icon">${frappe.utils.icon("es-line-down", "sm")}</span>`;
+							$selectoritemparentbtn.append(itemparentbtn);
+						}
+						$selectoritemname.appendTo($selectoritemparentcontent);
+						$selectoritemparentcontent.addClass("hidden");
+					}
+				});
+				
+				$nonLabelItems.find(".drop-icon").on("click", (e) => {
+					const $drop_icon = $(e.target);
+					const itemname = $drop_icon.parents(".sidebar-item-container").data("name");
+
+					const $parentContainer = $drop_icon.parents(".sidebar-item-container");
+					const $nestedContainer = $parentContainer.find(".sidebar-child-item.nested-container");
+					let existingArray = JSON.parse(localStorage.getItem("list_sidebar_open") || '[]');
+					let icon =
+						$drop_icon.find("use").attr("href") === "#es-line-down"
+							? "#es-line-up"
+							: "#es-line-down";
+					$drop_icon.find("use").attr("href", icon);
+					$nestedContainer.toggleClass("hidden");
+					// Save state to local storage
+					if($drop_icon.find("use").attr("href") === "#es-line-down") {
+						if (existingArray.includes(itemname)) {
+							existingArray.splice(existingArray.indexOf(itemname), 1);
+							localStorage.setItem("list_sidebar_open", JSON.stringify(existingArray));
+						}
+					} else {
+						if (!existingArray.includes(itemname)) {
+							existingArray.push(itemname);
+							localStorage.setItem("list_sidebar_open", JSON.stringify(existingArray));
+						}
+					}
+				});
+			}
 		});
 	}
 };

@@ -736,12 +736,48 @@ def sendmail(
 	:param with_container: Wraps email inside a styled container
 	"""
 
+	#//// added block
+	disable_mailgun = db.get_value("Email Account", {"default_outgoing": 1}, "disable_mailgun")
+	if disable_mailgun:
+		default_outgoing = db.get_value("Email Account", {"default_outgoing": 1}, "email_id")
+		if sender != default_outgoing:
+			reply_to = sender
+		else:
+			reply_to = None
+	else :
+		from urllib.parse import urlparse
+		full_url = frappe.utils.get_url()
+		parsed_url = urlparse(full_url)
+		domain_parts = parsed_url.netloc.split('.')
+		
+		if len(domain_parts) > 2:
+			subdomain = domain_parts[0]
+			default_outgoing = f"{subdomain}@neoffice.ch"
+		else:
+			default_outgoing = "info@neoffice.ch"
+
+	if session.user and session.user != "Guest" and session.user != "Administrator":
+		user = db.get_value("User", session.user, "full_name") + " | "
+	else:
+		user = ""
+
+	from frappe.defaults import get_user_default, get_global_default
+	name = user + (get_user_default("Company") or get_global_default("company"))
+	sender = name + ' <'+default_outgoing +'>'
+	#////
+
 	if recipients is None:
 		recipients = []
 	if cc is None:
 		cc = []
 	if bcc is None:
 		bcc = []
+
+	#//// added if
+	for recipient in recipients:
+		if 'administrator@neoffice.net' in recipient:
+			recipients.remove(recipient)
+	#////
 
 	text_content = None
 	if template:
@@ -1843,6 +1879,11 @@ def copy_doc(doc: "Document", ignore_no_copy: bool = True) -> "Document":
 
 	fields_to_clear = ["name", "owner", "creation", "modified", "modified_by"]
 
+	#//// added if
+	if doc.doctype == "Item":
+		fields_to_clear += ["item_code", "item_name", "stock_on_hand", "opening_stock"]
+	#////
+
 	if not local.flags.in_test:
 		fields_to_clear.append("docstatus")
 
@@ -2516,3 +2557,32 @@ if _tune_gc:
 
 # Remove references to pattern that are pre-compiled and loaded to global scopes.
 re.purge()
+
+#//// added function
+def neolog(title=None, message=None, reference_doctype=None, reference_name=None):
+	"""Log error to Error Log"""
+	# Parameter ALERT:
+	# the title and message may be swapped
+	# the better API for this is log_error(title, message), and used in many cases this way
+	# this hack tries to be smart about whats a title (single line ;-)) and fixes it
+
+	traceback = None
+	if message:
+		if "\n" in title:  # traceback sent as title
+			traceback, title = title, message
+		else:
+			traceback = message
+
+	title = title or "Error"
+	traceback = as_unicode(traceback or get_traceback(with_context=True))
+
+	neo_error_log = get_doc(
+		doctype="Error Log",
+		error=traceback,
+		method=title,
+		reference_doctype=reference_doctype,
+		reference_name=reference_name,
+	)
+	neo_error_log.insert(ignore_permissions=True)
+	db.commit()
+#////
