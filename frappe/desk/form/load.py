@@ -38,7 +38,7 @@ def getdoc(doctype, name, user=None):
 
 	if not doc.has_permission("read"):
 		frappe.flags.error_message = _("Insufficient Permission for {0}").format(
-			frappe.bold(doctype + " " + name)
+			frappe.bold(_(doctype) + " " + name)
 		)
 		raise frappe.PermissionError(("read", doctype, name))
 
@@ -194,7 +194,7 @@ def get_versions(doc: "Document") -> list[dict]:
 		return []
 	return frappe.get_all(
 		"Version",
-		filters=dict(ref_doctype=doc.doctype, docname=doc.name),
+		filters=dict(ref_doctype=doc.doctype, docname=str(doc.name)),
 		fields=["name", "owner", "creation", "data"],
 		limit=10,
 		order_by="creation desc",

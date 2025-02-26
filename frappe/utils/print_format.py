@@ -148,8 +148,8 @@ def _download_multi_pdf(
 				frappe.publish_progress(
 					percent=(idx + 1) / total_docs * 100,
 					title=_("PDF Generation in Progress"),
-					description=_(
-						f"{idx + 1}/{total_docs} complete | Please leave this tab open until completion."
+					description=_("{0}/{1} complete | Please leave this tab open until completion.").format(
+						idx + 1, total_docs
 					),
 					task_id=task_id,
 				)
@@ -193,8 +193,8 @@ def _download_multi_pdf(
 						percent=count / total_docs * 100,
 						title=_("PDF Generation in Progress"),
 						description=_(
-							f"{count}/{total_docs} complete | Please leave this tab open until completion."
-						),
+							"{0}/{1} complete | Please leave this tab open until completion."
+						).format(count, total_docs),
 						task_id=task_id,
 					)
 		if task_id is None:
@@ -226,7 +226,9 @@ def read_multi_pdf(output: PdfWriter) -> bytes:
 
 
 @frappe.whitelist(allow_guest=True)
-def download_pdf(doctype, name, format=None, doc=None, no_letterhead=0, language=None, letterhead=None):
+def download_pdf(
+	doctype: str, name: str, format=None, doc=None, no_letterhead=0, language=None, letterhead=None
+):
 	doc = doc or frappe.get_doc(doctype, name)
 	validate_print_permission(doc)
 

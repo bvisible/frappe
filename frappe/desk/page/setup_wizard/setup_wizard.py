@@ -32,8 +32,8 @@ def get_setup_stages(args):  # nosemgrep
 	stages.append(
 		{
 			# post executing hooks
-			"status": "Wrapping up",
-			"fail_msg": "Failed to complete setup",
+			"status": _("Wrapping up"),
+			"fail_msg": _("Failed to complete setup"),
 			"tasks": [{"fn": run_post_setup_complete, "args": args, "fail_msg": "Failed to complete setup"}],
 		}
 	)
@@ -50,7 +50,7 @@ def setup_complete(args):
 	if cint(frappe.db.get_single_value("System Settings", "setup_complete")):
 		return {"status": "ok"}
 
-	args = parse_args(args)
+	args = parse_args(sanitize_input(args))
 	stages = get_setup_stages(args)
 	is_background_task = frappe.conf.get("trigger_site_setup_in_background")
 
@@ -176,6 +176,7 @@ def update_system_settings(args):  # nosemgrep
 			"country": args.get("country"),
 			"language": get_language_code(args.get("language")) or "en",
 			"time_zone": args.get("timezone"),
+			"currency": args.get("currency"),
 			"float_precision": 3,
 			"rounding_method": "Banker's Rounding",
 			"date_format": frappe.db.get_value("Country", args.get("country"), "date_format"),
@@ -220,6 +221,7 @@ def create_or_update_user(args):  # nosemgrep
 			}
 		)
 		user.append_roles(*_get_default_roles())
+		user.append_roles("System Manager")
 		user.flags.no_welcome_mail = True
 		user.insert()
 
@@ -247,6 +249,19 @@ def parse_args(args):  # nosemgrep
 	for key, value in args.items():
 		if isinstance(value, str):
 			args[key] = strip(value)
+
+	return args
+
+
+def sanitize_input(args):
+	from frappe.utils import is_html, strip_html_tags
+
+	if isinstance(args, str):
+		args = json.loads(args)
+
+	for key, value in args.items():
+		if is_html(value):
+			args[key] = strip_html_tags(value)
 
 	return args
 
