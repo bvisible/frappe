@@ -259,10 +259,6 @@ export default class GridRow {
 				).appendTo(this.row);
 			} ////
 
-			if (this.doc) {
-				this.row_index.find("span").html(this.doc.idx);
-			}
-
 			this.row_index = $(
 				`<div class="row-index sortable-handle col">
 					<span>${txt}</span>
