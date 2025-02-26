@@ -18,9 +18,9 @@ from frappe.integrations.offsite_backup_utils import (
 from frappe.model.document import Document
 from frappe.utils import cint
 from frappe.utils.background_jobs import enqueue
+
 import zipfile #//// added
 import shutil #//// added
-
 
 class S3BackupSettings(Document):
 	# begin: auto-generated types
@@ -127,10 +127,40 @@ def notify():
 	error_message = frappe.get_traceback()
 	send_email(False, "Amazon S3", "S3 Backup Settings", "notify_email", error_message)
 
+def delete_backups():
+	# //// Add fuctionality to delete backups
+    # specify the path
+    path = "/mnt/neoffice/private/backups"
+    # specify the days
+    days = 3
+    # converting days to seconds
+    # time.time() returns current time in seconds
+    seconds = time.time() - (days * 24 * 60 * 60 - 3600) # days - 1 hour
+    # checking whether the file is present in path or not
+    if os.path.exists(path):
+        # iterating over each and every folder and file in the path
+        for root_folder, folders, files in os.walk(path):
+            # checking the current directory files
+            for file in files:
+
+                # file path
+                file_path = os.path.join(root_folder, file)
+
+                # comparing the days
+                if seconds >= get_file_or_folder_age(file_path):
+
+                    # invoking the remove_file function
+                    remove_file(file_path)
+        else:
+            # if the path is not a directory
+            # comparing with the days
+            if seconds >= get_file_or_folder_age(path):
+
+                # invoking the file
+                remove_file(path)
 
 def backup_to_s3(wizard=False, manual=False, demo=False): #//// added wizard=False, manual=False, demo=False
 	# //// added block
-	from neoffice_theme.events import delete_backups
 	def zip_directory(folder_path, zip_path):
 		with zipfile.ZipFile(zip_path, mode='w') as zipf:
 			len_dir_path = len(folder_path)
@@ -207,7 +237,6 @@ def backup_to_s3(wizard=False, manual=False, demo=False): #//// added wizard=Fal
 		)
 		db_filename = os.path.join(get_backups_path(), os.path.basename(backup.backup_path_db))
 		site_config = os.path.join(get_backups_path(), os.path.basename(backup.backup_path_conf))
-
 		if backup_files:
 			files_filename = os.path.join(get_backups_path(), os.path.basename(backup.backup_path_files))
 			private_files = os.path.join(
@@ -285,7 +314,6 @@ def backup_to_s3(wizard=False, manual=False, demo=False): #//// added wizard=Fal
 	ZipDir('/mnt/neoffice/data', theZipFile_cloud, ignoreDir=[], ignoreExt=[".log"])
 	zip_directory('/mnt/neoffice/data', cloud_zipname)
 	upload_file_to_s3(cloud_zipname, folder, conn, bucket)
-	#os.remove(base_file_path + '_cloud.zip')
 	#////
 
 	upload_file_to_s3(db_filename, folder, conn, bucket)
@@ -300,13 +328,15 @@ def backup_to_s3(wizard=False, manual=False, demo=False): #//// added wizard=Fal
 
 	delete_backups() #//// added
 
+
 def upload_file_to_s3(filename, folder, conn, bucket):
-	domain = frappe.db.get_single_value("Neoffice Woocommerce Settings", "woocommerce_server_url") #//// added
-	destpath = domain.replace('https://', '').replace('/web', '') + " - " + frappe.db.get_single_value('Global Defaults', 'default_company') + "/" + os.path.join(folder, os.path.basename(filename)) #//// destpath = os.path.join(folder, os.path.basename(filename))
+	# get url instance //// add domain and change destpath
+	domain = frappe.utils.get_url()
+	destpath = domain.replace('https://', '') + " - " + frappe.db.get_single_value('Global Defaults', 'default_company') + "/" + os.path.join(folder, os.path.basename(filename)) #//// destpath = os.path.join(folder, os.path.basename(filename))
 	try:
 		print("Uploading file:", filename)
 		conn.upload_file(filename, bucket, destpath)  # Requires PutObject permission
 
 	except Exception as e:
-		frappe.log_error()
+		frappe.log_error("Error uploading file", e)
 		print("Error uploading: %s" % (e))

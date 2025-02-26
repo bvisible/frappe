@@ -29,7 +29,6 @@ from .exceptions import (
 	MaxFileSizeReachedError,
 )
 from .utils import *
-from neoffice_ecommerce.neoffice_ecommerce.doctype.wordpress_settings.api.neo import call_bmr #//// added
 
 exclude_from_linked_with = True
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -141,10 +140,6 @@ class File(Document):
 		self.validate_duplicate_entry()  # Hash is generated in save_file
 
 	def after_insert(self):
-		#//// added if
-		if not frappe.flags.in_import:
-			call_bmr()
-		#////
 		if not self.is_folder:
 			self.create_attachment_record()
 

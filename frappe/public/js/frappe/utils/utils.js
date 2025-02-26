@@ -2,8 +2,8 @@
 // MIT License. See license.txt
 
 import deep_equal from "fast-deep-equal";
-import number_systems from "./number_systems";
 import cloneDeepWith from "lodash/cloneDeepWith";
+import number_systems from "./number_systems";
 
 frappe.provide("frappe.utils");
 
@@ -1776,7 +1776,7 @@ Object.assign(frappe.utils, {
 	get_neo_config: function(module, callback) {
 		var xhr = new XMLHttpRequest();
 		xhr.overrideMimeType("application/json");
-		xhr.open('GET', '/web/wp-content/neoconfig.json', true);
+		xhr.open('GET', '/assets/neoconfig.json', true);
 		xhr.onreadystatechange = function () {
 			if (xhr.readyState == 4 && xhr.status == "200") {
 				var config = JSON.parse(xhr.responseText);

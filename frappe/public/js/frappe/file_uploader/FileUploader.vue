@@ -186,7 +186,8 @@
 					@toggle_optimize="file.optimize = !file.optimize"
 					@toggle_image_cropper="toggle_image_cropper(i)"
 				/>
-				<div class="public-warning form-message blue"> {{ __("Change file visibility: Private => only visible by Neoffice user system. Public => visible by anyone (can be indexed by Google)") }}</div><!-- //// -->
+			<div class="public-warning form-message blue"> {{ __("Change file visibility: Private => only visible by Neoffice user system. Public => visible by anyone (can be indexed by Google)") }}</div><!-- //// -->
+
 			</div>
 			<div class="flex align-center" v-if="show_upload_button && currently_uploading === -1">
 				<button class="btn btn-primary btn-sm margin-right" @click="() => upload_files()">
@@ -220,11 +221,11 @@
 
 <script setup>
 import { computed, ref, watch } from "vue";
-import FilePreview from "./FilePreview.vue";
-import FileBrowser from "./FileBrowser.vue";
-import WebLink from "./WebLink.vue";
 import GoogleDrivePicker from "../../integrations/google_drive_picker";
+import FileBrowser from "./FileBrowser.vue";
+import FilePreview from "./FilePreview.vue";
 import ImageCropper from "./ImageCropper.vue";
+import WebLink from "./WebLink.vue";
 
 // props
 const props = defineProps({
@@ -402,7 +403,7 @@ function add_files(file_array) {
 				request_succeeded: false,
 				error_message: null,
 				uploading: false,
-				private: ['Item', "In-App Ads"].includes(frappe.router.current_route[1]) || ['neoffice-wizard'].includes(frappe.router.current_route[0])? 0 : 1////!props.make_attachments_public,
+				private: !props.make_attachments_public,
 			};
 		});
 
@@ -422,7 +423,6 @@ function add_files(file_array) {
 		files.value.length === 1 &&
 		!props.allow_multiple &&
 		props.restrictions.crop_image_aspect_ratio != null
-		&& cur_frm.doctype != "Company" //// added && cur_frm.doctype != "Company"
 	) {
 		if (!files.value[0].file_obj.type.includes("svg")) {
 			toggle_image_cropper(0);
@@ -598,7 +598,7 @@ function upload_file(file, i) {
 				} else if (xhr.status === 413) {
 					file.failed = true;
 					file.error_message = "Size exceeds the maximum allowed file size.";
-				}
+				} 
 				//// added else if
 				else if (xhr.status === 500) {
 					file.failed = true;

@@ -742,8 +742,16 @@ def sendmail(
 		else:
 			reply_to = None
 	else :
-		from neoffice_theme.events import get_email_from_url
-		default_outgoing = get_email_from_url()
+		from urllib.parse import urlparse
+		full_url = frappe.utils.get_url()
+		parsed_url = urlparse(full_url)
+		domain_parts = parsed_url.netloc.split('.')
+		
+		if len(domain_parts) > 2:
+			subdomain = domain_parts[0]
+			default_outgoing = f"{subdomain}@neoffice.ch"
+		else:
+			default_outgoing = "info@neoffice.ch"
 
 	if session.user and session.user != "Guest" and session.user != "Administrator":
 		user = db.get_value("User", session.user, "full_name") + " | "
@@ -763,9 +771,6 @@ def sendmail(
 		bcc = []
 
 	#//// added if
-	if recipients[0] == "changeme@neoffice.me":
-		recipients[0] = db.get_single_value("Neoffice Woocommerce Settings","email_notification")
-
 	for recipient in recipients:
 		if 'administrator@neoffice.net' in recipient:
 			recipients.remove(recipient)
@@ -1873,7 +1878,7 @@ def copy_doc(doc: "Document", ignore_no_copy: bool = True) -> "Document":
 
 	#//// added if
 	if doc.doctype == "Item":
-		fields_to_clear += ["item_code", "item_name", "stock_on_hand", "opening_stock", "woocommerce_id", "perma_temp", "permalink", "woocommerce_feature_img", "woocommerce_img_1", "woocommerce_img_2", "woocommerce_img_3", "woocommerce_img_4", "woocommerce_img_5", "woocommerce_img_6", "woocommerce_img_7", "woocommerce_img_8", "woocommerce_img_9", "woocommerce_img_10"]
+		fields_to_clear += ["item_code", "item_name", "opening_stock"]
 	#////
 
 	if not local.flags.in_test:

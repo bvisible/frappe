@@ -194,6 +194,11 @@ class LoginManager:
 
 		if not resume:
 			frappe.response["full_name"] = self.full_name
+			#//// Return session details for app
+			frappe.response["sid"] = frappe.local.session.sid
+			frappe.response["user_id"] = self.user
+			frappe.response["user_image"] = self.info.user_image or ""
+			#//// end
 
 		# redirect information
 		redirect_to = frappe.cache.hget("redirect_after_login", self.user)
@@ -228,21 +233,15 @@ class LoginManager:
 
 	def clear_active_sessions(self):
 		"""Clear other sessions of the current user if `deny_multiple_sessions` is not set"""
-		if frappe.session.user == "Guest":
+		#//// Add administrator
+		if frappe.session.user == "Guest" or frappe.session.user == "Administrator":
 			return
 
-		#//// commented
-		'''if not (
+		if not (
 			cint(frappe.conf.get("deny_multiple_sessions"))
 			or cint(frappe.db.get_system_setting("deny_multiple_sessions"))
 		):
-			return'''
-		#////
-
-		#//// added if
-		if frappe.session.user == "Administrator":
 			return
-		#////
 
 		clear_sessions(frappe.session.user, keep_current=True)
 

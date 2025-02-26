@@ -1,19 +1,19 @@
 frappe.provide("frappe.ui.form");
 frappe.provide("frappe.model.docinfo");
 
-import "./quick_entry";
-import "./toolbar";
 import "./dashboard";
-import "./workflow";
-import "./save";
-import "./print_utils";
-import "./success_action";
-import "./script_manager";
-import "./script_helpers";
-import "./sidebar/form_sidebar";
 import "./footer/footer";
 import "./form_tour";
+import "./print_utils";
+import "./quick_entry";
+import "./save";
+import "./script_helpers";
+import "./script_manager";
+import "./sidebar/form_sidebar";
+import "./success_action";
+import "./toolbar";
 import { UndoManager } from "./undo_manager";
+import "./workflow";
 
 frappe.ui.form.Controller = class FormController {
 	constructor(opts) {
@@ -831,73 +831,44 @@ frappe.ui.form.Form = class FrappeForm {
 		var me = this;
 		return new Promise((resolve) => {
 			this.validate_form_action("Submit");
-			//// added
-			if(this.doctype == 'POS Invoice'){
-				frappe.validated = true;
-				me.script_manager.trigger("before_submit").then(function() {
-					if(!frappe.validated) {
-						return me.handle_save_fail(btn, on_error);
-					}
-
-					me.save('Submit', function(r) {
-						if(r.exc) {
-							me.handle_save_fail(btn, on_error);
-						} else {
-							frappe.utils.play_sound("submit");
-							callback && callback();
-							me.script_manager.trigger("on_submit")
-								.then(() => resolve(me))
-								.then(() => {
-									if (frappe.route_hooks.after_submit) {
-										let route_callback = frappe.route_hooks.after_submit;
-										delete frappe.route_hooks.after_submit;
-										route_callback(me);
-									}
-								});
+			frappe.confirm(
+				__("Permanently Submit {0}?", [this.docname]),
+				function () {
+					frappe.validated = true;
+					me.script_manager.trigger("before_submit").then(function () {
+						if (!frappe.validated) {
+							return me.handle_save_fail(btn, on_error);
 						}
-					}, btn, () => me.handle_save_fail(btn, on_error), resolve);
-				});
-			} else {
-			//// end add
-				frappe.confirm(
-					__("Permanently Submit {0}?", [this.docname]),
-					function () {
-						frappe.validated = true;
-						me.script_manager.trigger("before_submit").then(function () {
-							if (!frappe.validated) {
-								return me.handle_save_fail(btn, on_error);
-							}
 
-							me.save(
-								"Submit",
-								function (r) {
-									if (r.exc) {
-										me.handle_save_fail(btn, on_error);
-									} else {
-										frappe.utils.play_sound("submit");
-										callback && callback();
-										me.script_manager
-											.trigger("on_submit")
-											.then(() => resolve(me))
-											.then(() => {
-												if (frappe.route_hooks.after_submit) {
-													let route_callback =
-														frappe.route_hooks.after_submit;
-													delete frappe.route_hooks.after_submit;
-													route_callback(me);
-												}
-											});
-									}
-								},
-								btn,
-								() => me.handle_save_fail(btn, on_error),
-								resolve
-							);
-						});
-					},
-					() => me.handle_save_fail(btn, on_error)
-				)
-			} //// close else
+						me.save(
+							"Submit",
+							function (r) {
+								if (r.exc) {
+									me.handle_save_fail(btn, on_error);
+								} else {
+									frappe.utils.play_sound("submit");
+									callback && callback();
+									me.script_manager
+										.trigger("on_submit")
+										.then(() => resolve(me))
+										.then(() => {
+											if (frappe.route_hooks.after_submit) {
+												let route_callback =
+													frappe.route_hooks.after_submit;
+												delete frappe.route_hooks.after_submit;
+												route_callback(me);
+											}
+										});
+								}
+							},
+							btn,
+							() => me.handle_save_fail(btn, on_error),
+							resolve
+						);
+					});
+				},
+				() => me.handle_save_fail(btn, on_error)
+			);
 		});
 	}
 

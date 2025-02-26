@@ -43,12 +43,6 @@ frappe.ui.TagEditor = class TagEditor {
 							me.user_tags = user_tags.join(",");
 							me.on_change && me.on_change(me.user_tags);
 							frappe.tags.utils.fetch_tags();
-							//// added
-							if(me.frm.doctype == "Item") {
-								me.frm.dirty();
-								me.frm.save();
-							}
-							////
 						},
 					});
 				}
@@ -64,12 +58,6 @@ frappe.ui.TagEditor = class TagEditor {
 							me.user_tags = user_tags.join(",");
 							me.on_change && me.on_change(me.user_tags);
 							frappe.tags.utils.fetch_tags();
-							//// added
-							if(me.frm.doctype == "Item") {
-								me.frm.dirty();
-								me.frm.save();
-							}
-							////
 						},
 					});
 				}

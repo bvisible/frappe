@@ -82,7 +82,7 @@ frappe.ui.form.PrintView = class {
 		});
 
 		//// this.page.add_button(__("PDF"), () => this.render_pdf(), { icon: "small-file" });
-		this.page.add_button(__("PDF and printing"), () => this.render_pdf_dialog(), { icon: "small-file" });
+		this.page.add_button(__("PDF and printing"), () => this.render_pdf(), { icon: "small-file" });
 
 		this.page.add_button(__("Refresh"), () => this.refresh_print_format(), {
 			icon: "refresh",
@@ -661,38 +661,6 @@ frappe.ui.form.PrintView = class {
 			this.render_page("/api/method/frappe.utils.print_format.download_pdf?");
 		}
 	}
-
-	//// added function
-	render_pdf_dialog() {
-		let print_format = this.get_print_format();
-		if (print_format.print_format_builder_beta) {
-			let params = new URLSearchParams({
-				doctype: this.frm.doc.doctype,
-				name: this.frm.doc.name,
-				print_format: print_format.name,
-				letterhead: this.get_letterhead(),
-			});
-			let w = window.open(`/api/method/frappe.utils.weasyprint.download_pdf?${params}`);
-			if (!w) {
-				frappe.msgprint(__("Please enable pop-ups"));
-				return;
-			}
-		} else {
-			this.render_page("/api/method/frappe.utils.print_format.download_pdf?");
-		}
-		const route = frappe.get_route();
-		const doctype = route[1];
-		const docname = route.slice(2).join("/");
-		if( doctype == 'Quotation' || doctype == 'Sales Order' || doctype == 'Sales Invoice' || doctype == 'Delivery Note'){
-			frappe.confirm(__("Do you want to consider the document as printed ?"),
-			() => {
-				frappe.db.set_value(doctype, docname, "printed_document", 1);
-			}, () => {
-				frappe.db.set_value(doctype, docname, "printed_document", 0);
-			})
-		}
-	}
-	////
 
 	render_page(method, printit = false) {
 		let w = window.open(

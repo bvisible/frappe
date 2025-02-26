@@ -230,75 +230,7 @@ login.login_handlers = (function () {
 			if (data.message == 'Logged In') {
 				login.set_status({{ _("Success") | tojson }}, 'green');
 				document.body.innerHTML = `{% include "templates/includes/splash_screen.html" %}`;
-				////commented window.location.href = frappe.utils.sanitise_redirect(frappe.utils.get_url_arg("redirect-to")) || data.home_page;
-				//// replacement
-				function redirectAfterLogin() {
-					window.location.href = frappe.utils.sanitise_redirect(frappe.utils.get_url_arg("redirect-to")) || "/app";
-				}
-				let loggedInServices = {};
-
-				function fetchJSONFile(file, onSuccess) {
-					fetch(file)
-						.then(response => {
-							if (response.ok) {
-								return response.json();
-							} else {
-								throw new Error('Erreur lors de la récupération du fichier JSON');
-							}
-						})
-						.then(data => {
-							onSuccess(data);
-						})
-						.catch(error => {
-							console.error('Erreur lors de la récupération du fichier JSON:', error);
-						});
-				}
-
-				fetchJSONFile("/web/wp-content/neoconfig.json", function(configData) {
-					function handleMessage(event) {
-						if (event.data.source === 'wordpress') {
-							if (event.data.status === 'loggedIn') {
-								loggedInServices[event.data.source] = true;
-								if (configData.website === 1 && loggedInServices.wordpress ) {
-									redirectAfterLogin();
-								}
-							}
-						}
-					}
-					window.addEventListener('message', handleMessage);
-					if (configData.website === 1) {
-						createInvisibleIframe("/web/wp-admin", "iframeWEB");
-					}
-				});
-				function createInvisibleIframe(src, id) {
-					const iframe = document.createElement("iframe");
-					iframe.src = src;
-					iframe.id = id;
-					iframe.style.width = "0px";
-					iframe.style.height = "0px";
-					iframe.style.display = "none";
-					document.body.appendChild(iframe);
-					return iframe;
-				}
-				//force redirect after 20 seconds
-				setTimeout(function () {
-					redirectAfterLogin();
-				}, 20000);
-				function startLoadingBar(duration) {
-					const progressBar = document.getElementById("login-progressBar");
-					let width = 0;
-					const step = 100 / (duration * 1000 / 10);
-					const loadingInterval = setInterval(() => {
-						if (width >= 100) {
-							clearInterval(loadingInterval);
-						} else {
-							width += step;
-							progressBar.style.width = width + "%";
-						}
-					}, 15);
-				}
-				startLoadingBar(10);
-				////
+				window.location.href = frappe.utils.sanitise_redirect(frappe.utils.get_url_arg("redirect-to")) || data.home_page;
 			} else if (data.message == 'Password Reset') {
 				window.location.href = frappe.utils.sanitise_redirect(data.redirect_to);
 			} else if (data.message == "No App") {
@@ -357,10 +289,10 @@ login.login_handlers = (function () {
 			}
 		},
 		401: get_error_handler({{ _("Invalid Login. Try again.") | tojson }}),
-	417: get_error_handler({{ _("Oops! Something went wrong.") | tojson }}),
-	404: get_error_handler({{ _("User does not exist.") | tojson }}),
-	500: get_error_handler({{ _("Something went wrong.") | tojson }})
-};
+		417: get_error_handler({{ _("Oops! Something went wrong.") | tojson }}),
+		404: get_error_handler({{ _("User does not exist.") | tojson }}),
+		500: get_error_handler({{ _("Something went wrong.") | tojson }})
+	};
 
 	return login_handlers;
 })();

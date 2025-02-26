@@ -34,10 +34,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		}
 		////
 		if (this.report_name) {
-			////console.log(this.report_name);
 			return this.get_report_doc().then((doc) => {
 				this.report_doc = doc;
-				////console.log(this.report_doc);
 				this.report_doc.json = JSON.parse(this.report_doc.json);
 
 				this.filters = this.report_doc.json.filters;
@@ -45,7 +43,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				this.add_totals_row = this.report_doc.json.add_totals_row;
 				this.page_title = __(this.report_name);
 				////this.page_length = this.report_doc.json.page_length || 20;
-				this.page_length = 100;
+				this.page_length = 500;
 				this.order_by = this.report_doc.json.order_by || "modified desc";
 				this.chart_args = this.report_doc.json.chart_args;
 			});
@@ -145,6 +143,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		}
 		let doctype = this.doctype;
 		let me = this;
+
 		if (!this.page.wrapper.find('.btn-settings').length) {
 			this.page.add_button(__("Settings"), function() {
 				let dialog = new frappe.ui.Dialog({
@@ -251,9 +250,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 										doctype: me.doctype,
 										settings: JSON.stringify(settings)  // Sauvegarder en JSON string pour garder la même structure
 									},
-									callback: function(response) {
-										console.log("Settings sent to backend:", settings);
-				
+									callback: function(response) {				
 										if (response.message) {
 											frappe.show_alert({
 												message: __("Global default settings for ") + me.doctype + __(" saved successfully"),
@@ -274,12 +271,12 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				});
 
 				dialog.show();
-			}).addClass('btn-settings').html(`<img src="/assets/neoffice_theme/icons/icon_settings.svg" alt="Settings" style="height: 15px; vertical-align: middle;">`);
+			}).addClass('btn-settings').html(`<img src="/assets/frappe/icons/timeless/icon-settings.svg" alt="Settings" style="height: 15px; vertical-align: middle;">`);
 		}
 		if (!this.page.wrapper.find('.btn-export-excel').length) {
 			this.page.add_button('', function() {
 				frappe.call({
-					method: 'neoffice_theme.events.export_query',
+					method: 'frappe.desk.reportview.export_query',
 					args: {
 						data: cur_list.data,
 						file_format_type: 'Excel',
@@ -293,7 +290,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 						}
 					}
 				});
-			}).addClass('btn-export-excel').html(`<img src="/assets/neoffice_theme/icons/icon_excel.svg" alt="Export Excel" style="height: 20px; vertical-align: middle;">`);
+			}).addClass('btn-export-excel').html(`<img src="/assets/frappe/icons/timeless/icon-excel.svg" alt="Export Excel" style="height: 20px; vertical-align: middle;">`);
 		}		
 		////
 		if (this.report_doc) {
@@ -1021,36 +1018,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		}
 
 		return control;
-	}
-
-	evaluate_read_only_depends_on(expression, data) {
-		let out = null;
-		if (typeof expression === "boolean") {
-			out = expression;
-		} else if (expression.substr(0, 5) == "eval:") {
-			try {
-				out = frappe.utils.eval(expression.substr(5), { doc: data });
-				if (parent && parent.istable && expression.includes("is_submittable")) {
-					out = true;
-				}
-			} catch (e) {
-				frappe.throw(__('Invalid "depends_on" expression'));
-			}
-		} else if (expression.substr(0, 3) == "fn:" && this.frm) {
-			out = this.frm.script_manager.trigger(
-				expression.substr(3),
-				this.doctype,
-				this.docname
-			);
-		} else {
-			var value = data[expression];
-			if ($.isArray(value)) {
-				out = !!value.length;
-			} else {
-				out = !!value;
-			}
-		}
-		return out;
 	}
 
 	is_editable(df, data) {
@@ -1820,6 +1787,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				// child table field
 				const cdt_field = (f) => `${col.docfield.parent}:${f}`;
 				const name = d[cdt_field("name")];
+
 				return {
 					name: name,
 					doctype: col.docfield.parent,

@@ -897,7 +897,6 @@ def update_translations_for_source(source=None, translation_dict=None):
 		return
 
 	translation_dict = json.loads(translation_dict)
-	original_woocommerce = source #//// added
 
 	if is_html(source):
 		source = strip_html_tags(source)
@@ -909,9 +908,7 @@ def update_translations_for_source(source=None, translation_dict=None):
 	for d in translation_records:
 		if translation_dict.get(d.language, None):
 			doc = frappe.get_doc("Translation", d.name)
-			doc.translated_text = translation_dict.get(d.language)[0] #//// doc.translated_text = translation_dict.get(d.language)
-			doc.translate_woocommerce = translation_dict.get(d.language)[1] #//// added
-			doc.original_woocommerce = original_woocommerce #//// added
+			doc.translated_text = translation_dict.get(d.language)
 			doc.save()
 			# done with this lang value
 			translation_dict.pop(d.language)
@@ -919,13 +916,11 @@ def update_translations_for_source(source=None, translation_dict=None):
 			frappe.delete_doc("Translation", d.name)
 
 	# remaining values are to be inserted
-	for lang, translated_text_and_translate_woocommerce in translation_dict.items() :#//// for lang, translated_text in translation_dict.items():
+	for lang, translated_text in translation_dict.items():
 		doc = frappe.new_doc("Translation")
 		doc.language = lang
 		doc.source_text = source
-		doc.translated_text = translated_text_and_translate_woocommerce[0] #//// doc.translated_text = translated_text
-		doc.translate_woocommerce = translated_text_and_translate_woocommerce[1] #//// added
-		doc.original_woocommerce = original_woocommerce #//// added
+		doc.translated_text = translated_text
 		doc.save()
 
 	return translation_records

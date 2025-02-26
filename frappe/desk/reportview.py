@@ -4,6 +4,12 @@
 """build query for doclistview and return results"""
 
 import json
+import os
+import frappe
+import re
+
+from frappe.utils.xlsxutils import make_xlsx
+from frappe.utils.file_manager import save_file
 from functools import lru_cache
 
 from sql_metadata import Parser
@@ -102,7 +108,6 @@ def validate_args(data):
 
 
 def validate_fields(data):
-	#frappe.neolog("validate_fields data", data)
 	wildcard = update_wildcard_field_param(data)
 
 	allowed_special_fields = ["_comment_count"]  # Add _comment_count to allowed special fields
@@ -211,17 +216,9 @@ def extract_fieldnames(field):
 
 
 def get_meta_and_docfield(fieldname, data):
-	#frappe.neolog("fieldname", fieldname)
-	#frappe.neolog("data", data)
-
 	parenttype, fieldname = get_parenttype_and_fieldname(fieldname, data)
 	meta = frappe.get_meta(parenttype)
 	df = meta.get_field(fieldname)
-	#if fieldname == "barcode":
-	#frappe.neolog("barcode fieldname", fieldname)
-	#frappe.neolog("parenttype", parenttype)
-	#frappe.neolog("meta", meta)
-	#frappe.neolog("df", df)
 	return meta, df
 
 
@@ -821,22 +818,20 @@ def save_user_report_settings(doctype, settings):
 @frappe.whitelist()
 def save_global_report_settings(doctype, settings):
 	if frappe.session.user == "Administrator":
-		from neoffice_custom_fields.events import push_default_report_views
-		# Récupérer les paramètres globaux actuels ou initialiser à un objet vide
-		global_defaults = frappe.db.get_single_value('Global Defaults', 'report_settings') or '{}'
+		# Retrieve the current global parameters or initialise to an empty object
+		global_defaults = frappe.db.get_single_value('System Settings', 'report_settings') or '{}'
 		global_defaults = frappe.parse_json(global_defaults)
 
-		# Stocker les paramètres en tant que chaîne JSON, comme dans les paramètres utilisateur
+		# Store parameters as a JSON string, as in user parameters
 		global_defaults[doctype] = settings
 
-		# Sauvegarder les paramètres globaux dans Global Defaults
-		frappe.db.set_value('Global Defaults', None, 'report_settings', frappe.as_json(global_defaults))
+		# Save global settings in Global Defaults
+		frappe.db.set_value('System Settings', None, 'report_settings', frappe.as_json(global_defaults))
 		frappe.db.commit()
-		push_default_report_views()
 
 		return {"message": f"Global default settings for {doctype} saved successfully"}
 	else:
-		frappe.throw(_("You do not have permission to set global defaults"))
+		frappe.throw(_("You do not have permission to set System Settings"))
 
 @frappe.whitelist()
 def get_user_report_settings(doctype):
@@ -849,7 +844,7 @@ def get_user_report_settings(doctype):
 		return user_settings.get(doctype, {})
 
 	# Si pas de paramètres utilisateurs, vérifier les paramètres globaux
-	global_defaults = frappe.db.get_value('Global Defaults', None, 'report_settings') or '{}'
+	global_defaults = frappe.db.get_value('System Settings', None, 'report_settings') or '{}'
 	global_defaults = frappe.parse_json(global_defaults)
 
 	return global_defaults.get(doctype, {})
@@ -902,3 +897,98 @@ def get_comment_count(doctype, docnames):
 		comment_counts[docname] = count
 
 	return comment_counts
+
+@frappe.whitelist()
+def export_query(data=None, file_format_type='Excel', title='Exported Data'):
+    if data:
+        data = frappe.parse_json(data)
+        if not isinstance(data, list):
+            frappe.throw("Invalid data format")
+            
+        # Création des en-têtes et des lignes
+        if len(data) > 0:
+            headers = ["Sr"] + list(data[0].keys())
+        else:
+            headers = []
+            
+        rows = []
+        for i, row in enumerate(data):
+            rows.append([i + 1] + list(row.values()))
+            
+        content = []
+        content.append(headers)
+        content.extend(rows)
+        
+        if file_format_type == "Excel":
+            file_extension = "xlsx"
+            title = sanitize_title(title)
+            file_content = make_xlsx(content, title).getvalue()
+            file_name = f"{title}.{file_extension}"
+            file_path = os.path.join(frappe.get_site_path("private", "files"), file_name)
+            
+            # Écriture du fichier
+            with open(file_path, "wb") as f:
+                f.write(file_content)
+                
+            file_url = f"/private/files/{file_name}"
+            
+            # Création du document File
+            file_doc = frappe.get_doc({
+                "doctype": "File",
+                "file_name": file_name,
+                "file_url": file_url,
+                "is_private": 1
+            })
+            file_doc.insert()
+            
+            # Planification de la suppression du fichier
+            frappe.enqueue(
+                'frappe.desk.reportview.delete_file_after_download',
+                file_url=file_url,
+                file_name=file_doc.name,
+                timeout=300
+            )
+            
+            return {"file_url": file_doc.file_url}
+        else:
+            frappe.throw("Unsupported file format")
+    else:
+        frappe.throw("No data provided for export")
+
+def sanitize_title(title):
+    title = title.replace(" ", "_")
+    title = re.sub(r'[^\w\-]', '', title)
+    return title
+	
+
+@frappe.whitelist()
+def delete_file_after_download(file_url, file_name):
+    try:
+        file_doc = frappe.get_doc("File", file_name)
+        file_path = frappe.get_site_path(file_url.lstrip('/'))
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        file_doc.delete()
+    except Exception as e:
+        frappe.log_error(f"Failed to delete file {file_url}: {str(e)}")
+
+@frappe.whitelist()
+def set_global_default(db_field_name, value):
+    try:
+        doc = frappe.get_doc('Global Defaults')
+        setattr(doc, db_field_name, value)
+        doc.save(ignore_permissions=True)
+        frappe.db.commit()
+        return {
+            'status': 'success',
+            'message': f'{db_field_name} a été mis à jour avec succès.'
+        }
+    except Exception as e:
+        frappe.log_error(
+            frappe.get_traceback(),
+            f'Erreur lors de la mise à jour de {db_field_name}'
+        )
+        return {
+            'status': 'error',
+            'message': f'Erreur lors de la mise à jour de {db_field_name}: {str(e)}'
+        }

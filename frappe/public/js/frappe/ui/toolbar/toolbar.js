@@ -163,7 +163,7 @@ frappe.ui.toolbar.Toolbar = class {
 				}
 			}).appendTo($help_links);
 
-			loadFormTour();
+			////loadFormTour();
 
 			$(".dropdown-help .dropdown-menu").on("click", "a", show_results);
 		});
