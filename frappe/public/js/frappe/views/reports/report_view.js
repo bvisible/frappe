@@ -1024,6 +1024,36 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		return control;
 	}
 
+	evaluate_read_only_depends_on(expression, data) {
+		let out = null;
+		if (typeof expression === "boolean") {
+			out = expression;
+		} else if (expression.substr(0, 5) == "eval:") {
+			try {
+				out = frappe.utils.eval(expression.substr(5), { doc: data });
+				if (parent && parent.istable && expression.includes("is_submittable")) {
+					out = true;
+				}
+			} catch (e) {
+				frappe.throw(__('Invalid "depends_on" expression'));
+			}
+		} else if (expression.substr(0, 3) == "fn:" && this.frm) {
+			out = this.frm.script_manager.trigger(
+				expression.substr(3),
+				this.doctype,
+				this.docname
+			);
+		} else {
+			var value = data[expression];
+			if ($.isArray(value)) {
+				out = !!value.length;
+			} else {
+				out = !!value;
+			}
+		}
+		return out;
+	}
+
 	is_editable(df, data) {
 		if (
 			df &&
