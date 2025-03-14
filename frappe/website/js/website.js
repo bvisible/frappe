@@ -23,8 +23,7 @@ $.extend(frappe, {
 			if (path.endsWith(".css") && is_rtl) {
 				path = `rtl_${path}`;
 			}
-			//// Add a safety check before accessing the property
-			path = (frappe.boot?.assets_json && frappe.boot.assets_json[path]) || path;
+			path = frappe.boot.assets_json[path] || path;
 			return path;
 		}
 		return path;
