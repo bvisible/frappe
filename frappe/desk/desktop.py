@@ -465,7 +465,10 @@ def get_workspace_sidebar_items():
 		excluded_menus = {}
 
 	# Get the user's view interface setting
-	user_view_interface = frappe.get_doc("User", frappe.session.user).view_interface
+	try:
+		user_view_interface = frappe.get_doc("User", frappe.session.user).get("view_interface") or "Simplified"
+	except Exception:
+		user_view_interface = "Simplified"
 
 	# Initialize exclusion set with titles from the JSON file
 	excluded_titles = set()
