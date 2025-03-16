@@ -2,6 +2,9 @@
 	.print-format-gutter {
 		background-color: #d1d8dd;
 		padding: 30px 0px;
+		/* //// */
+		display: flex;
+		justify-content: center;
 	}
 	.print-format {
 		background-color: white;
