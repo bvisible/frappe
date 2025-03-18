@@ -278,22 +278,96 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			}).addClass('btn-settings').html(`<img src="/assets/frappe/icons/timeless/icon-settings.svg" alt="Settings" style="height: 15px; vertical-align: middle;">`);
 		}
 		if (!this.page.wrapper.find('.btn-export-excel').length) {
-			this.page.add_button('', function() {
-				frappe.call({
-					method: 'frappe.desk.reportview.export_query',
-					args: {
-						data: cur_list.data,
-						file_format_type: 'Excel',
-						title: __(cur_list.doctype) + '_' + frappe.datetime.get_today(),
-					},
-					callback: function(response) {
-						if (response.message && response.message.file_url) {
-							window.location.href = response.message.file_url;
+			this.page.add_button('', () => {
+				const selected_items = this.get_checked_items(true);
+				const args = this.get_args();
+				let extra_fields = [];
+				
+				if (this.list_view_settings && this.list_view_settings.disable_count) {
+					extra_fields = [
+						{
+							fieldtype: "Check",
+							fieldname: "export_all_rows",
+							label: __("Export all matching rows?"),
+						},
+					];
+				} else if (this.total_count > (this.count_without_children || args.page_length)) {
+					extra_fields = [
+						{
+							fieldtype: "Check",
+							fieldname: "export_all_rows",
+							label: __("Export all {0} rows?", [`<b>${this.total_count}</b>`]),
+						},
+					];
+				}
+				
+				if (frappe.boot.lang !== "en") {
+					extra_fields.push({
+						fieldtype: "Check",
+						fieldname: "translate_values",
+						label: __("Translate values"),
+						default: 1,
+					});
+				}
+				
+				const d = frappe.report_utils.get_export_dialog(
+					__(this.doctype),
+					extra_fields,
+					(data) => {
+						let export_args = {
+							cmd: "frappe.desk.reportview.export_query",
+							doctype: this.doctype,
+							file_format_type: data.file_format || 'Excel',
+							title: this.report_name || this.doctype,
+							translate_values: data.translate_values
+						};
+						
+						// Si des données sont explicitement disponibles, les utiliser
+						if (this.data && this.data.length) {
+							export_args.data = this.data;
 						} else {
-							console.error("Failed to generate export file.");
+							// Sinon, passer les filtres et autres paramètres
+							export_args = Object.assign({}, export_args, args);
 						}
+						
+						if (data.file_format === "CSV") {
+							export_args.csv_delimiter = data.csv_delimiter;
+							export_args.csv_quoting = data.csv_quoting;
+						}
+						
+						if (this.add_totals_row) {
+							export_args.add_totals_row = 1;
+						}
+						
+						if (selected_items.length > 0) {
+							export_args.selected_items = selected_items;
+						}
+						
+						if (!data.export_all_rows) {
+							export_args.start = 0;
+							export_args.page_length = this.data ? this.data.length : args.page_length;
+						} else {
+							delete export_args.start;
+							delete export_args.page_length;
+						}
+						
+						frappe.call({
+							method: export_args.cmd,
+							args: export_args,
+							callback: function(response) {
+								if (response.message && response.message.file_url) {
+									window.location.href = response.message.file_url;
+								} else {
+									console.error("Failed to generate export file.");
+								}
+							}
+						});
+						
+						d.hide();
 					}
-				});
+				);
+				
+				d.show();
 			}).addClass('btn-export-excel').html(`<img src="/assets/frappe/icons/timeless/icon-excel.svg" alt="Export Excel" style="height: 20px; vertical-align: middle;">`);
 		}		
 		////
@@ -2257,7 +2331,19 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 								delete args.page_length;
 							}
 
-							open_url_post(frappe.request.url, args);
+							//// open_url_post(frappe.request.url, args);
+							frappe.call({
+								method: args.cmd,
+								args: args,
+								callback: function(response) {
+									if (response.message && response.message.file_url) {
+										window.location.href = response.message.file_url;
+									} else {
+										console.error("Failed to generate export file.");
+									}
+								}
+							});
+							////
 
 							d.hide();
 						}

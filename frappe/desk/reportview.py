@@ -8,6 +8,7 @@ import os
 import frappe
 import re
 
+from frappe.utils import cint
 from frappe.utils.xlsxutils import make_xlsx
 from frappe.utils.file_manager import save_file
 from functools import lru_cache
@@ -899,61 +900,99 @@ def get_comment_count(doctype, docnames):
 	return comment_counts
 
 @frappe.whitelist()
-def export_query(data=None, file_format_type='Excel', title='Exported Data'):
+def export_query(data=None, selected_items=None, file_format_type='Excel', title='Exported Data', 
+                start=0, page_length=20, filters=None, fields=None, doctype=None, order_by=None):
+    # Case 1: Data is explicitly provided (direct method call with data)
     if data:
         data = frappe.parse_json(data)
         if not isinstance(data, list):
             frappe.throw("Invalid data format")
             
-        # Création des en-têtes et des lignes
-        if len(data) > 0:
-            headers = ["Sr"] + list(data[0].keys())
-        else:
-            headers = []
-            
-        rows = []
-        for i, row in enumerate(data):
-            rows.append([i + 1] + list(row.values()))
-            
-        content = []
-        content.append(headers)
-        content.extend(rows)
+        # If selected_items is provided, filter the data to include only the selected items
+        if selected_items:
+            selected_items = frappe.parse_json(selected_items)
+            if isinstance(selected_items, list) and len(selected_items) > 0:
+                # Create a set of selected item names for faster lookup
+                selected_set = set(selected_items)
+                # Filter the data to include only the selected items
+                data = [item for item in data if item.get('name') in selected_set]
+    
+    # Case 2: No direct data provided, but we have filters and doctype (from export dialog)
+    elif doctype:
+        # Get the data from the database based on filters and other parameters
+        from frappe.model.db_query import DatabaseQuery
         
-        if file_format_type == "Excel":
-            file_extension = "xlsx"
-            title = sanitize_title(title)
-            file_content = make_xlsx(content, title).getvalue()
-            file_name = f"{title}.{file_extension}"
-            file_path = os.path.join(frappe.get_site_path("private", "files"), file_name)
+        # Convert string filters to list if provided
+        if filters and isinstance(filters, str):
+            filters = frappe.parse_json(filters)
             
-            # Écriture du fichier
-            with open(file_path, "wb") as f:
-                f.write(file_content)
-                
-            file_url = f"/private/files/{file_name}"
-            
-            # Création du document File
-            file_doc = frappe.get_doc({
-                "doctype": "File",
-                "file_name": file_name,
-                "file_url": file_url,
-                "is_private": 1
-            })
-            file_doc.insert()
-            
-            # Planification de la suppression du fichier
-            frappe.enqueue(
-                'frappe.desk.reportview.delete_file_after_download',
-                file_url=file_url,
-                file_name=file_doc.name,
-                timeout=300
-            )
-            
-            return {"file_url": file_doc.file_url}
-        else:
-            frappe.throw("Unsupported file format")
-    else:
+        # If fields is a string, convert to a list
+        if fields and isinstance(fields, str):
+            fields = frappe.parse_json(fields)
+        
+        # Execute the query to get the data
+        query = DatabaseQuery(doctype)
+        if not fields:
+            fields = ['name'] + [f for f in frappe.db.get_table_columns(doctype) 
+                               if f not in ('name', 'owner', 'creation', 'modified', 'modified_by')]
+        
+        data = query.execute(filters=filters, fields=fields, 
+                            order_by=order_by or 'modified desc',
+                            start=cint(start), page_length=cint(page_length))
+        
+        # Convert to list of dicts
+        if data:
+            keys = [d.strip() for d in fields]
+            data = [dict(zip(keys, row)) for row in data]
+    
+    # If no data found after processing both cases
+    if not data or len(data) == 0:
         frappe.throw("No data provided for export")
+        
+    # Create headers and rows
+    headers = ["Sr"] + list(data[0].keys())
+        
+    rows = []
+    for i, row in enumerate(data):
+        rows.append([i + 1] + list(row.values()))
+        
+    content = []
+    content.append(headers)
+    content.extend(rows)
+    
+    if file_format_type == "Excel":
+        file_extension = "xlsx"
+        title = sanitize_title(title)
+        file_content = make_xlsx(content, title).getvalue()
+        file_name = f"{title}.{file_extension}"
+        file_path = os.path.join(frappe.get_site_path("private", "files"), file_name)
+        
+        # Write the file
+        with open(file_path, "wb") as f:
+            f.write(file_content)
+            
+        file_url = f"/private/files/{file_name}"
+        
+        # Create the File document
+        file_doc = frappe.get_doc({
+            "doctype": "File",
+            "file_name": file_name,
+            "file_url": file_url,
+            "is_private": 1
+        })
+        file_doc.insert()
+        
+        # Schedule the file deletion
+        frappe.enqueue(
+            'frappe.desk.reportview.delete_file_after_download',
+            file_url=file_url,
+            file_name=file_doc.name,
+            timeout=300
+        )
+        
+        return {"file_url": file_doc.file_url}
+    else:
+        frappe.throw("Unsupported file format")
 
 def sanitize_title(title):
     title = title.replace(" ", "_")
@@ -971,24 +1010,3 @@ def delete_file_after_download(file_url, file_name):
         file_doc.delete()
     except Exception as e:
         frappe.log_error(f"Failed to delete file {file_url}: {str(e)}")
-
-@frappe.whitelist()
-def set_global_default(db_field_name, value):
-    try:
-        doc = frappe.get_doc('Global Defaults')
-        setattr(doc, db_field_name, value)
-        doc.save(ignore_permissions=True)
-        frappe.db.commit()
-        return {
-            'status': 'success',
-            'message': f'{db_field_name} a été mis à jour avec succès.'
-        }
-    except Exception as e:
-        frappe.log_error(
-            frappe.get_traceback(),
-            f'Erreur lors de la mise à jour de {db_field_name}'
-        )
-        return {
-            'status': 'error',
-            'message': f'Erreur lors de la mise à jour de {db_field_name}: {str(e)}'
-        }
