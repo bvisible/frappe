@@ -144,6 +144,59 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		////
 		if (this.$page.find('.layout-side-section').length > 0 ) {
 			this.$filter_section.prependTo(this.$page.find('.layout-side-section'));
+
+			// Select all buttons with class "filter-x-button"
+			const filterButtons = this.$filter_section.find('.filter-x-button');
+    
+			// Convert jQuery collection to array and add event listeners
+			Array.from(filterButtons).forEach((button) => {
+			  button.addEventListener('click', function() {
+				// Select all input fields with class "dt-filter"
+				const filterInputs = document.querySelectorAll('.dt-filter');
+				
+				// Clear the value of each input field
+				filterInputs.forEach(input => {
+				  input.value = '';
+				  
+				  // Trigger input event to simulate user interaction
+				  const event = new Event('input', { bubbles: true });
+				  input.dispatchEvent(event);
+				});
+				
+				// Function to get document type from URL
+				const getDocTypeFromURL = function() {
+				  const path = window.location.pathname;
+				  if (path.includes('/app/')) {
+					// Format: /app/doctype or /app/doctype/name
+					const parts = path.split('/');
+					// Find index after "/app/"
+					const appIndex = parts.findIndex(part => part === 'app');
+					if (appIndex !== -1 && parts.length > appIndex + 1) {
+					  return parts[appIndex + 1]; // Return doctype part
+					}
+				  }
+				  return null;
+				};
+				
+				// Get current doctype
+				const doctype = getDocTypeFromURL() || 
+							  (window.cur_frm && window.cur_frm.doctype) || 
+							  (window.cur_list && window.cur_list.doctype) ||
+							  'undefined';
+				
+				// Get instance name if available
+				const instanceName = (window.cur_list && window.cur_list.name) || '';
+				
+				// Build localStorage key and remove the item
+				const localStorageKey = 'dt-filters-' + (instanceName ? instanceName + '-' : '') + doctype;
+				localStorage.removeItem(localStorageKey);
+				
+				// Refresh the list if possible
+				if (window.cur_list && typeof window.cur_list.refresh === 'function') {
+				  window.cur_list.refresh();
+				}
+			  });
+			});
 		}
 		let doctype = this.doctype;
 		let me = this;
