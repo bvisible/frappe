@@ -98,25 +98,14 @@ frappe.Application = class Application {
 		$(document).trigger("app_ready");
 
 		//// added
-		readJSONFile("/assets/neoconfig.json", function(data_config){
-			var data_config = JSON.parse(data_config);
-			if (data_config["first_run"] == 1){
-				frappe.set_route("neoffice-wizard/0")
-			}
-		});
-		frappe.call({
-		    method: 'neoffice_theme.events.check_and_show_blog_post',
-		    args: {
-		        user: frappe.session.user
-		    },
-		    callback: function(r) {
-		        if (r.message) {
-		            let content = r.message.content;
-		            let title = r.message.title;
-		            frappe.msgprint({message: content, title: title, indicator: 'green'});
-		        }
-		    }
-		});
+		fetch("/assets/neoconfig.json")
+			.then(response => response.json())
+			.then(data_config => {
+				if (data_config["first_run"] == 1) {
+				frappe.set_route("neoffice-wizard/0");
+				}
+			})
+			.catch(error => console.error("Failed to load config:", error));
 		////
 
 		if (frappe.boot.messages) {
