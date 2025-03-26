@@ -142,7 +142,7 @@ frappe.dom = {
 
 			freeze.html(
 				repl(
-					'<div class="freeze-message-container"><div class="freeze-message"><p class="lead">%(msg)s</p></div></div>',
+					'<div class="freeze-message-container"><dotlottie-player src="/assets/frappe/lottie/loader.lottie" background="transparent" speed="1" style="width: 300px; height: 300px" loop autoplay></dotlottie-player><div class="freeze-message"><p class="lead">%(msg)s</p></div></div>',
 					{ msg: msg || "" }
 				)
 			);
