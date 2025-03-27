@@ -52,7 +52,7 @@ from .utils.jinja import (
 )
 from .utils.lazy_loader import lazy_import
 
-__version__ = "15.60.0"
+__version__ = "15.61.0"
 __title__ = "Frappe Framework"
 
 # This if block is never executed when running the code. It is only used for
@@ -2546,6 +2546,12 @@ def _register_fault_handler():
 	# Some libraries monkey patch stderr, we need actual fd
 	if isinstance(sys.__stderr__, io.TextIOWrapper):
 		faulthandler.register(signal.SIGUSR1, file=sys.__stderr__)
+
+
+def override_whitelisted_method(original_method: str) -> str:
+	"""Return the last override or the original whitelisted method."""
+	overrides = get_hooks("override_whitelisted_methods", {}).get(original_method, [])
+	return overrides[-1] if overrides else original_method
 
 
 from frappe.utils.error import log_error
