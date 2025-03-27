@@ -1944,7 +1944,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				};
 			}
 			////
-			if (col.docfield.parent !== this.doctype) {
+			if (col.docfield && col.docfield.parent !== this.doctype) {
 				// child table field
 				const cdt_field = (f) => `${col.docfield.parent}:${f}`;
 				const name = d[cdt_field("name")];
