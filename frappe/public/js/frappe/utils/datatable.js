@@ -16,6 +16,35 @@ frappe.utils.datatable.get_translations = function () {
 			1: __("{count} row selected"),
 			default: __("{count} rows selected"),
 		},
+		//// add traductions for other languages here
+		"Search...": __("Search..."),
+		"Show more": __("Show more"),
+		"Showing": __("Showing"),
+		
+		"Open": __("Open"),
+		"Closed": __("Closed"),
+		"Pending": __("Pending"),
+		"Draft": __("Draft"),
+		"Submitted": __("Submitted"),
+		"Cancelled": __("Cancelled"),
+		"Completed": __("Completed"),
+		"Active": __("Active"),
+		"Inactive": __("Inactive"),
+		"Paid": __("Paid"),
+		"Unpaid": __("Unpaid"),
+		"Approved": __("Approved"),
+		"Rejected": __("Rejected"),
+		"In Progress": __("In Progress"),
+		"On Hold": __("On Hold"),
+		"Yes": __("Yes"),
+		"No": __("No"),
+		"Consolidated": __("Consolidated"),
+		"Credit Note Issued": __("Credit Note Issued"),
+		"Overdue": __("Overdue"),
+		"Overdue and Discounted": __("Overdue and Discounted"),
+		"Return": __("Return"),
+		"Partly Paid": __("Partly Paid"),
+		"Unpaid and Discounted": __("Unpaid and Discounted")
 	};
 
 	return translations;

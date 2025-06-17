@@ -31,7 +31,8 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 			this.process_document_refreshes.bind(this),
 			this.is_large_table ? 15000 : 2000
 		);
-		this.count_upper_bound = 1001;
+		////this.count_upper_bound = 1001;
+		this.count_upper_bound = 100000;
 		this._element_factory = new ElementFactory(this.doctype);
 	}
 
@@ -1007,12 +1008,13 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 				this.count_without_children =
 					count_without_children !== current_count ? count_without_children : undefined;
 
+				let count_str = format_number(this.total_count, null, 0);
 				let count_str;
 				if (this.total_count === this.count_upper_bound) {
 					count_str = `${format_number(this.total_count - 1, null, 0)}+`;
 				} else {
 					count_str = format_number(this.total_count, null, 0);
-				}
+				}*/
 
 				let str = __("{0} of {1}", [format_number(current_count, null, 0), count_str]);
 				if (this.count_without_children) {
