@@ -128,37 +128,60 @@ def notify():
 	error_message = frappe.get_traceback()
 	send_email(False, "Amazon S3", "S3 Backup Settings", "notify_email", error_message)
 
+#////
+def get_file_or_folder_age(path):
+    """
+    Get the age of a file or folder in seconds since epoch
+    """
+    # Get the time of last modification of the file or folder
+    # os.stat(path).st_mtime returns the time of last modification
+    return os.stat(path).st_mtime
+
+def remove_file(path):
+    """
+    Remove a file safely
+    """
+    try:
+        if os.path.isfile(path):
+            os.remove(path)
+            frappe.neolog("Deleted old backup file", f"Removed: {path}")
+        else:
+            frappe.neolog("Path is not a file", f"Skipping: {path}")
+    except OSError as e:
+        frappe.neolog("Error deleting file", f"Error removing {path}: {e}")
+
 def delete_backups():
-	# //// Add fuctionality to delete backups
+    """
+    Delete backup files older than specified days
+    """
     # specify the path
     path = "/mnt/neoffice/private/backups"
     # specify the days
     days = 3
     # converting days to seconds
     # time.time() returns current time in seconds
-    seconds = time.time() - (days * 24 * 60 * 60 - 3600) # days - 1 hour
+    seconds = time.time() - (days * 24 * 60 * 60 - 3600)  # days - 1 hour
+    
     # checking whether the file is present in path or not
     if os.path.exists(path):
         # iterating over each and every folder and file in the path
         for root_folder, folders, files in os.walk(path):
             # checking the current directory files
             for file in files:
-
                 # file path
                 file_path = os.path.join(root_folder, file)
-
+                
                 # comparing the days
                 if seconds >= get_file_or_folder_age(file_path):
-
                     # invoking the remove_file function
                     remove_file(file_path)
-        else:
-            # if the path is not a directory
-            # comparing with the days
-            if seconds >= get_file_or_folder_age(path):
-
-                # invoking the file
-                remove_file(path)
+    else:
+        # if the path is not a directory
+        # comparing with the days
+        if seconds >= get_file_or_folder_age(path):
+            # invoking the file
+            remove_file(path)
+#////
 
 def backup_to_s3(wizard=False, manual=False, demo=False): #//// added wizard=False, manual=False, demo=False
 	# //// added block
