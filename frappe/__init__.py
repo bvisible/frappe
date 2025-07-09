@@ -1894,7 +1894,7 @@ def copy_doc(doc: "Document", ignore_no_copy: bool = True) -> "Document":
 
 	#//// added if
 	if doc.doctype == "Item":
-		fields_to_clear += ["item_code", "item_name", "opening_stock"]
+		fields_to_clear += ["item_code", "item_name", "opening_stock", "published_in_website"]
 	#////
 
 	if not local.flags.in_test:
