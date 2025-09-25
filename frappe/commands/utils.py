@@ -13,6 +13,7 @@ from frappe.commands import get_site, pass_context
 from frappe.coverage import CodeCoverage
 from frappe.exceptions import SiteNotSpecifiedError
 from frappe.utils import cint, update_progress_bar
+from frappe.utils.print_utils import setup_chromium
 
 EXTRA_ARGS_CTX = {"ignore_unknown_options": True, "allow_extra_args": True}
 
@@ -1167,6 +1168,11 @@ def rebuild_global_search(context, static_pages=False):
 		raise SiteNotSpecifiedError
 
 
+@click.command("setup-chrome")
+def setup_chrome():
+	setup_chromium()
+
+
 commands = [
 	build,
 	clear_cache,
@@ -1200,4 +1206,5 @@ commands = [
 	add_to_email_queue,
 	rebuild_global_search,
 	run_parallel_tests,
+	setup_chrome,
 ]
