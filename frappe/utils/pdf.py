@@ -6,14 +6,10 @@ import io
 import mimetypes
 import os
 import subprocess
-import time
 from urllib.parse import parse_qs, urlparse
 
 import cssutils
 import pdfkit
-
-from frappe.utils.pdf_generator.browser import Browser
-from frappe.utils.pdf_generator.pdf_merge import PDFTransformer
 
 pdfkit.source.unicode = str  # NOTE: upstream bug; PYTHONOPTIMIZE=1 optimized this away
 from bs4 import BeautifulSoup
@@ -134,6 +130,8 @@ def get_pdf(html, options=None, output: PdfWriter | None = None):
 
 
 def measure_time(func):
+	import time
+
 	def wrapper(*args, **kwargs):
 		start_time = time.time()
 		result = func(*args, **kwargs)
@@ -146,7 +144,9 @@ def measure_time(func):
 
 @measure_time
 def get_chrome_pdf(print_format, html, options, output, pdf_generator=None):
+	from frappe.utils.pdf_generator.browser import Browser
 	from frappe.utils.pdf_generator.chrome_pdf_generator import ChromePDFGenerator
+	from frappe.utils.pdf_generator.pdf_merge import PDFTransformer
 
 	if pdf_generator != "chrome":
 		# Use the default pdf generator

@@ -1170,6 +1170,8 @@ def rebuild_global_search(context, static_pages=False):
 
 @click.command("setup-chrome")
 def setup_chrome():
+	from frappe.utils.print_utils import setup_chromium
+
 	setup_chromium()
 
 
