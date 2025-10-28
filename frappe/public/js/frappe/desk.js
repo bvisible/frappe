@@ -37,6 +37,7 @@ frappe.Application = class Application {
 		this.load_bootinfo();
 		this.load_user_permissions();
 		this.make_nav_bar();
+		this.make_sidebar();
 		this.set_favicon();
 		this.set_fullwidth_if_enabled();
 		this.add_browser_class();
@@ -366,6 +367,11 @@ frappe.Application = class Application {
 			frappe.frappe_toolbar = new frappe.ui.toolbar.Toolbar();
 		}
 	}
+
+	make_sidebar() {
+		this.sidebar = new frappe.ui.Sidebar({});
+	}
+
 	logout() {
 		var me = this;
 		me.logged_out = true;

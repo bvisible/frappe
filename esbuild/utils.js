@@ -1,14 +1,55 @@
 const path = require("path");
 const fs = require("fs");
 const chalk = require("chalk");
-let bench_path;
-if (process.env.FRAPPE_BENCH_ROOT) {
-	bench_path = process.env.FRAPPE_BENCH_ROOT;
-} else {
+function find_bench_path() {
+	// First check environment variable
+	if (process.env.FRAPPE_BENCH_ROOT) {
+		return process.env.FRAPPE_BENCH_ROOT;
+	}
+
+	// Try default path from frappe location
 	const frappe_path = path.resolve(__dirname, "..");
-	bench_path = path.resolve(frappe_path, "..", "..");
+	let test_path = path.resolve(frappe_path, "..", "..");
+
+	// Check if sites/apps.txt exists at this location
+	const apps_txt = path.join(test_path, "sites", "apps.txt");
+	if (fs.existsSync(apps_txt)) {
+		return test_path;
+	}
+
+	// For symlinked apps, search in adjacent directories
+	// frappe is in /path/to/frappe, but bench might be in /path/to/frappe-bench
+	let current = path.dirname(__dirname); // /real/path/frappe
+	const parent = path.dirname(current);
+
+	// Check sibling directories
+	try {
+		const siblings = fs.readdirSync(parent);
+		for (const sibling of siblings) {
+			const sibling_path = path.join(parent, sibling);
+			const apps_txt_sibling = path.join(sibling_path, "sites", "apps.txt");
+			if (fs.existsSync(apps_txt_sibling)) {
+				return sibling_path;
+			}
+		}
+	} catch (e) {
+		// Ignore errors
+	}
+
+	// Search up the directory tree
+	for (let i = 0; i < 5; i++) {
+		const apps_txt_test = path.join(current, "sites", "apps.txt");
+		if (fs.existsSync(apps_txt_test)) {
+			return current;
+		}
+		current = path.dirname(current);
+	}
+
+	// Fallback to original logic
+	return test_path;
 }
 
+const bench_path = find_bench_path();
 const apps_path = path.resolve(bench_path, "apps");
 const sites_path = path.resolve(bench_path, "sites");
 const assets_path = path.resolve(sites_path, "assets");

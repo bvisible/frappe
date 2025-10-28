@@ -287,7 +287,11 @@ def check_node_executable():
 
 
 def get_node_env():
-	return {"NODE_OPTIONS": f"--max_old_space_size={get_safe_max_old_space_size()}"}
+	env = {"NODE_OPTIONS": f"--max_old_space_size={get_safe_max_old_space_size()}"}
+	# Support for symlinked apps - get FRAPPE_BENCH_ROOT from environment if set
+	if os.environ.get("FRAPPE_BENCH_ROOT"):
+		env["FRAPPE_BENCH_ROOT"] = os.environ.get("FRAPPE_BENCH_ROOT")
+	return env
 
 
 def get_safe_max_old_space_size():

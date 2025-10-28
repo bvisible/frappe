@@ -26,7 +26,17 @@ frappe.ui.toolbar.Toolbar = class {
 
 	make() {
 		this.bind_events();
+		this.bind_logo_click();
 		$(document).trigger("toolbar_setup");
+	}
+
+	bind_logo_click() {
+		$(".navbar-brand.navbar-home").on("click", function(e) {
+			e.preventDefault();
+			e.stopPropagation();
+			frappe.set_route("Workspaces");
+			return false;
+		});
 	}
 
 	bind_events() {
@@ -300,6 +310,10 @@ frappe.ui.toolbar.Toolbar = class {
 		if (frappe.boot.desk_settings.notifications && frappe.session.user !== "Guest") {
 			this.notifications = new frappe.ui.Notifications();
 		}
+	}
+
+	set_app_logo(logo_url) {
+		$(".navbar-brand .app-logo").attr("src", logo_url);
 	}
 };
 
