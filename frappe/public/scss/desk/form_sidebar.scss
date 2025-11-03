@@ -138,7 +138,7 @@
 
 .layout-side-section {
 	@include get_textstyle("sm", "regular");
-	// padding-right: 30px;
+	padding: 0 var(--padding-md);
 	min-width: var(--sidebar-width);
 
 	@media (max-width: map-get($grid-breakpoints, "xl")) {
@@ -219,6 +219,7 @@
 			&.opened {
 				transform: translateX(0);
 				overflow-y: auto;
+				padding: var(--padding-md);
 			}
 
 			.divider {

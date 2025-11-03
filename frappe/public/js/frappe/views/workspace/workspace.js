@@ -8,6 +8,7 @@ frappe.standard_pages["Workspaces"] = function () {
 		parent: wrapper,
 		name: "Workspaces",
 		title: __("Workspace"),
+		single_column: true,
 	});
 
 	frappe.workspace = new frappe.views.Workspace(wrapper);

@@ -24,6 +24,11 @@
 			}
 		}
 	}
+
+	// Hide sidebar toggle button in Workspaces
+	body[data-route^="Workspaces"] & .sidebar-toggle-btn {
+		display: none;
+	}
 	.title-area {
 		display: inline-flex;
 		align-items: center;
@@ -84,8 +89,14 @@
 	}
 }
 
+.layout-main {
+	display: flex;
+	flex-direction: row;
+}
+
 .layout-main-section-wrapper {
 	min-width: 0;
+	flex: 1;
 }
 
 .layout-main-section.frappe-card {

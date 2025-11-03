@@ -27,14 +27,27 @@ frappe.ui.toolbar.Toolbar = class {
 	make() {
 		this.bind_events();
 		this.bind_logo_click();
+		this.bind_hamburger_click();
 		$(document).trigger("toolbar_setup");
 	}
 
 	bind_logo_click() {
-		$(".navbar-brand.navbar-home").on("click", function(e) {
-			e.preventDefault();
-			e.stopPropagation();
+		$(".navbar-brand .app-logo").on("click", (event) => {
+			// On desktop and mobile, navigate to Workspaces
+			event.preventDefault();
+			event.stopPropagation();
 			frappe.set_route("Workspaces");
+			return false;
+		});
+	}
+
+	bind_hamburger_click() {
+		$(".navbar-toggle-sidebar").on("click", (event) => {
+			event.preventDefault();
+			event.stopPropagation();
+			frappe.app.sidebar.set_height();
+			frappe.app.sidebar.toggle_sidebar();
+			frappe.app.sidebar.prevent_scroll();
 			return false;
 		});
 	}

@@ -2,8 +2,33 @@
 	height: $navbar-height;
 	background: var(--navbar-bg);
 	padding: 0;
+	position: relative;
+
+	&::before {
+		content: "";
+		position: absolute;
+		bottom: -16px;
+		left: 0;
+		width: 16px;
+		height: 16px;
+		background: radial-gradient(circle at bottom right, transparent 16px, var(--navbar-bg) 16px);
+	}
+
 	.navbar-brand {
 		margin-right: 0;
+	}
+
+	.navbar-toggle-sidebar {
+		display: flex;
+		align-items: center;
+		padding: 8px;
+		margin-right: var(--margin-sm);
+		cursor: pointer;
+		color: var(--text-color);
+
+		&:hover {
+			color: var(--primary);
+		}
 	}
 	.navbar-nav {
 		.dropdown-item {

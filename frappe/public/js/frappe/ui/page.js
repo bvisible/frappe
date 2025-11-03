@@ -98,15 +98,22 @@ frappe.ui.Page = class Page {
 			this.add_view(
 				"main",
 				`
-				<div class="row layout-main">
-					<div class="col-lg-2 layout-side-section"></div>
-					<div class="col layout-main-section-wrapper">
+				<div class="layout-main layout-two-column">
+					<div class="layout-side-section"></div>
+					<div class="layout-main-section-wrapper">
 						<div class="layout-main-section"></div>
 						<div class="layout-footer hide"></div>
 					</div>
 				</div>
 			`
 			);
+
+			if (this.sidebar_position === "Right") {
+				this.wrapper
+					.find(".layout-main-section-wrapper")
+					.insertBefore(this.wrapper.find(".layout-side-section"));
+				this.wrapper.find(".layout-side-section").addClass("right");
+			}
 		}
 
 		this.setup_page();
