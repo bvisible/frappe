@@ -83,36 +83,32 @@ frappe.ui.FilterGroup = class {
 			}
 		});
 
-		this.filter_button.on("click", () => {
-			this.filter_button.popover("toggle");
-		});
+	this.filter_button.on("click", () => {
+		this.filter_button.popover("toggle");
 
-		this.filter_button.on("shown.bs.popover", () => {
-			let hide_empty_filters = this.filters && this.filters.length > 0;
-
-			if (!this.wrapper) {
-				this.wrapper = $(".filter-popover");
-				if (hide_empty_filters) {
-					this.toggle_empty_filters(false);
-					this.add_filters_to_popover(this.filters);
-				}
-				this.set_filter_events();
+		// Fallback: après le toggle, attendre que le popover soit visible
+		setTimeout(() => {
+			if ($(".filter-popover").is(":visible") && !this.wrapper) {
+				this.initialize_wrapper_and_events();
 			}
-			this.toggle_empty_filters(false);
-			!hide_empty_filters && this.add_filter(this.doctype, "name");
-		});
+		}, 100);
+	});
 
-		this.filter_button.on("hidden.bs.popover", () => {
-			this.apply();
-		});
+	this.filter_button.on("shown.bs.popover", () => {
+		this.initialize_wrapper_and_events();
+	});
 
-		// REDESIGN-TODO: (Temporary) Review and find best solution for this
-		frappe.router.on("change", () => {
-			if (this.wrapper && this.wrapper.is(":visible")) {
-				this.hide_popover();
-			}
-		});
-	}
+	this.filter_button.on("hidden.bs.popover", () => {
+		this.apply();
+	});
+
+	// REDESIGN-TODO: (Temporary) Review and find best solution for this
+	frappe.router.on("change", () => {
+		if (this.wrapper && this.wrapper.is(":visible")) {
+			this.hide_popover();
+		}
+	});
+}
 
 	add_filters_to_popover(filters) {
 		filters.forEach((filter) => {
@@ -120,6 +116,21 @@ frappe.ui.FilterGroup = class {
 			filter.field = null;
 			filter.make();
 		});
+	}
+
+	initialize_wrapper_and_events() {
+		let hide_empty_filters = this.filters && this.filters.length > 0;
+
+		if (!this.wrapper) {
+			this.wrapper = $(".filter-popover");
+			if (hide_empty_filters) {
+				this.toggle_empty_filters(false);
+				this.add_filters_to_popover(this.filters);
+			}
+			this.set_filter_events();
+		}
+		this.toggle_empty_filters(false);
+		!hide_empty_filters && this.add_filter(this.doctype, "name");
 	}
 
 	apply() {

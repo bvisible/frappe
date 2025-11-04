@@ -615,6 +615,14 @@ class FilterArea {
 			300
 		);
 		this.setup();
+
+		// Déplacer le filter-section dans la sidebar pour le support mobile
+		// Utilise prependTo pour mettre en premier dans la sidebar
+		setTimeout(() => {
+			if (this.list_view.list_sidebar && this.list_view.list_sidebar.sidebar) {
+				this.$filter_list_wrapper.prependTo(this.list_view.list_sidebar.sidebar);
+			}
+		}, 500);
 	}
 
 	setup() {

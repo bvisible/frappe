@@ -107,3 +107,11 @@
 .filters-search {
 	margin-bottom: 10px;
 }
+
+// Cacher le filter-section dans layout-side-section (avant déplacement) en mobile
+// mais PAS dans la sidebar
+@media (max-width: 767px) {
+	body[data-route*="List"] .layout-side-section .filter-section:not(.list-sidebar .filter-section) {
+		display: none !important;
+	}
+}

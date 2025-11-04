@@ -431,13 +431,23 @@ frappe.ui.form.Layout = class Layout {
 	}
 
 	set_tab_as_active() {
-		let frm_active_tab = this.frm?.get_active_tab?.();
-		if (frm_active_tab) {
-			frm_active_tab.set_active();
-		} else if (this.tabs.length) {
-			// set first tab as active when opening for first time, or new doc
-			let first_visible_tab = this.tabs.find((tab) => !tab.is_hidden());
-			first_visible_tab && first_visible_tab.set_active();
+		// D'abord, vérifier si un tab est déjà visuellement actif dans le DOM
+		let currently_active_tab = this.tabs.find((tab) => tab.is_active() && !tab.is_hidden());
+
+		if (currently_active_tab) {
+			// Garder le tab actuellement actif et mettre à jour la mémoire
+			currently_active_tab.set_active();
+		} else {
+			// Sinon, utiliser le tab en mémoire
+			let frm_active_tab = this.frm?.get_active_tab?.();
+
+			if (frm_active_tab && !frm_active_tab.is_hidden()) {
+				frm_active_tab.set_active();
+			} else if (this.tabs.length) {
+				// set first tab as active when opening for first time, or new doc
+				let first_visible_tab = this.tabs.find((tab) => !tab.is_hidden());
+				first_visible_tab && first_visible_tab.set_active();
+			}
 		}
 	}
 
