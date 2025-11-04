@@ -616,8 +616,8 @@ class FilterArea {
 		);
 		this.setup();
 
-		// Déplacer le filter-section dans la sidebar pour le support mobile
-		// Utilise prependTo pour mettre en premier dans la sidebar
+		// Move filter-section into sidebar for mobile support
+		// Uses prependTo to place it first in the sidebar
 		setTimeout(() => {
 			if (this.list_view.list_sidebar && this.list_view.list_sidebar.sidebar) {
 				this.$filter_list_wrapper.prependTo(this.list_view.list_sidebar.sidebar);

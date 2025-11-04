@@ -40,7 +40,7 @@ frappe.views.ListSidebar = class ListSidebar {
 			});
 		}
 
-		// Bannières marketing commentées
+		// Marketing banners commented out
 		// if (frappe.user.has_role("System Manager")) {
 		// 	this.add_insights_banner();
 		// 	this.add_crm_banner();

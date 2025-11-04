@@ -431,14 +431,14 @@ frappe.ui.form.Layout = class Layout {
 	}
 
 	set_tab_as_active() {
-		// D'abord, vérifier si un tab est déjà visuellement actif dans le DOM
+		// First, check if a tab is already visually active in the DOM
 		let currently_active_tab = this.tabs.find((tab) => tab.is_active() && !tab.is_hidden());
 
 		if (currently_active_tab) {
-			// Garder le tab actuellement actif et mettre à jour la mémoire
+			// Keep the currently active tab and update memory
 			currently_active_tab.set_active();
 		} else {
-			// Sinon, utiliser le tab en mémoire
+			// Otherwise, use the tab from memory
 			let frm_active_tab = this.frm?.get_active_tab?.();
 
 			if (frm_active_tab && !frm_active_tab.is_hidden()) {

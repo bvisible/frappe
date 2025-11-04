@@ -86,7 +86,7 @@ frappe.ui.FilterGroup = class {
 	this.filter_button.on("click", () => {
 		this.filter_button.popover("toggle");
 
-		// Fallback: après le toggle, attendre que le popover soit visible
+		// Fallback: wait for popover to be visible after toggle
 		setTimeout(() => {
 			if ($(".filter-popover").is(":visible") && !this.wrapper) {
 				this.initialize_wrapper_and_events();

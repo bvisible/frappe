@@ -108,8 +108,12 @@
 	margin-bottom: 10px;
 }
 
-// Cacher le filter-section dans layout-side-section (avant déplacement) en mobile
-// mais PAS dans la sidebar
+.layout-side-section {
+	max-width: 250px;
+}
+
+// Hide filter-section in layout-side-section (before moving) on mobile
+// but NOT in the sidebar
 @media (max-width: 767px) {
 	body[data-route*="List"] .layout-side-section .filter-section:not(.list-sidebar .filter-section) {
 		display: none !important;
