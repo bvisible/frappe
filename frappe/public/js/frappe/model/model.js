@@ -839,7 +839,7 @@ $.extend(frappe.model, {
 			let default_views = ["List", "Report", "Dashboard", "Kanban"];
 
 			////commented
-			/*if (meta.is_calendar_and_gantt && frappe.views.calendar[doctype]) {
+			/*if (meta.is_calendar_and_gantt) {
 				let views = ["Calendar", "Gantt"];
 				default_views.push(...views);
 			}*/
