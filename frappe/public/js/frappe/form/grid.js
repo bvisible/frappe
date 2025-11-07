@@ -62,7 +62,14 @@ export default class Grid {
 	make() {
 		let template = `
 			<div class="grid-field">
-				<label class="control-label">${__(this.df.label || "", null, this.df.parent)}</label>
+				<div class="d-flex align-items-center">
+				<label class="control-label mb-0">${__(this.df.label || "", null, this.df.parent)}</label>
+				<button type="button" class="btn btn-xs btn-default ml-2 grid-toggle-fullwidth" title="${__(
+					"Toggle Full Width"
+				)}" style="padding: 3px 5px; display: flex; margin-bottom: 3px;">
+					<svg class="icon icon-xs"><use href="#es-line-expand"></use></svg>
+				</button>
+			</div>
 				<span class="help"></span>
 				<p class="text-muted small grid-description"></p>
 				<div class="grid-custom-buttons"></div>
@@ -138,9 +145,66 @@ export default class Grid {
 
 		this.setup_allow_bulk_edit();
 		this.setup_check();
+		this.setup_fullwidth_toggle();
 		if (this.df.on_setup) {
 			this.df.on_setup(this);
 		}
+	}
+
+	setup_fullwidth_toggle() {
+		const toggle_btn = this.wrapper.find(".grid-toggle-fullwidth");
+		const form_column = $(this.parent).closest(".form-column");
+		const grid_field = this.wrapper;
+
+		toggle_btn.on("click", () => {
+			const is_fullwidth = form_column.hasClass("grid-fullwidth");
+
+			if (is_fullwidth) {
+				// Restore padding and normal width
+				form_column.removeClass("grid-fullwidth");
+				form_column.css({
+					"padding-left": "",
+					"padding-right": "",
+				});
+				grid_field.css({
+					"margin-left": "",
+					"margin-right": "",
+					width: "",
+					"max-width": "",
+					"padding-left": "",
+					"padding-right": "",
+				});
+				toggle_btn.removeClass("btn-primary").addClass("btn-default");
+			} else {
+				// Remove padding and expand to full width of tab-content
+				form_column.addClass("grid-fullwidth");
+				form_column.css({
+					"padding-left": "0px",
+					"padding-right": "0px",
+				});
+
+				// Calculate the negative margin to break out of tab-pane but stay within tab-content
+				const tab_content = grid_field.closest(".form-tab-content");
+				const tab_content_left = tab_content.offset().left;
+				const tab_content_width = tab_content.outerWidth();
+				const grid_field_left = grid_field.offset().left;
+
+				// Calculate how much to extend on the left to align with tab-content
+				// Add 15px padding on each side
+				const left_offset = grid_field_left - tab_content_left - 15;
+
+				grid_field.css({
+					"margin-left": `-${left_offset}px`,
+					"margin-right": `-${left_offset}px`,
+					width: `${tab_content_width - 30}px`, // Subtract 30px for 15px padding on each side
+					"max-width": "none",
+					"padding-left": "15px",
+					"padding-right": "15px",
+				});
+
+				toggle_btn.removeClass("btn-default").addClass("btn-primary");
+			}
+		});
 	}
 	set_grid_description() {
 		let description_wrapper = $(this.parent).find(".grid-description");
@@ -947,7 +1011,12 @@ export default class Grid {
 
 		this.visible_columns = [];
 
-		let limit_colsize = (this.frm && this.frm.doctype == "VAT Declaration" && this.df.fieldname.includes("_details")) ? 20 : 11; //// added
+		let limit_colsize =
+			this.frm &&
+			this.frm.doctype == "VAT Declaration" &&
+			this.df.fieldname.includes("_details")
+				? 20
+				: 11; //// added
 		for (var ci in fields) {
 			var _df = fields[ci];
 
@@ -991,11 +1060,13 @@ export default class Grid {
 
 		// redistribute if total-col size is less than 12
 		var passes = 0;
-		while (total_colsize < limit_colsize && passes < limit_colsize+1) { //// replaced 11 with limit_colsize and 12 with limit_colsize+1
+		while (total_colsize < limit_colsize && passes < limit_colsize + 1) {
+			//// replaced 11 with limit_colsize and 12 with limit_colsize+1
 			for (var i in this.visible_columns) {
 				var df = this.visible_columns[i][0];
 				var colsize = this.visible_columns[i][1];
-				if (colsize > 1 && colsize < 11 && frappe.model.is_non_std_field(df.fieldname)) { //// maybe replace here
+				if (colsize > 1 && colsize < 11 && frappe.model.is_non_std_field(df.fieldname)) {
+					//// maybe replace here
 					if (
 						passes < 3 &&
 						["Int", "Currency", "Float", "Check", "Percent"].indexOf(df.fieldtype) !==
@@ -1009,7 +1080,7 @@ export default class Grid {
 					total_colsize++;
 				}
 
-				if (total_colsize > limit_colsize-1) break; //// replaced 10 with limit_colsize-1
+				if (total_colsize > limit_colsize - 1) break; //// replaced 10 with limit_colsize-1
 			}
 			passes++;
 		}

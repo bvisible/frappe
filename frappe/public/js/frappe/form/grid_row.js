@@ -256,7 +256,8 @@ export default class GridRow {
 				? this.doc.idx
 				: __("No.", null, "Title of the 'row number' column");
 
-			if (!this.parent_df.read_only) { //// added if condition
+			if (!this.parent_df.read_only) {
+				//// added if condition
 				this.row_check = $(
 					`<div class="row-check sortable-handle col">
 						${this.row_check_html}
@@ -266,12 +267,6 @@ export default class GridRow {
 			if (this.header_row) {
 				this.row_check_html = $(this.row_check_html).attr("tabindex", -1).get(0).outerHTML;
 			}
-
-			this.row_check = $(
-				`<div class="row-check sortable-handle col">
-					${this.row_check_html}
-				</div>`
-			).appendTo(this.row);
 
 			this.row_index = $(
 				`<div class="row-index sortable-handle col">
@@ -344,7 +339,8 @@ export default class GridRow {
 
 	add_open_form_button() {
 		var me = this;
-		if (this.doc && !this.grid.df.in_place_edit && !this.parent_df.read_only) { //// added && !this.parent_df.read_only
+		if (this.doc && !this.grid.df.in_place_edit && !this.parent_df.read_only) {
+			//// added && !this.parent_df.read_only
 			// remove row
 			if (!this.open_form_button) {
 				this.open_form_button = $('<div class="col"></div>').appendTo(this.row);
@@ -674,7 +670,12 @@ export default class GridRow {
 			}
 		});
 
-		if (total_column_width && total_column_width > 10 && this.frm.doctype !== "VAT Declaration") { //// added  && this.frm.doctype !== "VAT Declaration"
+		if (
+			total_column_width &&
+			total_column_width > 10 &&
+			this.frm.doctype !== "VAT Declaration"
+		) {
+			//// added	&& this.frm.doctype !== "VAT Declaration"
 			frappe.throw(__("The total column width cannot be more than 10."));
 		}
 	}
