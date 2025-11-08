@@ -189,8 +189,176 @@ def load_desktop_data(bootinfo):
 	bootinfo.dashboards = frappe.get_all("Dashboard")
 
 	# Generate app_data for apps switcher
-	bootinfo.app_data = []
+	# Check if App Customization exists (custom app switcher management)
+	if frappe.db.table_exists("App Customization") and frappe.db.count("App Customization") > 0:
+		bootinfo.app_data = generate_app_data_from_customization(allowed_pages)
+	else:
+		# Fallback to default behavior
+		bootinfo.app_data = generate_app_data_default(allowed_pages)
 
+
+def generate_app_data_from_customization(allowed_pages):
+	"""
+	Generate app_data from App Customization doctype.
+	This allows for:
+	- Virtual apps (apps not actually installed)
+	- Apps without workspaces
+	- Custom ordering via sort_order
+	- Enable/disable apps via enabled field
+
+	Args:
+		allowed_pages: List of workspace names the current user can access
+
+	Returns:
+		list: App data entries for bootinfo
+	"""
+	# Get all enabled apps sorted
+	customizations = frappe.get_all(
+		"App Customization",
+		filters={"enabled": 1},
+		fields=[
+			"app_name", "app_title", "app_logo", "app_route",
+			"is_virtual", "sort_order", "manage_all_workspaces"
+		],
+		order_by="sort_order asc, app_title asc"
+	)
+
+	app_data = []
+	Workspace = frappe.qb.DocType("Workspace")
+	Module = frappe.qb.DocType("Module Def")
+
+	for custom in customizations:
+		app_name = custom["app_name"]
+		is_virtual = custom["is_virtual"]
+
+		# Determine workspaces based on app type
+		if is_virtual or custom["manage_all_workspaces"]:
+			# Get workspaces from child table
+			workspaces = get_customized_workspaces(app_name, allowed_pages)
+		else:
+			# Auto-discover from modules (default Frappe behavior)
+			workspaces = [
+				r[0]
+				for r in (
+					frappe.qb.from_(Workspace)
+					.inner_join(Module)
+					.on(Workspace.module == Module.name)
+					.select(Workspace.name)
+					.where(Module.app_name == app_name)
+					.run()
+				)
+				if r[0] in allowed_pages
+			]
+
+		# Build app data entry
+		app_entry = {
+			"app_name": app_name,
+			"app_title": custom["app_title"] or get_app_title_fallback(app_name, is_virtual),
+			"app_logo_url": custom["app_logo"] or get_app_logo_fallback(app_name, is_virtual),
+			"app_route": custom["app_route"] or determine_app_route(app_name, workspaces),
+			"modules": get_app_modules(app_name) if not is_virtual else [],
+			"workspaces": workspaces,
+			"sort_order": custom["sort_order"] if custom["sort_order"] is not None else 999,
+		}
+
+		# CRITICAL: Include app even if workspaces=[] (for apps like NORA AI)
+		app_data.append(app_entry)
+
+	return app_data
+
+
+def get_customized_workspaces(app_name, allowed_pages):
+	"""
+	Get workspaces from App Customization Workspace child table.
+
+	Args:
+		app_name: App name from App Customization
+		allowed_pages: List of workspaces user can access
+
+	Returns:
+		list: Workspace names that should appear for this app
+	"""
+	if not frappe.db.table_exists("App Customization Workspace"):
+		return []
+
+	workspace_configs = frappe.get_all(
+		"App Customization Workspace",
+		filters={
+			"parent": app_name,
+			"hidden": 0
+		},
+		fields=["workspace_name"],
+		order_by="sort_order asc, idx asc"
+	)
+
+	# Filter to only accessible workspaces
+	return [ws["workspace_name"] for ws in workspace_configs if ws["workspace_name"] in allowed_pages]
+
+
+def get_app_title_fallback(app_name, is_virtual=False):
+	"""Fallback to app_title hook if not in App Customization."""
+	if is_virtual:
+		return app_name.replace("_", " ").title()
+
+	try:
+		hooks = frappe.get_hooks("app_title", app_name=app_name)
+		return hooks[0] if hooks else app_name.replace("_", " ").title()
+	except (ImportError, ModuleNotFoundError):
+		return app_name.replace("_", " ").title()
+
+
+def get_app_logo_fallback(app_name, is_virtual=False):
+	"""Fallback to app_logo_url hook if not in App Customization."""
+	if is_virtual:
+		return "/assets/frappe/images/frappe-framework-logo.svg"
+
+	try:
+		hooks = frappe.get_hooks("app_logo_url", app_name=app_name)
+		if hooks:
+			return hooks[0]
+	except (ImportError, ModuleNotFoundError):
+		pass
+
+	# Fallback to Frappe logo
+	try:
+		frappe_logo = frappe.get_hooks("app_logo_url", app_name="frappe")
+		return frappe_logo[0] if frappe_logo else "/assets/frappe/images/frappe-framework-logo.svg"
+	except:
+		return "/assets/frappe/images/frappe-framework-logo.svg"
+
+
+def determine_app_route(app_name, workspaces):
+	"""
+	Determine default route for app.
+	Priority: app_home hook > first workspace > /app/home
+	"""
+	app_home = frappe.get_hooks("app_home", app_name=app_name)
+	if app_home:
+		return app_home[0]
+
+	if workspaces:
+		return f"/app/{frappe.utils.slug(workspaces[0])}"
+
+	return "/app/home"
+
+
+def get_app_modules(app_name):
+	"""Get modules for installed app."""
+	return [m.name for m in frappe.get_all("Module Def", {"app_name": app_name}, ["name"])]
+
+
+def generate_app_data_default(allowed_pages):
+	"""
+	Original Frappe behavior - kept for backward compatibility.
+	Used when App Customization is not available.
+
+	Args:
+		allowed_pages: List of workspace names the current user can access
+
+	Returns:
+		list: App data entries for bootinfo
+	"""
+	app_data = []
 	Workspace = frappe.qb.DocType("Workspace")
 	Module = frappe.qb.DocType("Module Def")
 
@@ -218,7 +386,7 @@ def load_desktop_data(bootinfo):
 			if r[0] in allowed_pages
 		]
 
-		bootinfo.app_data.append(
+		app_data.append(
 			dict(
 				app_name=app_info.get("name") or app_name,
 				app_title=app_info.get("title")
@@ -237,8 +405,11 @@ def load_desktop_data(bootinfo):
 					or "/assets/frappe/images/frappe-framework-logo.svg",
 				modules=[m.name for m in frappe.get_all("Module Def", dict(app_name=app_name))],
 				workspaces=workspaces,
+				sort_order=999,  # Add sort_order field for consistency
 			)
 		)
+
+	return app_data
 
 
 def get_allowed_pages(cache=False):

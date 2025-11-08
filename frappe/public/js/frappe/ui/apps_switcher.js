@@ -31,11 +31,25 @@ frappe.ui.AppsSwitcher = class AppsSwitcher {
 	}
 	create_app_data_map() {
 		frappe.boot.app_data_map = {};
-		for (var app of frappe.boot.app_data) {
-			frappe.boot.app_data_map[app.app_name] = app;
-			if (app.workspaces?.length) {
-				this.add_app_item(app);
+
+		// Sort apps by sort_order before displaying
+		const sortedApps = [...frappe.boot.app_data].sort((a, b) => {
+			const orderA = a.sort_order !== undefined ? a.sort_order : 999;
+			const orderB = b.sort_order !== undefined ? b.sort_order : 999;
+			if (orderA !== orderB) {
+				return orderA - orderB;
 			}
+			// Secondary sort by title
+			return (a.app_title || a.app_name || '').localeCompare(b.app_title || b.app_name || '');
+		});
+
+		for (var app of sortedApps) {
+			frappe.boot.app_data_map[app.app_name] = app;
+
+			// Show ALL apps from boot.app_data, even if workspaces=[]
+			// This allows apps without workspaces (like NORA AI) to appear
+			// boot.app_data is already filtered by the server (enabled apps only)
+			this.add_app_item(app);
 		}
 	}
 	populate_apps_menu() {
