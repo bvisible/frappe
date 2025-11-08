@@ -546,7 +546,7 @@ frappe.views.Workspace = class Workspace {
 		}
 
 		this.clear_page_actions();
-		if (current_page.is_editable && frappe.session.user == "Administrator") { //// add check if user is administrator
+		if (current_page && current_page.is_editable && frappe.session.user == "Administrator") { //// add check if user is administrator
 			this.body.find(".btn-edit-workspace").removeClass("hide");
 		} else {
 			this.body.find(".btn-edit-workspace").addClass("hide");

@@ -147,12 +147,25 @@ frappe.ui.Sidebar = class Sidebar {
 		let match = false;
 		const that = this;
 		$(".item-anchor").each(function () {
-			if ($(this).attr("title") == active_module) {
+			const title = $(this).attr("title");
+
+			// Quick check with title first (most common case)
+			if (title == active_module) {
 				match = true;
 				if (that.active_item) that.active_item.removeClass("active-sidebar");
 				that.active_item = $(this).parent();
-				// this exists the each loop
-				return false;
+				return false; // exit the each loop
+			}
+
+			// Check item-name only if title didn't match (for translated workspaces)
+			const item_container = $(this).closest(".sidebar-item-container");
+			const item_name = item_container.attr("item-name");
+
+			if (item_name == active_module) {
+				match = true;
+				if (that.active_item) that.active_item.removeClass("active-sidebar");
+				that.active_item = $(this).parent();
+				return false; // exit the each loop
 			}
 		});
 		return match;

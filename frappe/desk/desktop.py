@@ -496,6 +496,24 @@ def get_workspace_sidebar_items():
 			if page['parent_page'].lower() in excluded_titles:
 				excluded_titles.add(page['title'].lower())
 
+	# Get workspaces that are part of virtual apps - these should NOT be excluded
+	virtual_app_workspaces = set()
+	try:
+		app_customizations = frappe.get_all(
+			"App Customization",
+			filters={"enabled": 1, "is_virtual": 1},
+			fields=["name"]
+		)
+		for app_custom in app_customizations:
+			workspaces = frappe.get_all(
+				"App Customization Workspace",
+				filters={"parent": app_custom["name"], "hidden": 0},
+				pluck="workspace_name"
+			)
+			virtual_app_workspaces.update(workspaces)
+	except Exception:
+		pass  # App Customization might not exist
+
 	pages = []
 	private_pages = []
 
@@ -505,7 +523,9 @@ def get_workspace_sidebar_items():
 		if page_title_lower in custom_links:
 			page['custom_link'] = custom_links[page_title_lower]
 
-		if page_title_lower not in excluded_titles:
+		# Don't exclude workspaces that are part of virtual apps
+		is_in_virtual_app = page['name'] in virtual_app_workspaces
+		if page_title_lower not in excluded_titles or is_in_virtual_app:
 			try:
 				workspace = Workspace(page, True)
 				if has_access or workspace.is_permitted():
