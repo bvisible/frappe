@@ -6,6 +6,8 @@
 	border: 1px solid var(--table-border-color);
 	border-radius: var(--border-radius-md);
 	color: var(--text-color);
+	min-height: 150px;
+	background-color: var(--subtle-accent);
 	&:focus-visible {
 		@include grid-focus();
 	}
@@ -24,6 +26,11 @@
 	padding: 0 !important;
 	border-top-left-radius: var(--border-radius-md);
 	border-top-right-radius: var(--border-radius-md);
+
+	// Override custom theme background colors to ensure consistency
+	.grid-row .data-row {
+		background-color: transparent !important;
+	}
 
 	&.with-filter {
 		height: 64px;
@@ -52,6 +59,32 @@
 				color: var(--red-400);
 			}
 		}
+	}
+
+	// Background colors for heading row elements
+	.grid-static-col,
+	.row-check,
+	.row-index {
+		background-color: var(--subtle-fg) !important;
+	}
+}
+
+// Background colors for body row elements
+.grid-body {
+	.grid-static-col {
+		background-color: var(--fg-color) !important;
+	}
+
+	.data-row {
+		.row-check,
+		.row-index {
+			background-color: var(--fg-color) !important;
+		}
+	}
+
+	.col:last-child {
+		border: none !important;
+		background-color: var(--fg-color) !important;
 	}
 }
 
@@ -598,5 +631,232 @@
 	.form-in-grid .form-section .form-column {
 		padding-left: 0 !important;
 		padding-right: 0 !important;
+	}
+}
+
+// ========================================
+// UNLIMITED COLUMNS WITH HORIZONTAL SCROLL
+// ========================================
+
+// Container with horizontal scroll capability
+.form-grid-container {
+	position: relative;
+	overflow-x: auto;
+	width: 100%;
+}
+
+// Disable scroll when form is open
+.form-grid-container:has(.grid-row.grid-row-open) {
+	overflow-x: clip;
+	white-space: normal;
+	overflow-y: unset;
+
+	.form-grid {
+		left: 0px !important;
+	}
+}
+
+
+// Column limit reached - enable horizontal scroll mode
+.column-limit-reached {
+	background-color: var(--subtle-accent);
+	border-radius: var(--border-radius-md);
+	border: 1px solid var(--table-border-color);
+	overflow-x: auto;
+	overflow-y: hidden;
+
+	.form-grid {
+		display: grid;
+		grid-auto-rows: min-content;
+		border: unset;
+
+		.grid-static-col {
+			height: 38px;
+		}
+
+		.grid-heading-row .grid-row .data-row.row,
+		.grid-body .rows .grid-row .data-row.row {
+			flex-wrap: nowrap;
+			justify-content: space-between;
+		}
+
+		// Fixed width columns for each Bootstrap colsize (1-12)
+		.grid-static-col.col-xs-1 {
+			flex: 0 0 60px;
+			width: 60px;
+			min-width: 60px;
+			max-width: 60px;
+		}
+		.grid-static-col.col-xs-2 {
+			flex: 0 0 100px;
+			width: 100px;
+			min-width: 100px;
+			max-width: 100px;
+		}
+		.grid-static-col.col-xs-3 {
+			flex: 0 0 140px;
+			width: 140px;
+			min-width: 140px;
+			max-width: 140px;
+		}
+		.grid-static-col.col-xs-4 {
+			flex: 0 0 200px;
+			width: 200px;
+			min-width: 200px;
+			max-width: 200px;
+		}
+		.grid-static-col.col-xs-5 {
+			flex: 0 0 250px;
+			width: 250px;
+			min-width: 250px;
+			max-width: 250px;
+		}
+		.grid-static-col.col-xs-6 {
+			flex: 0 0 300px;
+			width: 300px;
+			min-width: 300px;
+			max-width: 300px;
+		}
+		.grid-static-col.col-xs-7 {
+			flex: 0 0 350px;
+			width: 350px;
+			min-width: 350px;
+			max-width: 350px;
+		}
+		.grid-static-col.col-xs-8 {
+			flex: 0 0 400px;
+			width: 400px;
+			min-width: 400px;
+			max-width: 400px;
+		}
+		.grid-static-col.col-xs-9 {
+			flex: 0 0 450px;
+			width: 450px;
+			min-width: 450px;
+			max-width: 450px;
+		}
+		.grid-static-col.col-xs-10 {
+			flex: 0 0 500px;
+			width: 500px;
+			min-width: 500px;
+			max-width: 500px;
+		}
+		.grid-static-col.col-xs-11 {
+			flex: 0 0 550px;
+			width: 550px;
+			min-width: 550px;
+			max-width: 550px;
+		}
+		.grid-static-col.col-xs-12 {
+			flex: 0 0 600px;
+			width: 600px;
+			min-width: 600px;
+			max-width: 600px;
+		}
+
+		// Sticky columns: checkbox (first column - left side)
+		.grid-row > .row > .col:first-child,
+		.grid-heading-row .grid-row > .row > .col:first-child {
+			position: sticky;
+			left: 0;
+			z-index: 2;
+			background-color: var(--subtle-accent);
+			max-width: 40px;
+			min-width: 40px;
+		}
+
+		// Sticky column: row index (second column - left side)
+		.grid-row > .row > .col:nth-child(2),
+		.grid-heading-row .grid-row > .row > .col:nth-child(2) {
+			position: sticky;
+			left: 40px;
+			z-index: 2;
+			background-color: var(--subtle-accent);
+			max-width: 40px;
+			min-width: 40px;
+		}
+
+		// User-configurable sticky columns
+		.grid-static-col.sticky-grid-col {
+			position: sticky;
+			z-index: 1;
+			background-color: var(--subtle-accent);
+			box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+		}
+
+		// Sticky column: edit button (last column - right side)
+		.grid-row > .row > .col:last-child,
+		.grid-heading-row .grid-row > .row > .col:last-child {
+			position: sticky;
+			right: 0;
+			z-index: 2;
+			background-color: var(--subtle-accent);
+			max-width: 30px;
+			min-width: 30px;
+		}
+	}
+
+	scrollbar-width: auto;
+	scrollbar-color: auto;
+}
+
+// Custom scrollbar styling
+.grid-scroll-bar {
+	overflow-x: auto;
+	height: 12px;
+	position: relative;
+	scrollbar-width: auto;
+	scrollbar-color: auto;
+}
+
+.grid-scroll-bar::-webkit-scrollbar {
+	height: 11px !important;
+}
+
+.grid-scroll-bar-rows {
+	height: 100%;
+}
+
+// Responsive design - smaller column widths on mobile/tablet
+@media (max-width: map-get($grid-breakpoints, "md")) {
+	.column-limit-reached {
+		.form-grid {
+			.grid-static-col.col-xs-2 {
+				flex: 1 0 90px;
+				width: 90px;
+			}
+			.grid-static-col.col-xs-3 {
+				flex: 1 0 130px;
+				width: 130px;
+			}
+			.grid-static-col.col-xs-4 {
+				flex: 1 0 180px;
+				width: 180px;
+			}
+			.grid-static-col.col-xs-5 {
+				flex: 1 0 220px;
+				width: 220px;
+			}
+			.grid-static-col.col-xs-6 {
+				flex: 1 0 270px;
+				width: 270px;
+			}
+			.grid-static-col.col-xs-7 {
+				flex: 1 0 320px;
+				width: 320px;
+			}
+			.grid-static-col.col-xs-8 {
+				flex: 1 0 360px;
+				width: 360px;
+			}
+			.grid-static-col.col-xs-9 {
+				flex: 1 0 410px;
+				width: 410px;
+			}
+			.grid-static-col.col-xs-10 {
+				flex: 1 0 450px;
+				width: 450px;
+			}
+		}
 	}
 }

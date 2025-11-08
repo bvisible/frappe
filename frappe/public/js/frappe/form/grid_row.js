@@ -445,6 +445,7 @@ export default class GridRow {
 			this.selected_columns_for_grid.push({
 				fieldname: row[0].fieldname,
 				columns: row[0].columns || row[0].colsize,
+				sticky: row[0].sticky || false,
 			});
 		});
 	}
@@ -456,11 +457,14 @@ export default class GridRow {
 			<div class='form-group'>
 				<div class='row' style='margin-bottom:10px;'>
 					<div class='col-1'></div>
-					<div class='col-6' style='padding-left:20px;'>
+					<div class='col-5' style='padding-left:20px;'>
 						${__("Fieldname").bold()}
 					</div>
-					<div class='col-4'>
+					<div class='col-3'>
 						${__("Column Width").bold()}
+					</div>
+					<div class='col-2'>
+						${__("Sticky").bold()}
 					</div>
 					<div class='col-1'></div>
 				</div>
@@ -586,14 +590,20 @@ export default class GridRow {
 							<div class='col-1' style='padding-top: 4px;'>
 								<a style='cursor: grabbing;'>${frappe.utils.icon("drag", "xs")}</a>
 							</div>
-							<div class='col-6' style='padding-top: 5px;'>
+							<div class='col-5' style='padding-top: 5px;'>
 								${__(docfield.label, null, docfield.parent)}
 							</div>
-							<div class='col-4' style='padding-top: 2px; margin-top:-2px;' title='${__("Columns")}'>
+							<div class='col-3' style='padding-top: 2px; margin-top:-2px;' title='${__("Columns")}'>
 								<input class='form-control column-width my-1 input-xs text-right'
 								style='height: 24px; max-width: 80px; background: var(--bg-color);'
 									value='${docfield.columns || cint(d.columns)}'
 									data-fieldname='${docfield.fieldname}' style='background-color: var(--modal-bg); display: inline'>
+							</div>
+							<div class='col-2' title='${__("Sticky")}'>
+								<input type='checkbox' class='sticky-column'
+									style='margin-top: 8px'
+									${d.sticky ? "checked" : ""}
+									data-fieldname='${docfield.fieldname}'>
 							</div>
 							<div class='col-1' style='padding-top: 3px;'>
 								<a class='text-muted remove-field' data-fieldname='${docfield.fieldname}'>
@@ -610,6 +620,7 @@ export default class GridRow {
 		this.prepare_handler_for_sort();
 		this.select_on_focus();
 		this.update_column_width();
+		this.update_sticky_column();
 		this.remove_selected_column();
 	}
 
@@ -661,6 +672,19 @@ export default class GridRow {
 			});
 	}
 
+	update_sticky_column() {
+		$(this.fields_html_wrapper)
+			.find(".sticky-column")
+			.change((event) => {
+				this.selected_columns_for_grid.forEach((row) => {
+					if (row.fieldname === event.target.dataset.fieldname) {
+						row.sticky = cint(event.target.checked);
+						event.target.defaultValue = cint(event.target.checked);
+					}
+				});
+			});
+	}
+
 	validate_columns_width() {
 		let total_column_width = 0.0;
 
@@ -670,14 +694,8 @@ export default class GridRow {
 			}
 		});
 
-		if (
-			total_column_width &&
-			total_column_width > 10 &&
-			this.frm.doctype !== "VAT Declaration"
-		) {
-			//// added	&& this.frm.doctype !== "VAT Declaration"
-			frappe.throw(__("The total column width cannot be more than 10."));
-		}
+		// Validation removed to support unlimited columns with horizontal scroll
+		// The grid will automatically enable scroll mode when total_column_width > 10
 	}
 
 	remove_selected_column() {
@@ -728,6 +746,16 @@ export default class GridRow {
 				? this.grid.user_defined_columns
 				: this.docfields;
 
+		let total_colsize = 0;
+		let sticky_left_position = 80; // Start after checkbox (40px) and row number (40px)
+
+		// Column size mappings (Bootstrap colsize to pixels)
+		const col_sizes = {
+			1: 60,   2: 100,  3: 140,  4: 200,
+			5: 250,  6: 300,  7: 350,  8: 400,
+			9: 450,  10: 500, 11: 550, 12: 600
+		};
+
 		this.grid.visible_columns.forEach((col, ci) => {
 			// to get update df for the row
 			let df = fields.find((field) => field?.fieldname === col[0].fieldname);
@@ -735,6 +763,7 @@ export default class GridRow {
 			this.set_dependant_property(df);
 
 			let colsize = col[1];
+			total_colsize += colsize;
 
 			let txt = this.doc
 				? frappe.format(this.doc[df.fieldname], df, null, this.doc)
@@ -745,12 +774,23 @@ export default class GridRow {
 			}
 			let column;
 			if (!this.columns[df.fieldname] && !this.show_search) {
-				column = this.make_column(df, colsize, txt, ci);
+				// Pass sticky position to make_column
+				column = this.make_column(df, colsize, txt, ci, sticky_left_position);
+
+				// If this column is sticky, increment the position for the next sticky column
+				if (df.sticky) {
+					sticky_left_position += col_sizes[colsize] || 100;
+				}
 			} else if (!this.columns[df.fieldname] && this.show_search) {
 				column = this.make_search_column(df, colsize);
 			} else {
 				column = this.columns[df.fieldname];
 				this.refresh_field(df.fieldname, txt);
+
+				// Track sticky position for existing columns too
+				if (df.sticky) {
+					sticky_left_position += col_sizes[colsize] || 100;
+				}
 			}
 
 			// background color for cell
@@ -770,6 +810,26 @@ export default class GridRow {
 			// last empty column
 			$(`<div class="col grid-static-col search"></div>`).appendTo(this.row);
 		}
+
+		// Enable horizontal scroll mode when total columns exceed 10
+		// Use setTimeout to ensure DOM is fully rendered
+		let me = this;
+		setTimeout(function() {
+			let current_grid = $(
+				`div[data-fieldname="${me.grid.df.fieldname}"] .form-grid-container`
+			);
+
+			if (total_colsize > 10) {
+				current_grid.addClass("column-limit-reached");
+				// Also add to parent for better CSS targeting
+				current_grid.closest('.frappe-control').addClass("has-horizontal-scroll");
+			} else if (current_grid.hasClass("column-limit-reached")) {
+				// Reset scroll when below limit
+				$(current_grid).children(".form-grid").css("left", 0);
+				current_grid.removeClass("column-limit-reached");
+				current_grid.closest('.frappe-control').removeClass("has-horizontal-scroll");
+			}
+		}, 100);
 	}
 
 	set_dependant_property(df) {
@@ -921,7 +981,7 @@ export default class GridRow {
 		return $col;
 	}
 
-	make_column(df, colsize, txt, ci) {
+	make_column(df, colsize, txt, ci, sticky_left_position) {
 		let me = this;
 		var add_class =
 			["Text", "Small Text"].indexOf(df.fieldtype) !== -1
@@ -932,6 +992,11 @@ export default class GridRow {
 				? " text-right"
 				: "";
 		add_class += ["Check"].indexOf(df.fieldtype) !== -1 ? " text-center" : "";
+
+		// Add sticky class if this column is marked as sticky
+		if (df.sticky) {
+			add_class += " sticky-grid-col";
+		}
 
 		let grid;
 		let grid_container;
@@ -945,32 +1010,51 @@ export default class GridRow {
 		let vertical = false;
 		let horizontal = false;
 
-		// prevent random layout shifts caused by widgets and on click position elements inside view (UX).
+		// Column size mappings for auto-scroll calculations
+		let col_sizes = {
+			1: 60,   2: 100,  3: 140,  4: 200,
+			5: 250,  6: 300,  7: 350,  8: 400,
+			9: 450,  10: 500, 11: 550, 12: 600
+		};
+
+		// Prevent random layout shifts caused by widgets and on-click position elements inside view (UX).
+		// Enhanced auto-scroll to focused fields in horizontal scroll mode
 		function on_input_focus(el) {
 			input_in_focus = true;
 
+			// Check if we're in column-limit-reached mode
+			let is_scroll_mode = $(grid_container).hasClass("column-limit-reached");
+			if (!is_scroll_mode) return;
+
 			let container_width = grid_container.getBoundingClientRect().width;
 			let container_left = grid_container.getBoundingClientRect().left;
-			let grid_left = parseFloat(grid.style.left);
+			let grid_left = parseFloat(grid.style.left) || 0;
 			let element_left = el.offset().left;
 			let fieldtype = el.data("fieldtype");
+			let element_width = el.width();
 
-			let offset_right = container_width - (element_left + el.width());
+			let offset_right = container_width - (element_left + element_width);
 			let offset_left = 0;
 			let element_screen_x = element_left - container_left;
 			let element_position_x = container_width - (element_left - container_left);
 
+			// Additional space needed for dropdown widgets
 			if (["Date", "Time", "Datetime"].includes(fieldtype)) {
 				offset_left = element_position_x - 220;
 			}
 			if (["Link", "Dynamic Link"].includes(fieldtype)) {
 				offset_left = element_position_x - 250;
 			}
+
+			// Adjust scroll position to bring element into view
 			if (element_screen_x < 0) {
+				// Element is off-screen to the left
 				grid.style.left = `${grid_left - element_screen_x}px`;
 			} else if (offset_left < 0) {
+				// Dropdown would be cut off on the right
 				grid.style.left = `${grid_left + offset_left}px`;
 			} else if (offset_right < 0) {
+				// Element is off-screen to the right
 				grid.style.left = `${grid_left + offset_right}px`;
 			}
 		}
@@ -1001,7 +1085,14 @@ export default class GridRow {
 			.attr("data-fieldname", df.fieldname)
 			.attr("data-fieldtype", df.fieldtype)
 			.data("df", df)
-			.appendTo(this.row)
+			.appendTo(this.row);
+
+		// Apply left position for sticky columns
+		if (df.sticky && sticky_left_position !== undefined) {
+			$col.css('left', sticky_left_position + 'px');
+		}
+
+		$col
 			// initialize grid for horizontal scroll on mobile devices.
 			.on("touchstart", function (event) {
 				grid_container = $(event.currentTarget).closest(".form-grid-container")[0];
@@ -1095,6 +1186,14 @@ export default class GridRow {
 
 		$col.df = df;
 		$col.column_index = ci;
+
+		// Apply sticky class if column is marked as sticky
+		if (df.sticky || (this.grid.user_defined_columns && this.grid.user_defined_columns.length > 0)) {
+			let user_column = this.grid.user_defined_columns?.find(col => col.fieldname === df.fieldname);
+			if (user_column && user_column.sticky) {
+				$col.addClass("sticky-grid-col");
+			}
+		}
 
 		this.columns[df.fieldname] = $col;
 		this.columns_list.push($col);

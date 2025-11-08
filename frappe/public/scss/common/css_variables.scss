@@ -5,6 +5,9 @@ $disabled-input-height: 22px;
 [data-theme="light"] {
 	--brand-color: var(--primary);
 
+	// Checkbox
+	--checkbox-size: 18px;
+
 	--padding-xs: 5px;
 	--padding-sm: 6px;
 	--padding-md: 15px;

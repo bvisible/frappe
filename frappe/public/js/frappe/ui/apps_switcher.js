@@ -108,8 +108,8 @@ frappe.ui.AppsSwitcher = class AppsSwitcher {
 				route += "/" + frappe.router.slug(ws.title);
 				frappe.set_route(route);
 			} else if (route.startsWith("/app")) {
-				frappe.set_route(route);
 				this.set_current_app(item.attr("data-app-name"));
+				frappe.set_route(route);
 			} else {
 				// new page
 				window.open(route);

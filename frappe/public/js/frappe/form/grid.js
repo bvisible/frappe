@@ -1011,12 +1011,9 @@ export default class Grid {
 
 		this.visible_columns = [];
 
-		let limit_colsize =
-			this.frm &&
-			this.frm.doctype == "VAT Declaration" &&
-			this.df.fieldname.includes("_details")
-				? 20
-				: 11; //// added
+		// No limit on column size - horizontal scroll will be enabled automatically
+		let limit_colsize = 999;
+
 		for (var ci in fields) {
 			var _df = fields[ci];
 
@@ -1058,15 +1055,14 @@ export default class Grid {
 			}
 		}
 
-		// redistribute if total-col size is less than 12
+		// Redistribute column sizes only for small tables (< 11 columns)
+		// For larger tables, horizontal scroll will be enabled
 		var passes = 0;
-		while (total_colsize < limit_colsize && passes < limit_colsize + 1) {
-			//// replaced 11 with limit_colsize and 12 with limit_colsize+1
+		while (total_colsize < 11 && passes < 12) {
 			for (var i in this.visible_columns) {
 				var df = this.visible_columns[i][0];
 				var colsize = this.visible_columns[i][1];
 				if (colsize > 1 && colsize < 11 && frappe.model.is_non_std_field(df.fieldname)) {
-					//// maybe replace here
 					if (
 						passes < 3 &&
 						["Int", "Currency", "Float", "Check", "Percent"].indexOf(df.fieldtype) !==
@@ -1080,7 +1076,7 @@ export default class Grid {
 					total_colsize++;
 				}
 
-				if (total_colsize > limit_colsize - 1) break; //// replaced 10 with limit_colsize-1
+				if (total_colsize > 10) break;
 			}
 			passes++;
 		}
@@ -1112,6 +1108,7 @@ export default class Grid {
 					if (column) {
 						column.in_list_view = 1;
 						column.columns = row.columns;
+						column.sticky = row.sticky || false;
 						return column;
 					}
 				})
