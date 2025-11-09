@@ -78,10 +78,49 @@ frappe.ui.Sidebar = class Sidebar {
 		this.has_create_access = this.sidebar_pages.has_create_access;
 	}
 
+	get_app_from_current_route() {
+		const route = frappe.get_route();
+		if (!route || route.length === 0) return null;
+
+		// Handle private workspaces
+		if (route[0] === "Workspaces") {
+			if (route[1] === "private") {
+				return "private";
+			}
+
+			// Get workspace name from route
+			const workspace_name = route[1];
+			if (!workspace_name) return null;
+
+			// OPTIMIZATION: Try fast lookup in workspace_to_app_map first
+			if (frappe.boot.workspace_to_app_map?.[workspace_name]) {
+				return frappe.boot.workspace_to_app_map[workspace_name];
+			}
+
+			// Fallback: Look up workspace in workspace_map
+			const workspace = frappe.workspace_map?.[workspace_name];
+			if (!workspace) return null;
+
+			// Return the app from workspace or module
+			if (workspace.app) return workspace.app;
+			if (workspace.module) {
+				return frappe.boot.module_app?.[frappe.router.slug(workspace.module)];
+			}
+		}
+
+		return null;
+	}
+
 	set_default_app() {
-		// sort apps based on # of workspaces
-		frappe.boot.app_data.sort((a, b) => (a.workspaces.length < b.workspaces.length ? 1 : -1));
-		frappe.current_app = frappe.boot.app_data[0].app_name;
+		// Check if we're on a workspace route - use that app
+		const route_app = this.get_app_from_current_route();
+		if (route_app) {
+			frappe.current_app = route_app;
+		} else {
+			// sort apps based on # of workspaces
+			frappe.boot.app_data.sort((a, b) => (a.workspaces.length < b.workspaces.length ? 1 : -1));
+			frappe.current_app = frappe.boot.app_data[0].app_name;
+		}
 		frappe.frappe_toolbar.set_app_logo("/assets/neoffice_theme/images/neoffice_logo.svg");
 	}
 

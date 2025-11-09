@@ -192,9 +192,12 @@ def load_desktop_data(bootinfo):
 	# Check if App Customization exists (custom app switcher management)
 	if frappe.db.table_exists("App Customization") and frappe.db.count("App Customization") > 0:
 		bootinfo.app_data = generate_app_data_from_customization(allowed_pages)
+		# Generate reverse mapping: workspace_name → app_name for fast lookups
+		bootinfo.workspace_to_app_map = generate_workspace_to_app_map(bootinfo.app_data)
 	else:
 		# Fallback to default behavior
 		bootinfo.app_data = generate_app_data_default(allowed_pages)
+		bootinfo.workspace_to_app_map = {}
 
 
 def generate_app_data_from_customization(allowed_pages):
@@ -293,6 +296,27 @@ def get_customized_workspaces(app_name, allowed_pages):
 
 	# Filter to only accessible workspaces
 	return [ws["workspace_name"] for ws in workspace_configs if ws["workspace_name"] in allowed_pages]
+
+
+def generate_workspace_to_app_map(app_data):
+	"""
+	Generate reverse mapping from workspace name to app name for fast lookups.
+
+	Args:
+		app_data: List of app dictionaries with workspaces
+
+	Returns:
+		dict: Mapping of workspace_name → app_name
+	"""
+	workspace_to_app = {}
+	for app_entry in app_data:
+		app_name = app_entry["app_name"]
+		for workspace in app_entry.get("workspaces", []):
+			# Only map if not already mapped (first app wins in case of conflicts)
+			if workspace not in workspace_to_app:
+				workspace_to_app[workspace] = app_name
+
+	return workspace_to_app
 
 
 def get_app_title_fallback(app_name, is_virtual=False):

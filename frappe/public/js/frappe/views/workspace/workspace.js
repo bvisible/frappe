@@ -477,6 +477,11 @@ frappe.views.Workspace = class Workspace {
 				if (!app) app = "frappe";
 			}
 
+			// Update sidebar to show workspaces for this app
+			if (app && frappe.current_app !== app && frappe.app.sidebar?.apps_switcher) {
+				frappe.app.sidebar.apps_switcher.set_current_app(app);
+			}
+
 			if (typeof current_page.content == "string") {
 				current_page.content = JSON.parse(current_page.content);
 			}

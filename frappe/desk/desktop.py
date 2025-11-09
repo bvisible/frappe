@@ -496,21 +496,23 @@ def get_workspace_sidebar_items():
 			if page['parent_page'].lower() in excluded_titles:
 				excluded_titles.add(page['title'].lower())
 
-	# Get workspaces that are part of virtual apps - these should NOT be excluded
+	# Get workspaces that are part of virtual apps OR apps with manage_all_workspaces - these should NOT be excluded
 	virtual_app_workspaces = set()
 	try:
 		app_customizations = frappe.get_all(
 			"App Customization",
-			filters={"enabled": 1, "is_virtual": 1},
-			fields=["name"]
+			filters={"enabled": 1},
+			fields=["name", "is_virtual", "manage_all_workspaces"]
 		)
 		for app_custom in app_customizations:
-			workspaces = frappe.get_all(
-				"App Customization Workspace",
-				filters={"parent": app_custom["name"], "hidden": 0},
-				pluck="workspace_name"
-			)
-			virtual_app_workspaces.update(workspaces)
+			# Include workspaces from virtual apps OR apps that manage all their workspaces
+			if app_custom.get("is_virtual") or app_custom.get("manage_all_workspaces"):
+				workspaces = frappe.get_all(
+					"App Customization Workspace",
+					filters={"parent": app_custom["name"], "hidden": 0},
+					pluck="workspace_name"
+				)
+				virtual_app_workspaces.update(workspaces)
 	except Exception:
 		pass  # App Customization might not exist
 
