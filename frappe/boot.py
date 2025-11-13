@@ -194,6 +194,8 @@ def load_desktop_data(bootinfo):
 		bootinfo.app_data = generate_app_data_from_customization(allowed_pages)
 		# Generate reverse mapping: workspace_name → app_name for fast lookups
 		bootinfo.workspace_to_app_map = generate_workspace_to_app_map(bootinfo.app_data)
+		# Apply parent workspace overrides from App Customization
+		apply_workspace_parent_overrides(bootinfo.sidebar_pages)
 	else:
 		# Fallback to default behavior
 		bootinfo.app_data = generate_app_data_default(allowed_pages)
@@ -317,6 +319,51 @@ def generate_workspace_to_app_map(app_data):
 				workspace_to_app[workspace] = app_name
 
 	return workspace_to_app
+
+
+def apply_workspace_parent_overrides(sidebar_pages):
+	"""
+	Apply parent_workspace overrides from App Customization Workspace to sidebar pages.
+	This allows App Customization to control workspace hierarchy independently of the
+	Workspace doctype's parent_page field.
+
+	Args:
+		sidebar_pages: Dictionary containing 'pages' list from get_workspace_sidebar_items()
+	"""
+	if not frappe.db.table_exists("App Customization Workspace"):
+		return
+
+	# Get all parent_workspace overrides from App Customization Workspace child table
+	parent_overrides = frappe.get_all(
+		"App Customization Workspace",
+		filters={"hidden": 0},
+		fields=["workspace_name", "parent_workspace"]
+	)
+
+	# Create lookup dictionary: workspace_name → parent_workspace
+	parent_map = {
+		ws["workspace_name"]: ws["parent_workspace"]
+		for ws in parent_overrides
+		if ws.get("parent_workspace")  # Only include if parent_workspace is set
+	}
+
+	# Also track workspaces that should have NO parent (parent_workspace is null/empty in child table)
+	reset_to_root = {
+		ws["workspace_name"]
+		for ws in parent_overrides
+		if not ws.get("parent_workspace")  # parent_workspace is empty/null
+	}
+
+	# Apply overrides to sidebar pages
+	if "pages" in sidebar_pages:
+		for page in sidebar_pages["pages"]:
+			workspace_name = page.get("name")
+			if workspace_name in parent_map:
+				# Override with value from App Customization
+				page["parent_page"] = parent_map[workspace_name]
+			elif workspace_name in reset_to_root:
+				# Explicitly set to None to make it a root-level workspace
+				page["parent_page"] = None
 
 
 def get_app_title_fallback(app_name, is_virtual=False):

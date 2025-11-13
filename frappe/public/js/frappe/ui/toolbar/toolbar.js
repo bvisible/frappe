@@ -33,10 +33,10 @@ frappe.ui.toolbar.Toolbar = class {
 
 	bind_logo_click() {
 		$(".navbar-brand .app-logo").on("click", (event) => {
-			// On desktop and mobile, navigate to Workspaces
+			// On desktop and mobile, navigate to home
 			event.preventDefault();
 			event.stopPropagation();
-			frappe.set_route("Workspaces");
+			frappe.set_route("home");
 			return false;
 		});
 	}

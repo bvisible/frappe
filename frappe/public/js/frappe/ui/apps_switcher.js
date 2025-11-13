@@ -159,7 +159,32 @@ frappe.ui.AppsSwitcher = class AppsSwitcher {
 			console.warn("set_current_app: app not defined");
 			return;
 		}
-		let app_data = frappe.boot.app_data_map[app] || frappe.boot.app_data_map["frappe"];
+
+		let app_data = frappe.boot.app_data_map[app];
+
+		// If app not found, check if it's a module app that should use workspace mapping
+		if (!app_data && frappe.boot.workspace_to_app_map) {
+			// Try to find the current workspace and get its mapped app
+			const current_workspace = frappe.get_route()[1];
+			if (current_workspace && frappe.boot.workspace_to_app_map[current_workspace]) {
+				const mapped_app = frappe.boot.workspace_to_app_map[current_workspace];
+				app_data = frappe.boot.app_data_map[mapped_app];
+				if (app_data) {
+					console.log(`Using virtual app "${mapped_app}" for workspace "${current_workspace}"`);
+					app = mapped_app; // Update app variable to the mapped app
+				}
+			}
+		}
+
+		// Final fallback to frappe app
+		if (!app_data) {
+			app_data = frappe.boot.app_data_map["frappe"];
+		}
+
+		if (!app_data) {
+			console.error(`Cannot find app data for "${app}"`);
+			return;
+		}
 
 		this.sidebar_wrapper
 			.find(".app-switcher-dropdown .sidebar-item-icon img")
@@ -168,7 +193,8 @@ frappe.ui.AppsSwitcher = class AppsSwitcher {
 			.find(".app-switcher-dropdown .sidebar-item-label")
 			.html(app_data.app_title);
 
-		frappe.frappe_toolbar.set_app_logo(app_data.app_logo_url);
+		// Don't update navbar logo - keep NeoOffice logo in navbar
+		// Only the sidebar logo is updated (lines 189-194)
 
 		if (frappe.current_app === app) return;
 		frappe.current_app = app;

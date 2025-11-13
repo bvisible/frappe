@@ -95,6 +95,16 @@ frappe.views.Workspace = class Workspace {
 				};
 			}
 			this.make_sidebar();
+
+			// Hide sidebar actions if not in edit mode
+			if (this.body && this.body.hasClass('edit-mode')) {
+				// In edit mode - show controls
+				this.show_sidebar_actions();
+			} else {
+				// Not in edit mode - hide controls
+				this.hide_sidebar_actions();
+			}
+
 			reload && this.show();
 		}
 	}
@@ -125,20 +135,59 @@ frappe.views.Workspace = class Workspace {
 		this.body.find(".btn-edit-workspace").on("click", async () => {
 			if (!this.editor || !this.editor.readOnly) return;
 			this.is_read_only = false;
-			this.toggle_hidden_workspaces(true);
 			await this.editor.readOnly.toggle();
-			this.editor.isReady.then(() => {
-				this.body.addClass("edit-mode");
-				this.initialize_editorjs_undo();
-				this.setup_customization_buttons(this._page);
-				this.show_sidebar_actions();
-				this.make_blocks_sortable();
-			});
+			await this.editor.isReady;
+			this.body.addClass("edit-mode");
+			this.initialize_editorjs_undo();
+			this.setup_customization_buttons(this._page);
+			// Reload pages from server with current workspace context
+			await this.reload_sidebar_pages();
+			// Rebuild sidebar to ensure controls are created, then show them
+			this.make_sidebar();
+			this.toggle_hidden_workspaces(true);
+			this.show_sidebar_actions();
+			this.make_blocks_sortable();
 		});
 	}
 
 	get_pages() {
-		return frappe.xcall("frappe.desk.desktop.get_workspace_sidebar_items");
+		// Pass current workspace to backend so it can filter workspaces by app
+		// Use localStorage.current_page as fallback if this._page is not set yet
+		const current_workspace = (this._page && this._page.name) || localStorage.current_page || null;
+		return frappe.xcall("frappe.desk.desktop.get_workspace_sidebar_items", {
+			current_workspace: current_workspace
+		});
+	}
+
+	async reload_sidebar_pages() {
+		// Reload pages from server with current workspace context
+		console.log("[reload_sidebar_pages] START - Before reload:", {
+			public_pages_count: this.public_pages?.length || 0,
+			all_pages_count: this.all_pages?.length || 0
+		});
+
+		this.sidebar_pages = await this.get_pages();
+		this.all_pages = this.sidebar_pages.pages;
+		this.public_pages = this.all_pages.filter((page) => page.public);
+		this.private_pages = this.all_pages.filter((page) => !page.public);
+
+		console.log("[reload_sidebar_pages] END - After reload:", {
+			public_pages_count: this.public_pages?.length || 0,
+			all_pages_count: this.all_pages?.length || 0,
+			pages_names: this.public_pages?.map(p => p.title) || [],
+			pages_with_debug: this.public_pages?.map(p => ({name: p.name, title: p.title, sort: p._debug_sort_order})) || []
+		});
+
+		// Update frappe.workspaces cache
+		if (this.all_pages) {
+			frappe.workspaces = {};
+			for (let page of this.all_pages) {
+				frappe.workspaces[frappe.router.slug(page.name)] = {
+					title: page.title,
+					public: page.public,
+				};
+			}
+		}
 	}
 
 	sidebar_item_container(item) {
@@ -178,9 +227,18 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	make_sidebar() {
-		if (this.sidebar.find(".standard-sidebar-section")[0]) {
-			this.sidebar.find(".standard-sidebar-section").remove();
-		}
+		if (!this.sidebar) return;
+		// Get the actual jQuery sidebar element
+		const $sidebar = this.sidebar.$sidebar || this.sidebar;
+
+		console.log("[make_sidebar] START:", {
+			public_pages_count: this.public_pages?.length || 0,
+			private_pages_count: this.private_pages?.length || 0,
+			public_pages_names: this.public_pages?.map(p => p.title).slice(0, 5) || []
+		});
+
+		// Remove all existing sidebar sections before rebuilding
+		$sidebar.find(".standard-sidebar-section").remove();
 
 		this.sidebar_categories.forEach((category) => {
 			let root_pages = this.public_pages.filter(
@@ -192,18 +250,24 @@ frappe.views.Workspace = class Workspace {
 				);
 			}
 			root_pages = root_pages.uniqBy((d) => d.title);
+			console.log("[make_sidebar] Building section:", category.id, "with", root_pages.length, "root pages");
 			this.build_sidebar_section(category, root_pages);
 		});
 
 		// Scroll sidebar to selected page if it is not in viewport.
-		this.sidebar.find(".selected").length &&
-			!frappe.dom.is_element_in_viewport(this.sidebar.find(".selected")) &&
-			this.sidebar.find(".selected")[0].scrollIntoView();
+		$sidebar.find(".selected").length &&
+			!frappe.dom.is_element_in_viewport($sidebar.find(".selected")) &&
+			$sidebar.find(".selected")[0].scrollIntoView();
 
 		this.remove_sidebar_skeleton();
 	}
 
 	build_sidebar_section(category, root_pages) {
+		if (!this.sidebar) {
+			console.warn('Workspace: sidebar not initialized in build_sidebar_section');
+			return;
+		}
+
 		let sidebar_section = $(
 			`<div class="standard-sidebar-section nested-container" data-title="${category.id}"></div>`
 		);
@@ -216,7 +280,12 @@ frappe.views.Workspace = class Workspace {
 			"aria-label": __("Toggle Section: {0}", [category.label]),
 			"aria-expanded": "true",
 		});
-		this.prepare_sidebar(root_pages, sidebar_section, this.sidebar);
+		// Get the actual jQuery sidebar element and append section to it
+		const $sidebar = this.sidebar.$sidebar || this.sidebar;
+
+		sidebar_section.appendTo($sidebar);
+
+		this.prepare_sidebar(root_pages, sidebar_section, sidebar_section);
 
 		$title.on("click", (e) => {
 			const $e = $(e.target);
@@ -247,6 +316,10 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	prepare_sidebar(items, child_container, item_container) {
+		if (!item_container) {
+			console.error('Workspace: item_container is undefined in prepare_sidebar');
+			return;
+		}
 		items.forEach((item) => this.append_item(item, child_container));
 		child_container.appendTo(item_container);
 	}
@@ -470,11 +543,16 @@ frappe.views.Workspace = class Workspace {
 			if (!this._page.public) {
 				app = "private";
 			} else {
-				app = this._page.app;
-				if (!app && this._page.module) {
-					app = frappe.boot.module_app[frappe.router.slug(this._page.module)];
+				// First check if workspace is mapped to a virtual app
+				if (frappe.boot.workspace_to_app_map && frappe.boot.workspace_to_app_map[this._page.name]) {
+					app = frappe.boot.workspace_to_app_map[this._page.name];
+				} else {
+					app = this._page.app;
+					if (!app && this._page.module) {
+						app = frappe.boot.module_app[frappe.router.slug(this._page.module)];
+					}
+					if (!app) app = "frappe";
 				}
-				if (!app) app = "frappe";
 			}
 
 			// Update sidebar to show workspaces for this app
@@ -586,6 +664,7 @@ frappe.views.Workspace = class Workspace {
 				() => {
 					this.clear_page_actions();
 					this.body.removeClass("edit-mode");
+					this.hide_sidebar_actions();
 					this.save_page(page).then((saved) => {
 						if (!saved) return;
 						this.undo.readOnly = true;
@@ -599,6 +678,7 @@ frappe.views.Workspace = class Workspace {
 
 		this.page.set_secondary_action(__("Discard"), async () => {
 			this.body.removeClass("edit-mode");
+			this.hide_sidebar_actions();
 			this.discard = true;
 			this.clear_page_actions();
 			this.toggle_hidden_workspaces(false);
@@ -621,8 +701,29 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	show_sidebar_actions() {
-		this.sidebar.find(".standard-sidebar-section").addClass("show-control");
+		if (!this.sidebar) return;
+		// Get the actual jQuery sidebar element
+		const $sidebar = this.sidebar.$sidebar || this.sidebar;
+		$sidebar.find(".standard-sidebar-section").addClass("show-control");
 		this.make_sidebar_sortable();
+	}
+
+	hide_sidebar_actions() {
+		if (!this.sidebar) return;
+		// Get the actual jQuery sidebar element
+		const $sidebar = this.sidebar.$sidebar || this.sidebar;
+		$sidebar.find(".standard-sidebar-section").removeClass("show-control");
+
+		// Remove all edit controls from the sidebar
+		$sidebar.find(".drag-handle").remove();
+		$sidebar.find(".setting-btn").remove();
+		$sidebar.find(".dropdown-list").remove();
+
+		// Destroy sortable if it exists
+		if (this.sidebar_sortable) {
+			this.sidebar_sortable.destroy();
+			this.sidebar_sortable = null;
+		}
 	}
 
 	add_sidebar_actions(item, sidebar_control, is_new) {
@@ -890,6 +991,9 @@ frappe.views.Workspace = class Workspace {
 			from_pages.splice(old_item_index, 1);
 		}
 
+		if (!this.sidebar_pages) {
+			this.sidebar_pages = { pages: [], has_access: true };
+		}
 		this.sidebar_pages.pages = [...this.public_pages, ...this.private_pages];
 		this.cached_pages = this.sidebar_pages;
 	}
@@ -1177,15 +1281,19 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	prepare_sorted_sidebar(is_public) {
+		if (!this.sidebar) return;
+		// Get the actual jQuery sidebar element
+		const $sidebar = this.sidebar.$sidebar || this.sidebar;
+
 		let pages = is_public ? this.public_pages : this.private_pages;
 		if (is_public) {
 			this.sorted_public_items = this.sort_sidebar(
-				this.sidebar.find(".standard-sidebar-section").last(),
+				$sidebar.find(".standard-sidebar-section").last(),
 				pages
 			);
 		} else {
 			this.sorted_private_items = this.sort_sidebar(
-				this.sidebar.find(".standard-sidebar-section").first(),
+				$sidebar.find(".standard-sidebar-section").first(),
 				pages
 			);
 		}
@@ -1611,8 +1719,8 @@ frappe.views.Workspace = class Workspace {
 	reload() {
 		this.sorted_public_items = [];
 		this.sorted_private_items = [];
+		this.discard = false;  // IMPORTANT: Set discard to false BEFORE setup_pages() so get_pages() is called
 		this.setup_pages(true);
-		this.discard = false;
 		this.undo.readOnly = true;
 	}
 
@@ -1631,12 +1739,14 @@ frappe.views.Workspace = class Workspace {
 	create_sidebar_skeleton() {
 		if ($(".workspace-sidebar-skeleton").length) return;
 
-		$(frappe.render_template("workspace_sidebar_loading_skeleton")).insertBefore(this.sidebar);
-		this.sidebar.addClass("hidden");
+		const $sidebar = this.sidebar.$sidebar || this.sidebar;
+		$(frappe.render_template("workspace_sidebar_loading_skeleton")).insertBefore($sidebar);
+		$sidebar.addClass("hidden");
 	}
 
 	remove_sidebar_skeleton() {
-		this.sidebar.removeClass("hidden");
+		const $sidebar = this.sidebar.$sidebar || this.sidebar;
+		$sidebar.removeClass("hidden");
 		$(".workspace-sidebar-skeleton").remove();
 	}
 

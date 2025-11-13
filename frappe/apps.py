@@ -122,7 +122,18 @@ def set_app_as_default(app_name):
 
 @frappe.whitelist()
 def get_incomplete_setup_route(current_app, app_route):
-	pending_apps = get_apps_with_incomplete_dependencies(current_app)
+	# Validate that current_app is a real installed app
+	installed_apps = frappe.get_installed_apps()
+
+	# If current_app is not a valid installed app, just return the app_route
+	if current_app not in installed_apps:
+		return app_route
+
+	try:
+		pending_apps = get_apps_with_incomplete_dependencies(current_app)
+	except Exception:
+		# If we can't get dependencies (e.g., invalid app name), return app_route
+		return app_route
 
 	if not pending_apps:
 		return app_route
@@ -131,11 +142,15 @@ def get_incomplete_setup_route(current_app, app_route):
 		if app == "frappe":
 			return "app"
 
-		app_details = frappe.get_hooks("add_to_apps_screen", app_name=app)
-		if not app_details:
-			continue
+		try:
+			app_details = frappe.get_hooks("add_to_apps_screen", app_name=app)
+			if not app_details:
+				continue
 
-		if route := app_details[0].get("route"):
-			return route
+			if route := app_details[0].get("route"):
+				return route
+		except Exception:
+			# If we can't load hooks for this app, skip it
+			continue
 
 	return app_route

@@ -12,10 +12,10 @@ endblock -%} {%- block footer -%} {%- endblock -%} {% block content %}
 		<div class="apps" style="grid-template-columns: repeat({{ appsCount }}, 1fr);">
 			{% for app in apps %}
 			<a class="app-icon" style="cursor: pointer;">
-				<div class="app-logo app-name-cls" app-name="{{ app.name }}" app-route="{{ app.route }}">
-					<img src="{{ app.logo }}" />
+				<div class="app-logo app-name-cls" app-name="{{ app.app_name }}" app-route="{{ app.app_route }}">
+					<img src="{{ app.app_logo_url }}" />
 					<div
-						app-name="{{ app.name }}"
+						app-name="{{ app.app_name }}"
 						class="set-default btn btn-sm {{ '' if app.is_default else 'hidden'}}"
 						title="Set as default"
 					>
@@ -35,7 +35,7 @@ endblock -%} {%- block footer -%} {%- endblock -%} {% block content %}
 						</svg>
 					</div>
 				</div>
-				<div class="app-title">{{ app.title }}</div>
+				<div class="app-title">{{ app.app_title }}</div>
 			</a>
 			{% endfor %}
 		</div>

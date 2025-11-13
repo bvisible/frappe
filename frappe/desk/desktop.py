@@ -415,7 +415,7 @@ def get_desktop_page(page):
 
 
 @frappe.whitelist()
-def get_workspace_sidebar_items():
+def get_workspace_sidebar_items(current_workspace=None):
 	"""Get list of sidebar items for desk"""
 	has_access = "Workspace Manager" in frappe.get_roles()
 
@@ -447,6 +447,7 @@ def get_workspace_sidebar_items():
 		"icon",
 		"indicator_color",
 		"is_hidden",
+		"sequence_id",
 	]
 	all_pages = frappe.get_all(
 		"Workspace", fields=fields, filters=filters, order_by=order_by, ignore_permissions=True
@@ -493,7 +494,7 @@ def get_workspace_sidebar_items():
 					custom_links[menu['title'].lower()] = menu['link']
 		# Identify and add child pages of excluded pages to the exclusion set
 		for page in all_pages:
-			if page['parent_page'].lower() in excluded_titles:
+			if page.get('parent_page') is not None and page['parent_page'].lower() in excluded_titles:
 				excluded_titles.add(page['title'].lower())
 
 	# Get workspaces that are part of virtual apps OR apps with manage_all_workspaces - these should NOT be excluded
@@ -516,6 +517,46 @@ def get_workspace_sidebar_items():
 	except Exception:
 		pass  # App Customization might not exist
 
+	# NEW: Get sort_order for ALL workspaces from App Customization
+	# This will be used to sort workspaces regardless of app context
+	all_workspace_sort_orders = frappe.get_all(
+		"App Customization Workspace",
+		filters={"hidden": 0},
+		fields=["workspace_name", "sort_order", "parent"],
+		order_by="sort_order asc, idx asc"
+	)
+	workspace_sort_order = {w['workspace_name']: w['sort_order'] for w in all_workspace_sort_orders}
+
+	# Determine which app's workspaces to show
+	# If current_workspace is provided, find which app it belongs to
+	current_app_workspaces = None
+	if current_workspace:
+		try:
+			# Find which App Customization contains this workspace
+			app_workspace_link = frappe.db.get_value(
+				"App Customization Workspace",
+				{"workspace_name": current_workspace},
+				["parent", "hidden"],
+				as_dict=True
+			)
+
+			if app_workspace_link and not app_workspace_link.hidden:
+				app_name = app_workspace_link.parent
+				# Get app customization
+				app_custom = frappe.get_doc("App Customization", app_name)
+
+				if app_custom.enabled and (app_custom.is_virtual or app_custom.manage_all_workspaces):
+					# Get all workspaces for this app (just the names, sort_order already loaded above)
+					workspace_configs = frappe.get_all(
+						"App Customization Workspace",
+						filters={"parent": app_name, "hidden": 0},
+						fields=["workspace_name"],
+						order_by="sort_order asc, idx asc"
+					)
+					current_app_workspaces = [w['workspace_name'] for w in workspace_configs]
+		except Exception as e:
+			pass
+
 	pages = []
 	private_pages = []
 
@@ -524,6 +565,12 @@ def get_workspace_sidebar_items():
 		page_title_lower = page['title'].lower()
 		if page_title_lower in custom_links:
 			page['custom_link'] = custom_links[page_title_lower]
+
+		# NEW: If we're in a specific app context, ONLY show workspaces from that app
+		if current_app_workspaces is not None:
+			# We're in an app context - only show workspaces from this app
+			if page['name'] not in current_app_workspaces:
+				continue  # Skip this workspace, it's not in the current app
 
 		# Don't exclude workspaces that are part of virtual apps
 		is_in_virtual_app = page['name'] in virtual_app_workspaces
@@ -539,6 +586,12 @@ def get_workspace_sidebar_items():
 			except frappe.PermissionError:
 				pass
 	#////
+
+	# Sort pages by App Customization sort_order
+	# Workspaces with sort_order defined will be sorted first, then by sequence_id
+	# Workspaces without sort_order (999999) will appear at the end, sorted by sequence_id
+	if workspace_sort_order:
+		pages.sort(key=lambda p: (workspace_sort_order.get(p['name'], 999999), p.get('sequence_id', 0)))
 
 	if private_pages:
 		pages.extend(private_pages)
