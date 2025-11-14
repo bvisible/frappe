@@ -256,10 +256,19 @@ def generate_app_data_from_customization(allowed_pages):
 			]
 
 		# Build app data entry
+		# Resolve icon name to URL if neoffice_theme is installed
+		app_logo_url = custom["app_logo"]
+		if app_logo_url and "neoffice_theme" in frappe.get_installed_apps():
+			try:
+				from neoffice_theme.api import resolve_app_logo_url
+				app_logo_url = resolve_app_logo_url(app_logo_url) or app_logo_url
+			except Exception:
+				pass
+
 		app_entry = {
 			"app_name": app_name,
 			"app_title": custom["app_title"] or get_app_title_fallback(app_name, is_virtual),
-			"app_logo_url": custom["app_logo"] or get_app_logo_fallback(app_name, is_virtual),
+			"app_logo_url": app_logo_url or get_app_logo_fallback(app_name, is_virtual),
 			"app_route": custom["app_route"] or determine_app_route(app_name, workspaces),
 			"modules": get_app_modules(app_name) if not is_virtual else [],
 			"workspaces": workspaces,
