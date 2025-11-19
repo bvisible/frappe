@@ -1929,9 +1929,10 @@ frappe.ui.form.Form = class FrappeForm {
 
 	scroll_to_field(fieldname, focus = true) {
 		let field = this.get_field(fieldname);
-		if (!field) return;
+		if (!field) return false;
 
 		let $el = field.$wrapper;
+		if (!$el || !$el.length) return false;
 
 		// set tab as active
 		if (field.tab && !field.tab.is_active()) {
@@ -1955,10 +1956,12 @@ frappe.ui.form.Form = class FrappeForm {
 
 		// highlight control inside field
 		let control_element = $el.closest(".frappe-control");
-		control_element.addClass("highlight");
-		setTimeout(() => {
-			control_element.removeClass("highlight");
-		}, 2000);
+		if (control_element.length) {
+			control_element.addClass("highlight");
+			setTimeout(() => {
+				control_element.removeClass("highlight");
+			}, 2000);
+		}
 		return true;
 	}
 
