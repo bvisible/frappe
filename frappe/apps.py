@@ -19,6 +19,99 @@ def get_apps():
 
 	allowed_workspaces = get_workspace_sidebar_items().get("pages")
 
+	# Check if App Customization is available and has entries
+	if frappe.db.table_exists("App Customization") and frappe.db.count("App Customization") > 0:
+		return get_apps_from_customization(allowed_workspaces)
+
+	# Fallback to default behavior (hooks-based)
+	return get_apps_default(allowed_workspaces)
+
+
+def get_apps_from_customization(allowed_workspaces):
+	"""Get apps list using App Customization doctype"""
+	app_list = []
+	installed_apps = frappe.get_installed_apps()
+
+	# Get enabled apps from App Customization, sorted by sort_order
+	customizations = frappe.get_all(
+		"App Customization",
+		filters={"enabled": 1},
+		fields=["app_name", "app_title", "app_logo", "app_route", "sort_order", "is_virtual"],
+		order_by="sort_order asc, app_title asc"
+	)
+
+	for custom in customizations:
+		app_name = custom.get("app_name")
+
+		# Skip if not installed and not virtual
+		if app_name not in installed_apps and not custom.get("is_virtual"):
+			continue
+
+		# Skip frappe app
+		if app_name == "frappe":
+			continue
+
+		# Check setup wizard completion for non-virtual apps
+		if app_name in installed_apps and not custom.get("is_virtual"):
+			if (
+				app_name not in get_setup_wizard_completed_apps()
+				and app_name not in get_setup_wizard_not_required_apps()
+				and "System Manager" not in frappe.get_roles()
+			):
+				continue
+
+		# Check permission if app has has_permission hook
+		skip_app = False
+		if app_name in installed_apps:
+			app_details = frappe.get_hooks("add_to_apps_screen", app_name=app_name)
+			if app_details:
+				for detail in app_details:
+					has_permission_path = detail.get("has_permission")
+					if has_permission_path:
+						try:
+							if not frappe.get_attr(has_permission_path)():
+								skip_app = True
+								break
+						except Exception:
+							frappe.log_error(f"Failed to call has_permission hook ({has_permission_path}) for {app_name}")
+
+		if skip_app:
+			continue
+
+		# Resolve app logo URL using neoffice_theme if available
+		app_logo = custom.get("app_logo")
+		if app_logo and "neoffice_theme" in installed_apps:
+			try:
+				from neoffice_theme.api import resolve_app_logo_url
+				app_logo = resolve_app_logo_url(app_logo) or app_logo
+			except Exception:
+				pass
+
+		# Fallback to hooks for logo if not set in customization
+		if not app_logo and app_name in installed_apps:
+			app_details = frappe.get_hooks("add_to_apps_screen", app_name=app_name)
+			if app_details:
+				app_logo = app_details[0].get("logo")
+
+		# Get route from customization or hooks
+		app_route = custom.get("app_route")
+		if not app_route and app_name in installed_apps:
+			app_details = frappe.get_hooks("add_to_apps_screen", app_name=app_name)
+			if app_details:
+				app_route = get_route(app_details[0], allowed_workspaces)
+
+		app_list.append({
+			"name": app_name,
+			"logo": app_logo,
+			"title": _(custom.get("app_title") or app_name),
+			"route": app_route or "/app",
+		})
+
+	return app_list
+
+
+def get_apps_default(allowed_workspaces):
+	"""Original get_apps logic as fallback when App Customization is not configured"""
 	apps = frappe.get_installed_apps()
 	app_list = []
 
