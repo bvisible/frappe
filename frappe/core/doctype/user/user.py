@@ -587,7 +587,7 @@ class User(Document):
 				)
 
 		if frappe.db.exists("Notification Settings", old_name):
-			frappe.rename_doc("Notification Settings", old_name, new_name, force=True, show_alert=False)
+			frappe.rename_doc("Notification Settings", old_name, new_name, force=True, show_alert=False, ignore_permissions=True)
 
 		# set email
 		frappe.db.set_value("User", new_name, "email", new_name)
