@@ -56,6 +56,7 @@ frappe.ui.AppsSwitcher = class AppsSwitcher {
 		this.add_private_app();
 
 		this.add_website_select();
+		this.add_mobile_app_select();
 		this.add_settings_select();
 		this.setup_select_app();
 	}
@@ -116,6 +117,15 @@ frappe.ui.AppsSwitcher = class AppsSwitcher {
 				frappe.quick_edit("Workspace Settings");
 				return;
 			}
+			if (item.attr("data-app-name") == "mobile_apps") {
+				// Open mobile apps dialog (defined in neoffice_theme)
+				if (typeof showMobileAppsDialog === "function") {
+					showMobileAppsDialog();
+				} else {
+					frappe.msgprint(__("Mobile Apps dialog not available"));
+				}
+				return;
+			}
 			if (route.startsWith("/app/private")) {
 				this.set_current_app("private");
 				let ws = Object.values(frappe.workspace_map).find((ws) => ws.public === 0);
@@ -142,6 +152,15 @@ frappe.ui.AppsSwitcher = class AppsSwitcher {
 			},
 			this.app_switcher_menu
 		);
+	}
+
+	add_mobile_app_select() {
+		$(`<div class="divider"></div>`).appendTo(this.app_switcher_menu);
+		this.add_app_item({
+			app_name: "mobile_apps",
+			app_title: __("Mobile Apps"),
+			app_logo_url: "/assets/frappe/images/mobile-app.svg",
+		});
 	}
 
 	add_settings_select() {
