@@ -161,8 +161,12 @@ frappe.form.formatters = {
 		}
 	},
 	Check: function (value) {
+		// Return empty for total row (value is empty string or null/undefined)
+		if (value === "" || value === null || value === undefined) {
+			return "";
+		}
 		return `<input type="checkbox" disabled
-			class="disabled-${value ? "selected" : "deselected"}">`;
+			class="disabled-${cint(value) ? "selected" : "deselected"}">`;
 	},
 	Link: function (value, docfield, options, doc) {
 		var doctype = docfield._options || docfield.options;
