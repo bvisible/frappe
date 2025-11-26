@@ -762,7 +762,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			inlineFilters: true,
 			cellHeight: 35,
 			direction: frappe.utils.is_rtl() ? "rtl" : "ltr",
-			showTotalRow: this.add_totals_row,
+			showTotalRow: false, // We handle totals row manually as last data row
 			events: {
 				onRemoveColumn: (column) => {
 					this.remove_column_from_datatable(column);
@@ -1963,9 +1963,59 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 	build_rows(data) {
 		const out = data.map((d) => this.build_row(d));
-		// Note: Totals row is now handled by DataTable's showTotalRow option
-		// which properly handles filtering and recalculates totals
+
+		// Add totals row as last data row if enabled
+		if (this.add_totals_row && data.length > 0) {
+			const totals_row = this.build_totals_row(data);
+			out.push(totals_row);
+		}
+
 		return out;
+	}
+
+	build_totals_row(data) {
+		// Calculate totals for each column
+		const totals = this.get_columns_totals(data);
+
+		return this.columns.map((col, index) => {
+			// First column (after checkbox and row index) shows "Totals" label
+			if (col.field === "name") {
+				return {
+					content: `<strong>${__("Totals")}</strong>`,
+					editable: false,
+					isTotalRow: true,
+				};
+			}
+
+			// Meta column - empty
+			if (col.field === "meta") {
+				return {
+					content: "",
+					editable: false,
+					isTotalRow: true,
+				};
+			}
+
+			// Numeric fields - show formatted total
+			if (frappe.model.is_numeric_field(col.docfield)) {
+				const value = totals[col.id] || 0;
+				return {
+					content: value,
+					editable: false,
+					isTotalRow: true,
+					format: (val) => {
+						return `<strong>${frappe.format(val, col.docfield, { always_show_decimals: true })}</strong>`;
+					},
+				};
+			}
+
+			// Non-numeric fields - empty
+			return {
+				content: "",
+				editable: false,
+				isTotalRow: true,
+			};
+		});
 	}
 
 	format_total_cell(formatted_value, df) {
@@ -2270,8 +2320,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 					this.save_view_user_settings({
 						add_totals_row: this.add_totals_row,
 					});
-					// Update DataTable's showTotalRow option and refresh
-					this.datatable.options.showTotalRow = this.add_totals_row;
+					// Refresh with totals row as last data row
 					this.datatable.refresh(this.get_data(this.data));
 				},
 			},
