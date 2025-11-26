@@ -2029,7 +2029,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 		// Find cells with isTotalRow attribute and add CSS class to the row
 		requestAnimationFrame(() => {
-			const $totalsCell = this.$datatable_wrapper.find('.dt-cell[data-is-total-row="1"]').first();
+			const $totalsCell = this.$datatable_wrapper.find('.dt-cell[data-is-total-row="true"]').first();
 			if ($totalsCell.length) {
 				const $totalsRow = $totalsCell.closest('.dt-row');
 				$totalsRow.addClass('dt-row--totals');
