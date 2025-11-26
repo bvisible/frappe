@@ -193,3 +193,19 @@ table td.dt-cell {
 		background-color: transparent;
 	}
 }
+
+// Totals row styling - displayed as last data row in Report View
+.dt-row--totals {
+	background-color: var(--dt-light-bg) !important;
+	font-weight: bold;
+
+	.dt-cell {
+		background-color: var(--dt-light-bg) !important;
+	}
+
+	// Hide checkbox (col-0) and row index (col-1) content
+	.dt-cell--col-0 .dt-cell__content,
+	.dt-cell--col-1 .dt-cell__content {
+		visibility: hidden;
+	}
+}
