@@ -2017,6 +2017,12 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 						doctype: col.docfield.parent,
 						content: status[0],
 						editable: false,
+						format: () => {
+							return `<span class="indicator-pill ${status[1]} filterable no-indicator-dot ellipsis"
+								data-filter='${status[2]}'>
+								<span class="ellipsis">${status[0]}</span>
+							</span>`;
+						},
 					};
 				} else {
 					// no status values found
