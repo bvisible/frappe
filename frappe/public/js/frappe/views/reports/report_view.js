@@ -2037,6 +2037,91 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		});
 	}
 
+	add_totals_to_filtered_rows(formattedRows, columns) {
+		// Hook called by filterRows.js to add totals row after filtering
+		if (!this.add_totals_row || formattedRows.length === 0) return null;
+
+		// Calculate totals from filtered data (this.data is updated by prepare_data)
+		const totals = this.get_columns_totals(this.data);
+		const rowIndex = formattedRows.length;
+
+		// Build formatted row compatible with DataTable structure
+		const totalsRow = columns
+			.filter(column => column.visible !== false)
+			.map((column, colIndex) => {
+				const cellClass = `dt-cell dt-cell--col-${colIndex} dt-cell--${colIndex}-${rowIndex} dt-cell--row-${rowIndex}`;
+				const contentClass = `dt-cell__content dt-cell__content--col-${colIndex}`;
+
+				let cellData = "";
+				let formattedContent = "";
+
+				// Checkbox column - empty
+				if (column.id === '_checkbox') {
+					cellData = "";
+				}
+				// Row index column - empty
+				else if (column.id === '_rowIndex') {
+					cellData = "";
+				}
+				// Name field - shows "Totals" label
+				else if (column.field === "name") {
+					cellData = __("Totals");
+					formattedContent = `<strong>${__("Totals")}</strong>`;
+				}
+				// Meta column - empty
+				else if (column.field === "meta") {
+					cellData = "";
+				}
+				// Numeric fields - show formatted total
+				else if (column.docfield && frappe.model.is_numeric_field(column.docfield)) {
+					const value = totals[column.id] || 0;
+					cellData = value;
+					formattedContent = `<strong>${frappe.format(value, column.docfield, { always_show_decimals: true })}</strong>`;
+				}
+
+				return {
+					content: cellData,
+					html: formattedContent || cellData,
+					rowIndex: rowIndex,
+					colIndex: colIndex,
+					column: column,
+					sortOrder: column.sortOrder,
+					editable: false,
+					focusable: column.focusable,
+					dropdown: column.dropdown,
+					width: column.width,
+					name: column.name,
+					docfield: column.docfield || {},
+					isTotalRow: true,
+					attributes: {
+						class: cellClass,
+						'data-row-index': rowIndex,
+						'data-col-index': colIndex,
+						'data-is-total-row': 'true',
+						'tabindex': 0
+					},
+					contentAttributes: {
+						class: contentClass,
+						title: cellData ? cellData.toString() : ''
+					}
+				};
+			});
+
+		// Add meta to totals row
+		totalsRow.meta = {
+			rowIndex: rowIndex,
+			indent: 0,
+			isLeaf: true,
+			isTreeNodeClose: false,
+			isTotalRow: true
+		};
+
+		// Apply styling after render
+		setTimeout(() => this.style_totals_row(), 100);
+
+		return totalsRow;
+	}
+
 	format_total_cell(formatted_value, df) {
 		let cell_value = __("Totals").bold();
 		if (frappe.model.is_numeric_field(df.docfield)) {
