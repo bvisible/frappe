@@ -955,10 +955,11 @@ Object.assign(frappe.utils, {
 			} else if (frappe.model.is_numeric_field(column.column.fieldtype)) {
 				return values.reduce((a, b) => flt(a) + flt(b));
 			} else {
-				return null;
+				// Return empty string for non-numeric fields (e.g., Status, Select, Link)
+				return "";
 			}
 		} else {
-			return null;
+			return "";
 		}
 	},
 	setup_search($wrapper, el_class, text_class, data_attr) {
