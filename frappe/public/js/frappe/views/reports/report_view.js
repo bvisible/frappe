@@ -1477,11 +1477,23 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		}
 
 		if (!frappe.meta.has_field(this.doctype, "status") && has_status_values) {
+			// Collect all possible status values from the data
+			let statusOptions = new Set();
+			if (this.data && this.data.length) {
+				this.data.forEach(d => {
+					let status = frappe.get_indicator(d, this.doctype);
+					if (status && status[0]) {
+						statusOptions.add(status[0]);
+					}
+				});
+			}
 			doctype_fields = [
 				{
 					label: __("Status"),
 					fieldname: "docstatus",
-					fieldtype: "Data",
+					fieldtype: "Select",
+					options: Array.from(statusOptions).join("\n"),
+					is_virtual_status: true,
 				},
 			].concat(doctype_fields);
 		}
@@ -1845,7 +1857,10 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				}
 				if (fieldname == "docstatus" && !frappe.meta.has_field(this.doctype, "status")) {
 					docfield.label = "Status";
-					docfield.fieldtype = "Data";
+					// Keep fieldtype as Select if already set with options, otherwise use Data
+					if (!docfield.is_virtual_status) {
+						docfield.fieldtype = "Data";
+					}
 					docfield.name = "status";
 				}
 			}
