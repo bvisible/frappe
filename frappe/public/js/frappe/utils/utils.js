@@ -945,14 +945,17 @@ Object.assign(frappe.utils, {
 		return __(frappe.utils.to_title_case(__(route[0]), true));
 	},
 	report_column_total: function (values, column, type) {
+		// Get fieldtype from docfield (for Report View) or directly from column (for Query Report)
+		const fieldtype = column.column.docfield?.fieldtype || column.column.fieldtype;
+
 		if (column.column.disable_total) {
 			return "";
 		} else if (values.length > 0) {
-			if (column.column.fieldtype == "Percent" || type === "mean") {
+			if (fieldtype == "Percent" || type === "mean") {
 				return values.reduce((a, b) => flt(a) + flt(b)) / values.length;
-			} else if (column.column.fieldtype == "Int") {
+			} else if (fieldtype == "Int") {
 				return values.reduce((a, b) => cint(a) + cint(b));
-			} else if (frappe.model.is_numeric_field(column.column.fieldtype)) {
+			} else if (frappe.model.is_numeric_field(fieldtype)) {
 				return values.reduce((a, b) => flt(a) + flt(b));
 			} else {
 				// Return empty string for non-numeric fields (e.g., Status, Select, Link)
