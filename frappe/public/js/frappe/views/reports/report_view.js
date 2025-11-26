@@ -338,6 +338,22 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				dialog.show();
 			}).addClass('btn-settings').html(`<img src="/assets/frappe/icons/timeless/icon-settings.svg" alt="Settings" style="height: 15px; vertical-align: middle;">`);
 		}
+		// Totals toggle button
+		if (!this.page.wrapper.find('.btn-totals').length) {
+			this.page.add_button('', () => {
+				this.add_totals_row = !this.add_totals_row;
+				this.save_view_user_settings({
+					add_totals_row: this.add_totals_row,
+				});
+				// Refresh with totals row as last data row
+				this.datatable.refresh(this.get_data(this.data));
+				this.style_totals_row();
+				// Update button appearance
+				this.update_totals_button();
+			}).addClass('btn-totals').html(`<img src="/assets/frappe/icons/timeless/sigma.svg" alt="Totals" style="height: 15px; vertical-align: middle;">`);
+			// Set initial button state
+			this.update_totals_button();
+		}
 		if (!this.page.wrapper.find('.btn-export-excel').length) {
 			this.page.add_button('', () => {
 				const selected_items = this.get_checked_items(true);
@@ -2037,6 +2053,18 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		});
 	}
 
+	update_totals_button() {
+		// Update the totals button appearance based on current state
+		const $btn = this.page.wrapper.find('.btn-totals');
+		if (!$btn.length) return;
+
+		if (this.add_totals_row) {
+			$btn.addClass('btn-primary-light').attr('title', __('Hide Totals'));
+		} else {
+			$btn.removeClass('btn-primary-light').attr('title', __('Show Totals'));
+		}
+	}
+
 	add_totals_to_filtered_rows(formattedRows, columns) {
 		// Hook called by filterRows.js to add totals row after filtering
 		if (!this.add_totals_row || formattedRows.length === 0) return null;
@@ -2417,18 +2445,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 	report_menu_items() {
 		let items = [
-			{
-				label: __("Show Totals"),
-				action: () => {
-					this.add_totals_row = !this.add_totals_row;
-					this.save_view_user_settings({
-						add_totals_row: this.add_totals_row,
-					});
-					// Refresh with totals row as last data row
-					this.datatable.refresh(this.get_data(this.data));
-					this.style_totals_row();
-				},
-			},
 			{
 				label: __("Print"),
 				action: () => {
