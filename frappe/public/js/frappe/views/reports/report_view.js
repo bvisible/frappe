@@ -762,6 +762,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			inlineFilters: true,
 			cellHeight: 35,
 			direction: frappe.utils.is_rtl() ? "rtl" : "ltr",
+			showTotalRow: this.add_totals_row,
 			events: {
 				onRemoveColumn: (column) => {
 					this.remove_column_from_datatable(column);
@@ -1962,32 +1963,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 	build_rows(data) {
 		const out = data.map((d) => this.build_row(d));
-
-		if (this.add_totals_row) {
-			const totals = this.get_columns_totals(data);
-			const totals_row = this.columns.map((col, i) => {
-				return {
-					name: __("Totals Row"),
-					content: totals[col.id],
-					format: (value) => {
-						let formatted_value = frappe.format(
-							value,
-							col.docfield,
-							{
-								always_show_decimals: true,
-							},
-							data[0]
-						);
-						if (i === 0) {
-							return this.format_total_cell(formatted_value, col);
-						}
-						return formatted_value;
-					},
-				};
-			});
-
-			out.push(totals_row);
-		}
+		// Note: Totals row is now handled by DataTable's showTotalRow option
+		// which properly handles filtering and recalculates totals
 		return out;
 	}
 
@@ -2265,11 +2242,17 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		const row_totals = {};
 
 		this.columns.forEach((col, i) => {
+			// Only calculate totals for numeric fields
+			if (!frappe.model.is_numeric_field(col.docfield)) {
+				row_totals[col.id] = "";
+				return;
+			}
+
 			const totals = data.reduce((totals, d) => {
-				if (col.id in d && frappe.model.is_numeric_field(col.docfield)) {
+				if (col.id in d) {
 					totals += flt(d[col.id]);
-					return totals;
 				}
+				return totals;
 			}, 0);
 
 			row_totals[col.id] = totals;
@@ -2287,6 +2270,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 					this.save_view_user_settings({
 						add_totals_row: this.add_totals_row,
 					});
+					// Update DataTable's showTotalRow option and refresh
+					this.datatable.options.showTotalRow = this.add_totals_row;
 					this.datatable.refresh(this.get_data(this.data));
 				},
 			},
