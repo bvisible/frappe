@@ -653,9 +653,11 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 		if (this.datatable && !force) {
 			this.datatable.refresh(this.get_data(this.data), this.columns);
+			this.style_totals_row();
 			return;
 		}
 		this.setup_datatable(this.data);
+		this.style_totals_row();
 	}
 
 	////
@@ -1981,9 +1983,10 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			// First column (after checkbox and row index) shows "Totals" label
 			if (col.field === "name") {
 				return {
-					content: `<strong>${__("Totals")}</strong>`,
+					content: __("Totals"),
 					editable: false,
 					isTotalRow: true,
+					format: () => `<strong>${__("Totals")}</strong>`,
 				};
 			}
 
@@ -1993,6 +1996,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 					content: "",
 					editable: false,
 					isTotalRow: true,
+					format: () => "",
 				};
 			}
 
@@ -2014,7 +2018,22 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				content: "",
 				editable: false,
 				isTotalRow: true,
+				format: () => "",
 			};
+		});
+	}
+
+	style_totals_row() {
+		// Add special styling to the totals row after DataTable renders
+		if (!this.add_totals_row || !this.$datatable_wrapper) return;
+
+		// Find cells with isTotalRow attribute and add CSS class to the row
+		requestAnimationFrame(() => {
+			const $totalsCell = this.$datatable_wrapper.find('.dt-cell[data-is-total-row="1"]').first();
+			if ($totalsCell.length) {
+				const $totalsRow = $totalsCell.closest('.dt-row');
+				$totalsRow.addClass('dt-row--totals');
+			}
 		});
 	}
 
@@ -2322,6 +2341,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 					});
 					// Refresh with totals row as last data row
 					this.datatable.refresh(this.get_data(this.data));
+					this.style_totals_row();
 				},
 			},
 			{
