@@ -1857,11 +1857,25 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				}
 				if (fieldname == "docstatus" && !frappe.meta.has_field(this.doctype, "status")) {
 					docfield.label = "Status";
-					// Keep fieldtype as Select if already set with options, otherwise use Data
-					if (!docfield.is_virtual_status) {
+					docfield.name = "status";
+					// Collect status options from data for Select filter
+					if (this.data && this.data.length) {
+						let statusOptions = new Set();
+						this.data.forEach(d => {
+							let status = frappe.get_indicator(d, this.doctype);
+							if (status && status[0]) {
+								statusOptions.add(status[0]);
+							}
+						});
+						if (statusOptions.size > 0) {
+							docfield.fieldtype = "Select";
+							docfield.options = Array.from(statusOptions).join("\n");
+						} else {
+							docfield.fieldtype = "Data";
+						}
+					} else {
 						docfield.fieldtype = "Data";
 					}
-					docfield.name = "status";
 				}
 			}
 		}
