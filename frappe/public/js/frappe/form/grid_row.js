@@ -1146,6 +1146,32 @@ export default class GridRow {
 				vertical = false;
 				horizontal = false;
 			})
+			.on("focusin", function (event) {
+				// Reposition dropdown for Link/Dynamic Link fields in horizontal scroll mode
+				if (df.fieldtype === "Link" || df.fieldtype === "Dynamic Link") {
+					frappe.utils.sleep(300).then(() => {
+						let $dropdown = $(this).find(".awesomplete > ul:first-of-type");
+						let $grid_container = $(this).closest(".form-grid-container");
+
+						// Only reposition if in column-limit-reached (scroll) mode
+						if ($grid_container.hasClass("column-limit-reached") && $dropdown.length) {
+							let element_position = event.target.getBoundingClientRect();
+							let container_position = $grid_container[0].getBoundingClientRect();
+
+							// Position dropdown fixed relative to viewport
+							$dropdown.css({
+								position: "fixed",
+								top: `${element_position.bottom + 5}px`,
+								left: `${element_position.left}px`,
+								width: "250px",
+								"z-index": 1050,
+								"max-height": "300px",
+								"overflow-y": "auto"
+							});
+						}
+					});
+				}
+			})
 			.on("click", function (event) {
 				if (frappe.ui.form.editable_row !== me) {
 					var out = me.toggle_editable_row();

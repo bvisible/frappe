@@ -64,10 +64,35 @@ def sync_user_settings():
 
 
 @frappe.whitelist()
-def save(doctype, user_settings):
+def save(doctype, user_settings, sync_immediately=False):
 	user_settings = json.loads(user_settings or "{}")
 	update_user_settings(doctype, user_settings)
+
+	# Immediately sync to DB for critical settings (e.g., GridView)
+	if sync_immediately:
+		sync_user_settings_for_doctype(doctype, frappe.session.user)
+
 	return user_settings
+
+
+def sync_user_settings_for_doctype(doctype, user):
+	"""Sync specific user's settings for a doctype to database immediately"""
+	key = f"{doctype}::{user}"
+	data = frappe.cache.hget("_user_settings", key)
+	if data:
+		frappe.db.multisql(
+			{
+				"mariadb": """INSERT INTO `__UserSettings`(`user`, `doctype`, `data`)
+				VALUES (%s, %s, %s)
+				ON DUPLICATE key UPDATE `data`=%s""",
+				"postgres": """INSERT INTO `__UserSettings` (`user`, `doctype`, `data`)
+				VALUES (%s, %s, %s)
+				ON CONFLICT ("user", "doctype") DO UPDATE SET `data`=%s""",
+			},
+			(user, doctype, data, data),
+			as_dict=1,
+		)
+		frappe.db.commit()
 
 
 @frappe.whitelist()

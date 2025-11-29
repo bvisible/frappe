@@ -22,8 +22,9 @@ $.extend(frappe.model.user_settings, {
 		const a = JSON.stringify(old_user_settings);
 		const b = JSON.stringify(new_user_settings);
 		if (a !== b) {
-			// update if changed
-			return this.update(doctype, new_user_settings);
+			// Sync immediately for GridView changes to prevent data loss
+			const sync_immediately = key === "GridView";
+			return this.update(doctype, new_user_settings, sync_immediately);
 		}
 		return Promise.resolve(new_user_settings);
 	},
@@ -33,16 +34,24 @@ $.extend(frappe.model.user_settings, {
 
 		return this.update(doctype, user_settings);
 	},
-	update: function (doctype, user_settings) {
+	update: function (doctype, user_settings, sync_immediately = false) {
 		if (frappe.session.user === "Guest") return Promise.resolve();
 		return frappe.call({
 			method: "frappe.model.utils.user_settings.save",
 			args: {
 				doctype: doctype,
 				user_settings: user_settings,
+				sync_immediately: sync_immediately,
 			},
 			callback: function (r) {
 				frappe.model.user_settings[doctype] = r.message;
+			},
+			error: function (r) {
+				console.error("Failed to save user settings:", r);
+				frappe.show_alert({
+					message: __("Failed to save grid settings"),
+					indicator: "red",
+				});
 			},
 		});
 	},
