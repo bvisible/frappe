@@ -664,6 +664,21 @@
 	border: 1px solid var(--table-border-color);
 	overflow-x: scroll;  // Force scrollbar to always be visible
 	overflow-y: hidden;
+	position: relative;
+	padding-bottom: 12px; // Reserve space for visible scrollbar track
+
+	// Always visible scrollbar track indicator
+	&::after {
+		content: '';
+		position: absolute;
+		bottom: 1px;
+		left: 4px;
+		right: 4px;
+		height: 10px;
+		background: var(--gray-200);
+		border-radius: 5px;
+		pointer-events: none;
+	}
 
 	.form-grid {
 		display: grid;
