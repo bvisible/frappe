@@ -96,10 +96,11 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		this.menu_items = this.menu_items.concat(this.get_menu_items());
 
 		// set filters from view_user_settings or list_settings
-		// Skip saved filters if route_options exist (e.g., navigating from dashboard)
+		// Skip saved filters if route_options or URL params exist (e.g., navigating from dashboard)
 		const has_route_options = frappe.route_options && Object.keys(frappe.route_options).length > 0;
-		if (has_route_options) {
-			// Priority 0: route_options - will be parsed in before_refresh()
+		const has_url_params = window.location.search && window.location.search.length > 1;
+		if (has_route_options || has_url_params) {
+			// Priority 0: route_options or URL params - will be parsed in before_refresh()
 			this.filters = [];
 		} else if (Array.isArray(this.view_user_settings.filters)) {
 			// Priority 1: view_user_settings (only if no route_options)
@@ -560,7 +561,11 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 	}
 
 	before_refresh() {
-		if (frappe.route_options && this.filter_area) {
+		// Check if there are route_options (programmatic) or URL query params
+		const has_route_options = frappe.route_options && Object.keys(frappe.route_options).length > 0;
+		const has_url_params = window.location.search && window.location.search.length > 1;
+
+		if ((has_route_options || has_url_params) && this.filter_area) {
 			this.filters = this.parse_filters_from_route_options();
 			frappe.route_options = null;
 
