@@ -796,23 +796,23 @@
 		}
 	}
 
-	scrollbar-width: thin;
-	scrollbar-color: var(--gray-400) transparent;
+	scrollbar-width: auto;
+	scrollbar-color: var(--gray-400) var(--gray-100);
 
 	// Force visible scrollbar on webkit browsers (Chrome, Safari, Edge)
 	&::-webkit-scrollbar {
-		height: 6px;
+		height: 8px;
 	}
 	&::-webkit-scrollbar-track {
-		background: transparent;
-		margin: 0 4px;
+		background: var(--gray-100);
+		border-radius: 4px;
 	}
 	&::-webkit-scrollbar-thumb {
-		background: var(--gray-300);
-		border-radius: 3px;
+		background: var(--gray-400);
+		border-radius: 4px;
 	}
 	&::-webkit-scrollbar-thumb:hover {
-		background: var(--gray-400);
+		background: var(--gray-500);
 	}
 }
 
