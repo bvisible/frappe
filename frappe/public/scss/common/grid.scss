@@ -618,7 +618,7 @@
 }
 
 @media (min-width: map-get($grid-breakpoints, "md")) {
-	.form-grid-container {
+	.form-grid-container:not(.column-limit-reached) {
 		overflow-x: unset !important;
 
 		.form-grid {
@@ -662,7 +662,7 @@
 	background-color: var(--subtle-accent);
 	border-radius: var(--border-radius-md);
 	border: 1px solid var(--table-border-color);
-	overflow-x: auto;
+	overflow-x: scroll;  // Force scrollbar to always be visible
 	overflow-y: hidden;
 
 	.form-grid {
@@ -796,8 +796,24 @@
 		}
 	}
 
-	scrollbar-width: auto;
-	scrollbar-color: auto;
+	scrollbar-width: thin;
+	scrollbar-color: var(--gray-400) transparent;
+
+	// Force visible scrollbar on webkit browsers (Chrome, Safari, Edge)
+	&::-webkit-scrollbar {
+		height: 6px;
+	}
+	&::-webkit-scrollbar-track {
+		background: transparent;
+		margin: 0 4px;
+	}
+	&::-webkit-scrollbar-thumb {
+		background: var(--gray-300);
+		border-radius: 3px;
+	}
+	&::-webkit-scrollbar-thumb:hover {
+		background: var(--gray-400);
+	}
 }
 
 // Custom scrollbar styling
