@@ -675,9 +675,10 @@
 		left: 4px;
 		right: 4px;
 		height: 10px;
-		background: var(--gray-200);
+		background: var(--gray-300);
 		border-radius: 5px;
 		pointer-events: none;
+		z-index: 10;
 	}
 
 	.form-grid {
