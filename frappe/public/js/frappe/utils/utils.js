@@ -491,14 +491,19 @@ Object.assign(frappe.utils, {
 		var colour = "gray";
 		if (text) {
 			text = cstr(text);
-			if (has_words(["Pending", "Review", "Medium", "Not Approved"], text)) {
+			// Orange/Warning statuses (English + French)
+			if (has_words(["Pending", "Review", "Medium", "Not Approved",
+				"En attente", "À revoir", "Moyen", "Non approuvé", "Impayé", "Unpaid"], text)) {
 				style = "warning";
 				colour = "orange";
+			// Red/Danger statuses (English + French)
 			} else if (
-				has_words(["Open", "Urgent", "High", "Failed", "Rejected", "Error"], text)
+				has_words(["Open", "Urgent", "High", "Failed", "Rejected", "Error", "Overdue",
+					"Ouvert", "Élevé", "Échoué", "Rejeté", "Erreur", "En retard", "Échu"], text)
 			) {
 				style = "danger";
 				colour = "red";
+			// Green/Success statuses (English + French)
 			} else if (
 				has_words(
 					[
@@ -514,13 +519,31 @@ Object.assign(frappe.utils, {
 						"Available",
 						"Paid",
 						"Success",
+						"Ordered",
+						// French translations
+						"Fermé",
+						"Terminé",
+						"Converti",
+						"Complété",
+						"Complet",
+						"Confirmé",
+						"Approuvé",
+						"Oui",
+						"Actif",
+						"Disponible",
+						"Payé",
+						"Succès",
+						"Commandé",
+						"Livré",
+						"Delivered",
 					],
 					text
 				)
 			) {
 				style = "success";
 				colour = "green";
-			} else if (has_words(["Submitted"], text)) {
+			// Blue/Info statuses (English + French)
+			} else if (has_words(["Submitted", "Soumis", "Validé"], text)) {
 				style = "info";
 				colour = "blue";
 			}
