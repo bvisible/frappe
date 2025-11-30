@@ -378,6 +378,11 @@ export default class GridRow {
 					me.open_form_button.parent().focus();
 				});
 			}
+		} else if (this.doc && this.parent_df.read_only && this.frm) {
+			// Add empty column for read_only tables to align with header's configure button
+			if (!this.empty_action_col) {
+				this.empty_action_col = $('<div class="col grid-static-col"></div>').appendTo(this.row);
+			}
 		}
 	}
 
