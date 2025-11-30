@@ -383,7 +383,8 @@ export default class GridRow {
 
 	add_column_configure_button() {
 		if (this.grid.df.in_place_edit && !this.frm) return;
-		if (this.parent_df.read_only) return; //// added
+		// Allow column configuration even for read_only tables (for display purposes)
+		// if (this.parent_df.read_only) return;
 
 		if (this.configure_columns && this.frm) {
 			this.configure_columns_button = $(`
