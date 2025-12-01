@@ -210,7 +210,12 @@ frappe.ui.Page = class Page {
 				if (frappe.utils.is_xs() || frappe.utils.is_sm()) {
 					this.setup_overlay_sidebar();
 				} else {
-					sidebar_wrapper.toggle();
+					// Use same logic as Ctrl+K toggle_side_bar in list_view
+					let show_sidebar = JSON.parse(localStorage.show_sidebar || "true");
+					show_sidebar = !show_sidebar;
+					localStorage.show_sidebar = show_sidebar;
+					$(document.body).toggleClass("no-list-sidebar", !show_sidebar);
+					$(document.body).trigger("toggleListSidebar");
 				}
 				$(document.body).trigger("toggleSidebar");
 				this.update_sidebar_icon();
