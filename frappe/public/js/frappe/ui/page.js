@@ -210,14 +210,18 @@ frappe.ui.Page = class Page {
 				if (window.innerWidth < 992) {
 					this.setup_overlay_sidebar();
 				} else {
-					// Use same logic as Ctrl+K toggle_side_bar in list_view
-					let show_sidebar = JSON.parse(localStorage.show_sidebar || "true");
-					show_sidebar = !show_sidebar;
-					localStorage.show_sidebar = show_sidebar;
-					$(document.body).toggleClass("no-list-sidebar", !show_sidebar);
-					// Also toggle on wrapper for CSS selectors targeting [data-page-route]
-					this.wrapper.toggleClass("no-list-sidebar", !show_sidebar);
-					$(document.body).trigger("toggleListSidebar");
+					// Use cur_list.toggle_side_bar() if available (handles datatable refresh)
+					if (cur_list && cur_list.toggle_side_bar) {
+						cur_list.toggle_side_bar();
+					} else {
+						// Fallback: manual toggle like Ctrl+K
+						let show_sidebar = JSON.parse(localStorage.show_sidebar || "true");
+						show_sidebar = !show_sidebar;
+						localStorage.show_sidebar = show_sidebar;
+						$(document.body).toggleClass("no-list-sidebar", !show_sidebar);
+						this.wrapper.toggleClass("no-list-sidebar", !show_sidebar);
+						$(document.body).trigger("toggleListSidebar");
+					}
 				}
 				$(document.body).trigger("toggleSidebar");
 				this.update_sidebar_icon();
