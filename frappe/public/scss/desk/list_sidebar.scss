@@ -112,9 +112,9 @@
 	max-width: 250px;
 }
 
-// Hide filter-section in layout-side-section (before moving) on mobile
+// Hide filter-section in layout-side-section (before moving) on mobile/tablet
 // but NOT in the sidebar
-@media (max-width: 767px) {
+@media (max-width: 991px) {
 	body[data-route*="List"] .layout-side-section .filter-section:not(.list-sidebar .filter-section) {
 		display: none !important;
 	}
