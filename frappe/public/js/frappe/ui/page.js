@@ -215,6 +215,8 @@ frappe.ui.Page = class Page {
 					show_sidebar = !show_sidebar;
 					localStorage.show_sidebar = show_sidebar;
 					$(document.body).toggleClass("no-list-sidebar", !show_sidebar);
+					// Also toggle on wrapper for CSS selectors targeting [data-page-route]
+					this.wrapper.toggleClass("no-list-sidebar", !show_sidebar);
 					$(document.body).trigger("toggleListSidebar");
 				}
 				$(document.body).trigger("toggleSidebar");
