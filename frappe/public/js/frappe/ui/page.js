@@ -209,8 +209,12 @@ frappe.ui.Page = class Page {
 			sidebar_toggle.click(() => {
 				if (frappe.utils.is_xs() || frappe.utils.is_sm()) {
 					this.setup_overlay_sidebar();
-				} else {
+				} else if (frappe.utils.is_md()) {
 					sidebar_wrapper.toggle();
+				} else {
+					// On desktop (>= 992px), open the awesomebar like CMD+K
+					$("#navbar-search").focus();
+					return;
 				}
 				$(document.body).trigger("toggleSidebar");
 				this.update_sidebar_icon();

@@ -266,6 +266,14 @@
 	}
 }
 
+@include media-breakpoint-down(md) {
+	// tablets (768px - 991px)
+	.layout-side-section {
+		min-width: 0px;
+		padding: 0;
+	}
+}
+
 .overlay-sidebar {
 	ul.dropdown-menu {
 		li {
