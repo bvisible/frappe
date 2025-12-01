@@ -207,7 +207,7 @@ frappe.ui.Page = class Page {
 				trigger: "hover",
 			});
 			sidebar_toggle.click(() => {
-				if (frappe.utils.is_xs() || frappe.utils.is_sm()) {
+				if (window.innerWidth < 992) {
 					this.setup_overlay_sidebar();
 				} else {
 					// Use same logic as Ctrl+K toggle_side_bar in list_view
