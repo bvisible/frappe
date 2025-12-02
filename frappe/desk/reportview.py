@@ -919,16 +919,32 @@ def push_user_report_settings_to_all(doctype):
 
 @frappe.whitelist()
 def get_comment_count(doctype, docnames):
+	"""Get comment counts from _comments field (includes both Comments and Communications)."""
 	if isinstance(docnames, str):
 		docnames = json.loads(docnames)
 
 	comment_counts = {}
+
+	# Get _comments field for all docnames in one query
+	results = frappe.get_all(
+		doctype,
+		filters={"name": ["in", docnames]},
+		fields=["name", "_comments"],
+		limit_page_length=0
+	)
+
+	# Build lookup from results
+	for row in results:
+		_comments = row.get("_comments") or "[]"
+		try:
+			comment_counts[row.name] = len(json.loads(_comments))
+		except (ValueError, TypeError):
+			comment_counts[row.name] = 0
+
+	# Ensure all requested docnames have an entry (default 0)
 	for docname in docnames:
-		count = frappe.db.count("Comment", {
-			"reference_doctype": doctype,
-			"reference_name": docname
-		})
-		comment_counts[docname] = count
+		if docname not in comment_counts:
+			comment_counts[docname] = 0
 
 	return comment_counts
 
