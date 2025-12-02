@@ -543,7 +543,7 @@ Object.assign(frappe.utils, {
 				style = "success";
 				colour = "green";
 			// Blue/Info statuses (English + French)
-			} else if (has_words(["Submitted", "Soumis", "Validé"], text)) {
+			} else if (has_words(["Submitted", "Soumis", "Validé", "Draft", "Brouillon"], text)) {
 				style = "info";
 				colour = "blue";
 			}
