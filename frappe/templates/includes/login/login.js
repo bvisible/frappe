@@ -245,11 +245,14 @@ login.login_handlers = (function () {
 					localStorage.removeItem("last_visited");
 				}
 
-				if (data.redirect_to) {
-					window.location.href = frappe.utils.sanitise_redirect(data.redirect_to);
+				// For Website Users, ignore redirect-to if it points to /app (they don't have access)
+				if (last_visited && (last_visited === "/app" || last_visited.startsWith("/app/"))) {
+					last_visited = null;
 				}
 
-				if (last_visited && last_visited != "/login") {
+				if (data.redirect_to) {
+					window.location.href = frappe.utils.sanitise_redirect(data.redirect_to);
+				} else if (last_visited && last_visited != "/login") {
 					window.location.href = last_visited;
 				} else {
 					window.location.href = data.home_page;
