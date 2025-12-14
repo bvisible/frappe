@@ -206,7 +206,6 @@ frappe.ui.AppsSwitcher = class AppsSwitcher {
 			if (available_apps.length > 0) {
 				app = available_apps[0];
 				app_data = frappe.boot.app_data_map[app];
-				console.log(`Fallback to first available app: "${app}"`);
 			}
 		}
 
