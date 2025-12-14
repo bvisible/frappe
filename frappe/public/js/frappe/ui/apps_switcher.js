@@ -195,9 +195,19 @@ frappe.ui.AppsSwitcher = class AppsSwitcher {
 			}
 		}
 
-		// Final fallback to frappe app
+		// Final fallback - try frappe first, then use first available app
 		if (!app_data) {
 			app_data = frappe.boot.app_data_map["frappe"];
+		}
+
+		// If still no app_data, use the first available app in app_data_map
+		if (!app_data) {
+			const available_apps = Object.keys(frappe.boot.app_data_map || {});
+			if (available_apps.length > 0) {
+				app = available_apps[0];
+				app_data = frappe.boot.app_data_map[app];
+				console.log(`Fallback to first available app: "${app}"`);
+			}
 		}
 
 		if (!app_data) {

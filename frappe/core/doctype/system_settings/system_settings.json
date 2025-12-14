@@ -502,8 +502,8 @@
    "fieldname": "report_settings",
    "fieldtype": "JSON",
    "label": "Report settings",
-   "hidden": 1,
-   "read_only": 1,
+   "hidden": 0,
+   "read_only": 0,
    "translatable": 0
   },
   {
