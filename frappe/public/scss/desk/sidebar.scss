@@ -290,13 +290,16 @@ body {
 	@include body-sidebar-expanded();
 }
 
-@include media-breakpoint-down(sm) {
-	// body sidebar hidded in mobile view
+@include media-breakpoint-down(xs) {
+	// body sidebar hidden in mobile view
 	.body-sidebar-container {
 		.body-sidebar {
 			padding: 0px;
 			width: 0px;
 			overflow: hidden;
+		}
+		.body-sidebar-placeholder {
+			display: none !important;
 		}
 	}
 
