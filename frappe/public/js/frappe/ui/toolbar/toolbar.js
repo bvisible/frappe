@@ -183,7 +183,7 @@ frappe.ui.toolbar.Toolbar = class {
 				text: __("Open Full Documentation"),
 				click: function(e) {
 					e.preventDefault();
-					openWikiDocDialog("/wiki/utilisateur", __("Documentation"));
+					openWikiDocDialog("https://neoservice.neoffice.me/wiki/utilisateur", __("Documentation"));
 				}
 			}).appendTo($help_links);
 
@@ -192,7 +192,7 @@ frappe.ui.toolbar.Toolbar = class {
 			$(".dropdown-help .dropdown-menu").on("click", "a", show_results);
 		});
 
-		// Convert ERPNext docs URL to local wiki route
+		// Convert ERPNext docs URL to Neoffice wiki URL
 		function url_to_wiki_route(url) {
 			// Extract path from URL (e.g., https://docs.erpnext.com/docs/user/manual/en/customer -> customer)
 			var path = url;
@@ -202,8 +202,8 @@ frappe.ui.toolbar.Toolbar = class {
 			}
 			// Remove common prefixes
 			path = path.replace(/^\/?docs\//, '');
-			// Build wiki route
-			return '/wiki/docs/' + path.replace(/^\//, '');
+			// Build absolute wiki URL (wiki is hosted on neoservice)
+			return 'https://neoservice.neoffice.me/wiki/docs/' + path.replace(/^\//, '');
 		}
 
 		function openWikiDocDialog(wiki_route, title) {
