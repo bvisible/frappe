@@ -146,14 +146,15 @@ frappe.ui.toolbar.Toolbar = class {
 			////
 			for (let i = 0; i < links.length; i++) {
 				(function (url, label) {
-					var new_url = "https://www.neoffice.io/knowledgebase" + url.substring(url.lastIndexOf("/"));
+					// Convert ERPNext docs URL to local wiki route
+					var wiki_route = url_to_wiki_route(url);
 					$("<a>", {
 						href: "#",
 						class: "dropdown-item",
 						text: __(label),
 						click: function (e) {
 							e.preventDefault();
-							openKnowledgeBaseDialog(new_url);
+							openWikiDocDialog(wiki_route, label);
 						}
 					}).appendTo($help_links);
 				})(links[i].url, links[i].label);
@@ -179,10 +180,10 @@ frappe.ui.toolbar.Toolbar = class {
 			$("<a>", {
 				href: "#",
 				class: "dropdown-item",
-				text: __("Open Full Knowledge Base"),
+				text: __("Open Full Documentation"),
 				click: function(e) {
 					e.preventDefault();
-					openKnowledgeBaseDialog("https://www.neoffice.io/knowledgebase/?iframe=1");
+					openWikiDocDialog("/wiki/utilisateur", __("Documentation"));
 				}
 			}).appendTo($help_links);
 
@@ -191,9 +192,23 @@ frappe.ui.toolbar.Toolbar = class {
 			$(".dropdown-help .dropdown-menu").on("click", "a", show_results);
 		});
 
-		function openKnowledgeBaseDialog(url) {
+		// Convert ERPNext docs URL to local wiki route
+		function url_to_wiki_route(url) {
+			// Extract path from URL (e.g., https://docs.erpnext.com/docs/user/manual/en/customer -> customer)
+			var path = url;
+			if (url.indexOf('://') > -1) {
+				path = url.split('://')[1];
+				path = path.substring(path.indexOf('/'));
+			}
+			// Remove common prefixes
+			path = path.replace(/^\/?docs\//, '');
+			// Build wiki route
+			return '/wiki/docs/' + path.replace(/^\//, '');
+		}
+
+		function openWikiDocDialog(wiki_route, title) {
 			var dialog = new frappe.ui.Dialog({
-				'title': __('Knowledge Base'),
+				'title': title || __('Documentation'),
 				'size': 'large',
 				'fields': [
 					{
@@ -201,9 +216,14 @@ frappe.ui.toolbar.Toolbar = class {
 						'fieldtype': 'HTML'
 					}
 				],
+				'primary_action_label': __('Open in New Tab'),
+				'primary_action': function() {
+					window.open(wiki_route, '_blank');
+				}
 			});
-			url = url + "?iframe=1";
-			var iframe_html = '<iframe src="' + url + '" style="width:100%; height:calc(100vh - 205px); border:none;"></iframe>';
+
+			var iframe_url = wiki_route + (wiki_route.indexOf('?') > -1 ? '&' : '?') + 'iframe=1';
+			var iframe_html = '<iframe src="' + iframe_url + '" style="width:100%; height:calc(100vh - 250px); border:none;"></iframe>';
 			dialog.fields_dict.html.$wrapper.html(iframe_html);
 
 			dialog.show();
