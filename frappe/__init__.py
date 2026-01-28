@@ -743,25 +743,23 @@ def sendmail(
 	:param email_headers: Additional headers to be added in the email, e.g. {"X-Custom-Header": "value"} or {"Custom-Header": "value"}. Automatically prepends "X-" to the header name if not present.
 	"""
 
-	#//// added block
-	disable_mailgun = db.get_value("Email Account", {"default_outgoing": 1}, "disable_mailgun")
-	if disable_mailgun:
-		default_outgoing = db.get_value("Email Account", {"default_outgoing": 1}, "email_id")
-		if sender != default_outgoing:
-			reply_to = sender
-		else:
-			reply_to = None
-	else :
-		from urllib.parse import urlparse
-		full_url = frappe.utils.get_url()
-		parsed_url = urlparse(full_url)
-		domain_parts = parsed_url.netloc.split('.')
-		
-		if len(domain_parts) > 2:
-			subdomain = domain_parts[0]
-			default_outgoing = f"{subdomain}@neoffice.ch"
-		else:
-			default_outgoing = "info@neoffice.ch"
+	#//// added block - Always use email_id from default outgoing Email Account
+	default_email_account = db.get_value(
+		"Email Account",
+		{"default_outgoing": 1, "enable_outgoing": 1},
+		["email_id", "email_account_name"],
+		as_dict=True
+	)
+
+	if not default_email_account or not default_email_account.get("email_id"):
+		log_error("No default outgoing Email Account configured", "Email Account with default_outgoing=1 and enable_outgoing=1 is required")
+		throw(_("No default outgoing email account configured. Please configure an Email Account with 'Default Outgoing' enabled."))
+
+	default_outgoing = default_email_account.email_id
+
+	# Set reply_to if sender differs from default outgoing
+	if sender and sender != default_outgoing:
+		reply_to = sender
 
 	if session.user and session.user != "Guest" and session.user != "Administrator":
 		user = db.get_value("User", session.user, "full_name") + " | "
@@ -770,7 +768,7 @@ def sendmail(
 
 	from frappe.defaults import get_user_default, get_global_default
 	name = user + (get_user_default("Company") or get_global_default("company"))
-	sender = name + ' <'+default_outgoing +'>'
+	sender = name + ' <' + default_outgoing + '>'
 	#////
 
 	if recipients is None:
