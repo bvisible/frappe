@@ -743,23 +743,22 @@ def sendmail(
 	:param email_headers: Additional headers to be added in the email, e.g. {"X-Custom-Header": "value"} or {"Custom-Header": "value"}. Automatically prepends "X-" to the header name if not present.
 	"""
 
-	#//// added block - Always use email_id from default outgoing Email Account
-	default_email_account = db.get_value(
-		"Email Account",
-		{"default_outgoing": 1, "enable_outgoing": 1},
-		["email_id", "email_account_name"],
-		as_dict=True
-	)
+	#//// added block - Use subdomain@neoffice.ch for Mailgun deliverability
+	# Mailgun routes replies back to the real email via forwarding rules
+	from urllib.parse import urlparse
+	full_url = frappe.utils.get_url()
+	parsed_url = urlparse(full_url)
+	domain_parts = parsed_url.netloc.split('.')
 
-	if not default_email_account or not default_email_account.get("email_id"):
-		log_error("No default outgoing Email Account configured", "Email Account with default_outgoing=1 and enable_outgoing=1 is required")
-		throw(_("No default outgoing email account configured. Please configure an Email Account with 'Default Outgoing' enabled."))
-
-	default_outgoing = default_email_account.email_id
-
-	# Set reply_to if sender differs from default outgoing
-	if sender and sender != default_outgoing:
-		reply_to = sender
+	# Always use first segment of domain + @neoffice.ch
+	# osiris.neoffice.me → osiris@neoffice.ch
+	# blowbackshop.ch → blowbackshop@neoffice.ch
+	if domain_parts:
+		subdomain = domain_parts[0]
+		default_outgoing = f"{subdomain}@neoffice.ch"
+	else:
+		log_error("Cannot determine subdomain for email", f"URL: {full_url}")
+		throw(_("Cannot determine subdomain for outgoing email."))
 
 	if session.user and session.user != "Guest" and session.user != "Administrator":
 		user = db.get_value("User", session.user, "full_name") + " | "
