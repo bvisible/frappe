@@ -239,6 +239,16 @@ class LoginManager:
 		if frappe.session.user == "Guest" or frappe.session.user == "Administrator":
 			return
 
+		# Skip for OAuth endpoints (mobile app authentication)
+		if frappe.request and hasattr(frappe.request, "path") and frappe.request.path:
+			oauth_paths = (
+				"/api/method/frappe.integrations.oauth2.authorize",
+				"/api/method/frappe.integrations.oauth2.get_token",
+				"/api/method/frappe.integrations.oauth2.revoke_token",
+			)
+			if frappe.request.path in oauth_paths:
+				return
+
 		if not (
 			cint(frappe.conf.get("deny_multiple_sessions"))
 			or cint(frappe.db.get_system_setting("deny_multiple_sessions"))
