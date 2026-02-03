@@ -497,19 +497,9 @@ def add_attachment(fname, fcontent, content_type=None, parent=None, content_id=N
 
 def get_message_id():
 	"""Returns Message ID created from doctype and name"""
-	#//// change domain
-	from urllib.parse import urlparse
-	full_url = frappe.utils.get_url()
-	parsed_url = urlparse(full_url)
-	domain_parts = parsed_url.netloc.split('.')
-
-	if len(domain_parts) > 2:
-		subdomain = domain_parts[0]
-		base_domain = f"{subdomain}.neoffice.ch"
-	else:
-		base_domain = parsed_url.netloc
-		
-	return email.utils.make_msgid(domain=base_domain)
+	# Use neoemail.ch domain for Message-ID to ensure DMARC alignment
+	# All outgoing emails are sent via Mailgun with @neoemail.ch sender
+	return email.utils.make_msgid(domain="neoemail.ch")
 
 
 def get_signature(email_account):
