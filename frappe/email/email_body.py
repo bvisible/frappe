@@ -305,10 +305,16 @@ class EMail:
 			message_id = "<" + message_id + ">"
 		else:
 			message_id = get_message_id()
-			self.set_header("isnotification", "<notification>")
+			# RFC 3834: Mark auto-generated emails to prevent mail loops
+			self.set_header("Auto-Submitted", "auto-generated")
+			# Microsoft Exchange: Suppress out-of-office replies
+			self.set_header("X-Auto-Response-Suppress", "All")
 
 		if is_notification:
-			self.set_header("isnotification", "<notification>")
+			# RFC 3834: Mark auto-generated emails to prevent mail loops
+			self.set_header("Auto-Submitted", "auto-generated")
+			# Microsoft Exchange: Suppress out-of-office replies
+			self.set_header("X-Auto-Response-Suppress", "All")
 
 		self.set_header("Message-Id", message_id)
 

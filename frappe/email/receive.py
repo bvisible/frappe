@@ -707,6 +707,11 @@ class InboundMail(Email):
 		return content
 
 	def is_notification(self):
+		# RFC 3834: Check Auto-Submitted header (standard)
+		auto_submitted = self.mail.get("Auto-Submitted") or self.mail.get("auto-submitted")
+		if auto_submitted and auto_submitted.lower() != "no":
+			return True
+		# Legacy: Check old isnotification header for backwards compatibility
 		isnotification = self.mail.get("isnotification")
 		return isnotification and ("notification" in isnotification)
 
