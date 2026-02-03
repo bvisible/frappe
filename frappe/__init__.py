@@ -776,11 +776,15 @@ def sendmail(
 			parsed_url = urlparse(full_url)
 			domain_parts = parsed_url.netloc.split('.')
 
-			if len(domain_parts) > 2:
+			# Always use first segment of domain + @neoemail.ch
+			# osiris.neoffice.me → osiris@neoemail.ch
+			# blowbackshop.ch → blowbackshop@neoemail.ch
+			if domain_parts:
 				subdomain = domain_parts[0]
 				default_outgoing = f"{subdomain}@neoemail.ch"
 			else:
-				default_outgoing = "info@neoemail.ch"
+				log_error("Cannot determine subdomain for email", f"URL: {full_url}")
+				throw(_("Cannot determine subdomain for outgoing email."))
 
 	if session.user and session.user != "Guest" and session.user != "Administrator":
 		user = db.get_value("User", session.user, "full_name") + " | "
