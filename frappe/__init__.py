@@ -778,9 +778,9 @@ def sendmail(
 
 			if len(domain_parts) > 2:
 				subdomain = domain_parts[0]
-				default_outgoing = f"{subdomain}@neoffice.ch"
+				default_outgoing = f"{subdomain}@neoemail.ch"
 			else:
-				default_outgoing = "info@neoffice.ch"
+				default_outgoing = "info@neoemail.ch"
 
 	if session.user and session.user != "Guest" and session.user != "Administrator":
 		user = db.get_value("User", session.user, "full_name") + " | "
