@@ -224,20 +224,22 @@
 }
 
 .grid-row > .row {
-	// Constrain checkbox column to fit its content
+	// Compact checkbox column
 	> .row-check {
-		flex: 0 0 auto;
-		width: fit-content;
-		max-width: fit-content;
-		padding: var(--grid-padding) 4px !important;
+		flex: 0 0 28px;
+		max-width: 28px;
+		min-width: 28px;
+		padding-left: 4px !important;
+		padding-right: 4px !important;
 	}
 
-	// Constrain row index column to fit its content
+	// Compact row index column
 	> .row-index {
-		flex: 0 0 auto;
-		width: fit-content;
-		max-width: fit-content;
-		padding: var(--grid-padding) 4px !important;
+		flex: 0 0 36px;
+		max-width: 36px;
+		min-width: 36px;
+		padding-left: 4px !important;
+		padding-right: 4px !important;
 	}
 
 	.col:last-child {
@@ -777,19 +779,19 @@
 			left: 0;
 			z-index: 2;
 			background-color: var(--subtle-accent);
-			max-width: 40px;
-			min-width: 40px;
+			max-width: 28px;
+			min-width: 28px;
 		}
 
 		// Sticky column: row index (second column - left side)
 		.grid-row > .row > .col:nth-child(2),
 		.grid-heading-row .grid-row > .row > .col:nth-child(2) {
 			position: sticky;
-			left: 40px;
+			left: 28px;
 			z-index: 2;
 			background-color: var(--subtle-accent);
-			max-width: 40px;
-			min-width: 40px;
+			max-width: 36px;
+			min-width: 36px;
 		}
 
 		// User-configurable sticky columns

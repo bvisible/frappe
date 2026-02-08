@@ -753,7 +753,7 @@ export default class GridRow {
 				: this.docfields;
 
 		let total_colsize = 0;
-		let sticky_left_position = 80; // Start after checkbox (40px) and row number (40px)
+		let sticky_left_position = 64; // Start after checkbox (28px) and row number (36px)
 
 		// Column size mappings (Bootstrap colsize to pixels)
 		const col_sizes = {
