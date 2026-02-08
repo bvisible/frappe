@@ -224,6 +224,20 @@
 }
 
 .grid-row > .row {
+	// Constrain checkbox column to fixed width
+	> .row-check {
+		flex: 0 0 40px;
+		max-width: 40px;
+		min-width: 40px;
+	}
+
+	// Constrain row index column to fixed width
+	> .row-index {
+		flex: 0 0 48px;
+		max-width: 48px;
+		min-width: 48px;
+	}
+
 	.col:last-child {
 		border-right: none;
 		min-width: 0;
