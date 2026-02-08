@@ -224,18 +224,20 @@
 }
 
 .grid-row > .row {
-	// Constrain checkbox column to fixed width
+	// Constrain checkbox column to fit its content
 	> .row-check {
-		flex: 0 0 40px;
-		max-width: 40px;
-		min-width: 40px;
+		flex: 0 0 auto;
+		width: fit-content;
+		max-width: fit-content;
+		padding: var(--grid-padding) 4px !important;
 	}
 
-	// Constrain row index column to fixed width
+	// Constrain row index column to fit its content
 	> .row-index {
-		flex: 0 0 48px;
-		max-width: 48px;
-		min-width: 48px;
+		flex: 0 0 auto;
+		width: fit-content;
+		max-width: fit-content;
+		padding: var(--grid-padding) 4px !important;
 	}
 
 	.col:last-child {
