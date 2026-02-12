@@ -98,17 +98,6 @@ frappe.Application = class Application {
 
 		$(document).trigger("app_ready");
 
-		//// added
-		fetch("/assets/neoconfig.json")
-			.then(response => response.json())
-			.then(data_config => {
-				if (data_config["first_run"] == 1) {
-				frappe.set_route("neoffice-wizard/0");
-				}
-			})
-			.catch(error => console.error("Failed to load config:", error));
-		////
-
 		if (frappe.boot.messages) {
 			frappe.msgprint(frappe.boot.messages);
 		}

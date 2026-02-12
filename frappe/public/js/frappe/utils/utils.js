@@ -1826,19 +1826,4 @@ Object.assign(frappe.utils, {
 			}
 		}
 	},
-
-	////
-	get_neo_config: function(module, callback) {
-		var xhr = new XMLHttpRequest();
-		xhr.overrideMimeType("application/json");
-		xhr.open('GET', '/assets/neoconfig.json', true);
-		xhr.onreadystatechange = function () {
-			if (xhr.readyState == 4 && xhr.status == "200") {
-				var config = JSON.parse(xhr.responseText);
-				callback(config[module] !== undefined && config[module] === 1);
-			}
-		};
-		xhr.send(null);
-	}
-	////
 });
