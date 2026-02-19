@@ -46,6 +46,21 @@ def extract(fileobj, *args, **kwargs):
 
 def get_module(path):
 	_path = Path(path)
-	rel_path = _path.relative_to(get_bench_path())
+	bench_path = Path(get_bench_path())
+	try:
+		rel_path = _path.relative_to(bench_path)
+	except ValueError:
+		# Handle symlinked apps: resolve through bench apps/ symlinks
+		apps_dir = bench_path / "apps"
+		for app_dir in apps_dir.iterdir():
+			if app_dir.is_symlink():
+				real_app = app_dir.resolve()
+				real_app_str = str(real_app).rstrip("/") + "/"
+				if str(_path).startswith(real_app_str):
+					suffix = _path.relative_to(real_app)
+					rel_path = Path("apps") / app_dir.name / suffix
+					break
+		else:
+			raise
 	import_path = ".".join(rel_path.parts[2:]).rstrip(".py")
 	return importlib.import_module(import_path)
