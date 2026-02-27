@@ -31901,7 +31901,7 @@ msgid "{0} {1} not found"
 msgstr "{0} {1} nije pronađen"
 
 #: frappe/model/delete_doc.py:253
-msgid "{0} {1}: Submitted Record cannot be deleted. You must Cancel it first."
+msgid "{0} {1}: Submitted Record cannot be deleted. <b>You must Cancel it first.</b>"
 msgstr "{0} {1}: Podneti zapis ne može biti obrisan. Prvo morate {2} otkazati {3}."
 
 #: frappe/model/base_document.py:1032
