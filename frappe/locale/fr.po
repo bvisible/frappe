@@ -34052,8 +34052,8 @@ msgid "{0} {1} not found"
 msgstr "{0} {1} introuvable"
 
 #: frappe/model/delete_doc.py:254
-msgid "{0} {1}: Submitted Record cannot be deleted. <b>You must Cancel it first.</b>"
-msgstr "{0} {1}: l'enregistrement validé ne peut pas être supprimé. <b>Vous devez d'abord l'annuler.</b>"
+msgid "{0} {1}: Submitted Record cannot be deleted. {2}You must Cancel it first.{3}"
+msgstr "{0} {1}: l'enregistrement validé ne peut pas être supprimé. {2}Vous devez d'abord l'annuler.{3}"
 
 #: frappe/model/base_document.py:1035
 msgid "{0}, Row {1}"
