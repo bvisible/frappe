@@ -7547,6 +7547,22 @@ msgstr "Supprimer le commentaire ?"
 msgid "Delete this record to allow sending to this email address"
 msgstr "Supprimer cet enregistrement pour permettre l'envoi à cette adresse Email"
 
+#: frappe/public/js/frappe/list/list_view.js:1962
+msgctxt "Title of confirmation dialog"
+msgid "Delete {0} item permanently?"
+msgstr "Supprimer {0} élément de façon permanente?"
+
+#: frappe/public/js/frappe/list/list_view.js:1968
+msgctxt "Title of confirmation dialog"
+msgid "Delete {0} items permanently?"
+msgstr "Supprimer {0} éléments de façon permanente?"
+
+#. Option for the 'Comment Type' (Select) field in DocType 'Comment'
+#. Option for the 'Comment Type' (Select) field in DocType 'Communication'
+#. Option for the 'Status' (Select) field in DocType 'Personal Data Deletion
+#. Request'
+#. Option for the 'Status' (Select) field in DocType 'Personal Data Deletion
+#. Step'
 #: frappe/core/doctype/comment/comment.json
 #: frappe/core/doctype/communication/communication.json
 #: frappe/website/doctype/personal_data_deletion_request/personal_data_deletion_request.json
@@ -34036,12 +34052,8 @@ msgid "{0} {1} not found"
 msgstr "{0} {1} introuvable"
 
 #: frappe/model/delete_doc.py:254
-msgid ""
-"{0} {1}: Submitted Record cannot be deleted. You must {2} Cancel {3} it "
-"first."
-msgstr ""
-"{0} {1}: l&#39;enregistrement validé ne peut pas être supprimé. Vous devez "
-"d&#39;abord {2} l&#39;annuler {3}."
+msgid "{0} {1}: Submitted Record cannot be deleted. You must Cancel it first."
+msgstr "{0} {1}: l'enregistrement validé ne peut pas être supprimé. Vous devez d'abord l'annuler."
 
 #: frappe/model/base_document.py:1035
 msgid "{0}, Row {1}"
