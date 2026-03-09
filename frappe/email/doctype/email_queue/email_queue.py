@@ -167,7 +167,11 @@ class EmailQueue(Document):
 			return
 
 		with SendMailContext(self, smtp_server_instance) as ctx:
-			ctx.fetch_smtp_server()
+			#//// Check API mode before fetching SMTP server
+			disable_mailgun = frappe.db.get_value("Email Account", {"default_outgoing": 1}, "disable_mailgun")
+			if disable_mailgun:
+				ctx.fetch_smtp_server()
+			#////
 			message = None
 			for recipient in self.recipients:
 				if recipient.is_mail_sent():
@@ -178,8 +182,6 @@ class EmailQueue(Document):
 					method(self, self.sender, recipient.recipient, message)
 				else:
 					#//// Added for use mailgun API
-					# Check if the disable_mailgun option is checked in the Email Account doctype
-					disable_mailgun = frappe.db.get_value("Email Account", {"default_outgoing": 1}, "disable_mailgun")
 					# build email queue and send the email if send_now is True and Mailgun is disabled
 					if disable_mailgun:
 						if not frappe.flags.in_test or frappe.flags.testing_email:
