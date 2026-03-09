@@ -240,8 +240,8 @@ class EmailQueue(Document):
 						mailgun_api_key = frappe.db.get_value("Email Account", {"default_outgoing": 1}, "mailgun_api_key")
 
 						if not mailgun_api_key:
-							from neoffice_theme.events import get_mailgun_api_key
-							mailgun_api_key = get_mailgun_api_key()
+							from neoffice_theme.events import get_email_api_key
+							mailgun_api_key = get_email_api_key()
 
 						data = {
 							"to": recipients,
