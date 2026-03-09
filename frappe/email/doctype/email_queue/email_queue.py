@@ -167,10 +167,11 @@ class EmailQueue(Document):
 			return
 
 		with SendMailContext(self, smtp_server_instance) as ctx:
-			#//// Check API mode before fetching SMTP server
+			#//// Check API mode: always load email account doc, skip SMTP connection in API mode
 			disable_mailgun = frappe.db.get_value("Email Account", {"default_outgoing": 1}, "disable_mailgun")
-			if disable_mailgun:
-				ctx.fetch_smtp_server()
+			ctx.email_account_doc = ctx.queue_doc.get_email_account(raise_error=True)
+			if disable_mailgun and not ctx.smtp_server:
+				ctx.smtp_server = ctx.email_account_doc.get_smtp_server()
 			#////
 			message = None
 			for recipient in self.recipients:
