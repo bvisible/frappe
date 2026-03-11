@@ -116,10 +116,10 @@ frappe.ui.Sidebar = class Sidebar {
 		const route_app = this.get_app_from_current_route();
 		if (route_app) {
 			frappe.current_app = route_app;
-		} else {
-			// sort apps based on # of workspaces
-			frappe.boot.app_data.sort((a, b) => (a.workspaces.length < b.workspaces.length ? 1 : -1));
-			frappe.current_app = frappe.boot.app_data[0].app_name;
+		} else if (frappe.boot.app_data && frappe.boot.app_data.length) {
+			// Use a copy to avoid mutating the original sort_order
+			const sorted = [...frappe.boot.app_data].sort((a, b) => ((a.workspaces || []).length < (b.workspaces || []).length ? 1 : -1));
+			frappe.current_app = sorted[0].app_name;
 		}
 		frappe.frappe_toolbar.set_app_logo("/assets/neoffice_theme/images/neoffice_logo.svg");
 	}
