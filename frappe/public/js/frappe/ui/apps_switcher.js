@@ -9,10 +9,11 @@ frappe.ui.AppsSwitcher = class AppsSwitcher {
 	}
 
 	make() {
+		const first_app = frappe.boot.app_data && frappe.boot.app_data.length ? frappe.boot.app_data[0] : {};
 		this.wrapper = $(
 			frappe.render_template("apps_switcher", {
-				app_logo_url: frappe.boot.app_data[0].app_logo_url,
-				app_title: __(frappe.boot.app_data[0].app_title),
+				app_logo_url: first_app.app_logo_url || "/assets/frappe/images/frappe-framework-logo.svg",
+				app_title: __(first_app.app_title || ""),
 			})
 		).prependTo(this.sidebar_wrapper);
 		this.app_switcher_dropdown = $(".app-switcher-dropdown");
@@ -33,7 +34,7 @@ frappe.ui.AppsSwitcher = class AppsSwitcher {
 		frappe.boot.app_data_map = {};
 
 		// Sort apps by sort_order before displaying
-		const sortedApps = [...frappe.boot.app_data].sort((a, b) => {
+		const sortedApps = [...(frappe.boot.app_data || [])].sort((a, b) => {
 			const orderA = a.sort_order !== undefined ? a.sort_order : 999;
 			const orderB = b.sort_order !== undefined ? b.sort_order : 999;
 			if (orderA !== orderB) {

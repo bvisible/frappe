@@ -254,7 +254,8 @@ frappe.ui.Sidebar = class Sidebar {
 			this.wrapper.find(".standard-sidebar-section").remove();
 		}
 
-		let app_workspaces = frappe.boot.app_data_map[frappe.current_app || "frappe"].workspaces;
+		let app_entry = (frappe.boot.app_data_map || {})[frappe.current_app || "frappe"];
+		let app_workspaces = app_entry ? app_entry.workspaces || [] : [];
 
 		let parent_pages = this.all_pages.filter((p) => !p.parent_page).uniqBy((p) => p.name);
 		if (frappe.current_app === "private") {

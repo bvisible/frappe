@@ -38,7 +38,14 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		if (this.report_name) {
 			return this.get_report_doc().then((doc) => {
 				this.report_doc = doc;
-				this.report_doc.json = JSON.parse(this.report_doc.json);
+
+				// Script Reports should open via query-report, not Report View
+				if (this.report_doc.report_type !== "Report Builder") {
+					frappe.set_route("query-report", this.report_name);
+					return;
+				}
+
+				this.report_doc.json = JSON.parse(this.report_doc.json || "{}");
 
 				this.filters = [
 					...(Array.isArray(this.report_doc.json.filters)
