@@ -181,13 +181,7 @@ export default class Paragraph extends Block {
 
 	static get sanitize() {
 		return {
-			text: {
-				br: true,
-				b: true,
-				i: true,
-				a: true,
-				span: true,
-			},
+			text: true,
 		};
 	}
 

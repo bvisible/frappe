@@ -709,20 +709,31 @@ def save_new_widget(doc, page, blocks, new_widgets):
 
 def clean_up(original_page, blocks):
 	page_widgets = {}
+	parsed_blocks = loads(blocks)
 
 	for wid in ["shortcut", "card", "chart", "quick_list", "number_card", "custom_block"]:
 		# get list of widget's name from blocks
-		page_widgets[wid] = [x["data"][wid + "_name"] for x in loads(blocks) if x["type"] == wid]
+		page_widgets[wid] = [x["data"][wid + "_name"] for x in parsed_blocks if x["type"] == wid]
 
 	# shortcut, chart, quick_list, number_card & custom_block cleanup
+	# Only remove duplicates; preserve widgets missing from content by adding them back
 	for wid in ["shortcut", "chart", "quick_list", "number_card", "custom_block"]:
+		seen = set()
 		updated_widgets = []
-		original_page.get(wid + "s").reverse()
-
 		for w in original_page.get(wid + "s"):
-			if w.label in page_widgets[wid] and w.label not in [x.label for x in updated_widgets]:
+			if w.label not in seen:
+				seen.add(w.label)
 				updated_widgets.append(w)
+
+		# Add content blocks for widgets in child table but missing from content JSON
+		for w in updated_widgets:
+			if w.label not in page_widgets[wid]:
+				parsed_blocks.append({"type": wid, "data": {wid + "_name": w.label, "col": 4}})
+
 		original_page.set(wid + "s", updated_widgets)
+
+	# Update content with any restored widget references
+	original_page.content = dumps(parsed_blocks)
 
 	# card cleanup
 	for i, v in enumerate(original_page.links):
