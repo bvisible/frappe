@@ -111,21 +111,21 @@ frappe.views.Workspace = class Workspace {
 
 	prepare_new_and_edit() {
 		this.$page = $(`
-		<div class="editor-js-container"></div>
-		<div class="workspace-footer">
-			<button data-label="New" class="btn btn-default ellipsis btn-new-workspace">
+		<div class="workspace-header-actions">
+			<button data-label="New" class="btn btn-default btn-sm btn-new-workspace">
 				<svg class="es-icon es-line icon-xs" style="" aria-hidden="true">
 					<use class="" href="#es-line-add"></use>
 				</svg>
 				<span class="hidden-xs" data-label="New">${__("New")}</span>
 			</button>
-			<button class="btn btn-default btn-sm mr-2 btn-edit-workspace" data-label="Edit">
-				<svg class="es-icon es-line  icon-xs" style="" aria-hidden="true">
+			<button class="btn btn-default btn-sm btn-edit-workspace" data-label="Edit">
+				<svg class="es-icon es-line icon-xs" style="" aria-hidden="true">
 					<use class="" href="#es-line-edit"></use>
 				</svg>
 				<span class="hidden-xs" data-label="Edit">${__("Edit")}</span>
 			</button>
 		</div>
+		<div class="editor-js-container"></div>
 	`).appendTo(this.body);
 
 		this.body.find(".btn-new-workspace").on("click", () => {

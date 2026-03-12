@@ -973,7 +973,7 @@ body {
 						background-color: var(--bg-color) !important;
 					}
 
-					.workspace-footer {
+					.workspace-header-actions {
 						display: none;
 					}
 				}
@@ -997,10 +997,11 @@ body {
 		padding: var(--padding-sm);
 	}
 
-	.workspace-footer {
-		height: 30px;
+	.workspace-header-actions {
 		display: flex;
-		flex-direction: row-reverse;
+		justify-content: flex-end;
+		gap: var(--margin-sm);
+		margin-bottom: var(--margin-sm);
 	}
 
 	.block-menu-item-icon svg {
