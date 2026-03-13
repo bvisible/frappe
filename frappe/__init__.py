@@ -743,48 +743,25 @@ def sendmail(
 	:param email_headers: Additional headers to be added in the email, e.g. {"X-Custom-Header": "value"} or {"Custom-Header": "value"}. Automatically prepends "X-" to the header name if not present.
 	"""
 
-	#//// added block
-	# Special case: HD Ticket uses its own email account (bypass Mailgun)
+	#//// NeoMail sender configuration
+	# Special case: HD Ticket uses its own email account
 	if reference_doctype == "HD Ticket" and communication:
 		ticket_email_account = db.get_value("Communication", communication, "email_account")
 		if ticket_email_account:
-			ticket_disable_mailgun = db.get_value("Email Account", ticket_email_account, "disable_mailgun")
-			if ticket_disable_mailgun:
-				# Use the ticket's email account directly (e.g., support@neoservice.ai)
-				default_outgoing = db.get_value("Email Account", ticket_email_account, "email_id")
-				reply_to = None
-			else:
-				# HD Ticket account doesn't have disable_mailgun, use Mailgun
-				default_outgoing = None  # Will be set below
+			default_outgoing = db.get_value("Email Account", ticket_email_account, "email_id")
+			reply_to = None
 		else:
 			default_outgoing = None
 	else:
 		default_outgoing = None
 
-	# If not HD Ticket or no specific account, use existing Mailgun logic
+	# Use the default outgoing Email Account (NeoMail)
 	if default_outgoing is None:
-		disable_mailgun = db.get_value("Email Account", {"default_outgoing": 1}, "disable_mailgun")
-		if disable_mailgun:
-			default_outgoing = db.get_value("Email Account", {"default_outgoing": 1}, "email_id")
-			if sender != default_outgoing:
-				reply_to = sender
-			else:
-				reply_to = None
+		default_outgoing = db.get_value("Email Account", {"default_outgoing": 1}, "email_id")
+		if sender != default_outgoing:
+			reply_to = sender
 		else:
-			from urllib.parse import urlparse
-			full_url = frappe.utils.get_url()
-			parsed_url = urlparse(full_url)
-			domain_parts = parsed_url.netloc.split('.')
-
-			# Always use first segment of domain + @neoemail.ch
-			# osiris.neoffice.me → osiris@neoemail.ch
-			# blowbackshop.ch → blowbackshop@neoemail.ch
-			if domain_parts:
-				subdomain = domain_parts[0]
-				default_outgoing = f"{subdomain}@neoemail.ch"
-			else:
-				log_error("Cannot determine subdomain for email", f"URL: {full_url}")
-				throw(_("Cannot determine subdomain for outgoing email."))
+			reply_to = None
 
 	if session.user and session.user != "Guest" and session.user != "Administrator":
 		user = db.get_value("User", session.user, "full_name") + " | "

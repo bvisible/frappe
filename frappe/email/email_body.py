@@ -504,7 +504,7 @@ def add_attachment(fname, fcontent, content_type=None, parent=None, content_id=N
 def get_message_id():
 	"""Returns Message ID created from doctype and name"""
 	# Use neoemail.ch domain for Message-ID to ensure DMARC alignment
-	# All outgoing emails are sent via Mailgun with @neoemail.ch sender
+	# All outgoing emails are sent via NeoMail (Stalwart SMTP) with @neoemail.ch sender
 	return email.utils.make_msgid(domain="neoemail.ch")
 
 

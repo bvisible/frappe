@@ -160,7 +160,7 @@ class EmailAccount(Document):
 					self.get_incoming_server()
 					self.no_failed = 0
 
-				if self.enable_outgoing and getattr(self, "disable_mailgun", 0):
+				if self.enable_outgoing:
 					self.validate_smtp_conn()
 			else:
 				if self.enable_incoming or (self.enable_outgoing and not self.no_smtp_authentication):
