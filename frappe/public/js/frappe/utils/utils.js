@@ -491,51 +491,37 @@ Object.assign(frappe.utils, {
 		var colour = "gray";
 		if (text) {
 			text = cstr(text);
-			// Orange/Warning statuses (English + French)
-			if (has_words(["Pending", "Review", "Medium", "Not Approved",
-				"En attente", "À revoir", "Moyen", "Non approuvé", "Impayé", "Unpaid"], text)) {
-				style = "warning";
-				colour = "orange";
 			// Red/Danger statuses (English + French)
-			} else if (
-				has_words(["Open", "Urgent", "High", "Failed", "Rejected", "Error", "Overdue",
-					"Ouvert", "Élevé", "Échoué", "Rejeté", "Erreur", "En retard", "Échu"], text)
+			if (
+				has_words(["Open", "Urgent", "High", "Failed", "Rejected", "Error",
+					"Overdue", "Draft", "Cancelled", "Expired",
+					"Ouvert", "Élevé", "Échoué", "Rejeté", "Erreur",
+					"En retard", "Échu", "Brouillon", "Annulé", "Expiré"], text)
 			) {
 				style = "danger";
 				colour = "red";
+			// Orange/Warning statuses (English + French)
+			} else if (has_words(["Pending", "Review", "Medium", "Not Approved",
+				"Unpaid", "To Deliver", "To Bill", "To Deliver and Bill", "To Receive", "To Receive and Bill",
+				"En attente", "À revoir", "Moyen", "Non approuvé", "Impayé",
+				"À Livrer", "À Facturer", "À Livrer et Facturer", "À Recevoir", "À Recevoir et Facturer"], text)) {
+				style = "warning";
+				colour = "orange";
+			// Yellow statuses (English + French)
+			} else if (has_words(["Partly Paid", "Partially Ordered", "Partly Delivered", "Partly Billed",
+				"Partiellement payé", "Partiellement commandé", "Partiellement livré", "Partiellement facturé"], text)) {
+				style = "warning";
+				colour = "yellow";
 			// Green/Success statuses (English + French)
 			} else if (
 				has_words(
 					[
-						"Closed",
-						"Finished",
-						"Converted",
-						"Completed",
-						"Complete",
-						"Confirmed",
-						"Approved",
-						"Yes",
-						"Active",
-						"Available",
-						"Paid",
-						"Success",
-						"Ordered",
-						// French translations
-						"Fermé",
-						"Terminé",
-						"Converti",
-						"Complété",
-						"Complet",
-						"Confirmé",
-						"Approuvé",
-						"Oui",
-						"Actif",
-						"Disponible",
-						"Payé",
-						"Succès",
-						"Commandé",
-						"Livré",
-						"Delivered",
+						"Closed", "Finished", "Converted", "Completed", "Complete",
+						"Confirmed", "Approved", "Yes", "Active", "Available",
+						"Paid", "Success", "Ordered", "Delivered", "Invoiced",
+						"Fermé", "Terminé", "Converti", "Complété", "Complet",
+						"Confirmé", "Approuvé", "Oui", "Actif", "Disponible",
+						"Payé", "Succès", "Commandé", "Livré", "Facturé",
 					],
 					text
 				)
@@ -543,9 +529,15 @@ Object.assign(frappe.utils, {
 				style = "success";
 				colour = "green";
 			// Blue/Info statuses (English + French)
-			} else if (has_words(["Submitted", "Soumis", "Validé", "Draft", "Brouillon"], text)) {
+			} else if (has_words(["Submitted", "In Payment Run", "In Progress",
+				"Soumis", "Validé", "En cours de paiement", "En cours"], text)) {
 				style = "info";
 				colour = "blue";
+			// Gray statuses (English + French)
+			} else if (has_words(["Return", "Credit Note Issued", "Debit Note Issued", "Lost", "On Hold",
+				"Retour", "Note de crédit émise", "Note de débit émise", "Perdu", "En attente"], text)) {
+				style = "default";
+				colour = "gray";
 			}
 		}
 		return _colour ? colour : style;
