@@ -136,6 +136,7 @@
   {
    "fieldname": "title",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Title",
    "read_only": 1,
    "reqd": 1
@@ -143,6 +144,7 @@
   {
    "fieldname": "parent_page",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Parent Page",
    "read_only": 1
   },
@@ -156,6 +158,7 @@
   {
    "fieldname": "sequence_id",
    "fieldtype": "Float",
+   "in_list_view": 1,
    "label": "Sequence Id",
    "read_only": 1
   },

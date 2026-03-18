@@ -439,6 +439,7 @@
    "default": "0",
    "fieldname": "is_system_generated",
    "fieldtype": "Check",
+   "in_list_view": 1,
    "label": "Is System Generated",
    "read_only": 1
   },
