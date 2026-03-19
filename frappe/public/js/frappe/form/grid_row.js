@@ -481,10 +481,12 @@ export default class GridRow {
 								msg += "<br>" + __("Pushé sur git \u2713");
 							}
 							frappe.show_alert({ message: msg, indicator: "green" });
-							// Also update user settings
+							// Reset user settings so "Reset to default" reads from updated JSON
 							this.columns = {};
-							this.update_user_settings_for_grid();
+							frappe.model.user_settings.save(this.frm.doctype, "GridView", null);
+							// Force page reload to pick up the new meta from JSON
 							this.grid_settings_dialog.hide();
+							setTimeout(() => location.reload(), 500);
 						} else {
 							frappe.msgprint({
 								title: __("Erreur"),
