@@ -443,6 +443,81 @@ export default class GridRow {
 			this.reset_user_settings_for_grid();
 			this.grid_settings_dialog.hide();
 		});
+
+		//// neoffice: "Appliquer au JSON" + "Appliquer et Pousser" buttons for Administrator
+		if (frappe.session.user === 'Administrator') {
+			const grid = this.grid;
+			const get_columns_config = () => {
+				this.validate_columns_width();
+				return this.selected_columns_for_grid.map(col => ({
+					fieldname: col.fieldname,
+					columns: cint(col.columns)
+				}));
+			};
+
+			const apply_to_json = (git_push) => {
+				const columns_config = get_columns_config();
+				const action_label = git_push ? __("Appliquer et Pousser") : __("Appliquer au JSON");
+
+				frappe.call({
+					method: "neoffice_custom_fields.api.apply_columns_to_json",
+					args: {
+						child_doctype: grid.doctype,
+						columns_config: JSON.stringify(columns_config),
+						git_push: git_push ? 1 : 0
+					},
+					freeze: true,
+					freeze_message: git_push
+						? __("Mise à jour du JSON et push git...")
+						: __("Mise à jour du JSON..."),
+					callback: (r) => {
+						if (r.message && r.message.success) {
+							let msg = __("{0} : {1} champs mis à jour dans {2}", [
+								grid.doctype,
+								r.message.fields_updated,
+								r.message.json_path
+							]);
+							if (r.message.git_pushed) {
+								msg += "<br>" + __("Pushé sur git \u2713");
+							}
+							frappe.show_alert({ message: msg, indicator: "green" });
+							// Also update user settings
+							this.columns = {};
+							this.update_user_settings_for_grid();
+							this.grid_settings_dialog.hide();
+						} else {
+							frappe.msgprint({
+								title: __("Erreur"),
+								message: r.message ? r.message.error : __("Erreur inconnue"),
+								indicator: "red"
+							});
+						}
+					}
+				});
+			};
+
+			// Add buttons to dialog footer
+			const $footer = this.grid_settings_dialog.$wrapper.find(".modal-footer");
+
+			const $btnJson = $(`<button class="btn btn-warning btn-sm" style="margin-right: 8px;">
+				${__("Appliquer au JSON")}
+			</button>`);
+			$btnJson.on("click", () => apply_to_json(false));
+
+			const $btnPush = $(`<button class="btn btn-danger btn-sm" style="margin-right: auto;">
+				${__("Appliquer et Pousser")}
+			</button>`);
+			$btnPush.on("click", () => {
+				frappe.confirm(
+					__("Cela va modifier le JSON, commiter et pousser sur git. Continuer ?"),
+					() => apply_to_json(true)
+				);
+			});
+
+			$footer.prepend($btnPush);
+			$footer.prepend($btnJson);
+		}
+		////
 	}
 
 	setup_columns_for_dialog() {
