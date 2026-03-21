@@ -229,8 +229,8 @@ class LoginManager:
 		# reset user if changed to Guest
 		self.user = frappe.local.session_obj.user
 		frappe.local.session = frappe.local.session_obj.data
-		self.clear_active_sessions()
 		if not resume:
+			self.clear_active_sessions()
 			self.run_trigger("on_session_creation")
 
 	def clear_active_sessions(self):
@@ -239,14 +239,16 @@ class LoginManager:
 		if frappe.session.user == "Guest" or frappe.session.user == "Administrator":
 			return
 
-		# Skip for OAuth endpoints (mobile app authentication)
+		# Skip for OAuth / mobile app endpoints — these sessions must coexist with browser sessions
 		if frappe.request and hasattr(frappe.request, "path") and frappe.request.path:
-			oauth_paths = (
+			skip_paths = (
 				"/api/method/frappe.integrations.oauth2.authorize",
 				"/api/method/frappe.integrations.oauth2.get_token",
 				"/api/method/frappe.integrations.oauth2.revoke_token",
+				"/api/method/neoffice_theme.mobile.mobile_auth",
+				"/api/method/neoffice_theme.mobile.get_session_from_bearer_token",
 			)
-			if frappe.request.path in oauth_paths:
+			if frappe.request.path in skip_paths:
 				return
 
 		if not (
