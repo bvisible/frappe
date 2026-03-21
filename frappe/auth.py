@@ -120,7 +120,7 @@ class LoginManager:
 				self.make_session(resume=True)
 				self.get_user_info()
 				self.set_user_info(resume=True)
-			except AttributeError:
+			except (AttributeError, frappe.ValidationError):
 				self.user = "Guest"
 				self.get_user_info()
 				self.make_session()
@@ -683,7 +683,7 @@ def validate_oauth(authorization_header):
 		if valid:
 			frappe.set_user(frappe.db.get_value("OAuth Bearer Token", token, "user"))
 			frappe.local.form_dict = form_dict
-	except AttributeError:
+	except (AttributeError, frappe.ValidationError):
 		pass
 
 
