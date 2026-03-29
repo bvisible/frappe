@@ -219,7 +219,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		if (!this.page.wrapper.find('.btn-settings').length) {
 			this.page.add_button(__("Settings"), function() {
 				let dialog = new frappe.ui.Dialog({
-					title: __("Settings"),
+					title: __("Table and Column Settings"),
 					fields: [
 						{
 							fieldtype: "HTML",
@@ -228,7 +228,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 								<div style="display: flex; flex-direction: column; gap: 20px; max-width: 250px; margin: auto;">
 									<button class="btn btn-primary btn-add-column">${__("Add Column")}</button>
 									<button class="btn btn-default btn-push-settings">${__("Push Settings to All Users")}</button>
-									<button class="btn btn-default btn-delete-settings">${__("Delete Settings")}</button>
+									<button class="btn btn-default btn-delete-settings">${__("Delete Personal Settings")}</button>
 									${frappe.session.user === "Administrator" ? `
 										<button class="btn btn-danger btn-save-global-settings">${__("Save as Global Default")}</button>
 									` : ''}
