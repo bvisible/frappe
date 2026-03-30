@@ -108,7 +108,17 @@ frappe.ui.toolbar.Toolbar = class {
 		frappe.provide("frappe.searchdialog");
 		frappe.searchdialog.search = this.search;
 
-		$(".dropdown-help .dropdown-toggle").on("click", function () {
+		// NORA: Override help dropdown to open Help Panel instead
+		$(".dropdown-help .dropdown-toggle").on("click", function (e) {
+			if (window.nora && nora.help_panel) {
+				e.preventDefault();
+				e.stopPropagation();
+				// Close the dropdown if it opened
+				$(".dropdown-help").removeClass("show");
+				$(".dropdown-help .dropdown-menu").removeClass("show");
+				nora.help_panel.toggle();
+				return false;
+			}
 			$(".dropdown-help input").focus();
 		});
 
