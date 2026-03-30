@@ -108,18 +108,17 @@ frappe.ui.toolbar.Toolbar = class {
 		frappe.provide("frappe.searchdialog");
 		frappe.searchdialog.search = this.search;
 
-		// NORA: Override help dropdown to open Help Panel instead
-		$(".dropdown-help .dropdown-toggle").on("click", function (e) {
+		// NORA: Replace help dropdown with Help Panel
+		// Remove Bootstrap dropdown toggle to prevent dropdown from opening
+		var $helpToggle = $(".dropdown-help .dropdown-toggle");
+		$helpToggle.removeAttr("data-toggle").removeAttr("data-bs-toggle");
+		$helpToggle.off("click").on("click", function (e) {
+			e.preventDefault();
+			e.stopPropagation();
 			if (window.nora && nora.help_panel) {
-				e.preventDefault();
-				e.stopPropagation();
-				// Close the dropdown if it opened
-				$(".dropdown-help").removeClass("show");
-				$(".dropdown-help .dropdown-menu").removeClass("show");
 				nora.help_panel.toggle();
-				return false;
 			}
-			$(".dropdown-help input").focus();
+			return false;
 		});
 
 		$(".dropdown-help .dropdown-menu").on("click", "input, button", function (e) {
