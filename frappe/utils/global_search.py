@@ -541,11 +541,25 @@ def search(text, start=0, limit=20, doctype=""):
 		if r.rank > 0.0:
 			grouped[r.doctype].append(r)
 
+	# Entity doctypes shown first — these are the "who/what" that users
+	# care about most. Transactional doctypes come after.
+	ENTITY_PRIORITY = [
+		"Item", "Customer", "Supplier", "Contact", "Employee", "Lead",
+		"Address", "User", "Voice Note",
+	]
+
+	def doctype_sort_key(dt):
+		if dt in ENTITY_PRIORITY:
+			return (0, ENTITY_PRIORITY.index(dt))
+		return (1, dt)
+
+	ordered_doctypes = sorted(grouped.keys(), key=doctype_sort_key)
+
 	max_per_doctype = max(5, cint(limit) // max(len(grouped), 1))
 	sorted_results = []
 
-	for doctype in allowed_doctypes:
-		doctype_results = grouped.get(doctype, [])
+	for dt in ordered_doctypes:
+		doctype_results = grouped[dt]
 		doctype_results.sort(key=lambda x: x.get("rank", 0), reverse=True)
 		for r in doctype_results[:max_per_doctype]:
 			try:
