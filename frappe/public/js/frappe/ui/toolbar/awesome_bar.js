@@ -168,6 +168,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		// Track search term
 		this.analytics.track_search(txt);
 
+		// Pre-load help context (async, cached per doctype)
+		this._load_help_context();
+
 		// Build synchronous local options
 		this.options = [];
 		this._add_defaults(txt);
@@ -344,8 +347,12 @@ frappe.search.AwesomeBar = class AwesomeBar {
 				if (!data) return;
 				this._help_cache = { _doctype: doctype, ...data };
 				// Re-render if panel is still active to show the help
-				if (this.$panel.hasClass("active") && this._current_txt) {
-					this._render(this._current_txt);
+				if (this.$panel.hasClass("active")) {
+					if (this._current_txt) {
+						this._render(this._current_txt);
+					} else {
+						this._show_home();
+					}
 				}
 			})
 			.catch(() => {
@@ -498,7 +505,13 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 		// ── LEFT COLUMN: Results ──
 
-		// 1. Special results (calculator, random, search-in-current)
+		// 1. Direct document matches — ALWAYS first (highest priority)
+		const doc_links = this.options.filter((o) => o.index >= 200);
+		if (doc_links.length) {
+			this._render_section_into($main, __("Go to Document"), doc_links, "goto");
+		}
+
+		// 2. Special results (calculator, random, search-in-current)
 		const specials = this.options.filter(
 			(o) => o.default === "Calculator" || o.default === "Current"
 		);
@@ -506,16 +519,23 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			this._render_section_into($main, __("Quick Actions"), specials, "special");
 		}
 
-		// 2. Direct document matches
-		const doc_links = this.options.filter((o) => o.index >= 200);
-		if (doc_links.length) {
-			this._render_section_into($main, __("Go to Document"), doc_links, "goto");
-		}
-
 		// 3. Global search results grouped by DocType
 		if (this.global_results.length) {
+			// Filter: only show results where the search term actually appears
+			// in the content (prevents irrelevant fulltext matches)
+			const txt_lower = txt.toLowerCase();
+			const txt_words = txt_lower.split(/\s+/).filter((w) => w.length > 2);
+			const relevant = this.global_results.filter((r) => {
+				if (!r.content) return false;
+				const c = r.content.toLowerCase();
+				// At least one significant word must appear in content
+				return txt_words.length
+					? txt_words.some((w) => c.includes(w))
+					: c.includes(txt_lower);
+			});
+
 			const grouped = {};
-			this.global_results.forEach((r) => {
+			relevant.forEach((r) => {
 				if (!grouped[r.doctype]) grouped[r.doctype] = [];
 				grouped[r.doctype].push(r);
 			});
