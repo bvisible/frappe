@@ -161,7 +161,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 		if (!txt || txt.length < 2) {
 			if (!txt) this._show_home();
-			else this._close();
+			else this.$panel.removeClass("active"); // Hide panel but don't clear input
 			return;
 		}
 
@@ -230,24 +230,24 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			$main.append($section);
 		}
 
-		// Sidebar: recently visited documents
-		const recent_clicks = this.analytics.get_recent_clicks();
-		if (recent_clicks.length) {
+		// Sidebar: recently visited documents (from Frappe's route history)
+		const recent_pages = this._get_frappe_recent().slice(0, 8);
+		if (recent_pages.length) {
 			$sidebar.append(
 				`<div class="search-section-header">${__("Recently Visited")}</div>`
 			);
-			recent_clicks.forEach((c) => {
+			recent_pages.forEach((r) => {
 				const $item = $(
 					`<div class="search-sidebar-item">
-						<a href="/app/${frappe.router.slug(c.doctype)}/${encodeURIComponent(c.name)}">
-							<span class="sidebar-item-label">${frappe.utils.xss_sanitise(c.label || c.name)}</span>
-							<span class="sidebar-item-type">${__(c.doctype)}</span>
+						<a href="/app/${frappe.router.slug(r.doctype)}/${encodeURIComponent(r.name)}">
+							<span class="sidebar-item-label">${frappe.utils.xss_sanitise(r.name)}</span>
+							<span class="sidebar-item-type">${__(r.doctype)}</span>
 						</a>
 					</div>`
 				);
 				$item.find("a").on("click", (e) => {
 					e.preventDefault();
-					frappe.set_route("Form", c.doctype, c.name);
+					frappe.set_route("Form", r.doctype, r.name);
 					this._close();
 				});
 				$sidebar.append($item);
@@ -456,24 +456,24 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 	// ── Render sidebar ─────────────────────────────────────
 	_render_sidebar($sidebar, txt) {
-		// Recently visited (always shown)
-		const recent_clicks = this.analytics.get_recent_clicks().slice(0, 6);
-		if (recent_clicks.length) {
+		// Recently visited — use Frappe's built-in route history
+		const recent = this._get_frappe_recent().slice(0, 8);
+		if (recent.length) {
 			$sidebar.append(
 				`<div class="search-section-header">${__("Recently Visited")}</div>`
 			);
-			recent_clicks.forEach((c) => {
+			recent.forEach((r) => {
 				const $item = $(
 					`<div class="search-sidebar-item">
-						<a href="/app/${frappe.router.slug(c.doctype)}/${encodeURIComponent(c.name)}">
-							<span class="sidebar-item-label">${frappe.utils.xss_sanitise(c.label || c.name)}</span>
-							<span class="sidebar-item-type">${__(c.doctype)}</span>
+						<a href="/app/${frappe.router.slug(r.doctype)}/${encodeURIComponent(r.name)}">
+							<span class="sidebar-item-label">${frappe.utils.xss_sanitise(r.name)}</span>
+							<span class="sidebar-item-type">${__(r.doctype)}</span>
 						</a>
 					</div>`
 				);
 				$item.find("a").on("click", (e) => {
 					e.preventDefault();
-					frappe.set_route("Form", c.doctype, c.name);
+					frappe.set_route("Form", r.doctype, r.name);
 					this._close();
 				});
 				$sidebar.append($item);
@@ -503,6 +503,26 @@ frappe.search.AwesomeBar = class AwesomeBar {
 				$sidebar.append($item);
 			});
 		}
+	}
+
+	// ── Get recent pages from Frappe's built-in history ─────
+	_get_frappe_recent() {
+		const seen = new Set();
+		const results = [];
+		try {
+			const recent = JSON.parse(frappe.boot.user.recent || "[]");
+			for (const [doctype, name] of recent) {
+				if (!doctype || !name || doctype === "DocType") continue;
+				const key = `${doctype}::${name}`;
+				if (seen.has(key)) continue;
+				seen.add(key);
+				results.push({ doctype, name });
+				if (results.length >= 10) break;
+			}
+		} catch (e) {
+			// pass
+		}
+		return results;
 	}
 
 	// ── Render section into a container ─────────────────────
