@@ -67,6 +67,12 @@
 	flex: 1;
 	max-width: 300px;
 	margin: 0 var(--margin-md);
+	transition: max-width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+	// Expand search bar on focus
+	&:focus-within {
+		max-width: 440px;
+	}
 
 	svg {
 		stroke: var(--text-light);
@@ -80,6 +86,11 @@
 		height: 100%;
 		z-index: 1;
 		pointer-events: none;
+		transition: opacity 0.15s;
+	}
+
+	&:focus-within .search-icon {
+		opacity: 0.4;
 	}
 
 	// Direct input styles (no Awesomplete wrapper)
@@ -89,14 +100,26 @@
 		height: 28px;
 		border-radius: var(--border-radius);
 		@include get_textstyle("sm", "regular");
+		transition: background-color 0.2s, box-shadow 0.2s, padding-left 0.2s;
 
 		&:focus {
 			box-shadow: var(--shadow-2xl);
-			background-color: var(--awesomebar-focus-bg);
+			background-color: var(--bg-color);
+			padding-left: 14px;
 		}
 		&::placeholder {
 			color: var(--text-light);
+			transition: opacity 0.15s;
 		}
+		&:focus::placeholder {
+			opacity: 0.4;
+		}
+	}
+
+	// Hide search icon when focused (text shifts left)
+	&:focus-within .search-icon {
+		opacity: 0;
+		pointer-events: none;
 	}
 
 	// Legacy: keep Awesomplete styles for backward compat

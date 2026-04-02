@@ -320,9 +320,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		return results;
 	}
 
-	// ── Render help context (form tours + help articles) ────
+	// ── Render help context (Nora Learn + Nora Help Resource) ──
 	_render_help_context($sidebar) {
-		// Get current route context
 		const route = frappe.get_route();
 		if (!route || route.length < 2) return;
 
@@ -330,76 +329,79 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			route[0] === "Form" || route[0] === "List" ? route[1] : null;
 		if (!doctype) return;
 
-		// Load form tours for current doctype (async, updates sidebar when ready)
+		// Load Nora Learn entries for current doctype
 		frappe.xcall("frappe.client.get_list", {
-			doctype: "Form Tour",
-			filters: { reference_doctype: doctype },
-			fields: ["name", "title"],
+			doctype: "Nora Learn",
+			filters: { entry_doctype: doctype, status: "Published" },
+			fields: ["name", "title", "estimated_duration", "entry_route"],
+			order_by: "idx asc",
 			limit_page_length: 5,
-		}).then((tours) => {
-			if (!tours || !tours.length) return;
-			// Only append if panel is still active
+		}).then((learns) => {
+			if (!learns || !learns.length) return;
 			if (!this.$panel.hasClass("active")) return;
 
-			const $learn = $(
+			$sidebar.append(
 				`<div class="search-section-header sidebar-section-spacer">${__("Learn")}</div>`
 			);
-			$sidebar.append($learn);
 
-			tours.forEach((t) => {
+			learns.forEach((l) => {
+				const duration = l.estimated_duration
+					? `<span class="sidebar-item-type">${l.estimated_duration} min</span>`
+					: "";
 				const $item = $(
 					`<div class="search-sidebar-item">
-						<a href="#">
-							<span class="sidebar-item-label">📖 ${frappe.utils.xss_sanitise(t.title)}</span>
+						<a href="/app/${l.entry_route || "nora-learn/" + l.name}">
+							<span class="sidebar-item-label">${frappe.utils.xss_sanitise(l.title)}</span>
+							${duration}
 						</a>
 					</div>`
 				);
 				$item.find("a").on("click", (e) => {
 					e.preventDefault();
+					frappe.set_route(l.entry_route || "nora-learn/" + l.name);
 					this._close();
-					// Navigate to the doctype form/list first, then start tour
-					if (route[0] !== "Form") {
-						frappe.set_route("Form", doctype, "new");
-					}
-					setTimeout(() => {
-						const tour = new frappe.ui.FormTour({ tour_name: t.name });
-						tour.start();
-					}, 500);
 				});
 				$sidebar.append($item);
 			});
-		});
+		}).catch(() => {});
 
-		// Load help articles for current doctype
+		// Load Nora Help Resource for current doctype (via child table)
 		frappe.xcall("frappe.client.get_list", {
-			doctype: "Help Article",
-			filters: { route: ["like", `%${frappe.router.slug(doctype)}%`] },
-			fields: ["name", "title", "route"],
-			limit_page_length: 3,
-		}).then((articles) => {
-			if (!articles || !articles.length) return;
+			doctype: "Nora Help Resource DocType",
+			filters: { doctype_name: doctype },
+			fields: ["parent"],
+			limit_page_length: 5,
+		}).then((links) => {
+			if (!links || !links.length) return;
+			if (!this.$panel.hasClass("active")) return;
+
+			const parents = links.map((l) => l.parent);
+			return frappe.xcall("frappe.client.get_list", {
+				doctype: "Nora Help Resource",
+				filters: { name: ["in", parents], enabled: 1 },
+				fields: ["name", "title", "url", "resource_type"],
+				limit_page_length: 5,
+			});
+		}).then((resources) => {
+			if (!resources || !resources.length) return;
 			if (!this.$panel.hasClass("active")) return;
 
 			$sidebar.append(
 				`<div class="search-section-header sidebar-section-spacer">${__("Documentation")}</div>`
 			);
 
-			articles.forEach((a) => {
+			resources.forEach((r) => {
 				const $item = $(
 					`<div class="search-sidebar-item">
-						<a href="/${a.route || a.name}">
-							<span class="sidebar-item-label">📄 ${frappe.utils.xss_sanitise(a.title)}</span>
+						<a href="${frappe.utils.xss_sanitise(r.url || "#")}" target="_blank">
+							<span class="sidebar-item-label">${frappe.utils.xss_sanitise(r.title)}</span>
+							<span class="sidebar-item-type">${__(r.resource_type || "Doc")}</span>
 						</a>
 					</div>`
 				);
-				$item.find("a").on("click", (e) => {
-					e.preventDefault();
-					window.open("/" + (a.route || a.name), "_blank");
-					this._close();
-				});
 				$sidebar.append($item);
 			});
-		});
+		}).catch(() => {});
 	}
 
 	// ── Local defaults (calculator, doc link, custom) ──────
