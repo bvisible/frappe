@@ -262,16 +262,22 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			$main.append($section);
 		}
 
-		// ── RIGHT: Tips + Help context ──
-		$sidebar.append(
-			`<div class="search-section-header">${__("Tips")}</div>
-			<div class="search-sidebar-tip">${__("Type a name, ID, or keyword to search")}</div>
-			<div class="search-sidebar-tip">${__("Math expressions:")} <code>55+434/4</code></div>
-			<div class="search-sidebar-tip">${__("Type")} <code>random</code> ${__("for a password")}</div>`
-		);
+		// ── RIGHT: Help context first, tips only as fallback ──
+		this._render_help_into_sidebar($sidebar);
+		this._load_help_context();
 
-		// Help articles & form tours for current page
-		this._render_help_context($sidebar);
+		// Tips only if no Learn/Doc available
+		const has_help = this._help_cache &&
+			((this._help_cache.learns && this._help_cache.learns.length) ||
+			 (this._help_cache.resources && this._help_cache.resources.length));
+		if (!has_help) {
+			$sidebar.append(
+				`<div class="search-section-header">${__("Tips")}</div>
+				<div class="search-sidebar-tip">${__("Type a name, ID, or keyword to search")}</div>
+				<div class="search-sidebar-tip">${__("Math expressions:")} <code>55+434/4</code></div>
+				<div class="search-sidebar-tip">${__("Type")} <code>random</code> ${__("for a password")}</div>`
+			);
+		}
 
 		this.$panel.append($body);
 		this.$panel.addClass("active");
@@ -320,8 +326,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		return results;
 	}
 
-	// ── Render help context (Nora Learn + Nora Help Resource) ──
-	_render_help_context($sidebar) {
+	// ── Load help context (Nora Learn + Nora Help Resource) ──
+	// Cached per doctype to survive re-renders
+	_load_help_context() {
 		const route = frappe.get_route();
 		if (!route || route.length < 2) return;
 
@@ -329,60 +336,69 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			route[0] === "Form" || route[0] === "List" ? route[1] : null;
 		if (!doctype) return;
 
-		// Single API call to get both Learn and Help Resources
-		// Uses neoffice_theme endpoint (whitelisted, ignore_permissions)
-		// Falls back silently if neoffice_theme is not installed
+		// Skip if already cached for this doctype
+		if (this._help_cache && this._help_cache._doctype === doctype) return;
+
 		frappe.xcall("neoffice_theme.api.get_help_context", { doctype })
 			.then((data) => {
-				if (!data || !this.$panel.hasClass("active")) return;
-
-				// Learn entries
-				if (data.learns && data.learns.length) {
-					$sidebar.append(
-						`<div class="search-section-header sidebar-section-spacer">${__("Learn")}</div>`
-					);
-					data.learns.forEach((l) => {
-						const duration = l.estimated_duration
-							? `<span class="sidebar-item-type">${l.estimated_duration} min</span>`
-							: "";
-						const $item = $(
-							`<div class="search-sidebar-item">
-								<a href="/app/${l.entry_route || "nora-learn/" + l.name}">
-									<span class="sidebar-item-label">${frappe.utils.xss_sanitise(l.title)}</span>
-									${duration}
-								</a>
-							</div>`
-						);
-						$item.find("a").on("click", (e) => {
-							e.preventDefault();
-							frappe.set_route(l.entry_route || "nora-learn/" + l.name);
-							this._close();
-						});
-						$sidebar.append($item);
-					});
-				}
-
-				// Help Resources (documentation)
-				if (data.resources && data.resources.length) {
-					$sidebar.append(
-						`<div class="search-section-header sidebar-section-spacer">${__("Documentation")}</div>`
-					);
-					data.resources.forEach((r) => {
-						const $item = $(
-							`<div class="search-sidebar-item">
-								<a href="${frappe.utils.xss_sanitise(r.url || "#")}" target="_blank">
-									<span class="sidebar-item-label">${frappe.utils.xss_sanitise(r.title)}</span>
-									<span class="sidebar-item-type">${__(r.resource_type || "Doc")}</span>
-								</a>
-							</div>`
-						);
-						$sidebar.append($item);
-					});
+				if (!data) return;
+				this._help_cache = { _doctype: doctype, ...data };
+				// Re-render if panel is still active to show the help
+				if (this.$panel.hasClass("active") && this._current_txt) {
+					this._render(this._current_txt);
 				}
 			})
 			.catch(() => {
-				// neoffice_theme not installed or endpoint unavailable — silent fail
+				// neoffice_theme not installed — silent fail
 			});
+	}
+
+	// ── Render cached help into sidebar ──────────────────────
+	_render_help_into_sidebar($sidebar) {
+		if (!this._help_cache) return;
+		const data = this._help_cache;
+
+		if (data.learns && data.learns.length) {
+			$sidebar.append(
+				`<div class="search-section-header sidebar-section-spacer">${__("Learn")}</div>`
+			);
+			data.learns.forEach((l) => {
+				const duration = l.estimated_duration
+					? `<span class="sidebar-item-type">${l.estimated_duration} min</span>`
+					: "";
+				const $item = $(
+					`<div class="search-sidebar-item">
+						<a href="/app/${l.entry_route || "nora-learn/" + l.name}">
+							<span class="sidebar-item-label">${frappe.utils.xss_sanitise(l.title)}</span>
+							${duration}
+						</a>
+					</div>`
+				);
+				$item.find("a").on("click", (e) => {
+					e.preventDefault();
+					frappe.set_route(l.entry_route || "nora-learn/" + l.name);
+					this._close();
+				});
+				$sidebar.append($item);
+			});
+		}
+
+		if (data.resources && data.resources.length) {
+			$sidebar.append(
+				`<div class="search-section-header sidebar-section-spacer">${__("Documentation")}</div>`
+			);
+			data.resources.forEach((r) => {
+				const $item = $(
+					`<div class="search-sidebar-item">
+						<a href="${frappe.utils.xss_sanitise(r.url || "#")}" target="_blank">
+							<span class="sidebar-item-label">${frappe.utils.xss_sanitise(r.title)}</span>
+							<span class="sidebar-item-type">${__(r.resource_type || "Doc")}</span>
+						</a>
+					</div>`
+				);
+				$sidebar.append($item);
+			});
+		}
 	}
 
 	// ── Local defaults (calculator, doc link, custom) ──────
@@ -576,11 +592,23 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 	// ── Render sidebar ─────────────────────────────────────
 	_render_sidebar($sidebar, txt) {
+		let has_context = false;
+
+		// Learn + Documentation (from cache)
+		if (this._help_cache) {
+			const hc = this._help_cache;
+			if ((hc.learns && hc.learns.length) || (hc.resources && hc.resources.length)) {
+				has_context = true;
+			}
+		}
+		this._render_help_into_sidebar($sidebar);
+		this._load_help_context();
+
 		// Recently visited — from live route history
-		const recent = this._get_route_history().slice(0, 6);
+		const recent = this._get_route_history().slice(0, 5);
 		if (recent.length) {
 			$sidebar.append(
-				`<div class="search-section-header">${__("Recently Visited")}</div>`
+				`<div class="search-section-header${has_context ? " sidebar-section-spacer" : ""}">${__("Recently Visited")}</div>`
 			);
 			recent.forEach((r) => {
 				const route = r.route;
