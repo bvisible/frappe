@@ -153,7 +153,7 @@ function fuzzy_match_recursive(
 				if (neighbor !== neighbor.toUpperCase() && curr !== curr.toLowerCase()) {
 					out_score += CAMEL_BONUS;
 				}
-				const is_neighbour_separator = neighbor == "_" || neighbor == " ";
+				const is_neighbour_separator = neighbor == "_" || neighbor == " " || neighbor == "-";
 				if (is_neighbour_separator) {
 					out_score += SEPARATOR_BONUS;
 				}

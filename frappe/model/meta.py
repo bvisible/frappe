@@ -217,8 +217,11 @@ class Meta(Document):
 	def get_global_search_fields(self):
 		"""Return list of fields with `in_global_search` set and `name` if set"""
 		fields = self.get("fields", {"in_global_search": 1, "fieldtype": ["not in", NO_VALUE_FIELDS]})
-		if getattr(self, "show_name_in_global_search", None):
-			fields.append(frappe._dict(fieldtype="Data", fieldname="name", label="Name"))
+
+		# Always include document name/ID in global search for non-child doctypes
+		if not getattr(self, "istable", False):
+			if not any(f.fieldname == "name" for f in fields):
+				fields.append(frappe._dict(fieldtype="Data", fieldname="name", label="ID"))
 
 		return fields
 

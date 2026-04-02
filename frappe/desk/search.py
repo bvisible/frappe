@@ -332,3 +332,61 @@ def get_link_title(doctype, docname):
 		return frappe.db.get_value(doctype, docname, meta.title_field)
 
 	return docname
+
+
+@frappe.whitelist()
+def resolve_document(name: str) -> list[dict]:
+	"""Resolve a document name/ID to its doctype and title.
+
+	Searches the __global_search table by exact name match first,
+	then falls back to prefix LIKE match. Results are filtered by
+	user permissions.
+
+	Args:
+		name: Document name or prefix to search for (e.g. "SINV-00123" or "SINV-001")
+
+	Returns:
+		List of dicts with doctype, name, and title (max 5 results)
+	"""
+	from frappe.desk.doctype.global_search_settings.global_search_settings import (
+		get_doctypes_for_global_search,
+	)
+
+	if not name or len(name) < 2:
+		return []
+
+	name = name.strip()
+	allowed_doctypes = list(
+		set(get_doctypes_for_global_search()) & set(frappe.get_user().get_can_read())
+	)
+	if not allowed_doctypes:
+		return []
+
+	gs = frappe.qb.Table("__global_search")
+
+	# Phase 1: exact match (uses unique index, very fast)
+	results = (
+		frappe.qb.from_(gs)
+		.select(gs.doctype, gs.name, gs.title)
+		.where(gs.name == name)
+		.where(gs.doctype.isin(allowed_doctypes))
+		.limit(5)
+		.run(as_dict=True)
+	)
+
+	if results:
+		return results
+
+	# Phase 2: prefix LIKE match (uses index prefix scan)
+	# Escape LIKE wildcards in user input
+	safe_name = name.replace("%", "\\%").replace("_", "\\_")
+	results = (
+		frappe.qb.from_(gs)
+		.select(gs.doctype, gs.name, gs.title)
+		.where(gs.name.like(f"{safe_name}%"))
+		.where(gs.doctype.isin(allowed_doctypes))
+		.limit(5)
+		.run(as_dict=True)
+	)
+
+	return results

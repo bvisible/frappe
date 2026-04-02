@@ -203,6 +203,19 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this.make_search_in_current(txt);
 		this.make_calculator(txt);
 		this.make_random(txt);
+		this.make_document_link(txt);
+
+		// Call registered custom search providers
+		for (const provider of frappe.search.AwesomeBar.custom_providers) {
+			try {
+				const results = provider(txt);
+				if (Array.isArray(results)) {
+					this.options = this.options.concat(results);
+				}
+			} catch (e) {
+				console.warn("Search provider error:", e);
+			}
+		}
 	}
 
 	build_options(txt) {
@@ -379,4 +392,51 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			});
 		}
 	}
+
+	make_document_link(txt) {
+		// Detect document name patterns (e.g. SINV-00123, PO-2024-001, ACC-SINV-00001)
+		// Must start with a letter and contain at least one hyphen
+		if (!txt || txt.length < 3 || !/^[A-Za-z].*-/.test(txt)) {
+			return;
+		}
+
+		const me = this;
+		const request_id = ++frappe.search.AwesomeBar._resolve_request_id;
+
+		frappe.xcall("frappe.desk.search.resolve_document", { name: txt }).then((results) => {
+			// Discard stale responses
+			if (request_id !== frappe.search.AwesomeBar._resolve_request_id) return;
+			if (!results || !results.length) return;
+
+			results.forEach((r) => {
+				const doctype_label = __(r.doctype);
+				const display_name = r.title && r.title !== r.name
+					? `${r.title} (${r.name})`
+					: r.name;
+
+				me.options.push({
+					label: __("Go to {0} {1}", [
+						doctype_label,
+						frappe.utils.xss_sanitise(display_name).bold(),
+					]),
+					value: __("Go to {0} {1}", [doctype_label, display_name]),
+					route: ["Form", r.doctype, r.name],
+					index: 200,
+					match: r.name,
+				});
+			});
+
+			// Re-sort and update the dropdown
+			me.options.sort((a, b) => b.index - a.index);
+			if (me.awesomplete) {
+				me.awesomplete.list = me.deduplicate(me.options);
+			}
+		});
+	}
 };
+
+// Extension point for custom search providers
+frappe.search.AwesomeBar.custom_providers = [];
+
+// Internal counter for discarding stale resolve_document responses
+frappe.search.AwesomeBar._resolve_request_id = 0;

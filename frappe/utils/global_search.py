@@ -510,6 +510,27 @@ def search(text, start=0, limit=20, doctype=""):
 
 		results.extend(result)
 
+	# Fallback: search by document name if fulltext returned nothing
+	if not results and text.strip():
+		global_search = frappe.qb.Table("__global_search")
+		# Escape LIKE wildcards in user input
+		safe_text = text.strip().replace("%", "\\%").replace("_", "\\_")
+		name_query = (
+			frappe.qb.from_(global_search)
+			.select(global_search.doctype, global_search.name, global_search.content)
+			.where(global_search.name.like(f"%{safe_text}%"))
+			.where(global_search.doctype.isin(allowed_doctypes))
+			.orderby(global_search.name)
+			.limit(cint(limit))
+		)
+		if cint(start) > 0:
+			name_query = name_query.offset(cint(start))
+
+		name_results = name_query.run(as_dict=True)
+		for r in name_results:
+			r.rank = 1.0
+		results.extend(name_results)
+
 	# sort results based on allowed_doctype's priority
 	for doctype in allowed_doctypes:
 		for r in results:
