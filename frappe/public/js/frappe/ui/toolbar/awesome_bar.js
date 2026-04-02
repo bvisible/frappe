@@ -11,6 +11,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this.options = [];
 		this.global_results = [];
 		this._search_id = 0;
+		this._search_pending = false;
 		this._selected = -1;
 		this._all_items = [];
 
@@ -140,19 +141,27 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		if (txt.charAt(0) === "#") return;
 
 		// Skip global search for math expressions — they crash MATCH AGAINST
-		if (this._is_math_expression(txt)) return;
+		if (this._is_math_expression(txt)) {
+			this._search_pending = false;
+			return;
+		}
 
 		// Sanitize boolean mode operators that crash fulltext search
 		const safe = txt.replace(/[+\-<>~*"@()]/g, " ").trim();
-		if (!safe || safe.length < 2) return;
+		if (!safe || safe.length < 2) {
+			this._search_pending = false;
+			return;
+		}
 
 		const search_id = ++this._search_id;
+		this._search_pending = true;
 
 		frappe.xcall("frappe.utils.global_search.search", {
 			text: safe,
 			limit: 20,
 		}).then((results) => {
 			if (search_id !== this._search_id) return;
+			this._search_pending = false;
 			this.global_results = results || [];
 			this._render(txt);
 		});
@@ -218,8 +227,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			this._render_section(__("More"), custom, "custom");
 		}
 
-		// 6. Fallback: "Search for X" link
-		if (txt && txt.length > 1) {
+		// 6. Fallback: "Search for X" link (not for math expressions)
+		if (txt && txt.length > 1 && !this._is_math_expression(txt)) {
 			const $footer = $(`<div class="search-panel-footer">
 				<a href="#" class="search-for-link">
 					<span>${__("Search for {0}", [safe_txt.bold()])}</span>
@@ -234,8 +243,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			this.$panel.append($footer);
 		}
 
-		// Loading indicator while global results pending
-		if (txt && txt.length > 1 && !this.global_results.length) {
+		// Loading indicator while global search is pending
+		if (this._search_pending && !this.global_results.length) {
 			const $loading = $(
 				`<div class="search-loading text-muted text-center">
 					<span class="text-extra-muted">${__("Searching")}...</span>
