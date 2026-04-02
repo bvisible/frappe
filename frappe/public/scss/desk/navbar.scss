@@ -78,7 +78,28 @@
 		display: flex;
 		align-items: center;
 		height: 100%;
+		z-index: 1;
+		pointer-events: none;
 	}
+
+	// Direct input styles (no Awesomplete wrapper)
+	input#navbar-search {
+		width: 100%;
+		padding-left: 36px;
+		height: 28px;
+		border-radius: var(--border-radius);
+		@include get_textstyle("sm", "regular");
+
+		&:focus {
+			box-shadow: var(--shadow-2xl);
+			background-color: var(--awesomebar-focus-bg);
+		}
+		&::placeholder {
+			color: var(--text-light);
+		}
+	}
+
+	// Legacy: keep Awesomplete styles for backward compat
 	.awesomplete {
 		width: 100%;
 		--awesomebar-shadow: var(--shadow-2xl);
