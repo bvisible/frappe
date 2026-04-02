@@ -113,7 +113,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		left = Math.max(12, Math.min(left, window.innerWidth - panel_width - 12));
 
 		this.$panel.css({
-			top: rect.bottom + 4,
+			top: rect.bottom + 8,
 			left: left,
 			width: panel_width,
 		});

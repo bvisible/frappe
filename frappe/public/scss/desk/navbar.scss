@@ -106,7 +106,7 @@
 			background-color: var(--bg-color);
 			box-shadow: var(--shadow-2xl);
 			padding-left: 14px;
-			border-radius: var(--border-radius-lg, 10px);
+			border-radius: var(--border-radius);
 		}
 		&::placeholder {
 			color: var(--text-light);
