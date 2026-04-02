@@ -329,79 +329,60 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			route[0] === "Form" || route[0] === "List" ? route[1] : null;
 		if (!doctype) return;
 
-		// Load Nora Learn entries for current doctype
-		frappe.xcall("frappe.client.get_list", {
-			doctype: "Nora Learn",
-			filters: { entry_doctype: doctype, status: "Published" },
-			fields: ["name", "title", "estimated_duration", "entry_route"],
-			order_by: "idx asc",
-			limit_page_length: 5,
-		}).then((learns) => {
-			if (!learns || !learns.length) return;
-			if (!this.$panel.hasClass("active")) return;
+		// Single API call to get both Learn and Help Resources
+		// Uses neoffice_theme endpoint (whitelisted, ignore_permissions)
+		// Falls back silently if neoffice_theme is not installed
+		frappe.xcall("neoffice_theme.api.get_help_context", { doctype })
+			.then((data) => {
+				if (!data || !this.$panel.hasClass("active")) return;
 
-			$sidebar.append(
-				`<div class="search-section-header sidebar-section-spacer">${__("Learn")}</div>`
-			);
+				// Learn entries
+				if (data.learns && data.learns.length) {
+					$sidebar.append(
+						`<div class="search-section-header sidebar-section-spacer">${__("Learn")}</div>`
+					);
+					data.learns.forEach((l) => {
+						const duration = l.estimated_duration
+							? `<span class="sidebar-item-type">${l.estimated_duration} min</span>`
+							: "";
+						const $item = $(
+							`<div class="search-sidebar-item">
+								<a href="/app/${l.entry_route || "nora-learn/" + l.name}">
+									<span class="sidebar-item-label">${frappe.utils.xss_sanitise(l.title)}</span>
+									${duration}
+								</a>
+							</div>`
+						);
+						$item.find("a").on("click", (e) => {
+							e.preventDefault();
+							frappe.set_route(l.entry_route || "nora-learn/" + l.name);
+							this._close();
+						});
+						$sidebar.append($item);
+					});
+				}
 
-			learns.forEach((l) => {
-				const duration = l.estimated_duration
-					? `<span class="sidebar-item-type">${l.estimated_duration} min</span>`
-					: "";
-				const $item = $(
-					`<div class="search-sidebar-item">
-						<a href="/app/${l.entry_route || "nora-learn/" + l.name}">
-							<span class="sidebar-item-label">${frappe.utils.xss_sanitise(l.title)}</span>
-							${duration}
-						</a>
-					</div>`
-				);
-				$item.find("a").on("click", (e) => {
-					e.preventDefault();
-					frappe.set_route(l.entry_route || "nora-learn/" + l.name);
-					this._close();
-				});
-				$sidebar.append($item);
+				// Help Resources (documentation)
+				if (data.resources && data.resources.length) {
+					$sidebar.append(
+						`<div class="search-section-header sidebar-section-spacer">${__("Documentation")}</div>`
+					);
+					data.resources.forEach((r) => {
+						const $item = $(
+							`<div class="search-sidebar-item">
+								<a href="${frappe.utils.xss_sanitise(r.url || "#")}" target="_blank">
+									<span class="sidebar-item-label">${frappe.utils.xss_sanitise(r.title)}</span>
+									<span class="sidebar-item-type">${__(r.resource_type || "Doc")}</span>
+								</a>
+							</div>`
+						);
+						$sidebar.append($item);
+					});
+				}
+			})
+			.catch(() => {
+				// neoffice_theme not installed or endpoint unavailable — silent fail
 			});
-		}).catch(() => {});
-
-		// Load Nora Help Resource for current doctype (via child table)
-		frappe.xcall("frappe.client.get_list", {
-			doctype: "Nora Help Resource DocType",
-			filters: { doctype_name: doctype },
-			fields: ["parent"],
-			limit_page_length: 5,
-		}).then((links) => {
-			if (!links || !links.length) return;
-			if (!this.$panel.hasClass("active")) return;
-
-			const parents = links.map((l) => l.parent);
-			return frappe.xcall("frappe.client.get_list", {
-				doctype: "Nora Help Resource",
-				filters: { name: ["in", parents], enabled: 1 },
-				fields: ["name", "title", "url", "resource_type"],
-				limit_page_length: 5,
-			});
-		}).then((resources) => {
-			if (!resources || !resources.length) return;
-			if (!this.$panel.hasClass("active")) return;
-
-			$sidebar.append(
-				`<div class="search-section-header sidebar-section-spacer">${__("Documentation")}</div>`
-			);
-
-			resources.forEach((r) => {
-				const $item = $(
-					`<div class="search-sidebar-item">
-						<a href="${frappe.utils.xss_sanitise(r.url || "#")}" target="_blank">
-							<span class="sidebar-item-label">${frappe.utils.xss_sanitise(r.title)}</span>
-							<span class="sidebar-item-type">${__(r.resource_type || "Doc")}</span>
-						</a>
-					</div>`
-				);
-				$sidebar.append($item);
-			});
-		}).catch(() => {});
 	}
 
 	// ── Local defaults (calculator, doc link, custom) ──────
