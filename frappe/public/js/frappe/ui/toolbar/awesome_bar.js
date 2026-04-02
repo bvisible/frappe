@@ -326,35 +326,80 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		const route = frappe.get_route();
 		if (!route || route.length < 2) return;
 
-		const doctype = route[0] === "Form" || route[0] === "List" ? route[1] : null;
+		const doctype =
+			route[0] === "Form" || route[0] === "List" ? route[1] : null;
 		if (!doctype) return;
 
-		// Form tours for current doctype
-		const tours = (frappe.boot.user.form_tours || []).filter(
-			(t) => t.reference_doctype === doctype
-		);
-		if (tours.length) {
-			$sidebar.append(
+		// Load form tours for current doctype (async, updates sidebar when ready)
+		frappe.xcall("frappe.client.get_list", {
+			doctype: "Form Tour",
+			filters: { reference_doctype: doctype },
+			fields: ["name", "title"],
+			limit_page_length: 5,
+		}).then((tours) => {
+			if (!tours || !tours.length) return;
+			// Only append if panel is still active
+			if (!this.$panel.hasClass("active")) return;
+
+			const $learn = $(
 				`<div class="search-section-header sidebar-section-spacer">${__("Learn")}</div>`
 			);
+			$sidebar.append($learn);
+
 			tours.forEach((t) => {
 				const $item = $(
 					`<div class="search-sidebar-item">
 						<a href="#">
-							<span class="sidebar-item-label">${frappe.utils.xss_sanitise(t.title)}</span>
+							<span class="sidebar-item-label">📖 ${frappe.utils.xss_sanitise(t.title)}</span>
 						</a>
 					</div>`
 				);
 				$item.find("a").on("click", (e) => {
 					e.preventDefault();
-					frappe.router.slug(doctype);
-					const tour = new frappe.ui.FormTour({ tour_name: t.name });
-					tour.start();
+					this._close();
+					// Navigate to the doctype form/list first, then start tour
+					if (route[0] !== "Form") {
+						frappe.set_route("Form", doctype, "new");
+					}
+					setTimeout(() => {
+						const tour = new frappe.ui.FormTour({ tour_name: t.name });
+						tour.start();
+					}, 500);
+				});
+				$sidebar.append($item);
+			});
+		});
+
+		// Load help articles for current doctype
+		frappe.xcall("frappe.client.get_list", {
+			doctype: "Help Article",
+			filters: { route: ["like", `%${frappe.router.slug(doctype)}%`] },
+			fields: ["name", "title", "route"],
+			limit_page_length: 3,
+		}).then((articles) => {
+			if (!articles || !articles.length) return;
+			if (!this.$panel.hasClass("active")) return;
+
+			$sidebar.append(
+				`<div class="search-section-header sidebar-section-spacer">${__("Documentation")}</div>`
+			);
+
+			articles.forEach((a) => {
+				const $item = $(
+					`<div class="search-sidebar-item">
+						<a href="/${a.route || a.name}">
+							<span class="sidebar-item-label">📄 ${frappe.utils.xss_sanitise(a.title)}</span>
+						</a>
+					</div>`
+				);
+				$item.find("a").on("click", (e) => {
+					e.preventDefault();
+					window.open("/" + (a.route || a.name), "_blank");
 					this._close();
 				});
 				$sidebar.append($item);
 			});
-		}
+		});
 	}
 
 	// ── Local defaults (calculator, doc link, custom) ──────
