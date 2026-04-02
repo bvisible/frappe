@@ -495,7 +495,7 @@ def search(text, start=0, limit=20, doctype=""):
 			.select(global_search.doctype, global_search.name, global_search.content, rank.as_("rank"))
 			.where(rank)
 			.orderby("rank", order=frappe.qb.desc)
-			.limit(limit)
+			.limit(max(cint(limit), 100))
 		)
 
 		if doctype:
@@ -531,18 +531,30 @@ def search(text, start=0, limit=20, doctype=""):
 			r.rank = 1.0
 		results.extend(name_results)
 
-	# sort results based on allowed_doctype's priority
-	for doctype in allowed_doctypes:
-		for r in results:
-			if r.doctype == doctype and r.rank > 0.0:
-				try:
-					meta = frappe.get_meta(r.doctype)
-					if meta.image_field:
-						r.image = frappe.db.get_value(r.doctype, r.name, meta.image_field)
-				except Exception:
-					frappe.clear_messages()
+	# Diversify results: take top N per doctype to ensure variety
+	# Without this, high-volume doctypes (Sales Invoice) drown out
+	# important entity types (Customer, Contact)
+	from collections import defaultdict
 
-				sorted_results.extend([r])
+	grouped = defaultdict(list)
+	for r in results:
+		if r.rank > 0.0:
+			grouped[r.doctype].append(r)
+
+	max_per_doctype = max(5, cint(limit) // max(len(grouped), 1))
+	sorted_results = []
+
+	for doctype in allowed_doctypes:
+		doctype_results = grouped.get(doctype, [])
+		doctype_results.sort(key=lambda x: x.get("rank", 0), reverse=True)
+		for r in doctype_results[:max_per_doctype]:
+			try:
+				meta = frappe.get_meta(r.doctype)
+				if meta.image_field:
+					r.image = frappe.db.get_value(r.doctype, r.name, meta.image_field)
+			except Exception:
+				frappe.clear_messages()
+			sorted_results.append(r)
 
 	return sorted_results
 

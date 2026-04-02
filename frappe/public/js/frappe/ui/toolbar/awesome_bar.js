@@ -158,7 +158,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 		frappe.xcall("frappe.utils.global_search.search", {
 			text: safe,
-			limit: 20,
+			limit: 50,
 		}).then((results) => {
 			if (search_id !== this._search_id) return;
 			this._search_pending = false;
@@ -548,7 +548,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 	// ── Direct document navigation ─────────────────────────
 	_make_document_link(txt) {
-		if (!txt || txt.length < 3 || !/^[A-Za-z].*-/.test(txt)) {
+		// Trigger for document IDs: must start with a letter, 3+ chars, no spaces
+		// Catches: SINV-00123, EAP723, ACC-SINV-2022-00001, HR-EMP-00001
+		if (!txt || txt.length < 3 || /\s/.test(txt) || !/^[A-Za-z]/.test(txt)) {
 			return;
 		}
 
