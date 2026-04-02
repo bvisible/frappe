@@ -3,6 +3,82 @@
 frappe.provide("frappe.search");
 frappe.provide("frappe.tags");
 
+// ════════════════════════════════════════════════════════════
+// Search Analytics — localStorage-based user search profiling
+// ════════════════════════════════════════════════════════════
+frappe.search.Analytics = class Analytics {
+	constructor() {
+		this._key = `search_profile_${frappe.session.user}`;
+		this._data = null;
+	}
+
+	_load() {
+		if (this._data) return this._data;
+		try {
+			this._data = JSON.parse(localStorage.getItem(this._key)) || this._empty();
+		} catch (e) {
+			this._data = this._empty();
+		}
+		return this._data;
+	}
+
+	_empty() {
+		return { recent_searches: [], recent_clicks: [], doctype_freq: {} };
+	}
+
+	_save() {
+		try {
+			localStorage.setItem(this._key, JSON.stringify(this._data));
+		} catch (e) {
+			// Storage full — clear old data
+			this._data.recent_searches = this._data.recent_searches.slice(0, 10);
+			this._data.recent_clicks = this._data.recent_clicks.slice(0, 20);
+			try {
+				localStorage.setItem(this._key, JSON.stringify(this._data));
+			} catch (e2) {
+				// pass
+			}
+		}
+	}
+
+	track_search(term) {
+		const d = this._load();
+		// Deduplicate — remove old occurrence of same term
+		d.recent_searches = d.recent_searches.filter((s) => s.term !== term);
+		d.recent_searches.unshift({ term, ts: Date.now() });
+		d.recent_searches = d.recent_searches.slice(0, 30);
+		this._save();
+	}
+
+	track_click(doctype, name, label) {
+		const d = this._load();
+		// Track click for frequency
+		d.doctype_freq[doctype] = (d.doctype_freq[doctype] || 0) + 1;
+		// Track recent click
+		d.recent_clicks = d.recent_clicks.filter(
+			(c) => !(c.doctype === doctype && c.name === name)
+		);
+		d.recent_clicks.unshift({ doctype, name, label, ts: Date.now() });
+		d.recent_clicks = d.recent_clicks.slice(0, 50);
+		this._save();
+	}
+
+	get_recent_searches() {
+		return this._load().recent_searches.slice(0, 8);
+	}
+
+	get_recent_clicks() {
+		return this._load().recent_clicks.slice(0, 8);
+	}
+
+	get_doctype_boost() {
+		return this._load().doctype_freq;
+	}
+};
+
+// ════════════════════════════════════════════════════════════
+// AwesomeBar — Main search bar class
+// ════════════════════════════════════════════════════════════
 frappe.search.AwesomeBar = class AwesomeBar {
 	setup(element) {
 		$(".search-bar").removeClass("hidden");
@@ -14,6 +90,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this._search_pending = false;
 		this._selected = -1;
 		this._all_items = [];
+		this._current_txt = "";
+		this.analytics = new frappe.search.Analytics();
 
 		this._create_panel();
 		this._bind_events();
@@ -22,8 +100,23 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 	// ── Panel creation ─────────────────────────────────────
 	_create_panel() {
-		this.$panel = $(`<div class="search-results-panel"></div>`);
-		this.$input.closest(".search-bar").css("position", "relative").append(this.$panel);
+		this.$panel = $(`<div class="search-mega-panel"></div>`);
+		// Append to body for absolute positioning freedom
+		$("body").append(this.$panel);
+	}
+
+	_position_panel() {
+		const rect = this.$input.get(0).getBoundingClientRect();
+		const panel_width = 680;
+		// Center panel under the search bar, but don't go off-screen
+		let left = rect.left + rect.width / 2 - panel_width / 2;
+		left = Math.max(12, Math.min(left, window.innerWidth - panel_width - 12));
+
+		this.$panel.css({
+			top: rect.bottom + 4,
+			left: left,
+			width: panel_width,
+		});
 	}
 
 	// ── Event binding ──────────────────────────────────────
@@ -39,17 +132,23 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 		this.$input.on("focus", () => {
 			const val = this.$input.val().trim();
-			if (val && val.length > 1) {
-				this.$panel.show();
+			if (!val) {
+				// Show recent searches/clicks on empty focus
+				this._show_home();
+			} else if (val.length > 1) {
+				this._position_panel();
+				this.$panel.addClass("active");
 			}
-			// Don't show anything on empty focus — wait for typing
 		});
 
 		this.$input.on("keydown", (e) => this._handle_keydown(e));
 
 		// Close on outside click
-		$(document).on("click", (e) => {
-			if (!$(e.target).closest(".search-bar").length) {
+		$(document).on("mousedown", (e) => {
+			if (
+				!$(e.target).closest(".search-bar").length &&
+				!$(e.target).closest(".search-mega-panel").length
+			) {
 				this._close();
 			}
 		});
@@ -58,11 +157,16 @@ frappe.search.AwesomeBar = class AwesomeBar {
 	// ── Main input handler ─────────────────────────────────
 	_handle_input(raw) {
 		const txt = raw.trim().replace(/\s\s+/g, " ");
+		this._current_txt = txt;
 
 		if (!txt || txt.length < 2) {
-			this.$panel.hide();
+			if (!txt) this._show_home();
+			else this._close();
 			return;
 		}
+
+		// Track search term
+		this.analytics.track_search(txt);
 
 		// Build synchronous local options
 		this.options = [];
@@ -79,14 +183,86 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this._search_global(txt);
 	}
 
-	// ── Show recent pages on focus ─────────────────────────
-	_show_recent() {
-		this.options = [];
-		const recent = frappe.search.utils.get_recent_pages("") || [];
-		const frequent = frappe.search.utils.get_frequent_links() || [];
-		this.options = this._deduplicate(recent.concat(frequent));
-		this.global_results = [];
-		this._render("");
+	// ── Show home state (recent searches + recent clicks) ──
+	_show_home() {
+		this._position_panel();
+		this.$panel.empty();
+		this._all_items = [];
+		this._selected = -1;
+
+		const $body = $(`<div class="search-panel-body">
+			<div class="search-panel-main"></div>
+			<div class="search-panel-sidebar"></div>
+		</div>`);
+
+		const $main = $body.find(".search-panel-main");
+		const $sidebar = $body.find(".search-panel-sidebar");
+
+		// Main: recent searches
+		const recent_searches = this.analytics.get_recent_searches();
+		if (recent_searches.length) {
+			const $section = $(`<div class="search-section">
+				<div class="search-section-header">${__("Recent Searches")}</div>
+			</div>`);
+			recent_searches.forEach((s) => {
+				const $item = $(
+					`<div class="search-item" role="option">
+						<div class="search-item-icon">
+							<svg class="icon icon-sm"><use href="#icon-search"></use></svg>
+						</div>
+						<div class="search-item-content">
+							<div class="search-item-label">${frappe.utils.xss_sanitise(s.term)}</div>
+						</div>
+					</div>`
+				);
+				$item.on("click", () => {
+					this.$input.val(s.term);
+					this._handle_input(s.term);
+				});
+				const idx = this._all_items.length;
+				$item.attr("data-idx", idx);
+				$section.append($item);
+				this._all_items.push({ $el: $item, data: { onclick: () => {
+					this.$input.val(s.term);
+					this._handle_input(s.term);
+				}}});
+			});
+			$main.append($section);
+		}
+
+		// Sidebar: recently visited documents
+		const recent_clicks = this.analytics.get_recent_clicks();
+		if (recent_clicks.length) {
+			$sidebar.append(
+				`<div class="search-section-header">${__("Recently Visited")}</div>`
+			);
+			recent_clicks.forEach((c) => {
+				const $item = $(
+					`<div class="search-sidebar-item">
+						<a href="/app/${frappe.router.slug(c.doctype)}/${encodeURIComponent(c.name)}">
+							<span class="sidebar-item-label">${frappe.utils.xss_sanitise(c.label || c.name)}</span>
+							<span class="sidebar-item-type">${__(c.doctype)}</span>
+						</a>
+					</div>`
+				);
+				$item.find("a").on("click", (e) => {
+					e.preventDefault();
+					frappe.set_route("Form", c.doctype, c.name);
+					this._close();
+				});
+				$sidebar.append($item);
+			});
+		} else {
+			$sidebar.append(
+				`<div class="search-section-header">${__("Tips")}</div>
+				<div class="search-sidebar-tip">${__("Type a name, ID, or keyword to search across all documents")}</div>
+				<div class="search-sidebar-tip">${__("Use math expressions like")} <code>55+434/4</code></div>
+				<div class="search-sidebar-tip">${__("Type")} <code>random</code> ${__("for a password")}</div>`
+			);
+		}
+
+		this.$panel.append($body);
+		this.$panel.addClass("active");
 	}
 
 	// ── Local defaults (calculator, doc link, custom) ──────
@@ -140,13 +316,13 @@ frappe.search.AwesomeBar = class AwesomeBar {
 	_search_global(txt) {
 		if (txt.charAt(0) === "#") return;
 
-		// Skip global search for math expressions — they crash MATCH AGAINST
+		// Skip global search for math expressions
 		if (this._is_math_expression(txt)) {
 			this._search_pending = false;
 			return;
 		}
 
-		// Sanitize boolean mode operators that crash fulltext search
+		// Sanitize boolean mode operators
 		const safe = txt.replace(/[+\-<>~*"@()]/g, " ").trim();
 		if (!safe || safe.length < 2) {
 			this._search_pending = false;
@@ -163,30 +339,41 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			if (search_id !== this._search_id) return;
 			this._search_pending = false;
 			this.global_results = results || [];
-			this._render(txt);
+			this._render(this._current_txt);
 		});
 	}
 
-	// ── Render ─────────────────────────────────────────────
+	// ── Main render ────────────────────────────────────────
 	_render(txt) {
+		this._position_panel();
 		this.$panel.empty();
 		this._all_items = [];
 		this._selected = -1;
 
 		const safe_txt = frappe.utils.xss_sanitise(txt);
 
+		// Two-column layout
+		const $body = $(`<div class="search-panel-body">
+			<div class="search-panel-main"></div>
+			<div class="search-panel-sidebar"></div>
+		</div>`);
+		const $main = $body.find(".search-panel-main");
+		const $sidebar = $body.find(".search-panel-sidebar");
+
+		// ── LEFT COLUMN: Results ──
+
 		// 1. Special results (calculator, random, search-in-current)
 		const specials = this.options.filter(
 			(o) => o.default === "Calculator" || o.default === "Current"
 		);
 		if (specials.length) {
-			this._render_section(__("Quick Actions"), specials, "special");
+			this._render_section_into($main, __("Quick Actions"), specials, "special");
 		}
 
-		// 2. Direct document matches (from resolve_document)
+		// 2. Direct document matches
 		const doc_links = this.options.filter((o) => o.index >= 200);
 		if (doc_links.length) {
-			this._render_section(__("Go to Document"), doc_links, "goto");
+			this._render_section_into($main, __("Go to Document"), doc_links, "goto");
 		}
 
 		// 3. Global search results grouped by DocType
@@ -204,30 +391,45 @@ frappe.search.AwesomeBar = class AwesomeBar {
 					route: ["Form", r.doctype, r.name],
 					image: r.image,
 					doctype: r.doctype,
+					_title: r.title || r.name,
 				}));
-				this._render_section(__(doctype), items, "global");
+				this._render_section_into($main, __(doctype), items, "global");
 			}
 		}
 
-		// 4. Navigation options (limited to top 6)
+		// 4. Navigation options
 		const nav = this.options.filter(
 			(o) =>
 				o.type &&
 				["List", "Report", "New", "Page", "Workspace", "Dashboard"].includes(o.type)
 		);
 		if (nav.length) {
-			this._render_section(__("Navigate"), nav.slice(0, 6), "nav");
+			this._render_section_into($main, __("Navigate"), nav.slice(0, 6), "nav");
 		}
 
-		// 5. Custom provider results (wiki search, etc.)
+		// 5. Custom provider results
 		const custom = this.options.filter(
 			(o) => o.default === "Docs" || o.default === "Custom"
 		);
 		if (custom.length) {
-			this._render_section(__("More"), custom, "custom");
+			this._render_section_into($main, __("More"), custom, "custom");
 		}
 
-		// 6. Fallback: "Search for X" link (not for math expressions)
+		// Loading indicator
+		if (this._search_pending && !this.global_results.length) {
+			$main.prepend(
+				`<div class="search-loading">
+					<span class="text-extra-muted">${__("Searching")}...</span>
+				</div>`
+			);
+		}
+
+		// ── RIGHT COLUMN: Sidebar ──
+		this._render_sidebar($sidebar, txt);
+
+		this.$panel.append($body);
+
+		// Footer
 		if (txt && txt.length > 1 && !this._is_math_expression(txt)) {
 			const $footer = $(`<div class="search-panel-footer">
 				<a href="#" class="search-for-link">
@@ -243,17 +445,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			this.$panel.append($footer);
 		}
 
-		// Loading indicator while global search is pending
-		if (this._search_pending && !this.global_results.length) {
-			const $loading = $(
-				`<div class="search-loading text-muted text-center">
-					<span class="text-extra-muted">${__("Searching")}...</span>
-				</div>`
-			);
-			this.$panel.prepend($loading);
-		}
-
-		this.$panel.show();
+		this.$panel.addClass("active");
 
 		// Auto-select first item
 		if (this._all_items.length) {
@@ -262,8 +454,59 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		}
 	}
 
-	// ── Render a section with header + items ────────────────
-	_render_section(title, items, type) {
+	// ── Render sidebar ─────────────────────────────────────
+	_render_sidebar($sidebar, txt) {
+		// Recently visited (always shown)
+		const recent_clicks = this.analytics.get_recent_clicks().slice(0, 6);
+		if (recent_clicks.length) {
+			$sidebar.append(
+				`<div class="search-section-header">${__("Recently Visited")}</div>`
+			);
+			recent_clicks.forEach((c) => {
+				const $item = $(
+					`<div class="search-sidebar-item">
+						<a href="/app/${frappe.router.slug(c.doctype)}/${encodeURIComponent(c.name)}">
+							<span class="sidebar-item-label">${frappe.utils.xss_sanitise(c.label || c.name)}</span>
+							<span class="sidebar-item-type">${__(c.doctype)}</span>
+						</a>
+					</div>`
+				);
+				$item.find("a").on("click", (e) => {
+					e.preventDefault();
+					frappe.set_route("Form", c.doctype, c.name);
+					this._close();
+				});
+				$sidebar.append($item);
+			});
+		}
+
+		// Top DocTypes from analytics
+		const boost = this.analytics.get_doctype_boost();
+		const top_types = Object.entries(boost)
+			.sort((a, b) => b[1] - a[1])
+			.slice(0, 5);
+		if (top_types.length) {
+			$sidebar.append(
+				`<div class="search-section-header sidebar-section-spacer">${__("You search often")}</div>`
+			);
+			top_types.forEach(([dt, count]) => {
+				const $item = $(
+					`<div class="search-sidebar-stat">
+						<span class="stat-label">${__(dt)}</span>
+						<span class="stat-count">${count}</span>
+					</div>`
+				);
+				$item.on("click", () => {
+					frappe.set_route("List", dt);
+					this._close();
+				});
+				$sidebar.append($item);
+			});
+		}
+	}
+
+	// ── Render section into a container ─────────────────────
+	_render_section_into($container, title, items, type) {
 		if (!items.length) return;
 
 		const $section = $(`<div class="search-section search-section-${type}"></div>`);
@@ -285,7 +528,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			this._all_items.push({ $el: $item, data: item });
 		});
 
-		this.$panel.append($section);
+		$container.append($section);
 	}
 
 	// ── Render a single result item ────────────────────────
@@ -306,13 +549,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 		// Main content
 		inner += `<div class="search-item-content">`;
-
-		// Label
 		const label = item.label || item.value || "";
 		const clean_label = typeof label === "string" ? label.replace(/<[^>]*>/g, "") : label;
 		inner += `<div class="search-item-label">${frappe.utils.xss_sanitise(clean_label)}</div>`;
-
-		// Description
 		if (item.description) {
 			inner += `<div class="search-item-desc">${item.description}</div>`;
 		}
@@ -330,15 +569,19 @@ frappe.search.AwesomeBar = class AwesomeBar {
 	_format_content(content, txt) {
 		if (!content) return "";
 		const parts = content.split(" ||| ");
-		// Show first 3 meaningful fields, skip the ID field
 		const display = parts
 			.filter((p) => !p.startsWith("ID :"))
 			.slice(0, 3)
 			.map((p) => {
-				// Highlight search term
 				if (txt) {
-					const re = new RegExp(`(${frappe.utils.xss_sanitise(txt)})`, "gi");
-					p = p.replace(re, "<mark>$1</mark>");
+					const words = txt.split(/\s+/).filter((w) => w.length > 1);
+					words.forEach((w) => {
+						const re = new RegExp(
+							`(${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
+							"gi"
+						);
+						p = p.replace(re, "<mark>$1</mark>");
+					});
 				}
 				return p;
 			});
@@ -373,7 +616,6 @@ frappe.search.AwesomeBar = class AwesomeBar {
 				const item = this._all_items[this._selected];
 				this._select_item(item.data, e);
 			} else {
-				// Fallback: open search dialog
 				const txt = this.$input.val().trim();
 				if (txt) {
 					frappe.searchdialog.search.init_search(txt, "global_search");
@@ -398,13 +640,19 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		if (this._selected >= 0 && this._selected < this._all_items.length) {
 			const $el = this._all_items[this._selected].$el;
 			$el.addClass("selected");
-			// Scroll into view
-			const panel = this.$panel.get(0);
+			// Scroll into view within the main column
+			const scrollParent = $el.closest(".search-panel-main").get(0);
 			const item = $el.get(0);
-			if (item.offsetTop < panel.scrollTop) {
-				panel.scrollTop = item.offsetTop - 8;
-			} else if (item.offsetTop + item.offsetHeight > panel.scrollTop + panel.clientHeight) {
-				panel.scrollTop = item.offsetTop + item.offsetHeight - panel.clientHeight + 8;
+			if (scrollParent) {
+				if (item.offsetTop < scrollParent.scrollTop) {
+					scrollParent.scrollTop = item.offsetTop - 8;
+				} else if (
+					item.offsetTop + item.offsetHeight >
+					scrollParent.scrollTop + scrollParent.clientHeight
+				) {
+					scrollParent.scrollTop =
+						item.offsetTop + item.offsetHeight - scrollParent.clientHeight + 8;
+				}
 			}
 		}
 	}
@@ -413,6 +661,21 @@ frappe.search.AwesomeBar = class AwesomeBar {
 	_select_item(item, e) {
 		if (item.route_options) {
 			frappe.route_options = item.route_options;
+		}
+
+		// Track click in analytics
+		if (item.doctype && item.route) {
+			this.analytics.track_click(
+				item.doctype,
+				item.route[2] || item.label,
+				item._title || item.label
+			);
+		} else if (item.route && item.route[0] === "Form") {
+			this.analytics.track_click(
+				item.route[1],
+				item.route[2],
+				item.label
+			);
 		}
 
 		if (item.onclick) {
@@ -433,7 +696,13 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 	// ── Close panel ────────────────────────────────────────
 	_close() {
-		this.$panel.hide().empty();
+		this.$panel.removeClass("active");
+		// Wait for animation to finish before clearing
+		setTimeout(() => {
+			if (!this.$panel.hasClass("active")) {
+				this.$panel.empty();
+			}
+		}, 200);
 		this.$input.val("");
 		this._all_items = [];
 		this._selected = -1;
@@ -549,7 +818,6 @@ frappe.search.AwesomeBar = class AwesomeBar {
 	// ── Direct document navigation ─────────────────────────
 	_make_document_link(txt) {
 		// Trigger for document IDs: must start with a letter, 3+ chars, no spaces
-		// Catches: SINV-00123, EAP723, ACC-SINV-2022-00001, HR-EMP-00001
 		if (!txt || txt.length < 3 || /\s/.test(txt) || !/^[A-Za-z]/.test(txt)) {
 			return;
 		}
@@ -577,7 +845,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 					});
 				});
 
-				me._render(me.$input.val().trim());
+				me._render(me._current_txt);
 			}
 		);
 	}
