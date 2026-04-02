@@ -37,11 +37,11 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		);
 
 		this.$input.on("focus", () => {
-			if (!this.$input.val().trim()) {
-				this._show_recent();
-			} else {
+			const val = this.$input.val().trim();
+			if (val && val.length > 1) {
 				this.$panel.show();
 			}
+			// Don't show anything on empty focus — wait for typing
 		});
 
 		this.$input.on("keydown", (e) => this._handle_keydown(e));
@@ -59,7 +59,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		const txt = raw.trim().replace(/\s\s+/g, " ");
 
 		if (!txt || txt.length < 2) {
-			this._show_recent();
+			this.$panel.hide();
 			return;
 		}
 
@@ -74,7 +74,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		// Render local options immediately
 		this._render(txt);
 
-		// Fire async global search
+		// Fire async global search (skipped for math expressions)
 		this._search_global(txt);
 	}
 
@@ -129,13 +129,27 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		return this._deduplicate(options).sort((a, b) => b.index - a.index);
 	}
 
+	// ── Check if text is a math expression ─────────────────
+	_is_math_expression(txt) {
+		const first = txt.charAt(0);
+		return first === "(" || first === "=" || /^\d/.test(first);
+	}
+
 	// ── Async global search ────────────────────────────────
 	_search_global(txt) {
 		if (txt.charAt(0) === "#") return;
+
+		// Skip global search for math expressions — they crash MATCH AGAINST
+		if (this._is_math_expression(txt)) return;
+
+		// Sanitize boolean mode operators that crash fulltext search
+		const safe = txt.replace(/[+\-<>~*"@()]/g, " ").trim();
+		if (!safe || safe.length < 2) return;
+
 		const search_id = ++this._search_id;
 
 		frappe.xcall("frappe.utils.global_search.search", {
-			text: txt,
+			text: safe,
 			limit: 20,
 		}).then((results) => {
 			if (search_id !== this._search_id) return;

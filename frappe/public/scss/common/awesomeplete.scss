@@ -76,7 +76,7 @@
 .search-results-panel {
 	display: none;
 	position: absolute;
-	top: 100%;
+	top: calc(100% + 2px);
 	left: 0;
 	right: 0;
 	min-width: 420px;
@@ -85,7 +85,7 @@
 	overflow-x: hidden;
 	background-color: var(--bg-color);
 	border: 1px solid var(--border-color);
-	border-radius: var(--border-radius-lg);
+	border-radius: var(--border-radius);
 	box-shadow: var(--shadow-lg);
 	z-index: 1050;
 	padding: var(--padding-xs) 0;
@@ -100,10 +100,8 @@
 	}
 
 	.search-section-header {
-		@include get_textstyle("xs", "regular");
-		color: var(--text-muted);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
+		@include get_textstyle("sm", "bold");
+		color: var(--heading-color);
 		padding: var(--padding-xs) var(--padding-md);
 		user-select: none;
 	}
