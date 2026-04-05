@@ -567,11 +567,19 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			}
 		}
 
-		// 4. Learn & Documentation matching search term (in left column)
+		// 4. Learn & Documentation from help cache (in left column)
+		// Show ALL cached learns/docs when cache matches the searched DocType,
+		// or filter by title match for general searches
 		if (this._help_cache && txt) {
 			const txt_lower = txt.toLowerCase();
+			const dt_actions = this.options.filter((o) => o.default === "DocTypeAction");
+			// If user typed a DocType name that matches the cached help, show ALL learns
+			const is_doctype_search = dt_actions.length > 0 &&
+				this._help_cache._doctype &&
+				dt_actions.some((o) => o.route && o.route[1] === this._help_cache._doctype);
+
 			const matching_learns = (this._help_cache.learns || []).filter(
-				(l) => l.title && l.title.toLowerCase().includes(txt_lower)
+				(l) => is_doctype_search || (l.title && l.title.toLowerCase().includes(txt_lower))
 			);
 			if (matching_learns.length) {
 				const items = matching_learns.map((l) => ({
@@ -584,7 +592,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			}
 
 			const matching_docs = (this._help_cache.resources || []).filter(
-				(r) => r.title && r.title.toLowerCase().includes(txt_lower)
+				(r) => is_doctype_search || (r.title && r.title.toLowerCase().includes(txt_lower))
 			);
 			if (matching_docs.length) {
 				const items = matching_docs.map((r) => ({
@@ -1084,6 +1092,26 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			index: 250,
 			default: "DocTypeAction",
 		});
+
+		// Load help context for the MATCHED DocType (not just the current page)
+		this._load_help_for_doctype(doctype);
+	}
+
+	// ── Load help for a specific DocType (used by DocType action) ──
+	_load_help_for_doctype(doctype) {
+		if (!doctype) return;
+		// Skip if already cached for this doctype
+		if (this._help_cache && this._help_cache._doctype === doctype) return;
+
+		frappe.xcall("neoffice_theme.api.get_help_context", { doctype })
+			.then((data) => {
+				if (!data) return;
+				this._help_cache = { _doctype: doctype, ...data };
+				if (this.$panel.hasClass("active") && this._current_txt) {
+					this._render(this._current_txt);
+				}
+			})
+			.catch(() => {});
 	}
 
 	// ── Direct document navigation ─────────────────────────
