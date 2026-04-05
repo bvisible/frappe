@@ -140,6 +140,16 @@
 		user-select: none;
 	}
 
+	// ── DocType action items (View all, New) ──
+	.search-section-doctype-action .search-item {
+		padding: 8px var(--padding-md);
+
+		.search-item-label {
+			@include get_textstyle("sm", "bold");
+			color: var(--primary);
+		}
+	}
+
 	// ── Individual result items ──
 	.search-item {
 		display: flex;

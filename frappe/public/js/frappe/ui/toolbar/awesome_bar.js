@@ -412,6 +412,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 	_add_defaults(txt) {
 		this._make_calculator(txt);
 		this._make_random(txt);
+		this._make_doctype_action(txt);
 		this._make_document_link(txt);
 		this._make_search_in_current(txt);
 
@@ -511,7 +512,13 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			this._render_section_into($main, __("Go to Document"), doc_links, "goto");
 		}
 
-		// 2. Special results (calculator, random, search-in-current)
+		// 2. DocType actions ("View all Items", "New Quotation")
+		const dt_actions = this.options.filter((o) => o.default === "DocTypeAction");
+		if (dt_actions.length) {
+			this._render_section_into($main, "", dt_actions, "doctype-action");
+		}
+
+		// 3. Special results (calculator, random, search-in-current)
 		const specials = this.options.filter(
 			(o) => o.default === "Calculator" || o.default === "Current"
 		);
@@ -980,6 +987,64 @@ frappe.search.AwesomeBar = class AwesomeBar {
 				index: 90,
 				default: "Current",
 				match: txt,
+			});
+		}
+	}
+
+	// ── DocType action (type "devis"/"article"/"item" → "View all") ──
+	_make_doctype_action(txt) {
+		if (!txt || txt.length < 3) return;
+		const txt_lower = txt.toLowerCase();
+
+		// Match against all readable DocTypes (English name + translated name)
+		let best_match = null;
+		let best_score = 0;
+
+		for (const dt of frappe.boot.user.can_read || []) {
+			if (frappe.boot.single_types && frappe.boot.single_types.includes(dt)) continue;
+
+			const en = dt.toLowerCase();
+			const tr = __(dt).toLowerCase();
+
+			// Exact match is best
+			if (en === txt_lower || tr === txt_lower) {
+				best_match = dt;
+				best_score = 100;
+				break;
+			}
+			// startsWith is good
+			if (en.startsWith(txt_lower) && txt_lower.length >= 3) {
+				const score = txt_lower.length / en.length * 90;
+				if (score > best_score) { best_match = dt; best_score = score; }
+			}
+			if (tr.startsWith(txt_lower) && txt_lower.length >= 3) {
+				const score = txt_lower.length / tr.length * 90;
+				if (score > best_score) { best_match = dt; best_score = score; }
+			}
+		}
+
+		if (!best_match || best_score < 40) return;
+
+		const doctype = best_match;
+		const translated = __(doctype);
+		this.options.push({
+			label: __("View all {0}", [translated]),
+			value: __("View all {0}", [translated]),
+			description: doctype !== translated ? doctype : "",
+			route: ["List", doctype],
+			index: 190,
+			default: "DocTypeAction",
+		});
+
+		// Also offer "New" if user can create
+		if ((frappe.boot.user.can_create || []).includes(doctype)) {
+			this.options.push({
+				label: __("New {0}", [translated]),
+				value: __("New {0}", [translated]),
+				route: null,
+				index: 189,
+				default: "DocTypeAction",
+				onclick: () => frappe.new_doc(doctype, true),
 			});
 		}
 	}
