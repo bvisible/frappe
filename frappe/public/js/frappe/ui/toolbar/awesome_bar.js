@@ -511,16 +511,18 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 		// ── LEFT COLUMN: Results ──
 
-		// 1. Direct document matches — ALWAYS first (highest priority, max 3)
-		const doc_links = this.options.filter((o) => o.index >= 200).slice(0, 3);
-		if (doc_links.length) {
-			this._render_section_into($main, __("Go to Document"), doc_links, "goto");
-		}
-
-		// 2. DocType actions ("View all Items", "New Quotation")
+		// 1. DocType action ("View all Articles") — always first when matched
 		const dt_actions = this.options.filter((o) => o.default === "DocTypeAction");
 		if (dt_actions.length) {
 			this._render_section_into($main, "", dt_actions, "doctype-action");
+		}
+
+		// 2. Direct document matches (max 3)
+		const doc_links = this.options
+			.filter((o) => o.index >= 200 && o.default !== "DocTypeAction")
+			.slice(0, 3);
+		if (doc_links.length) {
+			this._render_section_into($main, __("Go to Document"), doc_links, "goto");
 		}
 
 		// 3. Special results (calculator, random, search-in-current)
@@ -1044,26 +1046,14 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 		const doctype = best_match;
 		const translated = __(doctype);
+		// Single prominent action — always first
 		this.options.push({
 			label: __("View all {0}", [translated]),
 			value: __("View all {0}", [translated]),
-			description: doctype !== translated ? doctype : "",
 			route: ["List", doctype],
-			index: 190,
+			index: 250,
 			default: "DocTypeAction",
 		});
-
-		// Also offer "New" if user can create
-		if ((frappe.boot.user.can_create || []).includes(doctype)) {
-			this.options.push({
-				label: __("New {0}", [translated]),
-				value: __("New {0}", [translated]),
-				route: null,
-				index: 189,
-				default: "DocTypeAction",
-				onclick: () => frappe.new_doc(doctype, true),
-			});
-		}
 	}
 
 	// ── Direct document navigation ─────────────────────────
