@@ -270,9 +270,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this._load_help_context();
 
 		// Tips only if no Learn/Doc available
-		const has_help = this._help_cache &&
-			((this._help_cache.learns && this._help_cache.learns.length) ||
-			 (this._help_cache.resources && this._help_cache.resources.length));
+		const has_help = this._help_page_cache &&
+			((this._help_page_cache.learns && this._help_page_cache.learns.length) ||
+			 (this._help_page_cache.resources && this._help_page_cache.resources.length));
 		if (!has_help) {
 			$sidebar.append(
 				`<div class="search-section-header">${__("Tips")}</div>
@@ -329,8 +329,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		return results;
 	}
 
-	// ── Load help context (Nora Learn + Nora Help Resource) ──
-	// Cached per doctype to survive re-renders
+	// ── Load help context for current PAGE (sidebar) ──────
 	_load_help_context() {
 		const route = frappe.get_route();
 		if (!route || route.length < 2) return;
@@ -339,14 +338,12 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			route[0] === "Form" || route[0] === "List" ? route[1] : null;
 		if (!doctype) return;
 
-		// Skip if already cached for this doctype
-		if (this._help_cache && this._help_cache._doctype === doctype) return;
+		if (this._help_page_cache && this._help_page_cache._doctype === doctype) return;
 
 		frappe.xcall("neoffice_theme.api.get_help_context", { doctype })
 			.then((data) => {
 				if (!data) return;
-				this._help_cache = { _doctype: doctype, ...data };
-				// Re-render if panel is still active to show the help
+				this._help_page_cache = { _doctype: doctype, ...data };
 				if (this.$panel.hasClass("active")) {
 					if (this._current_txt) {
 						this._render(this._current_txt);
@@ -355,15 +352,13 @@ frappe.search.AwesomeBar = class AwesomeBar {
 					}
 				}
 			})
-			.catch(() => {
-				// neoffice_theme not installed — silent fail
-			});
+			.catch(() => {});
 	}
 
 	// ── Render cached help into sidebar ──────────────────────
 	_render_help_into_sidebar($sidebar) {
-		if (!this._help_cache) return;
-		const data = this._help_cache;
+		if (!this._help_page_cache) return;
+		const data = this._help_page_cache;
 
 		if (data.learns && data.learns.length) {
 			$sidebar.append(
@@ -567,18 +562,18 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			}
 		}
 
-		// 4. Learn & Documentation from help cache (in left column)
-		// Show ALL cached learns/docs when cache matches the searched DocType,
-		// or filter by title match for general searches
-		if (this._help_cache && txt) {
+		// 4. Learn & Documentation (in left column)
+		// Use search cache (DocType matched by search term) or page cache as fallback
+		const help_data = this._help_search_cache || this._help_page_cache;
+		if (help_data && txt) {
 			const txt_lower = txt.toLowerCase();
 			const dt_actions = this.options.filter((o) => o.default === "DocTypeAction");
-			// If user typed a DocType name that matches the cached help, show ALL learns
+			// Show ALL learns when search matches the cached DocType
 			const is_doctype_search = dt_actions.length > 0 &&
-				this._help_cache._doctype &&
-				dt_actions.some((o) => o.route && o.route[1] === this._help_cache._doctype);
+				help_data._doctype &&
+				dt_actions.some((o) => o.route && o.route[1] === help_data._doctype);
 
-			const matching_learns = (this._help_cache.learns || []).filter(
+			const matching_learns = (help_data.learns || []).filter(
 				(l) => is_doctype_search || (l.title && l.title.toLowerCase().includes(txt_lower))
 			);
 			if (matching_learns.length) {
@@ -591,7 +586,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 				this._render_section_into($main, __("Learn"), items, "learn");
 			}
 
-			const matching_docs = (this._help_cache.resources || []).filter(
+			const matching_docs = (help_data.resources || []).filter(
 				(r) => is_doctype_search || (r.title && r.title.toLowerCase().includes(txt_lower))
 			);
 			if (matching_docs.length) {
@@ -667,8 +662,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		let has_context = false;
 
 		// Learn + Documentation (from cache)
-		if (this._help_cache) {
-			const hc = this._help_cache;
+		if (this._help_page_cache) {
+			const hc = this._help_page_cache;
 			if ((hc.learns && hc.learns.length) || (hc.resources && hc.resources.length)) {
 				has_context = true;
 			}
@@ -930,7 +925,6 @@ frappe.search.AwesomeBar = class AwesomeBar {
 	// ── Close panel ────────────────────────────────────────
 	_close() {
 		this.$panel.removeClass("active");
-		// Wait for animation to finish before clearing
 		setTimeout(() => {
 			if (!this.$panel.hasClass("active")) {
 				this.$panel.empty();
@@ -939,6 +933,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this.$input.val("");
 		this._all_items = [];
 		this._selected = -1;
+		this._help_search_cache = null; // Clear search-specific help cache
 	}
 
 	// ── Deduplication ──────────────────────────────────────
@@ -1098,15 +1093,15 @@ frappe.search.AwesomeBar = class AwesomeBar {
 	}
 
 	// ── Load help for a specific DocType (used by DocType action) ──
+	// ── Load help for SEARCHED DocType (left column) ──────
 	_load_help_for_doctype(doctype) {
 		if (!doctype) return;
-		// Skip if already cached for this doctype
-		if (this._help_cache && this._help_cache._doctype === doctype) return;
+		if (this._help_search_cache && this._help_search_cache._doctype === doctype) return;
 
 		frappe.xcall("neoffice_theme.api.get_help_context", { doctype })
 			.then((data) => {
 				if (!data) return;
-				this._help_cache = { _doctype: doctype, ...data };
+				this._help_search_cache = { _doctype: doctype, ...data };
 				if (this.$panel.hasClass("active") && this._current_txt) {
 					this._render(this._current_txt);
 				}
