@@ -413,7 +413,12 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this._make_calculator(txt);
 		this._make_random(txt);
 		this._make_doctype_action(txt);
-		this._make_document_link(txt);
+		// Skip document link if we already matched a DocType name
+		// (avoids "devis" matching all DEVIS-2025-* documents)
+		const has_dt_action = this.options.some((o) => o.default === "DocTypeAction");
+		if (!has_dt_action) {
+			this._make_document_link(txt);
+		}
 		this._make_search_in_current(txt);
 
 		// Custom search providers
@@ -506,8 +511,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 		// ── LEFT COLUMN: Results ──
 
-		// 1. Direct document matches — ALWAYS first (highest priority)
-		const doc_links = this.options.filter((o) => o.index >= 200);
+		// 1. Direct document matches — ALWAYS first (highest priority, max 3)
+		const doc_links = this.options.filter((o) => o.index >= 200).slice(0, 3);
 		if (doc_links.length) {
 			this._render_section_into($main, __("Go to Document"), doc_links, "goto");
 		}
@@ -727,7 +732,19 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		inner += `<div class="search-item-content">`;
 		const label = item.label || item.value || "";
 		const clean_label = typeof label === "string" ? label.replace(/<[^>]*>/g, "") : label;
-		inner += `<div class="search-item-label">${frappe.utils.xss_sanitise(clean_label)}</div>`;
+		let display_label = frappe.utils.xss_sanitise(clean_label);
+		// Highlight search term in label
+		if (this._current_txt && type === "global") {
+			const words = this._current_txt.split(/\s+/).filter((w) => w.length > 1);
+			words.forEach((w) => {
+				const re = new RegExp(
+					`(${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
+					"gi"
+				);
+				display_label = display_label.replace(re, "<mark>$1</mark>");
+			});
+		}
+		inner += `<div class="search-item-label">${display_label}</div>`;
 		if (item.description) {
 			inner += `<div class="search-item-desc">${item.description}</div>`;
 		}

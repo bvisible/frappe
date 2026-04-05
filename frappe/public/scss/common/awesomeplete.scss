@@ -188,6 +188,12 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+
+		mark {
+			background-color: var(--yellow-highlight-color, #fff3cd);
+			padding: 0 1px;
+			border-radius: 2px;
+		}
 	}
 
 	.search-item-desc {
