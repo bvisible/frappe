@@ -224,29 +224,8 @@ frappe.search.utils = {
 						});
 					}
 
-					// Prioritize Report over List if user frequently visits Report view
-					const can_report = frappe.model.can_get_report(item);
-					const prefers_report =
-						can_report &&
-						(frappe.boot.frequently_visited_links || []).some(
-							(link) =>
-								link.route &&
-								link.route.includes(item) &&
-								link.route.includes("Report") &&
-								link.count > 3
-						);
-
-					if (prefers_report) {
-						out.push(option("Report", ["List", item, "Report"], 0.05));
-						out.push(option("List", ["List", item], 0.02));
-					} else {
-						out.push(option("List", ["List", item], 0.05));
-						if (can_report) {
-							out.push(
-								option("Report", ["List", item, "Report"], 0.04)
-							);
-						}
-					}
+					// Show List only (reports are accessed via List view)
+					out.push(option("List", ["List", item], 0.05));
 				}
 			}
 		});

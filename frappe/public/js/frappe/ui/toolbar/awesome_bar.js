@@ -567,17 +567,47 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			}
 		}
 
-		// 4. Navigation options
+		// 4. Learn & Documentation matching search term (in left column)
+		if (this._help_cache && txt) {
+			const txt_lower = txt.toLowerCase();
+			const matching_learns = (this._help_cache.learns || []).filter(
+				(l) => l.title && l.title.toLowerCase().includes(txt_lower)
+			);
+			if (matching_learns.length) {
+				const items = matching_learns.map((l) => ({
+					label: l.title,
+					description: l.estimated_duration ? `${l.estimated_duration} min` : "",
+					route: [l.entry_route || "nora-learn/" + l.name],
+					index: 0,
+				}));
+				this._render_section_into($main, __("Learn"), items, "learn");
+			}
+
+			const matching_docs = (this._help_cache.resources || []).filter(
+				(r) => r.title && r.title.toLowerCase().includes(txt_lower)
+			);
+			if (matching_docs.length) {
+				const items = matching_docs.map((r) => ({
+					label: r.title,
+					description: __(r.resource_type || "Documentation"),
+					onclick: () => { window.open(r.url, "_blank"); },
+					index: 0,
+				}));
+				this._render_section_into($main, __("Documentation"), items, "docs");
+			}
+		}
+
+		// 5. Navigation options
 		const nav = this.options.filter(
 			(o) =>
 				o.type &&
-				["List", "Report", "New", "Page", "Workspace", "Dashboard"].includes(o.type)
+				["List", "New", "Page", "Workspace", "Dashboard"].includes(o.type)
 		);
 		if (nav.length) {
 			this._render_section_into($main, __("Navigate"), nav.slice(0, 6), "nav");
 		}
 
-		// 5. Custom provider results
+		// 6. Custom provider results
 		const custom = this.options.filter(
 			(o) => o.default === "Docs" || o.default === "Custom"
 		);
@@ -736,7 +766,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		const clean_label = typeof label === "string" ? label.replace(/<[^>]*>/g, "") : label;
 		let display_label = frappe.utils.xss_sanitise(clean_label);
 		// Highlight search term in label
-		if (this._current_txt && type === "global") {
+		if (this._current_txt && (type === "global" || type === "learn" || type === "docs" || type === "goto")) {
 			const words = this._current_txt.split(/\s+/).filter((w) => w.length > 1);
 			words.forEach((w) => {
 				const re = new RegExp(
