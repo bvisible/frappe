@@ -357,8 +357,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 	// ── Render cached help into sidebar ──────────────────────
 	_render_help_into_sidebar($sidebar) {
-		if (!this._help_page_cache) return;
-		const data = this._help_page_cache;
+		// Prefer search cache (matched DocType) over page cache
+		const data = this._help_search_cache || this._help_page_cache;
+		if (!data) return;
 
 		if (data.learns && data.learns.length) {
 			$sidebar.append(
