@@ -378,13 +378,36 @@ def resolve_document(name: str) -> list[dict]:
 		return results
 
 	# Phase 2: prefix LIKE match (uses index prefix scan)
-	# Escape LIKE wildcards in user input
 	safe_name = name.replace("%", "\\%").replace("_", "\\_")
 	results = (
 		frappe.qb.from_(gs)
 		.select(gs.doctype, gs.name, gs.title)
 		.where(gs.name.like(f"{safe_name}%"))
 		.where(gs.doctype.isin(allowed_doctypes))
+		.limit(5)
+		.run(as_dict=True)
+	)
+
+	if results:
+		return results
+
+	# Phase 3: contains LIKE match (for partial numbers like "00079")
+	# Prioritize transactional doctypes (invoices, orders, quotations, delivery notes)
+	priority_doctypes = [
+		dt for dt in allowed_doctypes
+		if dt in (
+			"Sales Invoice", "Purchase Invoice", "Quotation", "Sales Order",
+			"Purchase Order", "Delivery Note", "Payment Entry", "Journal Entry",
+			"Stock Entry", "Material Request",
+		)
+	]
+	search_doctypes = priority_doctypes or allowed_doctypes
+
+	results = (
+		frappe.qb.from_(gs)
+		.select(gs.doctype, gs.name, gs.title)
+		.where(gs.name.like(f"%{safe_name}%"))
+		.where(gs.doctype.isin(search_doctypes))
 		.limit(5)
 		.run(as_dict=True)
 	)

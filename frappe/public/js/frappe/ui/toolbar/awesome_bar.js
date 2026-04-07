@@ -453,8 +453,11 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 	// ── Check if text is a math expression ─────────────────
 	_is_math_expression(txt) {
-		const first = txt.charAt(0);
-		return first === "(" || first === "=" || /^\d/.test(first);
+		if (txt.charAt(0) === "(" || txt.charAt(0) === "=") return true;
+		// Only treat as math if it starts with a digit AND contains an operator
+		// "00079" is a document number, not math. "10+10" is math.
+		if (/^\d/.test(txt) && /[+\-*/%(]/.test(txt)) return true;
+		return false;
 	}
 
 	// ── Async global search ────────────────────────────────
@@ -1112,8 +1115,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 	// ── Direct document navigation ─────────────────────────
 	_make_document_link(txt) {
-		// Trigger for document IDs: must start with a letter, 3+ chars, no spaces
-		if (!txt || txt.length < 3 || /\s/.test(txt) || !/^[A-Za-z]/.test(txt)) {
+		// Trigger for document IDs: 3+ chars, no spaces, not a pure math expression
+		if (!txt || txt.length < 3 || /\s/.test(txt) || this._is_math_expression(txt)) {
 			return;
 		}
 
