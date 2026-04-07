@@ -100,7 +100,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 	// ── Panel creation ─────────────────────────────────────
 	_create_panel() {
-		this.$panel = $(`<div class="search-mega-panel"><div class="search-halo"></div></div>`);
+		this.$panel = $(`<div class="search-mega-panel"></div>`);
 		// Append to body for absolute positioning freedom
 		$("body").append(this.$panel);
 	}
