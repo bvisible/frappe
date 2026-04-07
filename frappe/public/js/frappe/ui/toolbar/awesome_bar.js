@@ -790,8 +790,15 @@ frappe.search.AwesomeBar = class AwesomeBar {
 	_render_item(item, type) {
 		let inner = "";
 
-		// Avatar for global results
-		if (item.image !== undefined && type === "global") {
+		// Document icon for Document Scan and other file-bearing doctypes
+		const file_doctypes = ["Document Scan"];
+		if (item.doctype && file_doctypes.includes(item.doctype) && type === "global") {
+			inner += `<div class="search-item-file-icon" data-doctype="${item.doctype}" data-name="${frappe.utils.xss_sanitise(item.label)}">
+				<svg class="icon icon-md"><use href="#icon-file"></use></svg>
+			</div>`;
+		}
+		// Avatar for global results (non-file doctypes)
+		else if (item.image !== undefined && type === "global") {
 			inner += `<div class="search-item-avatar">
 				${frappe.get_avatar("avatar-xs", item.label || "", item.image)}
 			</div>`;
@@ -829,7 +836,65 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			inner += `<span class="search-item-doctype">${__(item.doctype)}</span>`;
 		}
 
-		return $(`<div class="search-item" role="option">${inner}</div>`);
+		const $item = $(`<div class="search-item" role="option">${inner}</div>`);
+
+		// Bind preview click on file icon (opens file without leaving search)
+		$item.find(".search-item-file-icon").on("click", (e) => {
+			e.stopPropagation();
+			this._preview_file(item.doctype, item.label);
+		});
+
+		return $item;
+	}
+
+	// ── Preview file attachment in a dialog ─────────────────
+	_preview_file(doctype, name) {
+		// Load the file URL for this document
+		let file_field = "source_file"; // Document Scan
+		if (doctype === "Document Scan") {
+			file_field = "source_file";
+		}
+
+		frappe.xcall("frappe.client.get_value", {
+			doctype: doctype,
+			filters: { name: name },
+			fieldname: file_field,
+		}).then((data) => {
+			const file_url = data && data[file_field];
+			if (!file_url) {
+				frappe.show_alert(__("No file attached"));
+				return;
+			}
+
+			const is_pdf = file_url.toLowerCase().endsWith(".pdf");
+			const is_image = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(file_url);
+
+			const d = new frappe.ui.Dialog({
+				title: name,
+				size: "extra-large",
+			});
+
+			if (is_pdf) {
+				d.$body.html(
+					`<iframe src="${file_url}" style="width:100%; height:70vh; border:none;"></iframe>`
+				);
+			} else if (is_image) {
+				d.$body.html(
+					`<div style="text-align:center; padding:16px;">
+						<img src="${file_url}" style="max-width:100%; max-height:70vh; border-radius:8px;">
+					</div>`
+				);
+			} else {
+				d.$body.html(
+					`<div style="text-align:center; padding:32px;">
+						<p>${__("File preview not available")}</p>
+						<a href="${file_url}" target="_blank" class="btn btn-primary">${__("Download")}</a>
+					</div>`
+				);
+			}
+
+			d.show();
+		});
 	}
 
 	// ── Format global search content for display ───────────

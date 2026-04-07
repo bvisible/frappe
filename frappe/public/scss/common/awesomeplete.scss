@@ -269,6 +269,30 @@
 		justify-content: center;
 	}
 
+	.search-item-file-icon {
+		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		border-radius: var(--border-radius);
+		background-color: var(--orange-50, #fff7ed);
+		color: var(--orange-500, #f97316);
+		cursor: pointer;
+		transition: background-color 0.1s, transform 0.1s;
+
+		&:hover {
+			background-color: var(--orange-100, #ffedd5);
+			transform: scale(1.1);
+		}
+
+		.icon {
+			width: 18px;
+			height: 18px;
+		}
+	}
+
 	.search-item-avatar {
 		flex-shrink: 0;
 	}
