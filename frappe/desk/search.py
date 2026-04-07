@@ -413,3 +413,62 @@ def resolve_document(name: str) -> list[dict]:
 	)
 
 	return results
+
+
+@frappe.whitelist()
+def search_by_amount(amount: str) -> list[dict]:
+	"""Search transactional documents and Document Scan by total amount.
+
+	Supports both dot and comma as decimal separator.
+	Searches grand_total/total_amount fields on key transactional DocTypes.
+
+	Returns:
+		List of dicts with doctype, name, title, amount
+	"""
+	if not amount:
+		return []
+
+	# Normalize: replace comma with dot for decimal
+	amount = amount.strip().replace(",", ".")
+	try:
+		amount_val = float(amount)
+	except ValueError:
+		return []
+
+	allowed = set(frappe.get_user().get_can_read())
+	results = []
+
+	# DocTypes and their amount fields
+	AMOUNT_FIELDS = {
+		"Sales Invoice": ("grand_total", "customer_name"),
+		"Purchase Invoice": ("grand_total", "supplier_name"),
+		"Sales Order": ("grand_total", "customer_name"),
+		"Purchase Order": ("grand_total", "supplier_name"),
+		"Quotation": ("grand_total", "party_name"),
+		"Delivery Note": ("grand_total", "customer_name"),
+		"Payment Entry": ("paid_amount", "party_name"),
+		"Journal Entry": ("total_debit", "title"),
+		"Document Scan": ("total_amount", "supplier_name"),
+	}
+
+	for dt, (amount_field, title_field) in AMOUNT_FIELDS.items():
+		if dt not in allowed:
+			continue
+		if not frappe.db.has_column(dt, amount_field):
+			continue
+
+		try:
+			docs = frappe.get_all(
+				dt,
+				filters={amount_field: amount_val},
+				fields=["name", f"{title_field} as title", f"{amount_field} as amount"],
+				limit=3,
+				order_by="modified desc",
+			)
+			for d in docs:
+				d["doctype"] = dt
+			results.extend(docs)
+		except Exception:
+			pass
+
+	return results

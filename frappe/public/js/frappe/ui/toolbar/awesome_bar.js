@@ -426,12 +426,11 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this._make_random(txt);
 		this._make_doctype_action(txt);
 		// Skip document link if we already matched a DocType name
-		// (avoids "devis" matching all DEVIS-2025-* documents)
 		const has_dt_action = this.options.some((o) => o.default === "DocTypeAction");
 		if (!has_dt_action) {
 			this._make_document_link(txt);
 		}
-		// _make_search_in_current removed — global search already covers this
+		this._make_amount_search(txt);
 
 		// Custom search providers
 		for (const provider of frappe.search.AwesomeBar.custom_providers) {
@@ -540,13 +539,19 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			this._render_section_into($main, __("Go to Document"), doc_links, "goto");
 		}
 
-		// 3. Calculator result
+		// 3. Amount matches (12.00 → invoices/orders with that total)
+		const amount_matches = this.options.filter((o) => o.default === "AmountMatch");
+		if (amount_matches.length) {
+			this._render_section_into($main, __("Documents matching amount"), amount_matches, "amount");
+		}
+
+		// 4. Calculator result
 		const specials = this.options.filter((o) => o.default === "Calculator");
 		if (specials.length) {
 			this._render_section_into($main, __("Calculator"), specials, "special");
 		}
 
-		// 3. Global search results grouped by DocType
+		// 5. Global search results grouped by DocType
 		if (this.global_results.length) {
 			// Filter: only show results where the search term actually appears
 			// in the content (prevents irrelevant fulltext matches)
@@ -1079,31 +1084,34 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 	// ── Calculator ─────────────────────────────────────────
 	_make_calculator(txt) {
-		var first = txt.substr(0, 1);
-		if (first == parseInt(first) || first === "(" || first === "=") {
-			if (first === "=") {
-				txt = txt.substr(1);
-			}
-			try {
-				var val = eval(txt);
-				var formatted_value = __("{0} = {1}", [
-					frappe.utils.xss_sanitise(txt),
-					(val + "").bold(),
-				]);
-				this.options.push({
-					label: formatted_value,
-					value: __("{0} = {1}", [frappe.utils.xss_sanitise(txt), val]),
-					match: val,
-					index: 80,
-					default: "Calculator",
-					onclick: function () {
-						frappe.msgprint(formatted_value, __("Result"));
-					},
-				});
-			} catch (e) {
-				// pass
-			}
+		// Only trigger for actual math expressions (must contain an operator)
+		// Plain numbers like "12.00" are amount searches, not calculations
+		if (!this._is_math_expression(txt)) return;
+
+		let expr = txt;
+		if (expr.charAt(0) === "=") {
+			expr = expr.substr(1);
 		}
+		try {
+			var val = eval(expr);
+			var formatted_value = __("{0} = {1}", [
+				frappe.utils.xss_sanitise(expr),
+				(val + "").bold(),
+			]);
+			this.options.push({
+				label: formatted_value,
+				value: __("{0} = {1}", [frappe.utils.xss_sanitise(expr), val]),
+				match: val,
+				index: 80,
+				default: "Calculator",
+				onclick: function () {
+					frappe.msgprint(formatted_value, __("Result"));
+				},
+			});
+		} catch (e) {
+			// pass
+		}
+	}
 	}
 
 	// ── Random password ────────────────────────────────────
@@ -1251,6 +1259,51 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		);
 	}
 
+	// ── Amount search (12.00 or 12,00 → find invoices/orders) ──
+	_make_amount_search(txt) {
+		if (!txt) return;
+		// Detect amount pattern: digits with optional dot/comma decimal
+		// Must look like a number, not a document ID
+		const normalized = txt.replace(",", ".");
+		if (!/^\d+(\.\d{1,2})?$/.test(normalized)) return;
+		const amount = parseFloat(normalized);
+		if (isNaN(amount) || amount <= 0) return;
+
+		const me = this;
+		const search_id = ++frappe.search.AwesomeBar._amount_search_id;
+
+		frappe.xcall("frappe.desk.search.search_by_amount", { amount: txt }).then(
+			(results) => {
+				if (search_id !== frappe.search.AwesomeBar._amount_search_id) return;
+				if (!results || !results.length) return;
+
+				// Group by doctype
+				const grouped = {};
+				results.forEach((r) => {
+					if (!grouped[r.doctype]) grouped[r.doctype] = [];
+					grouped[r.doctype].push(r);
+				});
+
+				// Add to options with high priority
+				for (const [doctype, docs] of Object.entries(grouped)) {
+					docs.forEach((d) => {
+						const display = d.title ? `${d.title} (${d.name})` : d.name;
+						me.options.push({
+							label: display,
+							description: `${__(doctype)} · ${frappe.format(d.amount, { fieldtype: "Currency" })}`,
+							route: ["Form", doctype, d.name],
+							doctype: doctype,
+							index: 195,
+							default: "AmountMatch",
+						});
+					});
+				}
+
+				me._render(me._current_txt);
+			}
+		);
+	}
+
 	// Legacy compat
 	deduplicate(options) {
 		return this._deduplicate(options);
@@ -1262,3 +1315,4 @@ frappe.search.AwesomeBar.custom_providers = [];
 
 // Internal counter for discarding stale resolve_document responses
 frappe.search.AwesomeBar._resolve_request_id = 0;
+frappe.search.AwesomeBar._amount_search_id = 0;
