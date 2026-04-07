@@ -431,7 +431,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		if (!has_dt_action) {
 			this._make_document_link(txt);
 		}
-		this._make_search_in_current(txt);
+		// _make_search_in_current removed — global search already covers this
 
 		// Custom search providers
 		for (const provider of frappe.search.AwesomeBar.custom_providers) {
@@ -540,12 +540,10 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			this._render_section_into($main, __("Go to Document"), doc_links, "goto");
 		}
 
-		// 3. Special results (calculator, random, search-in-current)
-		const specials = this.options.filter(
-			(o) => o.default === "Calculator" || o.default === "Current"
-		);
+		// 3. Calculator result
+		const specials = this.options.filter((o) => o.default === "Calculator");
 		if (specials.length) {
-			this._render_section_into($main, __("Quick Actions"), specials, "special");
+			this._render_section_into($main, __("Calculator"), specials, "special");
 		}
 
 		// 3. Global search results grouped by DocType
