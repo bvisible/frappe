@@ -106,26 +106,29 @@
 	.search-panel-main {
 		flex: 1;
 		min-width: 0;
-		overflow-y: auto;
+		overflow-y: scroll; // Always show scrollbar track
 		overflow-x: hidden;
 		padding: 8px 0;
 		border-right: 1px solid var(--border-color);
-		// Always show scrollbar
+		// Visible scrollbar
 		&::-webkit-scrollbar {
-			width: 6px;
+			width: 8px;
+			-webkit-appearance: none;
 		}
 		&::-webkit-scrollbar-track {
-			background: transparent;
+			background: var(--gray-100, #f1f3f5);
+			border-radius: 4px;
 		}
 		&::-webkit-scrollbar-thumb {
-			background-color: var(--gray-300, #ccc);
-			border-radius: 3px;
+			background-color: var(--gray-400, #adb5bd);
+			border-radius: 4px;
+			border: 1px solid var(--gray-100, #f1f3f5);
 			&:hover {
-				background-color: var(--gray-400, #aaa);
+				background-color: var(--gray-500, #868e96);
 			}
 		}
-		scrollbar-width: thin;
-		scrollbar-color: var(--gray-300, #ccc) transparent;
+		scrollbar-width: auto;
+		scrollbar-color: var(--gray-400, #adb5bd) var(--gray-100, #f1f3f5);
 	}
 
 	// ── Right column: sidebar ──
