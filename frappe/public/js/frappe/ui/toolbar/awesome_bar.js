@@ -894,6 +894,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			}
 
 			d.show();
+			// Force z-index above the search mega-panel (1060)
+			d.$wrapper.css("z-index", 1070);
+			d.$wrapper.find(".modal-backdrop").css("z-index", 1065);
 		});
 	}
 
