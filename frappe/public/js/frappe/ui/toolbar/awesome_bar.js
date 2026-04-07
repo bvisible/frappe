@@ -297,6 +297,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 		this.$panel.append($body);
 		this.$panel.addClass("active");
+		this._check_scroll_hint();
 	}
 
 	// ── Get live route history ──────────────────────────────
@@ -667,11 +668,32 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 		this.$panel.addClass("active");
 
+		// Detect scrollable content and add fade gradient
+		this._check_scroll_hint();
+
 		// Auto-select first item
 		if (this._all_items.length) {
 			this._selected = 0;
 			this._update_selection();
 		}
+	}
+
+	// ── Check if main column is scrollable, show/hide fade hint ──
+	_check_scroll_hint() {
+		requestAnimationFrame(() => {
+			const $body = this.$panel.find(".search-panel-body");
+			const main = this.$panel.find(".search-panel-main").get(0);
+			if (main && main.scrollHeight > main.clientHeight + 10) {
+				$body.addClass("has-scroll");
+				// Hide gradient when user scrolls to bottom
+				$(main).off("scroll.hint").on("scroll.hint", function () {
+					const atBottom = this.scrollTop + this.clientHeight >= this.scrollHeight - 20;
+					$body.toggleClass("has-scroll", !atBottom);
+				});
+			} else {
+				$body.removeClass("has-scroll");
+			}
+		});
 	}
 
 	// ── Render sidebar ─────────────────────────────────────

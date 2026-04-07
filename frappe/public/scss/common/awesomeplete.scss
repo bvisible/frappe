@@ -110,6 +110,22 @@
 		overflow-x: hidden;
 		padding: 8px 0;
 		border-right: 1px solid var(--border-color);
+		// Always show scrollbar
+		&::-webkit-scrollbar {
+			width: 6px;
+		}
+		&::-webkit-scrollbar-track {
+			background: transparent;
+		}
+		&::-webkit-scrollbar-thumb {
+			background-color: var(--gray-300, #ccc);
+			border-radius: 3px;
+			&:hover {
+				background-color: var(--gray-400, #aaa);
+			}
+		}
+		scrollbar-width: thin;
+		scrollbar-color: var(--gray-300, #ccc) transparent;
 	}
 
 	// ── Right column: sidebar ──
@@ -120,6 +136,40 @@
 		padding: 12px 14px;
 		background-color: var(--bg-light-gray, var(--gray-50, #f8f9fa));
 		border-radius: 0 var(--border-radius-lg, 12px) 0 var(--border-radius-lg, 12px);
+		// Thin scrollbar
+		&::-webkit-scrollbar {
+			width: 4px;
+		}
+		&::-webkit-scrollbar-thumb {
+			background-color: var(--gray-300, #ccc);
+			border-radius: 2px;
+		}
+		scrollbar-width: thin;
+		scrollbar-color: var(--gray-300, #ccc) transparent;
+	}
+
+	// ── Fade gradient at bottom to hint more content ──
+	.search-panel-body {
+		position: relative;
+
+		&::after {
+			content: "";
+			position: absolute;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			height: 32px;
+			background: linear-gradient(to bottom, transparent, var(--bg-color));
+			pointer-events: none;
+			border-radius: 0 0 var(--border-radius-lg, 12px) var(--border-radius-lg, 12px);
+			opacity: 0;
+			transition: opacity 0.15s;
+		}
+	}
+
+	// Show gradient only when scrollable
+	.search-panel-body.has-scroll::after {
+		opacity: 1;
 	}
 
 	// ── Responsive: single column on small screens ──
