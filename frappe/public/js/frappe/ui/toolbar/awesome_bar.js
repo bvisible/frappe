@@ -1112,7 +1112,6 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			// pass
 		}
 	}
-	}
 
 	// ── Random password ────────────────────────────────────
 	_make_random(txt) {
