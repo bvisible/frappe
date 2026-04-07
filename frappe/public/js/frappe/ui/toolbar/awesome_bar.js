@@ -156,11 +156,13 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 		this.$input.on("keydown", (e) => this._handle_keydown(e));
 
-		// Close on outside click
+		// Close on outside click (but not when clicking on modals/dialogs)
 		$(document).on("mousedown", (e) => {
 			if (
 				!$(e.target).closest(".search-bar").length &&
-				!$(e.target).closest(".search-mega-panel").length
+				!$(e.target).closest(".search-mega-panel").length &&
+				!$(e.target).closest(".modal").length &&
+				!$(e.target).closest(".modal-backdrop").length
 			) {
 				this._close();
 			}
