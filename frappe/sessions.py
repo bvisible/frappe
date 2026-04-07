@@ -66,15 +66,6 @@ def get_sessions_to_clear(user=None, keep_current=False, force=False):
 		simultaneous_sessions = frappe.db.get_value("User", user, "simultaneous_sessions") or 1
 		offset = simultaneous_sessions
 
-		# Keep one extra session slot if the user has an active mobile app connection
-		# (indicated by an active OAuth Bearer Token), so browser login doesn't kill the app session
-		has_mobile_token = frappe.db.exists("OAuth Bearer Token", {
-			"user": user,
-			"status": "Active",
-		})
-		if has_mobile_token:
-			offset += 1
-
 	session = frappe.qb.DocType("Sessions")
 	session_id = frappe.qb.from_(session).where(session.user == user)
 	if keep_current:
