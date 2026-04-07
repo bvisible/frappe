@@ -107,10 +107,23 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 	_position_panel() {
 		const rect = this.$input.get(0).getBoundingClientRect();
-		const panel_width = 680;
-		// Center panel under the search bar, but don't go off-screen
+		const vw = window.innerWidth;
+
+		// Responsive width: larger on wide screens
+		let panel_width;
+		if (vw >= 1400) {
+			panel_width = 900;
+		} else if (vw >= 1024) {
+			panel_width = Math.min(860, vw - 40);
+		} else if (vw >= 768) {
+			panel_width = Math.min(680, vw - 40);
+		} else {
+			panel_width = vw - 24; // Mobile: full width with margin
+		}
+
+		// Center under search bar
 		let left = rect.left + rect.width / 2 - panel_width / 2;
-		left = Math.max(12, Math.min(left, window.innerWidth - panel_width - 12));
+		left = Math.max(12, Math.min(left, vw - panel_width - 12));
 
 		this.$panel.css({
 			top: rect.bottom + 8,
