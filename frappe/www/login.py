@@ -9,7 +9,6 @@ import frappe.utils
 from frappe import _
 from frappe.apps import get_default_path
 from frappe.auth import LoginManager
-from frappe.core.doctype.navbar_settings.navbar_settings import get_app_logo
 from frappe.rate_limiter import rate_limit
 from frappe.utils import cint, get_url
 from frappe.utils.data import escape_html
@@ -48,9 +47,11 @@ def get_context(context):
 	context["disable_signup"] = cint(frappe.get_website_settings("disable_signup"))
 	context["show_footer_on_login"] = cint(frappe.get_website_settings("show_footer_on_login"))
 	context["disable_user_pass_login"] = cint(frappe.get_system_settings("disable_user_pass_login"))
-	context["logo"] = get_app_logo()
+	context["logo"] = "/files/logo-default.png"
+	# Use default company name for login page title
+	default_company = frappe.db.get_single_value("Global Defaults", "default_company")
 	context["app_name"] = (
-		frappe.get_website_settings("app_name") or frappe.get_system_settings("app_name") or _("Frappe")
+		default_company or frappe.get_website_settings("app_name") or frappe.get_system_settings("app_name") or _("Frappe")
 	)
 
 	signup_form_template = frappe.get_hooks("signup_form_template")
