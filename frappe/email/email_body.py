@@ -504,8 +504,9 @@ def add_attachment(fname, fcontent, content_type=None, parent=None, content_id=N
 def get_message_id():
 	"""Returns Message ID created from doctype and name"""
 	# Use neoemail.ch domain for Message-ID to ensure DMARC alignment
-	# All outgoing emails are sent via NeoMail (Stalwart SMTP) with @neoemail.ch sender
-	return email.utils.make_msgid(domain="neoemail.ch")
+	# Format: <hex@neoemail.ch> — no hyphens, pure alphanumeric for max compatibility
+	import uuid
+	return f"<{uuid.uuid4().hex}@neoemail.ch>"
 
 
 def get_signature(email_account):
