@@ -174,12 +174,18 @@ class EmailQueue(Document):
 
 
 	def send(self, smtp_server_instance: SMTPServer = None, force_send: bool = False):
-		"""Send emails to recipients via SMTP (NeoMail)."""
+		"""Send emails to recipients. Uses NeoMail API hook if available, SMTP otherwise."""
 		if not self.can_send_now() and not force_send:
 			return
 
 		with SendMailContext(self, smtp_server_instance) as ctx:
-			ctx.fetch_smtp_server()
+			# Check for API override hook before fetching SMTP server
+			api_method = get_hook_method("override_email_send")
+			if api_method:
+				# Load email account doc without SMTP connection
+				ctx.email_account_doc = ctx.queue_doc.get_email_account(raise_error=False)
+			else:
+				ctx.fetch_smtp_server()
 
 			message = None
 			for recipient in self.recipients:
@@ -193,8 +199,10 @@ class EmailQueue(Document):
 				#////
 
 				message = ctx.build_message(recipient.recipient)
-				if method := get_hook_method("override_email_send"):
-					method(self, self.sender, recipient.recipient, message)
+				if api_method:
+					# NeoMail API path: send via HTTP API, no SMTP needed
+					api_method(self, self.sender, recipient.recipient, message)
+					ctx.add_to_sent_list(recipient)
 				else:
 					if not frappe.flags.in_test or frappe.flags.testing_email:
 						ctx.smtp_server.session.sendmail(
@@ -206,7 +214,7 @@ class EmailQueue(Document):
 				frappe.flags.sent_mail = message
 				return
 
-			if ctx.email_account_doc.append_emails_to_sent_folder:
+			if ctx.email_account_doc and ctx.email_account_doc.append_emails_to_sent_folder:
 				ctx.email_account_doc.append_email_to_sent_folder(message)
 
 	#//// NEOFFICE: Placeholder email interception helpers
