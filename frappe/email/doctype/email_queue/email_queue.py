@@ -363,17 +363,19 @@ class SendMailContext:
 				update_fields.update({"status": "Error"})
 				self.notify_failed_email()
 		else:
-			#//// added
-			all_status = []
-			for recipient in self.queue_doc.recipients:
-				if recipient.status not in all_status:
-					all_status.append(recipient.status)
-			if len(all_status) == 1:
-				update_fields = {"status": all_status[0]}
+			#//// Reload recipient statuses from DB (may have been updated
+			#     via update_db during send loop, not reflected in memory)
+			all_status = frappe.get_all(
+				"Email Queue Recipient",
+				filters={"parent": self.queue_doc.name},
+				pluck="status",
+			)
+			unique_status = list(set(all_status))
+			if len(unique_status) == 1:
+				update_fields = {"status": unique_status[0]}
 			else:
 				update_fields = {"status": "Partially Sent"}
 			#////
-			#////update_fields = {"status": "Sent"}
 
 		self.queue_doc.update_status(**update_fields, commit=True)
 
