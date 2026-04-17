@@ -484,9 +484,8 @@ export default class GridRow {
 							// Reset user settings so "Reset to default" reads from updated JSON
 							this.columns = {};
 							frappe.model.user_settings.save(this.frm.doctype, "GridView", null);
-							// Force page reload to pick up the new meta from JSON
 							this.grid_settings_dialog.hide();
-							setTimeout(() => location.reload(), 500);
+							setTimeout(() => location.reload(), 300);
 						} else {
 							frappe.msgprint({
 								title: __("Erreur"),
