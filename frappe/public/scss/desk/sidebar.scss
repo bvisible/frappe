@@ -162,10 +162,36 @@ body {
 		margin-bottom: 8px;
 	}
 
+	// The module mirror section only makes sense in the expanded sidebar.
+	// Hidden entirely when collapsed — the app-switcher dropdown already
+	// offers module switching in that state.
+	.modules-section {
+		display: none;
+	}
+
 	.modules-section .app-logo {
 		width: 16px;
 		height: 16px;
 		object-fit: contain;
+	}
+
+	// Two-line header inside the app-switcher: module title + "Active module"
+	// subtitle. Rendered column-stacked only when the sidebar is expanded.
+	.app-switcher-dropdown .app-title {
+		flex-direction: column;
+		align-items: flex-start;
+		justify-content: center;
+		gap: 1px;
+	}
+	.app-switcher-dropdown .app-title-name {
+		font-weight: 500;
+		line-height: 18px;
+	}
+	.app-switcher-dropdown .app-title-subtitle {
+		font-size: 11px;
+		font-weight: 400;
+		line-height: 14px;
+		color: var(--text-muted);
 	}
 
 	.standard-sidebar-item {
@@ -283,6 +309,9 @@ body {
 		}
 		.standard-sidebar-label {
 			display: block;
+		}
+		.modules-section {
+			display: flex;
 		}
 		.sidebar-item-control {
 			display: block;

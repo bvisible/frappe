@@ -14,6 +14,7 @@ frappe.ui.AppsSwitcher = class AppsSwitcher {
 			frappe.render_template("apps_switcher", {
 				app_logo_url: first_app.app_logo_url || "/assets/frappe/images/frappe-framework-logo.svg",
 				app_title: __(first_app.app_title || ""),
+				subtitle: __("Active Module"),
 			})
 		).prependTo(this.sidebar_wrapper);
 		this.app_switcher_dropdown = $(".app-switcher-dropdown");
@@ -219,8 +220,8 @@ frappe.ui.AppsSwitcher = class AppsSwitcher {
 			.find(".app-switcher-dropdown .sidebar-item-icon img")
 			.attr("src", app_data.app_logo_url);
 		this.sidebar_wrapper
-			.find(".app-switcher-dropdown .sidebar-item-label")
-			.html(app_data.app_title);
+			.find(".app-switcher-dropdown .app-title-name")
+			.html(__(app_data.app_title));
 
 		// Don't update navbar logo - keep NeoOffice logo in navbar
 		// Only the sidebar logo is updated (lines 189-194)
