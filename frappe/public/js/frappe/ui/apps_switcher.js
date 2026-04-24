@@ -9,11 +9,18 @@ frappe.ui.AppsSwitcher = class AppsSwitcher {
 	}
 
 	make() {
-		const first_app = frappe.boot.app_data && frappe.boot.app_data.length ? frappe.boot.app_data[0] : {};
+		// Pick the app that matches frappe.current_app (set earlier by
+		// Sidebar.set_default_app from the current route). Fall back to the
+		// first registered app if nothing matches.
+		const apps = frappe.boot.app_data || [];
+		const current_app =
+			apps.find((a) => a.app_name === frappe.current_app) || apps[0] || {};
+
 		this.wrapper = $(
 			frappe.render_template("apps_switcher", {
-				app_logo_url: first_app.app_logo_url || "/assets/frappe/images/frappe-framework-logo.svg",
-				app_title: __(first_app.app_title || ""),
+				app_logo_url:
+					current_app.app_logo_url || "/assets/frappe/images/frappe-framework-logo.svg",
+				app_title: __(current_app.app_title || ""),
 				subtitle: __("Active Module"),
 			})
 		).prependTo(this.sidebar_wrapper);
