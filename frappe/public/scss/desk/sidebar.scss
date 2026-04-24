@@ -176,12 +176,19 @@ body {
 	}
 
 	// Two-line header inside the app-switcher: module title + "Active module"
-	// subtitle. Rendered column-stacked only when the sidebar is expanded.
+	// subtitle. Always anchored to the left edge, independent of the
+	// expanded-state flex rules that would otherwise center the children.
 	.app-switcher-dropdown .app-title {
 		flex-direction: column;
 		align-items: flex-start;
 		justify-content: center;
 		gap: 1px;
+		text-align: left;
+	}
+	.app-switcher-dropdown .app-title-name,
+	.app-switcher-dropdown .app-title-subtitle {
+		text-align: left;
+		width: 100%;
 	}
 	.app-switcher-dropdown .app-title-name {
 		font-weight: 500;
@@ -339,6 +346,28 @@ body {
 
 .body-sidebar-container.expanded {
 	@include body-sidebar-expanded();
+}
+
+// Smoothly reveal the textual elements that only appear when the sidebar
+// widens (expanded click-state or hover-expand overlay): section headings,
+// the modules section, workspace labels and the app-switcher subtitle.
+// Consumed by the hover-expanded state defined in neoffice_theme.
+@keyframes sidebar-content-appear {
+	from {
+		opacity: 0;
+		transform: translateX(-4px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+.body-sidebar-container.expanded .body-sidebar .sidebar-item-label,
+.body-sidebar-container.expanded .body-sidebar .standard-sidebar-label,
+.body-sidebar-container.expanded .body-sidebar .modules-section,
+.body-sidebar-container.expanded .body-sidebar .app-title-subtitle {
+	animation: sidebar-content-appear 260ms ease-out 80ms both;
 }
 
 @include media-breakpoint-down(xs) {
