@@ -149,6 +149,25 @@ body {
 		}
 	}
 
+	// Section heading above workspace/module groups. Hidden when the sidebar
+	// is collapsed; revealed by the body-sidebar-expanded mixin.
+	.standard-sidebar-label {
+		display: none;
+		font-size: 10px;
+		font-weight: 600;
+		letter-spacing: 0.5px;
+		text-transform: uppercase;
+		color: var(--text-muted);
+		padding: 0 8px;
+		margin-bottom: 8px;
+	}
+
+	.modules-section .app-logo {
+		width: 16px;
+		height: 16px;
+		object-fit: contain;
+	}
+
 	.standard-sidebar-item {
 		display: flex;
 		line-height: 0px;
@@ -261,6 +280,9 @@ body {
 		.sidebar-item-label {
 			display: flex;
 			align-items: center;
+		}
+		.standard-sidebar-label {
+			display: block;
 		}
 		.sidebar-item-control {
 			display: block;

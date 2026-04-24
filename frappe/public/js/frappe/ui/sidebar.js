@@ -265,6 +265,7 @@ frappe.ui.Sidebar = class Sidebar {
 		}
 
 		this.build_sidebar_section("All", parent_pages);
+		this.build_modules_section();
 
 		// Scroll sidebar to selected page if it is not in viewport.
 		this.wrapper.find(".selected").length &&
@@ -277,8 +278,15 @@ frappe.ui.Sidebar = class Sidebar {
 	}
 
 	build_sidebar_section(title, root_pages) {
+		// Render a section heading for the main navigation section ("All").
+		// Additional sections (e.g. "Modules") render their own heading.
+		const heading_text = title === "All" ? __("Navigation") : "";
+		const heading_html = heading_text
+			? `<div class="standard-sidebar-label">${heading_text}</div>`
+			: "";
+
 		let sidebar_section = $(
-			`<div class="standard-sidebar-section nested-container" data-title="${title}"></div>`
+			`<div class="standard-sidebar-section nested-container" data-title="${title}">${heading_html}</div>`
 		);
 
 		this.prepare_sidebar(root_pages, sidebar_section, this.wrapper.find(".sidebar-items"));
@@ -302,6 +310,71 @@ frappe.ui.Sidebar = class Sidebar {
 		) {
 			sidebar_section.addClass("hidden show-in-edit-mode");
 		}
+	}
+
+	build_modules_section() {
+		// Render a mirror of the top app-switcher dropdown as a sidebar section
+		// so users can jump between modules directly, with the active one highlighted.
+		const $items_container = this.wrapper.find(".sidebar-items");
+
+		const apps = [...(frappe.boot.app_data || [])].sort((a, b) => {
+			const order_a = a.sort_order !== undefined ? a.sort_order : 999;
+			const order_b = b.sort_order !== undefined ? b.sort_order : 999;
+			if (order_a !== order_b) return order_a - order_b;
+			return (a.app_title || a.app_name || "").localeCompare(
+				b.app_title || b.app_name || ""
+			);
+		});
+
+		if (!apps.length) return;
+
+		const $section = $(
+			`<div class="standard-sidebar-section modules-section" data-title="Modules">
+				<div class="standard-sidebar-label">${__("All Modules")}</div>
+			</div>`
+		);
+
+		for (const app of apps) {
+			this.append_module_item(app, $section);
+		}
+
+		$section.appendTo($items_container);
+	}
+
+	append_module_item(app, $section) {
+		const is_active = app.app_name === frappe.current_app;
+		const route = app.app_route || "/app";
+		const title = __(app.app_title || app.app_name);
+		const logo_url = app.app_logo_url || "/assets/frappe/images/frappe-framework-logo.svg";
+
+		const $item = $(`
+			<div
+				class="sidebar-item-container module-item ${is_active ? "active-sidebar active-module" : ""}"
+				data-app-name="${app.app_name}"
+				data-app-route="${route}"
+			>
+				<div class="standard-sidebar-item">
+					<a class="item-anchor" href="${route}" title="${title}">
+						<span class="sidebar-item-icon app-logo-container">
+							<img class="app-logo" src="${logo_url}" alt="${__("App Logo")}" />
+						</span>
+						<span class="sidebar-item-label">${title}</span>
+					</a>
+				</div>
+			</div>
+		`);
+
+		$item.find(".item-anchor").on("click", (e) => {
+			e.preventDefault();
+			if (this.apps_switcher && typeof this.apps_switcher.set_current_app === "function") {
+				this.apps_switcher.set_current_app(app.app_name);
+			}
+			if (route && route.startsWith("/app")) {
+				frappe.set_route(route);
+			}
+		});
+
+		$item.appendTo($section);
 	}
 
 	prepare_sidebar(items, child_container, item_container) {
