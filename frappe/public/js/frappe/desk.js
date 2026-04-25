@@ -75,22 +75,10 @@ frappe.Application = class Application {
 
 		// page container
 		this.make_page_container();
-		if (
-			!window.Cypress &&
-			frappe.boot.onboarding_tours &&
-			frappe.boot.user.onboarding_status != null
-		) {
-			let pending_tours = !frappe.boot.onboarding_tours.every(
-				(tour) => frappe.boot.user.onboarding_status[tour[0]]?.is_complete
-			);
-			if (pending_tours && frappe.boot.onboarding_tours.length > 0) {
-				frappe.require("onboarding_tours.bundle.js", () => {
-					frappe.utils.sleep(1000).then(() => {
-						frappe.ui.init_onboarding_tour();
-					});
-				});
-			}
-		}
+		// Onboarding tours intentionally disabled for Neoffice — the new
+		// home workspace already provides a guided welcome (hero + tinted
+		// applications), so the legacy "Awesomebar / Form basics / ..."
+		// driver.js popovers only get in the way for new users.
 		this.set_route();
 
 		// trigger app startup
