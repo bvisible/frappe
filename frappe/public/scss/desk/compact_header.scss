@@ -227,15 +227,15 @@
 // Phase 3 — Compact mode: hide the native right sidebar entirely on
 // form pages and let the main section claim the full width.
 //
-// Form-only scope: we use `body[data-route^="Form/"]` because Frappe
-// changes the docstatus marker on .page-container according to state:
-//   draft     → .editable-form
-//   submitted → .submitted-form
-//   cancelled → .cancelled-form
-// The data-route attribute on <body> is consistent across all three
-// states (e.g. "Form/Item/foo", "Form/Quotation/DEVIS-...") and is
-// strictly form-only — list views are "List/<doctype>", workspaces
-// are "home" / module names, prints are "PrintView/...".
+// Defensive form-only scope: we combine multiple anchors so the rule
+// holds regardless of docstatus, browser, or build flavour:
+//   • body[data-route^="Form/"]  → Form/Item/..., Form/Quotation/...
+//   • .editable-form             → docstatus 0 (draft)
+//   • .submitted-form            → docstatus 1 (submitted) ← Quotation
+//   • .cancelled-form            → docstatus 2 (cancelled)
+// We further narrow the target to `.layout-side-section.right` because
+// Frappe uses the unmodified `.layout-side-section` on list views and
+// reports — only the form sidebar carries the `.right` modifier.
 //
 // IMPORTANT: do NOT scope to .page-form — Frappe also reuses that
 // class for the list-view filter bar, so the rule would leak.
@@ -243,15 +243,19 @@
 // Triggered by the body class `compact-form-header` (toggled in
 // compact_header.js based on a per-browser preference).
 // ──────────────────────────────────────────────────────────────────
-body.compact-form-header[data-route^="Form/"] {
-	.layout-side-section {
-		display: none;
-	}
+body.compact-form-header[data-route^="Form/"] .layout-side-section.right,
+body.compact-form-header .editable-form .layout-side-section.right,
+body.compact-form-header .submitted-form .layout-side-section.right,
+body.compact-form-header .cancelled-form .layout-side-section.right {
+	display: none !important;
+}
 
-	.layout-main.layout-two-column .layout-main-section-wrapper {
-		flex: 1 1 100%;
-		max-width: 100%;
-	}
+body.compact-form-header[data-route^="Form/"] .layout-main.layout-two-column .layout-main-section-wrapper,
+body.compact-form-header .editable-form .layout-main.layout-two-column .layout-main-section-wrapper,
+body.compact-form-header .submitted-form .layout-main.layout-two-column .layout-main-section-wrapper,
+body.compact-form-header .cancelled-form .layout-main.layout-two-column .layout-main-section-wrapper {
+	flex: 1 1 100%;
+	max-width: 100%;
 }
 
 // ──────────────────────────────────────────────────────────────────
