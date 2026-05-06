@@ -12,15 +12,14 @@
 //// .standard-actions are hidden when these are visible.
 ////////////////////////////////////////////////////////////////////////
 
-.layout-main-section-wrapper {
-	// We anchor the floating arrows here. Make sure the wrapper is the
-	// positioning context (Frappe sets it `position: relative` already
-	// in form layouts, but we re-affirm to be safe.)
-	position: relative;
-}
+// `position: fixed` keeps the arrows pinned to the viewport — like a
+// Netflix/Amazon carousel — so they stay reachable however far the
+// user scrolls down a long form. The arrows are appended into
+// .layout-main-section-wrapper but their visual placement is
+// viewport-relative.
 
 .form-floating-nav {
-	position: absolute;
+	position: fixed;
 	top: 50%;
 	transform: translateY(-50%);
 	width: 36px;
@@ -37,10 +36,10 @@
 	transition: transform 0.18s ease, box-shadow 0.18s ease,
 		color 0.12s ease, opacity 0.18s ease;
 	z-index: 5;
-	opacity: 0.78;
+	opacity: 0.55;
 
 	&:hover {
-		transform: translateY(-50%) scale(1.06);
+		transform: translateY(-50%) scale(1.08);
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.10);
 		color: var(--text-color);
 		opacity: 1;
@@ -56,23 +55,25 @@
 	}
 }
 
+// Anchor against the viewport edge but indent past the left module
+// rail (≈48px wide in Frappe v15) so the previous arrow doesn't sit
+// on top of the navigation icons.
 .form-floating-nav-prev {
-	left: -52px; // sit just outside the form card
+	left: 56px;
 }
 
 .form-floating-nav-next {
-	right: -52px;
+	right: 16px;
 }
 
-// On narrow screens (no room outside the card) tuck the arrows inside
-// the form padding so they remain reachable without overflow scroll.
+// Tablet: tighter to the form edge, still readable.
 @media (max-width: 1279px) {
 	.form-floating-nav-prev {
-		left: 8px;
+		left: 12px;
 	}
 
 	.form-floating-nav-next {
-		right: 8px;
+		right: 12px;
 	}
 }
 
