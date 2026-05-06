@@ -1,9 +1,22 @@
-// Compact form header cluster injected into .page-actions of every
-// DocType form. The .form-meta-cluster element is only created by
-// frappe.ui.form.Sidebar.make() so it naturally cannot appear on
-// list, workspace, print or report views — no ancestor scoping needed.
-// (For Phase 3, the right sidebar masking will use .page-form scoping
-// because that's where the form fields live.)
+////////////////////////////////////////////////////////////////////////
+//// Neoffice ▼▼▼ form-header-compact (NEW FILE — entire stylesheet)
+////
+//// Patch: Form Header Compact (Neoffice fork on bvisible/frappe v15)
+//// Status: Phase 2 — gallery + avatars + chips + follow/share styles
+//// Spec : Obsidian → Neoffice/Form-Header-Compact/00-README.md
+////
+//// Compact form header cluster injected into .page-actions of every
+//// DocType form. The .form-meta-cluster element is only created by
+//// frappe.ui.form.Sidebar.make() so it naturally cannot appear on
+//// list, workspace, print or report views — no ancestor scoping
+//// needed. (Phase 3 will add a body-class-scoped block to mask the
+//// native sidebar with `.page-form .layout-side-section`.)
+////
+//// Maintenance contract: this stylesheet uses Frappe CSS variables
+//// (--card-bg, --border-color, --text-muted, --primary, etc.) and
+//// stays consumable by light + dark themes. Don't hard-code colours
+//// outside the type-tile palette block.
+////////////////////////////////////////////////////////////////////////
 
 .page-actions .form-meta-cluster {
 	display: inline-flex;
@@ -222,3 +235,6 @@
 		&.gen  { background: rgba(107, 114, 128, 0.22); color: #D1D5DB; }
 	}
 }
+
+//// Neoffice ▲▲▲ form-header-compact (END OF NEOFFICE STYLESHEET)
+////////////////////////////////////////////////////////////////////////

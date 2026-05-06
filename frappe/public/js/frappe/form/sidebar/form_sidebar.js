@@ -4,7 +4,9 @@ import "./share";
 import "./document_follow";
 import "./user_image";
 import "./form_sidebar_users";
+//// Neoffice ▼▼▼ form-header-compact: pull the compact header bundle
 import "./compact_header";
+//// Neoffice ▲▲▲ form-header-compact
 import { get_user_link, get_user_message } from "../footer/version_timeline_content_builder";
 
 frappe.ui.form.Sidebar = class {
@@ -36,18 +38,25 @@ frappe.ui.form.Sidebar = class {
 		this.show_auto_repeat_status();
 		frappe.ui.form.setup_user_image_event(this.frm);
 
+		//// Neoffice ▼▼▼ form-header-compact: spin up the .page-actions cluster
 		// Compact header cluster lives in .page-actions, alongside the
-		// classic sidebar. Phase 1 renders an attachment gallery only.
+		// classic sidebar. Phase 1 renders an attachment gallery only;
+		// Phase 2 ships the full meta cluster (avatars, chips, follow,
+		// share). Phase 3 will introduce the toggle that hides the
+		// native sidebar entirely.
 		this.make_compact_header();
+		//// Neoffice ▲▲▲ form-header-compact
 
 		this.refresh();
 	}
 
+	//// Neoffice ▼▼▼ form-header-compact: helper invoked from make()
 	make_compact_header() {
 		this.compact_header = new frappe.ui.form.CompactHeader({
 			frm: this.frm,
 		});
 	}
+	//// Neoffice ▲▲▲ form-header-compact
 
 	setup_keyboard_shortcuts() {
 		// add assignment shortcut
@@ -72,7 +81,9 @@ frappe.ui.form.Sidebar = class {
 			this.refresh_creation_modified();
 			frappe.ui.form.set_user_image(this.frm);
 		}
+		//// Neoffice ▼▼▼ form-header-compact: keep the cluster in sync
 		this.compact_header && this.compact_header.refresh();
+		//// Neoffice ▲▲▲ form-header-compact
 	}
 
 	refresh_web_view_count() {

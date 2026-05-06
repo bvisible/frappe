@@ -1,12 +1,26 @@
+////////////////////////////////////////////////////////////////////////
+//// Neoffice ▼▼▼ form-header-compact (NEW FILE — entire module)
+////
+//// Patch: Form Header Compact (Neoffice fork on bvisible/frappe v15)
+//// Status: Phase 2 — full meta cluster (avatars, chips, follow, share)
+//// Spec : Obsidian → Neoffice/Form-Header-Compact/00-README.md
+////
+//// Form Compact Header — meta cluster injected into .page-actions of
+//// any DocType form. Layout:
+////   [gallery] | [avatars] | 📎 N · 💬 N · 🏷 N | ♥ Follow · ↗ Share
+//// The native right sidebar stays visible — Phase 3 introduces the
+//// toggle that hides it. The .form-meta-cluster element is only ever
+//// created by frappe.ui.form.Sidebar.make() (see form_sidebar.js)
+//// so the class name itself is enough to scope its styles.
+////
+//// On a Frappe upstream upgrade: keep this file as-is, only adapt
+//// references to frm.page / get_docinfo() / frappe.avatar_group if
+//// upstream renames them. Maintenance contract: this module only
+//// READS frm state, the only mutating call is update_follow.
+////////////////////////////////////////////////////////////////////////
+
 // Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and Contributors
 // MIT License. See license.txt
-//
-// Form Compact Header — meta cluster injected into .page-actions of any
-// DocType form. Phase 2 ships the full cluster:
-//   [gallery]  |  [avatars]  |  📎 N · 💬 N · 🏷 N  |  ♥ Suivre · ↗ Share
-// The native right sidebar stays visible — Phase 3 introduces the toggle
-// that hides it. The cluster is only created by Sidebar.make() so the
-// .form-meta-cluster class itself is enough to scope its styles.
 
 frappe.ui.form.FILE_TYPE_MAP = {
 	// Images render as real thumbnails
@@ -390,3 +404,6 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 		}
 	}
 };
+
+//// Neoffice ▲▲▲ form-header-compact (END OF NEOFFICE MODULE)
+////////////////////////////////////////////////////////////////////////
