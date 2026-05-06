@@ -23,7 +23,12 @@
 	align-items: center;
 	height: 32px;
 	padding: 0 10px 0 4px;
-	margin-right: var(--margin-sm);
+	// `margin-left: auto` pushes the cluster (and every action after it)
+	// flush against the right edge of .page-actions. Without this Frappe
+	// leaves the cluster where we prepended it (visually mid-page) while
+	// .custom-actions floats right on its own — leaving an awkward gap.
+	margin-left: auto;
+	margin-right: 6px;
 	background: var(--card-bg);
 	border: 1px solid var(--border-color);
 	border-radius: var(--border-radius-md);

@@ -85,15 +85,15 @@
 	}
 }
 
-// When the compact form header mode is on, also hide the legacy chevron
-// buttons that Frappe injects in .standard-actions — they'd be redundant.
-body.compact-form-header {
-	.standard-actions [data-action="prev-doc"],
-	.standard-actions [data-action="next-doc"],
-	.standard-actions a[title="Previous Document"],
-	.standard-actions a[title="Next Document"] {
-		display: none !important;
-	}
+// Always hide the legacy chevron buttons that Frappe puts in
+// .page-icon-group inside .standard-actions — they're now replaced
+// by the floating side carousel arrows. Targeting the canonical
+// .prev-doc / .next-doc classes added by toolbar.js make_navigation().
+.page-actions .prev-doc,
+.page-actions .next-doc,
+.page-icon-group .prev-doc,
+.page-icon-group .next-doc {
+	display: none !important;
 }
 
 //// Neoffice ▲▲▲ floating-nav-arrows (END OF NEOFFICE STYLESHEET)
