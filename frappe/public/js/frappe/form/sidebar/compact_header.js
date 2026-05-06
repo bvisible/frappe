@@ -136,9 +136,20 @@ if (typeof frappe.after_ajax === "function") {
 frappe.ui.form.CompactHeader = class CompactHeader {
 	constructor(opts) {
 		Object.assign(this, opts);
-		this.max_visible = 4;
 		this.max_avatars = 3;
+		// max_visible is computed dynamically by get_max_visible(); we
+		// keep a sensible default for the very first render.
+		this.max_visible = this.get_max_visible();
 		this.make();
+	}
+
+	// Adapt the gallery to the viewport: 4 thumbs on desktop, 3 on
+	// tablet (1024–1279px) where the buttons row gets cramped. The
+	// SCSS already hides the cluster entirely under 768px.
+	get_max_visible() {
+		const w = window.innerWidth || document.documentElement.clientWidth || 1440;
+		if (w < 1280) return 3;
+		return 4;
 	}
 
 	make() {
@@ -183,7 +194,26 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 		$page_actions.prepend(this.$wrapper);
 
 		this.bind_events();
+		this.bind_resize_handler();
 		this.refresh();
+	}
+
+	// Re-render the gallery when the viewport crosses the tablet
+	// breakpoint so we drop / add a thumbnail on the fly. Debounced
+	// to keep resize cheap on dragging windows.
+	bind_resize_handler() {
+		let timer = null;
+		this._resize_handler = () => {
+			clearTimeout(timer);
+			timer = setTimeout(() => {
+				const next = this.get_max_visible();
+				if (next !== this.max_visible) {
+					this.max_visible = next;
+					this.render_gallery(this.get_attachments());
+				}
+			}, 150);
+		};
+		window.addEventListener("resize", this._resize_handler);
 	}
 
 	bind_events() {
@@ -307,13 +337,117 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 	}
 
 	show_all_attachments() {
-		// Phase 1/2: redirect to File list filtered on this document.
-		// Phase 4 will replace this with an in-page modal.
-		frappe.open_in_new_tab = true;
-		frappe.set_route("List", "File", {
-			attached_to_doctype: this.frm.doctype,
-			attached_to_name: this.frm.docname,
+		// Reuse the existing modal if it's still open — Frappe dialogs are
+		// expensive to instantiate and the DOM stays cached.
+		if (this.attachments_dialog) {
+			this.attachments_dialog.show();
+			this.refresh_attachments_dialog();
+			return;
+		}
+
+		const me = this;
+		this.attachments_dialog = new frappe.ui.Dialog({
+			title: __("Attachments"),
+			size: "large",
+			fields: [{ fieldtype: "HTML", fieldname: "list" }],
+			secondary_action_label: __("Open File List"),
+			secondary_action() {
+				frappe.set_route("List", "File", {
+					attached_to_doctype: me.frm.doctype,
+					attached_to_name: me.frm.docname,
+				});
+			},
 		});
+
+		this.refresh_attachments_dialog();
+		this.attachments_dialog.show();
+	}
+
+	refresh_attachments_dialog() {
+		if (!this.attachments_dialog) return;
+		const attachments = this.get_attachments();
+		const $body = this.attachments_dialog
+			.get_field("list")
+			.$wrapper.empty()
+			.addClass("compact-attachments-modal");
+		this.attachments_dialog.set_title(
+			__("Attachments ({0})", [attachments.length])
+		);
+
+		if (!attachments.length) {
+			$body.append(
+				`<div class="text-muted text-center" style="padding:40px 0;">
+					${__("No attachments yet")}
+				</div>`
+			);
+			return;
+		}
+
+		const $list = $('<div class="att-modal-list"></div>').appendTo($body);
+		attachments.forEach((att) => $list.append(this.make_modal_row(att)));
+	}
+
+	make_modal_row(att) {
+		const file_url = this.get_file_url(att);
+		const safe_name = frappe.utils.escape_html(att.file_name || "");
+		const type_label = att.type_def.label || att.extension.toUpperCase() || __("File");
+		const $row = $(`
+			<div class="att-modal-row" data-fileid="${frappe.utils.escape_html(att.name)}">
+				<div class="att-modal-thumb"></div>
+				<div class="att-modal-meta">
+					<a class="att-modal-name" href="${file_url}" target="_blank" rel="noopener">${safe_name}</a>
+					<div class="att-modal-sub">
+						<span class="badge att-badge ${att.type_def.cls || "gen"}">${frappe.utils.escape_html(
+			type_label
+		)}</span>
+						${att.is_private ? `<span class="att-private">🔒 ${__("Private")}</span>` : ""}
+					</div>
+				</div>
+				<div class="att-modal-actions">
+					<a class="btn btn-default btn-xs" href="${file_url}" download
+						title="${__("Download")}">⤓</a>
+					<button class="btn btn-default btn-xs att-modal-delete"
+						title="${__("Delete attachment")}">×</button>
+				</div>
+			</div>
+		`);
+
+		// Thumbnail (image) or coloured tile (other types)
+		const $thumb = $row.find(".att-modal-thumb");
+		if (att.type_def.kind === "image") {
+			$thumb.append(`<img src="${file_url}" alt="" class="att-modal-img"/>`);
+		} else {
+			$thumb.append(`
+				<div class="att-file ${att.type_def.cls || "gen"}" style="width:48px;height:48px;border-radius:8px;">
+					<span class="ext" style="font-size:11px;">${frappe.utils.escape_html(type_label)}</span>
+				</div>
+			`);
+		}
+
+		// Click on the thumb opens preview (PDF native or new tab)
+		$thumb.css("cursor", "pointer").on("click", () => this.handle_thumb_click(att));
+
+		// Delete with confirm — defers to native frm.attachments.remove_attachment
+		const can_delete =
+			this.frm.attachments &&
+			typeof this.frm.attachments.can_delete_attachment === "function"
+				? this.frm.attachments.can_delete_attachment()
+				: this.frm.has_perm && this.frm.has_perm("write");
+
+		if (!can_delete) {
+			$row.find(".att-modal-delete").prop("disabled", true).attr("title", __("No permission"));
+		} else {
+			$row.find(".att-modal-delete").on("click", () => {
+				frappe.confirm(__("Are you sure you want to delete the attachment?"), () => {
+					this.frm.attachments.remove_attachment(att.name, () => {
+						this.refresh_attachments_dialog();
+						this.refresh();
+					});
+				});
+			});
+		}
+
+		return $row;
 	}
 
 	get_file_url(att) {
