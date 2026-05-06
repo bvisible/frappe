@@ -348,19 +348,26 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 	// ---- Follow ------------------------------------------------------
 
 	render_follow_state() {
-		const docinfo = this.frm.get_docinfo() || {};
-		const following = !!docinfo.is_document_followed;
 		const $btn = this.$wrapper.find(".meta-follow");
+		// On the very first render, seed the local state from docinfo.
+		// Subsequent renders trust `this.is_following` so the toggle stays
+		// authoritative even when reload_docinfo() refreshes other fields.
+		if (typeof this.is_following === "undefined") {
+			const docinfo = this.frm.get_docinfo() || {};
+			this.is_following = !!docinfo.is_document_followed;
+		}
 		const ic = frappe.ui.form.COMPACT_ICONS;
-		$btn.toggleClass("active", following);
-		$btn.attr("title", following ? __("Unfollow") : __("Follow"));
-		$btn.find("svg").replaceWith(following ? ic.heart_filled : ic.heart);
-		$btn.find(".label").text(following ? __("Following") : __("Follow"));
+		$btn.toggleClass("active", this.is_following);
+		$btn.attr("title", this.is_following ? __("Unfollow") : __("Follow"));
+		$btn.find("svg").replaceWith(this.is_following ? ic.heart_filled : ic.heart);
+		$btn.find(".label").text(this.is_following ? __("Following") : __("Follow"));
 	}
 
 	toggle_follow() {
-		const docinfo = this.frm.get_docinfo() || {};
-		const want_follow = !docinfo.is_document_followed;
+		const want_follow = !this.is_following;
+		// Optimistic update — the click feels instant; we revert on server error.
+		this.is_following = want_follow;
+		this.render_follow_state();
 		frappe.call({
 			method: "frappe.desk.form.document_follow.update_follow",
 			args: {
@@ -368,12 +375,9 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 				doc_name: this.frm.docname,
 				following: want_follow ? 1 : 0,
 			},
-			callback: () => {
-				docinfo.is_document_followed = want_follow;
+			error: () => {
+				this.is_following = !want_follow;
 				this.render_follow_state();
-				if (this.frm.sidebar && this.frm.sidebar.reload_docinfo) {
-					this.frm.sidebar.reload_docinfo();
-				}
 			},
 		});
 	}
