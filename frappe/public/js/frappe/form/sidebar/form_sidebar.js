@@ -7,6 +7,9 @@ import "./form_sidebar_users";
 //// Neoffice ▼▼▼ form-header-compact: pull the compact header bundle
 import "./compact_header";
 //// Neoffice ▲▲▲ form-header-compact
+//// Neoffice ▼▼▼ floating-nav-arrows: pull the floating navigation arrows
+import "./floating_nav_arrows";
+//// Neoffice ▲▲▲ floating-nav-arrows
 import { get_user_link, get_user_message } from "../footer/version_timeline_content_builder";
 
 frappe.ui.form.Sidebar = class {
@@ -42,10 +45,14 @@ frappe.ui.form.Sidebar = class {
 		// Compact header cluster lives in .page-actions, alongside the
 		// classic sidebar. Phase 1 renders an attachment gallery only;
 		// Phase 2 ships the full meta cluster (avatars, chips, follow,
-		// share). Phase 3 will introduce the toggle that hides the
-		// native sidebar entirely.
+		// share). Phase 3 introduces the toggle that hides the native
+		// sidebar entirely. Phase 4 brings the modal + responsive.
 		this.make_compact_header();
 		//// Neoffice ▲▲▲ form-header-compact
+
+		//// Neoffice ▼▼▼ floating-nav-arrows: side carousel arrows
+		this.make_floating_nav_arrows();
+		//// Neoffice ▲▲▲ floating-nav-arrows
 
 		this.refresh();
 	}
@@ -57,6 +64,14 @@ frappe.ui.form.Sidebar = class {
 		});
 	}
 	//// Neoffice ▲▲▲ form-header-compact
+
+	//// Neoffice ▼▼▼ floating-nav-arrows: spawn the side carousel arrows
+	make_floating_nav_arrows() {
+		this.floating_nav_arrows = new frappe.ui.form.FloatingNavArrows({
+			frm: this.frm,
+		});
+	}
+	//// Neoffice ▲▲▲ floating-nav-arrows
 
 	setup_keyboard_shortcuts() {
 		// add assignment shortcut
@@ -84,6 +99,9 @@ frappe.ui.form.Sidebar = class {
 		//// Neoffice ▼▼▼ form-header-compact: keep the cluster in sync
 		this.compact_header && this.compact_header.refresh();
 		//// Neoffice ▲▲▲ form-header-compact
+		//// Neoffice ▼▼▼ floating-nav-arrows: refresh visibility
+		this.floating_nav_arrows && this.floating_nav_arrows.refresh();
+		//// Neoffice ▲▲▲ floating-nav-arrows
 	}
 
 	refresh_web_view_count() {
