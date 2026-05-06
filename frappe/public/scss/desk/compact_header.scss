@@ -9,14 +9,93 @@
 	display: inline-flex;
 	align-items: center;
 	height: 32px;
-	padding: 0 6px 0 4px;
+	padding: 0 10px 0 4px;
 	margin-right: var(--margin-sm);
 	background: var(--card-bg);
 	border: 1px solid var(--border-color);
 	border-radius: var(--border-radius-md);
 	font-size: var(--text-sm);
 	color: var(--text-muted);
-	gap: 8px;
+	gap: 10px;
+
+	// Vertical separators between cluster sections
+	.meta-divider {
+		width: 1px;
+		height: 14px;
+		background: var(--border-color);
+		flex-shrink: 0;
+	}
+
+	// Avatar stack (assignees)
+	.meta-avatars {
+		display: inline-flex;
+		align-items: center;
+
+		.avatar {
+			width: 22px;
+			height: 22px;
+			border: 2px solid var(--card-bg);
+			font-size: 10px;
+		}
+
+		.avatar + .avatar {
+			margin-left: -7px;
+		}
+	}
+
+	// Compact action chips (counts, follow, share)
+	.meta-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		padding: 0 2px;
+		background: transparent;
+		border: 0;
+		cursor: pointer;
+		color: var(--text-muted);
+		font-size: 12.5px;
+		line-height: 1;
+		white-space: nowrap;
+
+		&:hover {
+			color: var(--text-color);
+
+			svg {
+				color: var(--text-color);
+			}
+		}
+
+		&:focus-visible {
+			outline: 2px solid var(--primary);
+			outline-offset: 2px;
+			border-radius: 4px;
+		}
+
+		svg {
+			color: var(--text-muted);
+			flex-shrink: 0;
+		}
+
+		strong.count {
+			color: var(--text-color);
+			font-weight: 500;
+			font-variant-numeric: tabular-nums;
+		}
+
+		.label {
+			font-weight: 500;
+		}
+
+		// Follow / liked state — primary accent
+		&.meta-follow.active {
+			color: var(--primary);
+
+			svg {
+				color: var(--primary);
+				fill: var(--primary);
+			}
+		}
+	}
 
 	.meta-gallery {
 		display: inline-flex;
@@ -112,6 +191,13 @@
 			display: grid;
 			place-items: center;
 		}
+	}
+}
+
+// Drop labels (Follow / Following) under 1280px to keep the cluster compact
+@media (max-width: 1279px) {
+	.page-actions .form-meta-cluster .meta-chip .label {
+		display: none;
 	}
 }
 
