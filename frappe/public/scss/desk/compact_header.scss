@@ -227,11 +227,14 @@
 // Phase 3 — Compact mode: hide the native right sidebar entirely on
 // form pages and let the main section claim the full width.
 //
+// Always-on (no opt-in). The compact form header is the canonical
+// Neoffice form layout, so we drop the per-browser toggle entirely.
+//
 // Defensive form-only scope: we combine multiple anchors so the rule
 // holds regardless of docstatus, browser, or build flavour:
 //   • body[data-route^="Form/"]  → Form/Item/..., Form/Quotation/...
 //   • .editable-form             → docstatus 0 (draft)
-//   • .submitted-form            → docstatus 1 (submitted) ← Quotation
+//   • .submitted-form            → docstatus 1 (submitted)
 //   • .cancelled-form            → docstatus 2 (cancelled)
 // We further narrow the target to `.layout-side-section.right` because
 // Frappe uses the unmodified `.layout-side-section` on list views and
@@ -239,21 +242,18 @@
 //
 // IMPORTANT: do NOT scope to .page-form — Frappe also reuses that
 // class for the list-view filter bar, so the rule would leak.
-//
-// Triggered by the body class `compact-form-header` (toggled in
-// compact_header.js based on a per-browser preference).
 // ──────────────────────────────────────────────────────────────────
-body.compact-form-header[data-route^="Form/"] .layout-side-section.right,
-body.compact-form-header .editable-form .layout-side-section.right,
-body.compact-form-header .submitted-form .layout-side-section.right,
-body.compact-form-header .cancelled-form .layout-side-section.right {
+body[data-route^="Form/"] .layout-side-section.right,
+.editable-form .layout-side-section.right,
+.submitted-form .layout-side-section.right,
+.cancelled-form .layout-side-section.right {
 	display: none !important;
 }
 
-body.compact-form-header[data-route^="Form/"] .layout-main.layout-two-column .layout-main-section-wrapper,
-body.compact-form-header .editable-form .layout-main.layout-two-column .layout-main-section-wrapper,
-body.compact-form-header .submitted-form .layout-main.layout-two-column .layout-main-section-wrapper,
-body.compact-form-header .cancelled-form .layout-main.layout-two-column .layout-main-section-wrapper {
+body[data-route^="Form/"] .layout-main.layout-two-column .layout-main-section-wrapper,
+.editable-form .layout-main.layout-two-column .layout-main-section-wrapper,
+.submitted-form .layout-main.layout-two-column .layout-main-section-wrapper,
+.cancelled-form .layout-main.layout-two-column .layout-main-section-wrapper {
 	flex: 1 1 100%;
 	max-width: 100%;
 }
