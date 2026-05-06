@@ -59,7 +59,12 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 	}
 
 	make() {
-		const $page_actions = this.frm.page.$wrapper.find(".page-actions").first();
+		// frm.page exposes `wrapper` (raw DOM) and `page_actions` (jQuery)
+		// but `frm.$wrapper` is the most reliable jQuery handle on the page.
+		const $page_actions =
+			(this.frm.page && this.frm.page.page_actions) ||
+			(this.frm.$wrapper && this.frm.$wrapper.find(".page-actions").first()) ||
+			$();
 		if (!$page_actions.length) return;
 
 		// Idempotent: remove any existing cluster from a previous render
