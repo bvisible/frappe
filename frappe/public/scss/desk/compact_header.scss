@@ -1,0 +1,137 @@
+// Compact form header cluster injected into .page-actions
+// Phase 1: gallery of typed attachment thumbnails.
+// Scoped strictly to .page-form so it never appears on list/workspace/print.
+
+.page-form {
+	.page-actions .form-meta-cluster {
+		display: inline-flex;
+		align-items: center;
+		height: 32px;
+		padding: 0 6px 0 4px;
+		margin-right: var(--margin-sm);
+		background: var(--card-bg);
+		border: 1px solid var(--border-color);
+		border-radius: var(--border-radius-md);
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		gap: 8px;
+
+		.meta-gallery {
+			display: inline-flex;
+			align-items: center;
+
+			.att {
+				margin-left: -8px;
+				transition: transform 0.15s ease;
+				position: relative;
+				background: transparent;
+				border: 0;
+				padding: 0;
+				cursor: pointer;
+				line-height: 0;
+
+				&:first-child {
+					margin-left: 0;
+				}
+
+				&:hover {
+					transform: translateY(-2px);
+					z-index: 5;
+				}
+
+				&:focus-visible {
+					outline: 2px solid var(--primary);
+					outline-offset: 2px;
+					border-radius: 6px;
+				}
+			}
+
+			.att-thumb {
+				width: 32px;
+				height: 32px;
+				border-radius: 6px;
+				border: 2px solid var(--card-bg);
+				object-fit: cover;
+				display: block;
+				background: var(--bg-light-gray);
+			}
+
+			.att-file {
+				width: 32px;
+				height: 32px;
+				border-radius: 6px;
+				border: 2px solid var(--card-bg);
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				gap: 1px;
+				padding: 2px;
+				font-weight: 600;
+				overflow: hidden;
+				line-height: 1;
+
+				.ext {
+					font-size: 8px;
+					letter-spacing: 0.02em;
+					text-transform: uppercase;
+					opacity: 0.85;
+				}
+
+				.name {
+					font-size: 6.5px;
+					letter-spacing: -0.02em;
+					max-width: 100%;
+					overflow: hidden;
+					text-overflow: ellipsis;
+					white-space: nowrap;
+					opacity: 0.9;
+				}
+
+				// Type-specific colour palettes (light + dark friendly)
+				&.pdf  { background: #FEE2E2; color: #B91C1C; }
+				&.xls  { background: #D1FAE5; color: #047857; }
+				&.doc  { background: #DBEAFE; color: #1D4ED8; }
+				&.zip  { background: #FEF3C7; color: #B45309; }
+				&.ppt  { background: #FED7AA; color: #C2410C; }
+				&.code { background: #EDE9FE; color: #6D28D9; }
+				&.gen  { background: #E5E7EB; color: #4B5563; }
+			}
+
+			.att-more {
+				width: 32px;
+				height: 32px;
+				border-radius: 6px;
+				border: 2px solid var(--card-bg);
+				background: var(--bg-light-gray);
+				color: var(--text-muted);
+				font-size: 11px;
+				font-weight: 600;
+				display: grid;
+				place-items: center;
+			}
+		}
+	}
+
+	// Hide on small screens — sidebar overlay handles attachments natively
+	@media (max-width: 767px) {
+		.page-actions .form-meta-cluster {
+			display: none;
+		}
+	}
+}
+
+// Dark theme adjustments — desaturate the type tiles a touch so they read
+// as muted but still distinct against a dark card background.
+[data-theme="dark"],
+.dark {
+	.page-form .form-meta-cluster .att-file {
+		&.pdf  { background: rgba(220, 38, 38, 0.18);  color: #FCA5A5; }
+		&.xls  { background: rgba(16, 185, 129, 0.18); color: #6EE7B7; }
+		&.doc  { background: rgba(37, 99, 235, 0.18);  color: #93C5FD; }
+		&.zip  { background: rgba(217, 119, 6, 0.18);  color: #FCD34D; }
+		&.ppt  { background: rgba(234, 88, 12, 0.18);  color: #FDBA74; }
+		&.code { background: rgba(124, 58, 237, 0.18); color: #C4B5FD; }
+		&.gen  { background: rgba(107, 114, 128, 0.22); color: #D1D5DB; }
+	}
+}

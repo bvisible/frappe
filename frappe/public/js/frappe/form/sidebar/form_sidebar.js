@@ -4,6 +4,7 @@ import "./share";
 import "./document_follow";
 import "./user_image";
 import "./form_sidebar_users";
+import "./compact_header";
 import { get_user_link, get_user_message } from "../footer/version_timeline_content_builder";
 
 frappe.ui.form.Sidebar = class {
@@ -35,7 +36,17 @@ frappe.ui.form.Sidebar = class {
 		this.show_auto_repeat_status();
 		frappe.ui.form.setup_user_image_event(this.frm);
 
+		// Compact header cluster lives in .page-actions, alongside the
+		// classic sidebar. Phase 1 renders an attachment gallery only.
+		this.make_compact_header();
+
 		this.refresh();
+	}
+
+	make_compact_header() {
+		this.compact_header = new frappe.ui.form.CompactHeader({
+			frm: this.frm,
+		});
 	}
 
 	setup_keyboard_shortcuts() {
@@ -61,6 +72,7 @@ frappe.ui.form.Sidebar = class {
 			this.refresh_creation_modified();
 			frappe.ui.form.set_user_image(this.frm);
 		}
+		this.compact_header && this.compact_header.refresh();
 	}
 
 	refresh_web_view_count() {
