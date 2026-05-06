@@ -84,6 +84,55 @@ frappe.ui.form.COMPACT_ICONS = {
 		'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.5 10.5 7-4M8.5 13.5l7 4"/></svg>',
 };
 
+// ──────────────────────────────────────────────────────────────────
+// Phase 3 — Compact-mode toggle (per-browser, persisted in localStorage).
+// `frappe.compact_form_header.is_enabled()` returns the current state,
+// `frappe.compact_form_header.set(bool)` flips it and updates the body
+// class live (no reload). When the class is present on <body>, the
+// scoped CSS in compact_header.scss hides the native right sidebar
+// on .page-form pages and lets the main section take 100% width.
+// Real System / User Settings will land in Phase 3.5; for now this
+// keeps iteration fast and keeps the patch contained to JS + CSS.
+// ──────────────────────────────────────────────────────────────────
+frappe.compact_form_header = {
+	STORAGE_KEY: "compact_form_header",
+	BODY_CLASS: "compact-form-header",
+
+	is_enabled() {
+		try {
+			return localStorage.getItem(this.STORAGE_KEY) === "1";
+		} catch (e) {
+			return false;
+		}
+	},
+
+	apply() {
+		document.body.classList.toggle(this.BODY_CLASS, this.is_enabled());
+	},
+
+	set(enabled) {
+		try {
+			localStorage.setItem(this.STORAGE_KEY, enabled ? "1" : "0");
+		} catch (e) {
+			// localStorage may be blocked (private mode); fall back to
+			// in-memory only for this session.
+		}
+		document.body.classList.toggle(this.BODY_CLASS, !!enabled);
+	},
+
+	toggle() {
+		this.set(!this.is_enabled());
+		return this.is_enabled();
+	},
+};
+
+// Apply the saved preference as soon as the body exists, then re-apply
+// after `frappe.ready` to win against any boot-time class scrubbing.
+$(() => frappe.compact_form_header.apply());
+if (typeof frappe.after_ajax === "function") {
+	frappe.after_ajax(() => frappe.compact_form_header.apply());
+}
+
 frappe.ui.form.CompactHeader = class CompactHeader {
 	constructor(opts) {
 		Object.assign(this, opts);

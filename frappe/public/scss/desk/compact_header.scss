@@ -207,6 +207,26 @@
 	}
 }
 
+// ──────────────────────────────────────────────────────────────────
+// Phase 3 — Compact mode: hide the native right sidebar entirely on
+// form pages and let the main section claim the full width. Strictly
+// scoped to .page-form so list / workspace / print / report sidebars
+// remain untouched. Triggered by the body class `compact-form-header`
+// (toggled in compact_header.js based on a per-browser preference).
+// ──────────────────────────────────────────────────────────────────
+body.compact-form-header {
+	.page-form {
+		.layout-side-section {
+			display: none;
+		}
+
+		.layout-main.layout-two-column .layout-main-section-wrapper {
+			flex: 1 1 100%;
+			max-width: 100%;
+		}
+	}
+}
+
 // Drop labels (Follow / Following) under 1280px to keep the cluster compact
 @media (max-width: 1279px) {
 	.page-actions .form-meta-cluster .meta-chip .label {
