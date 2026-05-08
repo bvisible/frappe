@@ -924,6 +924,41 @@
 }
 
 // ---------------------------------------------------------------------------
+// 4b. Clean up inline edit controls.
+//     Frappe used to scope .form-control border styles to .editable-row but
+//     that class isn't applied anymore in v15 (rows are always editable),
+//     so every cell input shows a 1px border + 8px radius + bg, looking
+//     like a row of buttons. Make the input borderless by default and only
+//     reveal a clear focus state on the active cell.
+// ---------------------------------------------------------------------------
+
+.grid-body .grid-row .grid-static-col {
+	.form-control,
+	.ql-editor,
+	textarea,
+	.frappe-control input,
+	.like-disabled-input {
+		border: 1px solid transparent !important;
+		border-radius: 4px !important;
+		background-color: transparent !important;
+		box-shadow: none !important;
+		height: auto !important;
+		min-height: 28px !important;
+		padding: 4px 8px !important;
+	}
+
+	.form-control:focus,
+	.ql-editor:focus,
+	textarea:focus,
+	.frappe-control input:focus {
+		border-color: var(--primary, #2490ef) !important;
+		background-color: var(--card-bg, var(--fg-color, #fff)) !important;
+		box-shadow: 0 0 0 1px var(--primary, #2490ef) !important;
+		outline: none !important;
+	}
+}
+
+// ---------------------------------------------------------------------------
 // 4. Make data columns grow proportionally to fill the row width.
 //    Bootstrap col-xs-N pins each cell to N×8.33% which leaves a big gap
 //    after the last data col on wide screens (now that the action col is
