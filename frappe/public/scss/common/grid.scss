@@ -949,3 +949,43 @@
 	max-width: none !important;
 	min-width: 0 !important;
 }
+
+// ---------------------------------------------------------------------------
+// 5. Fullscreen grid dialog — Phase 2.
+//    The "Toggle Full Width" button (grid.js#setup_fullwidth_toggle) now
+//    opens a 95vw × 95vh modal and DOM-transplants the form-grid into it
+//    so the user has room to see/edit a table with many rows and long
+//    descriptions. Style the modal here.
+// ---------------------------------------------------------------------------
+
+.grid-fullscreen-dialog {
+	.modal-dialog {
+		max-width: 95vw;
+		width: 95vw;
+		margin: 2.5vh auto;
+	}
+	.modal-content {
+		height: 95vh;
+		display: flex;
+		flex-direction: column;
+	}
+	.modal-body {
+		overflow: auto;
+		flex: 1 1 auto;
+		padding: 16px 24px;
+	}
+	// The grid-field moved inside the dialog should fill the body
+	.grid-field {
+		width: 100%;
+	}
+	// Allow descriptions to wrap on up to 5 lines in the dialog
+	// (vs 2 lines in the regular form view)
+	.grid-body .grid-row .grid-static-col[data-fieldname="description"] .static-area {
+		-webkit-line-clamp: 5;
+	}
+	// The grid body itself stays scrollable so the toolbar/footer stay pinned
+	.form-grid .grid-body {
+		max-height: calc(95vh - 220px);
+		overflow-y: auto;
+	}
+}

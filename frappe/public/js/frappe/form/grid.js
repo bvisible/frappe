@@ -152,58 +152,62 @@ export default class Grid {
 	}
 
 	setup_fullwidth_toggle() {
+		// Open the grid in a near-fullscreen dialog instead of expanding it
+		// inline. The DOM transplant approach moves the existing form-grid
+		// element into the dialog body — so the same Grid object, the same
+		// row instances, and all event bindings (calc, validation, pricing
+		// rules) keep working with no clone or sync.
 		const toggle_btn = this.wrapper.find(".grid-toggle-fullwidth");
-		const form_column = $(this.parent).closest(".form-column");
 		const grid_field = this.wrapper;
+		const me = this;
+
+		// Track the dialog + placeholder so we can restore the DOM cleanly.
+		let dialog = null;
+		let placeholder = null;
+
+		const restore_grid = () => {
+			if (placeholder && placeholder.parentNode) {
+				placeholder.parentNode.replaceChild(grid_field[0], placeholder);
+			}
+			placeholder = null;
+			toggle_btn.removeClass("btn-primary").addClass("btn-default");
+			// Recompute column widths in the original (narrower) container
+			me.refresh();
+		};
 
 		toggle_btn.on("click", () => {
-			const is_fullwidth = form_column.hasClass("grid-fullwidth");
-
-			if (is_fullwidth) {
-				// Restore padding and normal width
-				form_column.removeClass("grid-fullwidth");
-				form_column.css({
-					"padding-left": "",
-					"padding-right": "",
-				});
-				grid_field.css({
-					"margin-left": "",
-					"margin-right": "",
-					width: "",
-					"max-width": "",
-					"padding-left": "",
-					"padding-right": "",
-				});
-				toggle_btn.removeClass("btn-primary").addClass("btn-default");
-			} else {
-				// Remove padding and expand to full width of tab-content
-				form_column.addClass("grid-fullwidth");
-				form_column.css({
-					"padding-left": "0px",
-					"padding-right": "0px",
-				});
-
-				// Calculate the negative margin to break out of tab-pane but stay within tab-content
-				const tab_content = grid_field.closest(".form-tab-content");
-				const tab_content_left = tab_content.offset().left;
-				const tab_content_width = tab_content.outerWidth();
-				const grid_field_left = grid_field.offset().left;
-
-				// Calculate how much to extend on the left to align with tab-content
-				// Add 15px padding on each side
-				const left_offset = grid_field_left - tab_content_left - 15;
-
-				grid_field.css({
-					"margin-left": `-${left_offset}px`,
-					"margin-right": `-${left_offset}px`,
-					width: `${tab_content_width - 30}px`, // Subtract 30px for 15px padding on each side
-					"max-width": "none",
-					"padding-left": "15px",
-					"padding-right": "15px",
-				});
-
-				toggle_btn.removeClass("btn-default").addClass("btn-primary");
+			if (dialog && dialog.display) {
+				dialog.hide();
+				return;
 			}
+
+			dialog = new frappe.ui.Dialog({
+				title: __(me.df.label || "Items"),
+				// `extra-large` is the Frappe size we override to 95vw via CSS
+				size: "extra-large",
+				on_hide: () => {
+					restore_grid();
+					dialog = null;
+				},
+			});
+
+			// Custom class so we can apply 95vw / 95vh + bigger description
+			dialog.$wrapper.addClass("grid-fullscreen-dialog");
+
+			// Mount the dialog so dialog.body is in the DOM
+			dialog.show();
+
+			// Drop a placeholder where the grid currently lives, then
+			// detach (preserves events and data) and append into the dialog
+			placeholder = document.createComment(" grid-fullscreen-placeholder ");
+			grid_field[0].parentNode.insertBefore(placeholder, grid_field[0]);
+			grid_field.detach().appendTo(dialog.body);
+
+			toggle_btn.removeClass("btn-default").addClass("btn-primary");
+
+			// Recompute column widths for the new (much wider) container
+			// after the dialog has finished its show animation
+			setTimeout(() => me.refresh(), 50);
 		});
 	}
 	set_grid_description() {
