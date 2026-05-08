@@ -1038,6 +1038,22 @@
 		display: block;
 		white-space: normal;
 		word-break: break-word;
+		overflow: visible;
+	}
+
+	// Let the rows grow vertically to fit the tallest cell (e.g. a long
+	// description). Default Frappe pins .grid-static-col to height: 38px;
+	// override to auto so cell + row expand naturally.
+	.grid-body .grid-row {
+		min-height: 38px;
+	}
+	.grid-body .grid-row .grid-static-col {
+		height: auto !important;
+		max-height: none !important;
+		min-height: 38px;
+	}
+	.grid-body .grid-row .data-row.row {
+		align-items: stretch;
 	}
 
 	// Keep the footer (Add Row / Delete / pagination) pinned at the bottom
