@@ -276,6 +276,9 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 
 		if (att.type_def.kind === "image") {
 			$btn.append(`<img class="att-thumb" src="${file_url}" alt=""/>`);
+			// On hover, surface a larger preview popover so the thumb
+			// stays compact in the cluster but the user can read it.
+			this.bind_image_hover_preview($btn, att);
 		} else {
 			const short = frappe.utils.escape_html(this.short_name(att.file_name));
 			const cls = att.type_def.cls || "gen";
@@ -291,6 +294,41 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 
 		$btn.on("click", () => this.handle_thumb_click(att));
 		return $btn;
+	}
+
+	bind_image_hover_preview($btn, att) {
+		const file_url = this.get_file_url(att);
+		let $preview = null;
+		let timer = null;
+
+		$btn.on("mouseenter.compact", () => {
+			clearTimeout(timer);
+			timer = setTimeout(() => {
+				if ($preview) return;
+				$preview = $(`
+					<div class="att-hover-preview">
+						<img src="${file_url}" alt=""/>
+						<div class="att-hover-name">${frappe.utils.escape_html(att.file_name || "")}</div>
+					</div>
+				`);
+				$("body").append($preview);
+				const r = $btn[0].getBoundingClientRect();
+				const previewW = $preview.outerWidth();
+				// Anchor below the thumb, horizontally centered, but keep
+				// the preview inside the viewport on narrow screens.
+				let left = r.left + r.width / 2 - previewW / 2;
+				left = Math.max(8, Math.min(left, window.innerWidth - previewW - 8));
+				$preview.css({ top: r.bottom + 8 + "px", left: left + "px" });
+			}, 220); // small delay avoids flicker on quick mouse passes
+		});
+
+		$btn.on("mouseleave.compact", () => {
+			clearTimeout(timer);
+			if ($preview) {
+				$preview.remove();
+				$preview = null;
+			}
+		});
 	}
 
 	make_more_button(hidden_count, total) {
@@ -311,7 +349,42 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 			frappe.preview_pdf(file_url);
 			return;
 		}
+		// Image — open inline lightbox so the user reads it in place
+		// rather than getting yanked to a new browser tab.
+		if (att.type_def && att.type_def.kind === "image") {
+			this.show_image_lightbox(att);
+			return;
+		}
 		window.open(file_url, "_blank", "noopener");
+	}
+
+	show_image_lightbox(att) {
+		const file_url = this.get_file_url(att);
+		const safe_name = frappe.utils.escape_html(att.file_name || "");
+		const $lightbox = $(`
+			<div class="att-lightbox-bg" role="dialog" aria-modal="true">
+				<button class="att-lightbox-close" type="button" aria-label="${__(
+					"Close"
+				)}">×</button>
+				<figure class="att-lightbox-figure">
+					<img src="${file_url}" alt=""/>
+					<figcaption>${safe_name}</figcaption>
+				</figure>
+			</div>
+		`);
+		const close = () => {
+			$lightbox.remove();
+			$(document).off("keydown.compact-lightbox");
+		};
+		$lightbox.on("click", (e) => {
+			if (e.target === $lightbox[0] || $(e.target).is(".att-lightbox-close")) {
+				close();
+			}
+		});
+		$(document).on("keydown.compact-lightbox", (e) => {
+			if (e.key === "Escape") close();
+		});
+		$("body").append($lightbox);
 	}
 
 	show_all_attachments() {
@@ -507,17 +580,74 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 	}
 
 	focus_tag_input() {
-		// Frappe stores the TagEditor instance on the form sidebar
-		const tags = this.frm.tags;
-		if (!tags) return;
-		// Tag editor lives in .form-tags inside the sidebar
-		const $tagInput = this.frm.sidebar.sidebar.find(".tag-input");
-		if ($tagInput.length) {
-			$tagInput.trigger("focus");
-		} else {
-			// Fall back to clicking the add-tags-btn which Frappe wires up
-			this.frm.sidebar.sidebar.find(".add-tags-btn").first().trigger("click");
+		// The native sidebar (where Frappe renders the TagEditor) is now
+		// hidden by compact mode, so we open a dedicated dialog and
+		// reparent the TagEditor's awesomplete input into it. That keeps
+		// all existing tag CRUD logic intact (add via Enter, remove via
+		// the × on each pill) without rewriting the editor.
+		this.show_tags_dialog();
+	}
+
+	show_tags_dialog() {
+		if (this.tags_dialog) {
+			this.refresh_tags_dialog();
+			this.tags_dialog.show();
+			return;
 		}
+
+		const me = this;
+		this.tags_dialog = new frappe.ui.Dialog({
+			title: __("Tags"),
+			fields: [{ fieldtype: "HTML", fieldname: "body" }],
+		});
+
+		this.refresh_tags_dialog();
+		this.tags_dialog.show();
+
+		// Refocus the input after the dialog has finished rendering.
+		this.tags_dialog.$wrapper.on("shown.bs.modal", () => {
+			const $input = me.tags_dialog
+				.get_field("body")
+				.$wrapper.find(".tags-list .tag-input")
+				.first();
+			if ($input.length) setTimeout(() => $input.trigger("focus"), 80);
+		});
+	}
+
+	refresh_tags_dialog() {
+		if (!this.tags_dialog) return;
+		const $body = this.tags_dialog
+			.get_field("body")
+			.$wrapper.empty()
+			.addClass("compact-tags-modal");
+
+		// Render the same template Frappe uses for the sidebar tag block,
+		// then bind a fresh TagEditor against it so Enter / × work as on
+		// the original sidebar — no business logic is duplicated.
+		const html = `
+			<div class="form-tags">
+				<ul class="tags-list">
+					<li class="tags-input">
+						<input type="text" class="tag-input form-control input-xs"
+							placeholder="${__("Add a tag")}"/>
+					</li>
+				</ul>
+			</div>
+			<div class="text-muted small" style="margin-top:8px;">
+				${__("Press Enter to add a tag. Click × on a pill to remove it.")}
+			</div>
+		`;
+		$body.html(html);
+
+		// Frappe re-instantiates a TagEditor wired to this DOM so the
+		// awesomplete autocomplete + persistence (`_user_tags` on the
+		// document) keep working unchanged.
+		this.dialog_tags = new frappe.ui.TagEditor({
+			parent: $body.find(".form-tags"),
+			frm: this.frm,
+			on_change: () => this.render_chips(this.get_attachments()),
+		});
+		this.dialog_tags.refresh(this.frm.get_docinfo().tags || "");
 	}
 
 	// ---- Follow ------------------------------------------------------

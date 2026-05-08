@@ -74,6 +74,43 @@ frappe.ui.form.FloatingNavArrows = class FloatingNavArrows {
 		this.$next.on("click", () => me.frm.navigate_records(0));
 
 		$anchor.append(this.$prev).append(this.$next);
+
+		// The previous arrow used to be a fixed `left: 56px` which sits
+		// fine when the module rail is collapsed (≈ 50 px) but ends up
+		// hidden behind the rail when it's expanded (≈ 140-200 px).
+		// Recompute the left edge dynamically based on the form body
+		// container so the arrow is always flush against the form.
+		this.bind_position_handlers();
+		this.position_prev_arrow();
+	}
+
+	bind_position_handlers() {
+		// Debounced repositioning on viewport resize and on rail
+		// collapse/expand (the rail toggle does not emit a custom event,
+		// so a 250 ms cushion catches its CSS transition end).
+		let timer = null;
+		this._position_handler = () => {
+			clearTimeout(timer);
+			timer = setTimeout(() => this.position_prev_arrow(), 60);
+		};
+		window.addEventListener("resize", this._position_handler);
+		// The module rail toggle button lives in the navbar; intercept
+		// any click in the navbar area as a cheap heuristic to re-run
+		// positioning shortly after, when the rail width has settled.
+		$(document).on("click.compact-nav", ".navbar, .toggle-sidebar", () => {
+			setTimeout(() => this.position_prev_arrow(), 350);
+		});
+	}
+
+	position_prev_arrow() {
+		if (!this.$prev || !this.$prev.is(":visible")) return;
+		// Anchor the prev arrow to the page-body's left edge with a
+		// small 8 px gap. Falls back gracefully if the wrapper is not
+		// in the DOM yet (e.g. during the first refresh).
+		const $page_body = $(".container.page-body, .page-body").first();
+		if (!$page_body.length) return;
+		const left = Math.max(8, $page_body[0].getBoundingClientRect().left + 8);
+		this.$prev.css("left", left + "px");
 	}
 
 	refresh() {
@@ -82,6 +119,7 @@ frappe.ui.form.FloatingNavArrows = class FloatingNavArrows {
 		const should_show = !this.frm.is_new() && !this.frm.meta.issingle;
 		this.$prev.toggle(should_show);
 		this.$next.toggle(should_show);
+		if (should_show) this.position_prev_arrow();
 	}
 };
 

@@ -259,6 +259,138 @@ body[data-route^="Form/"] .layout-main.layout-two-column .layout-main-section-wr
 }
 
 // ──────────────────────────────────────────────────────────────────
+// WI-00318 — Image hover preview + click lightbox
+// Hover on an image thumbnail surfaces a larger popover so the user
+// can read the picture without opening the full modal. Click opens a
+// fullscreen lightbox (in-place, no new tab) so the image is the
+// focus rather than the browser tab carousel.
+// ──────────────────────────────────────────────────────────────────
+.att-hover-preview {
+	position: fixed;
+	z-index: 1080;
+	background: var(--card-bg);
+	border: 1px solid var(--border-color);
+	border-radius: 10px;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+	padding: 6px 6px 8px;
+	pointer-events: none;
+	max-width: 320px;
+
+	img {
+		display: block;
+		max-width: 308px;
+		max-height: 240px;
+		width: auto;
+		height: auto;
+		border-radius: 6px;
+		object-fit: contain;
+	}
+
+	.att-hover-name {
+		font-size: 11px;
+		color: var(--text-muted);
+		margin-top: 4px;
+		text-align: center;
+		max-width: 308px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+}
+
+.att-lightbox-bg {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.78);
+	z-index: 1090;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 32px;
+	cursor: zoom-out;
+
+	.att-lightbox-figure {
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 12px;
+		max-width: 100%;
+		max-height: 100%;
+	}
+
+	img {
+		max-width: 100%;
+		max-height: 80vh;
+		border-radius: 8px;
+		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+		cursor: default;
+	}
+
+	figcaption {
+		color: rgba(255, 255, 255, 0.85);
+		font-size: 13px;
+		text-align: center;
+		max-width: 80vw;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.att-lightbox-close {
+		position: absolute;
+		top: 16px;
+		right: 16px;
+		width: 36px;
+		height: 36px;
+		border-radius: 50%;
+		background: rgba(255, 255, 255, 0.12);
+		border: 0;
+		color: #fff;
+		font-size: 22px;
+		line-height: 1;
+		cursor: pointer;
+		transition: background-color 0.12s ease;
+
+		&:hover {
+			background: rgba(255, 255, 255, 0.22);
+		}
+	}
+}
+
+// ──────────────────────────────────────────────────────────────────
+// WI-00318 — Tags Dialog (frappe.ui.Dialog content)
+// Reparents Frappe's TagEditor inside a dedicated dialog so users
+// can manage tags now that the native sidebar is hidden.
+// ──────────────────────────────────────────────────────────────────
+.compact-tags-modal {
+	.form-tags {
+		.tags-list {
+			list-style: none;
+			padding: 0;
+			margin: 0;
+			display: flex;
+			flex-wrap: wrap;
+			gap: 6px;
+			min-height: 36px;
+			padding: 6px;
+			background: var(--bg-light-gray);
+			border: 1px solid var(--border-color);
+			border-radius: 8px;
+		}
+
+		.tag-input {
+			border: 0;
+			background: transparent;
+			outline: none;
+			min-width: 140px;
+			flex: 1;
+			padding: 4px;
+			font-size: 13px;
+		}
+	}
+}
+
+// ──────────────────────────────────────────────────────────────────
 // Phase 4 — "All attachments" modal (frappe.ui.Dialog content)
 // Rows: thumbnail | filename + meta | actions (download, delete).
 // Lives outside .page-actions because Dialog renders into its own
