@@ -35107,3 +35107,111 @@ msgstr "Dernière modification par {0}"
 
 msgid "Last updated on {0}"
 msgstr "Dernière modification le {0}"
+
+msgid "Press Enter to add a tag"
+msgstr "Appuyez sur Entrée pour ajouter un tag"
+
+msgid "Click × on a pill to remove it"
+msgstr "Cliquez sur × pour supprimer un tag"
+
+msgid "Press Enter to add a tag. Click × on a pill to remove it."
+msgstr "Appuyez sur Entrée pour ajouter un tag. Cliquez sur × pour supprimer."
+
+msgid "Add tags"
+msgstr "Ajouter des tags"
+
+msgid "Remove tag"
+msgstr "Supprimer le tag"
+
+msgid "No tags added"
+msgstr "Aucun tag ajouté"
+
+msgid "Edit comment"
+msgstr "Modifier le commentaire"
+
+msgid "Delete comment"
+msgstr "Supprimer le commentaire"
+
+msgid "Edited"
+msgstr "Modifié"
+
+msgid "edited"
+msgstr "modifié"
+
+msgid "ago"
+msgstr "il y a"
+
+msgid "Can read"
+msgstr "Peut lire"
+
+msgid "Can write"
+msgstr "Peut écrire"
+
+msgid "can read"
+msgstr "peut lire"
+
+msgid "can write"
+msgstr "peut écrire"
+
+msgid "can share"
+msgstr "peut partager"
+
+msgid "can submit"
+msgstr "peut valider"
+
+msgid "Everyone can read"
+msgstr "Tout le monde peut lire"
+
+msgid "Everyone can write"
+msgstr "Tout le monde peut écrire"
+
+msgid "Remove sharing"
+msgstr "Supprimer le partage"
+
+msgid "Unlike"
+msgstr "Ne plus aimer"
+
+msgid "Followed"
+msgstr "Suivi"
+
+msgid "Not followed"
+msgstr "Non suivi"
+
+msgid "DocStatus"
+msgstr "Statut du document"
+
+msgid "Upload a file"
+msgstr "Télécharger un fichier"
+
+msgid "Web Link"
+msgstr "Lien web"
+
+msgid "Enter URL"
+msgstr "Entrer l'URL"
+
+msgid "Upload {0} file"
+msgstr "Télécharger {0} fichier"
+
+msgid "Uploading"
+msgstr "Téléchargement en cours"
+
+msgid "Uploaded {0} of {1}"
+msgstr "{0} sur {1} téléchargé(s)"
+
+msgid "Unassign"
+msgstr "Désassigner"
+
+msgid "Assigned to {0}"
+msgstr "Assigné à {0}"
+
+msgid "changed value of {0} from {1} to {2}"
+msgstr "valeur de {0} modifiée de {1} à {2}"
+
+msgid "added row #{0}"
+msgstr "ligne #{0} ajoutée"
+
+msgid "removed row #{0}"
+msgstr "ligne #{0} supprimée"
+
+msgid "changed row #{0}"
+msgstr "ligne #{0} modifiée"
