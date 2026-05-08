@@ -35065,3 +35065,45 @@ msgstr "Vu par"
 
 msgid "Add to this"
 msgstr "Ajouter à ceci"
+
+msgid "Attachments ({0})"
+msgstr "Pièces jointes ({0})"
+
+msgid "No attachments yet"
+msgstr "Aucune pièce jointe"
+
+msgid "Open File List"
+msgstr "Ouvrir la liste des fichiers"
+
+msgid "or drag and drop files here"
+msgstr "ou glissez-déposez les fichiers ici"
+
+msgid "Uploaded"
+msgstr "Téléchargé"
+
+msgid "Comments ({0})"
+msgstr "Commentaires ({0})"
+
+msgid "Tags ({0})"
+msgstr "Tags ({0})"
+
+msgid "Shared ({0})"
+msgstr "Partagé ({0})"
+
+msgid "Likes ({0})"
+msgstr "J'aime ({0})"
+
+msgid "Liked ({0})"
+msgstr "Aimé ({0})"
+
+msgid "Created by {0}"
+msgstr "Créé par {0}"
+
+msgid "Modified by {0}"
+msgstr "Modifié par {0}"
+
+msgid "Last updated by {0}"
+msgstr "Dernière modification par {0}"
+
+msgid "Last updated on {0}"
+msgstr "Dernière modification le {0}"
