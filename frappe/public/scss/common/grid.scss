@@ -922,3 +922,30 @@
 .grid-body .grid-row .grid-static-col[data-fieldname="description"]:hover {
 	background: var(--bg-light-gray, #f7f9fb);
 }
+
+// ---------------------------------------------------------------------------
+// 4. Make data columns grow proportionally to fill the row width.
+//    Bootstrap col-xs-N pins each cell to N×8.33% which leaves a big gap
+//    after the last data col on wide screens (now that the action col is
+//    only 44px instead of ~107px). Switch to `flex: N 1 0` so each col-xs-N
+//    cell gets N units of remaining flex space — invariant to viewport width.
+// ---------------------------------------------------------------------------
+
+.grid-row > .data-row.row > .grid-static-col.col-xs-1,
+.grid-heading-row .data-row.row > .grid-static-col.col-xs-1 {
+	flex: 1 1 0 !important;
+	max-width: none !important;
+	min-width: 0 !important;
+}
+.grid-row > .data-row.row > .grid-static-col.col-xs-2,
+.grid-heading-row .data-row.row > .grid-static-col.col-xs-2 {
+	flex: 2 1 0 !important;
+	max-width: none !important;
+	min-width: 0 !important;
+}
+.grid-row > .data-row.row > .grid-static-col.col-xs-3,
+.grid-heading-row .data-row.row > .grid-static-col.col-xs-3 {
+	flex: 3 1 0 !important;
+	max-width: none !important;
+	min-width: 0 !important;
+}
