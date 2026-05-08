@@ -993,7 +993,9 @@ export default class GridRow {
 				: this.default_rows_threshold_for_grid_search;
 		this.show_search =
 			this.show_search &&
-			(this.grid?.data?.length >= show_length || this.grid.filter_applied);
+			(this.grid?.force_search_row ||
+				this.grid?.data?.length >= show_length ||
+				this.grid.filter_applied);
 		!this.show_search && this.wrapper.remove();
 		return this.show_search;
 	}

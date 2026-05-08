@@ -170,21 +170,22 @@ export default class Grid {
 			$(`body > .${BACKDROP_CLASS}`).remove();
 			$(document).off("keydown.gridFullscreen");
 			toggle_btn.removeClass("btn-primary").addClass("btn-default");
-			// Re-hide the per-column filter row when there aren't enough
-			// rows to justify it under normal Frappe rules. We toggle the
-			// visibility class — the existing GridRow stays in memory.
+			// Drop the force flag so Frappe removes the filter row again
+			// if there aren't enough rows to justify it
+			me.force_search_row = false;
 			$(me.parent).find(".grid-heading-row").removeClass("force-with-filter");
-			// Recompute column widths in the original container
+			// Recompute column widths in the original container, also
+			// re-evaluates whether the search row should stay
 			me.refresh();
 		};
 
 		const open_fullscreen = () => {
 			grid_field.addClass(FULLSCREEN_CLASS);
 			// Force the per-column filter/search row visible, even when
-			// the row count is below Frappe's default threshold.
-			if (me.header_search && me.header_search.row) {
-				$(me.parent).find(".grid-heading-row").addClass("force-with-filter");
-			}
+			// the row count is below Frappe's default threshold. The flag
+			// is read by GridRow#show_search_row.
+			me.force_search_row = true;
+			$(me.parent).find(".grid-heading-row").addClass("force-with-filter");
 			// Backdrop catches clicks-outside and ESC.
 			const $backdrop = $(`<div class="${BACKDROP_CLASS}"></div>`)
 				.appendTo("body")
@@ -196,9 +197,13 @@ export default class Grid {
 				}
 			});
 			toggle_btn.removeClass("btn-default").addClass("btn-primary");
-			// Recompute column widths for the new (wider) container after
-			// the layout settles in fullscreen
-			setTimeout(() => me.refresh(), 50);
+			// Recompute column widths AND re-build the heading row so the
+			// header_search/filter-row gets re-created (it was removed by
+			// show_search_row when the row count was below threshold).
+			setTimeout(() => {
+				me.make_head();
+				me.refresh();
+			}, 50);
 		};
 
 		toggle_btn.on("click", () => {
