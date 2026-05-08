@@ -1032,13 +1032,29 @@
 		min-height: 100%;
 	}
 
-	// Allow descriptions to wrap on up to 5 lines (vs 2 in regular view)
+	// In fullscreen the description can take its full height — no clamp
 	.grid-body .grid-row .grid-static-col[data-fieldname="description"] .static-area {
-		-webkit-line-clamp: 5;
+		-webkit-line-clamp: unset;
+		display: block;
+		white-space: normal;
+		word-break: break-word;
 	}
 
 	// Keep the footer (Add Row / Delete / pagination) pinned at the bottom
 	.grid-footer {
 		flex: 0 0 auto;
 	}
+}
+
+// `force-with-filter` activates the per-column search row in fullscreen
+// even when the row count is below Frappe's default threshold. Mirrors
+// the height/visibility tweaks of the standard `.with-filter` class.
+.grid-heading-row.force-with-filter {
+	height: 64px;
+}
+.grid-heading-row.force-with-filter .filter-row {
+	display: flex !important;
+}
+.grid-heading-row.force-with-filter .filter-row .search {
+	display: block !important;
 }

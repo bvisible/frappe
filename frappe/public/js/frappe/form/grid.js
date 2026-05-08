@@ -170,12 +170,21 @@ export default class Grid {
 			$(`body > .${BACKDROP_CLASS}`).remove();
 			$(document).off("keydown.gridFullscreen");
 			toggle_btn.removeClass("btn-primary").addClass("btn-default");
+			// Re-hide the per-column filter row when there aren't enough
+			// rows to justify it under normal Frappe rules. We toggle the
+			// visibility class — the existing GridRow stays in memory.
+			$(me.parent).find(".grid-heading-row").removeClass("force-with-filter");
 			// Recompute column widths in the original container
 			me.refresh();
 		};
 
 		const open_fullscreen = () => {
 			grid_field.addClass(FULLSCREEN_CLASS);
+			// Force the per-column filter/search row visible, even when
+			// the row count is below Frappe's default threshold.
+			if (me.header_search && me.header_search.row) {
+				$(me.parent).find(".grid-heading-row").addClass("force-with-filter");
+			}
 			// Backdrop catches clicks-outside and ESC.
 			const $backdrop = $(`<div class="${BACKDROP_CLASS}"></div>`)
 				.appendTo("body")
