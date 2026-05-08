@@ -874,3 +874,51 @@
 		}
 	}
 }
+
+// ===========================================================================
+// Neoffice item-table refresh — direct Frappe core patch (Phase 1)
+// ---------------------------------------------------------------------------
+// 1. Pin the last action column (pencil/settings) to 44px in BOTH the body
+//    and the heading. Frappe creates the body's last col as a bare <div
+//    class="col"> with no col-xs-N (see grid_row.js#add_open_form_button),
+//    so default flex-grow:1 makes it absorb all the free space — this rule
+//    overrides that.
+// 2. Allow the description cell to wrap on up to 2 lines with ellipsis
+//    instead of being truncated to 1 line by default (white-space: nowrap).
+// 3. Trim vertical padding from 10px to 4px so a 2-line description fits.
+// ===========================================================================
+
+.grid-row > .row > .col:last-child,
+.grid-row > .data-row.row > .col:last-child,
+.grid-heading-row .data-row > .grid-static-col:last-child,
+.grid-heading-row .data-row > .grid-static-col.d-flex.justify-content-center {
+	flex: 0 0 44px !important;
+	width: 44px !important;
+	min-width: 44px !important;
+	max-width: 44px !important;
+	padding-left: 2px !important;
+	padding-right: 2px !important;
+	box-sizing: border-box !important;
+}
+
+.grid-body .grid-row .grid-static-col {
+	padding-top: 4px !important;
+	padding-bottom: 4px !important;
+}
+
+.grid-body .grid-row .grid-static-col[data-fieldname="description"] .static-area {
+	white-space: normal;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	line-height: 1.4;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.grid-body .grid-row .grid-static-col[data-fieldname="description"] {
+	cursor: pointer;
+}
+.grid-body .grid-row .grid-static-col[data-fieldname="description"]:hover {
+	background: var(--bg-light-gray, #f7f9fb);
+}
