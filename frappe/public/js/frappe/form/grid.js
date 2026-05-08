@@ -152,62 +152,52 @@ export default class Grid {
 	}
 
 	setup_fullwidth_toggle() {
-		// Open the grid in a near-fullscreen dialog instead of expanding it
-		// inline. The DOM transplant approach moves the existing form-grid
-		// element into the dialog body — so the same Grid object, the same
-		// row instances, and all event bindings (calc, validation, pricing
-		// rules) keep working with no clone or sync.
+		// Zoom the grid to a near-fullscreen overlay WITHOUT moving it in
+		// the DOM. We just toggle a class on the grid-field that makes it
+		// `position: fixed` 95vw × 95vh, plus a backdrop. This keeps every
+		// JS reference, every event binding, and the parent form layout
+		// intact — Add Row, calc, save, sub-dialogs (item search, batch
+		// picker, etc.) all keep working as if nothing changed.
 		const toggle_btn = this.wrapper.find(".grid-toggle-fullwidth");
 		const grid_field = this.wrapper;
 		const me = this;
 
-		// Track the dialog + placeholder so we can restore the DOM cleanly.
-		let dialog = null;
-		let placeholder = null;
+		const BACKDROP_CLASS = "grid-fullscreen-backdrop";
+		const FULLSCREEN_CLASS = "grid-fullscreen";
 
-		const restore_grid = () => {
-			if (placeholder && placeholder.parentNode) {
-				placeholder.parentNode.replaceChild(grid_field[0], placeholder);
-			}
-			placeholder = null;
+		const close_fullscreen = () => {
+			grid_field.removeClass(FULLSCREEN_CLASS);
+			$(`body > .${BACKDROP_CLASS}`).remove();
+			$(document).off("keydown.gridFullscreen");
 			toggle_btn.removeClass("btn-primary").addClass("btn-default");
-			// Recompute column widths in the original (narrower) container
+			// Recompute column widths in the original container
 			me.refresh();
 		};
 
-		toggle_btn.on("click", () => {
-			if (dialog && dialog.display) {
-				dialog.hide();
-				return;
-			}
-
-			dialog = new frappe.ui.Dialog({
-				title: __(me.df.label || "Items"),
-				// `extra-large` is the Frappe size we override to 95vw via CSS
-				size: "extra-large",
-				on_hide: () => {
-					restore_grid();
-					dialog = null;
-				},
+		const open_fullscreen = () => {
+			grid_field.addClass(FULLSCREEN_CLASS);
+			// Backdrop catches clicks-outside and ESC.
+			const $backdrop = $(`<div class="${BACKDROP_CLASS}"></div>`)
+				.appendTo("body")
+				.on("click", close_fullscreen);
+			$(document).on("keydown.gridFullscreen", (e) => {
+				if (e.key === "Escape") {
+					e.preventDefault();
+					close_fullscreen();
+				}
 			});
-
-			// Custom class so we can apply 95vw / 95vh + bigger description
-			dialog.$wrapper.addClass("grid-fullscreen-dialog");
-
-			// Mount the dialog so dialog.body is in the DOM
-			dialog.show();
-
-			// Drop a placeholder where the grid currently lives, then
-			// detach (preserves events and data) and append into the dialog
-			placeholder = document.createComment(" grid-fullscreen-placeholder ");
-			grid_field[0].parentNode.insertBefore(placeholder, grid_field[0]);
-			grid_field.detach().appendTo(dialog.body);
-
 			toggle_btn.removeClass("btn-default").addClass("btn-primary");
-
-			// Recompute column widths for the new (much wider) container
-			// after the dialog has finished its show animation
+			// Recompute column widths for the new (wider) container after
+			// the layout settles in fullscreen
 			setTimeout(() => me.refresh(), 50);
+		};
+
+		toggle_btn.on("click", () => {
+			if (grid_field.hasClass(FULLSCREEN_CLASS)) {
+				close_fullscreen();
+			} else {
+				open_fullscreen();
+			}
 		});
 	}
 	set_grid_description() {

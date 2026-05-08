@@ -951,41 +951,59 @@
 }
 
 // ---------------------------------------------------------------------------
-// 5. Fullscreen grid dialog — Phase 2.
+// 5. Fullscreen zoom — Phase 2.
 //    The "Toggle Full Width" button (grid.js#setup_fullwidth_toggle) now
-//    opens a 95vw × 95vh modal and DOM-transplants the form-grid into it
-//    so the user has room to see/edit a table with many rows and long
-//    descriptions. Style the modal here.
+//    elevates the grid-field to a 95vw × 95vh overlay via `position: fixed`
+//    (no DOM transplant — the grid-field never moves, so all JS bindings
+//    and form internals stay intact).
 // ---------------------------------------------------------------------------
 
-.grid-fullscreen-dialog {
-	.modal-dialog {
-		max-width: 95vw;
-		width: 95vw;
-		margin: 2.5vh auto;
+.grid-fullscreen-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.4);
+	z-index: 1049;
+}
+
+.grid-field.grid-fullscreen {
+	position: fixed !important;
+	top: 2.5vh !important;
+	left: 2.5vw !important;
+	width: 95vw !important;
+	height: 95vh !important;
+	max-width: none !important;
+	margin: 0 !important;
+	padding: 16px 20px !important;
+	background: var(--card-bg, var(--fg-color, #fff));
+	border-radius: var(--border-radius-lg, 8px);
+	box-shadow: 0 12px 60px rgba(0, 0, 0, 0.25);
+	z-index: 1050;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+
+	// Make sure header (label + toggle button) doesn't shrink
+	> .d-flex.align-items-center {
+		flex: 0 0 auto;
 	}
-	.modal-content {
-		height: 95vh;
-		display: flex;
-		flex-direction: column;
-	}
-	.modal-body {
-		overflow: auto;
+
+	// The grid container expands to fill the available space and scrolls
+	.form-grid-container {
 		flex: 1 1 auto;
-		padding: 16px 24px;
+		overflow: auto;
+		min-height: 0;
 	}
-	// The grid-field moved inside the dialog should fill the body
-	.grid-field {
-		width: 100%;
+	.form-grid {
+		min-height: 100%;
 	}
-	// Allow descriptions to wrap on up to 5 lines in the dialog
-	// (vs 2 lines in the regular form view)
+
+	// Allow descriptions to wrap on up to 5 lines (vs 2 in regular view)
 	.grid-body .grid-row .grid-static-col[data-fieldname="description"] .static-area {
 		-webkit-line-clamp: 5;
 	}
-	// The grid body itself stays scrollable so the toolbar/footer stay pinned
-	.form-grid .grid-body {
-		max-height: calc(95vh - 220px);
-		overflow-y: auto;
+
+	// Keep the footer (Add Row / Delete / pagination) pinned at the bottom
+	.grid-footer {
+		flex: 0 0 auto;
 	}
 }
