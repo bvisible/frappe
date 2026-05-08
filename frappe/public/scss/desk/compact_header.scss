@@ -243,19 +243,36 @@
 // IMPORTANT: do NOT scope to .page-form — Frappe also reuses that
 // class for the list-view filter bar, so the rule would leak.
 // ──────────────────────────────────────────────────────────────────
-body[data-route^="Form/"] .layout-side-section.right,
-.editable-form .layout-side-section.right,
-.submitted-form .layout-side-section.right,
-.cancelled-form .layout-side-section.right {
-	display: none !important;
-}
+// Desktop form pages only — mobile forms keep the native sidebar
+// overlay reachable via the `.sidebar-toggle-icon` next to the title.
+@media (min-width: 768px) {
+	body[data-route^="Form/"] .layout-side-section.right,
+	.editable-form .layout-side-section.right,
+	.submitted-form .layout-side-section.right,
+	.cancelled-form .layout-side-section.right {
+		display: none !important;
+	}
 
-body[data-route^="Form/"] .layout-main.layout-two-column .layout-main-section-wrapper,
-.editable-form .layout-main.layout-two-column .layout-main-section-wrapper,
-.submitted-form .layout-main.layout-two-column .layout-main-section-wrapper,
-.cancelled-form .layout-main.layout-two-column .layout-main-section-wrapper {
-	flex: 1 1 100%;
-	max-width: 100%;
+	body[data-route^="Form/"] .layout-main.layout-two-column .layout-main-section-wrapper,
+	.editable-form .layout-main.layout-two-column .layout-main-section-wrapper,
+	.submitted-form .layout-main.layout-two-column .layout-main-section-wrapper,
+	.cancelled-form .layout-main.layout-two-column .layout-main-section-wrapper {
+		flex: 1 1 100%;
+		max-width: 100%;
+	}
+
+	// The `.sidebar-toggle-icon` (the small `☰` next to the doc title)
+	// is meant to expand/collapse the form sidebar. With the sidebar
+	// permanently hidden on desktop forms, the toggle has nothing to
+	// flip — hide it. List views keep it (it toggles list filters)
+	// and mobile keeps it (it opens the sidebar overlay so the user
+	// can still reach attachments / tags / shares on a phone).
+	body[data-route^="Form/"] .sidebar-toggle-icon,
+	.editable-form .sidebar-toggle-icon,
+	.submitted-form .sidebar-toggle-icon,
+	.cancelled-form .sidebar-toggle-icon {
+		display: none !important;
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────
