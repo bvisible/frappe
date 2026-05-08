@@ -261,12 +261,20 @@
 		max-width: 100%;
 	}
 
-	// The `.sidebar-toggle-icon` (the small `☰` next to the doc title)
-	// is meant to expand/collapse the form sidebar. With the sidebar
-	// permanently hidden on desktop forms, the toggle has nothing to
-	// flip — hide it. List views keep it (it toggles list filters)
-	// and mobile keeps it (it opens the sidebar overlay so the user
-	// can still reach attachments / tags / shares on a phone).
+	// The hamburger toggle (small `☰` next to the doc title) is meant
+	// to expand/collapse the form sidebar. With the sidebar permanently
+	// hidden on desktop forms, the toggle has nothing to flip — hide
+	// it. List views keep it (it toggles list filters) and mobile
+	// keeps it (it opens the sidebar overlay so the user can still
+	// reach attachments / tags / shares on a phone).
+	//
+	// Frappe v15 renders the visible `☰` via the `.sidebar-toggle-btn`
+	// button; the legacy `.sidebar-toggle-icon` span inside is already
+	// hidden but kept here for defensive parity.
+	body[data-route^="Form/"] .sidebar-toggle-btn,
+	.editable-form .sidebar-toggle-btn,
+	.submitted-form .sidebar-toggle-btn,
+	.cancelled-form .sidebar-toggle-btn,
 	body[data-route^="Form/"] .sidebar-toggle-icon,
 	.editable-form .sidebar-toggle-icon,
 	.submitted-form .sidebar-toggle-icon,
