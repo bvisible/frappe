@@ -1042,18 +1042,29 @@
 	}
 
 	// Let the rows grow vertically to fit the tallest cell (e.g. a long
-	// description). Default Frappe pins .grid-static-col to height: 38px;
-	// override to auto so cell + row expand naturally.
+	// description). Default Frappe pins .grid-static-col, .row-index and
+	// .row-check to height: 38px; override to auto on ALL of them so the
+	// vertical separators stay continuous along the full row height.
 	.grid-body .grid-row {
 		min-height: 38px;
 	}
-	.grid-body .grid-row .grid-static-col {
+	.grid-body .grid-row .grid-static-col,
+	.grid-body .grid-row .row-index,
+	.grid-body .grid-row .row-check,
+	.grid-body .grid-row .data-row > .col {
 		height: auto !important;
 		max-height: none !important;
 		min-height: 38px;
 	}
 	.grid-body .grid-row .data-row.row {
 		align-items: stretch;
+	}
+	// Top-align the static content (checkbox tick, row number) so the
+	// cell stretches downward, not center-aligned in a tall row
+	.grid-body .grid-row .row-check,
+	.grid-body .grid-row .row-index {
+		align-items: flex-start !important;
+		padding-top: 8px !important;
 	}
 
 	// Keep the footer (Add Row / Delete / pagination) pinned at the bottom
