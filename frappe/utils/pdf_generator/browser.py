@@ -203,6 +203,9 @@ class Browser:
 			"orientation",
 			"page-width",
 			"page-height",
+			# Opt-in: let the print format drive page size & margins via CSS
+			# @page rules (needed for edge-to-edge content like Swiss QR bills).
+			"prefer-css-page-size",
 		)
 		options |= {style.name: style.value for style in print_format_css if style.name in attrs}
 		self.options.update(options)
@@ -238,7 +241,11 @@ class Browser:
 			"marginLeft": 0,
 			"marginRight": 0,
 			"landscape": options.get("orientation", "Portrait") == "Landscape",
-			"preferCSSPageSize": False,
+			# When a print format opts in via `.print-format { prefer-css-page-size: true }`,
+			# Chrome honours the CSS @page rules (size + margins, incl. named pages)
+			# instead of the CDP margins below. Lets e.g. Swiss QR bills sit
+			# edge-to-edge on a margin:0 named page while the invoice keeps margins.
+			"preferCSSPageSize": str(options.get("prefer-css-page-size", "")).lower() == "true",
 			"pageRanges": options.get("page-ranges", ""),
 			# Experimental
 			"generateTaggedPDF": options.get("generate-tagged-pdf", False),
