@@ -1,3 +1,4 @@
+import atexit
 import os
 import platform
 import subprocess
@@ -11,8 +12,6 @@ import frappe
 from frappe import _
 from frappe.utils.data import cint
 from frappe.utils.print_utils import find_or_download_chromium_executable
-
-# TODO: close browser when worker is killed.
 
 
 class ChromePDFGenerator:
@@ -77,6 +76,11 @@ class ChromePDFGenerator:
 		if self._verify_chromium_installation():
 			if not self._devtools_url:
 				self.start_chromium_process(debug=self.debug_mode)
+				# Ensure the Chromium process is terminated when the owning Python
+				# process exits (bench console/execute, worker graceful shutdown).
+				# Without this, headless_shell processes are orphaned and pile up,
+				# eating RAM on small instances. _terminate_chromium is idempotent.
+				atexit.register(self._terminate_chromium)
 
 	def _verify_chromium_installation(self):
 		"""Ensures Chromium is available and executable, raising clearer errors if not."""
@@ -233,6 +237,33 @@ class ChromePDFGenerator:
 		self._chromium_process = None
 		self._devtools_url = None
 		frappe.log("Headless Chromium closed successfully.")
+
+	def _terminate_chromium(self):
+		"""Force-terminate the Chromium process. Used as an atexit handler.
+
+		Unlike _close_browser(), this ignores the active-browser bookkeeping:
+		it runs when the owning Python process is shutting down, so any in-flight
+		work is already gone. Safe to call multiple times (idempotent).
+		"""
+		proc = self._chromium_process
+		if not proc:
+			return
+		try:
+			if proc.poll() is None:  # still running
+				proc.terminate()
+				try:
+					proc.wait(timeout=5)
+				except subprocess.TimeoutExpired:
+					proc.kill()
+					proc.wait(timeout=5)
+		except Exception:
+			# Process may already be reaped, or we are deep in interpreter
+			# shutdown — never raise from an atexit handler.
+			pass
+		finally:
+			self._chromium_process = None
+			self._devtools_url = None
+			ChromePDFGenerator._instance = None
 
 	def detach_debug_browser(self):
 		"""
