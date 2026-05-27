@@ -26,8 +26,16 @@ class ChromePDFGenerator:
 		self._browsers.remove(browser)
 
 	def __new__(cls):
-		# if instance or _chromium_process is not available create object else return current instance stored in cls._instance
-		if cls._instance is None or not cls._instance._chromium_process:
+		inst = cls._instance
+		# Shared external Chromium (systemd / remote): no owned process to check,
+		# keep reusing the singleton.
+		if inst is not None and getattr(inst, "_remote_mode", False):
+			return inst
+		# Local-spawn mode: only reuse the singleton if the Chromium process we
+		# started is STILL ALIVE. A crashed/OOM-killed process leaves a truthy
+		# Popen object but poll() returns non-None — without this check the stale
+		# instance (and its dead DevTools URL) gets reused → ConnectionRefused.
+		if inst is None or not inst._chromium_process or inst._chromium_process.poll() is not None:
 			cls._instance = super().__new__(cls)
 		return cls._instance
 
@@ -40,6 +48,8 @@ class ChromePDFGenerator:
 		self._chromium_process = None
 		self._chromium_path = None
 		self._devtools_url = None
+		self._remote_mode = False
+		self._remote_port = 0
 		self._initialize_chromium()
 
 	def _initialize_chromium(self):
@@ -54,7 +64,20 @@ class ChromePDFGenerator:
 		self.CHROMIUM_WEBSOCKET_URL = site_config.get("chromium_websocket_url", "")
 		if self.CHROMIUM_WEBSOCKET_URL:
 			frappe.warn("Using external chromium websocket url. Make sure it is accessible.")
+			self._remote_mode = True
 			self._devtools_url = self.CHROMIUM_WEBSOCKET_URL
+			return
+
+		# Shared Chromium managed by systemd on a fixed localhost debug port.
+		# Every worker connects to the SAME instance instead of spawning its own
+		# (which proliferated to ~1 Chromium per gunicorn worker → OOM/swap →
+		# Chromium killed → stale singleton → ConnectionRefused). The live browser
+		# WebSocket URL is fetched from /json/version (its GUID changes whenever
+		# systemd restarts Chromium, so it is re-fetched on connection failure).
+		self._remote_port = cint(site_config.get("chromium_remote_debugging_port", 0))
+		if self._remote_port:
+			self._remote_mode = True
+			self._devtools_url = self.fetch_devtools_url(self._remote_port)
 			return
 
 		"""
@@ -224,6 +247,95 @@ class ChromePDFGenerator:
 			self._chromium_process.terminate()
 			raise TimeoutError("Chromium took too long to start.")
 
+	def ensure_devtools_url(self, force=False):
+		"""Return a usable DevTools WebSocket URL, (re)establishing it if needed.
+
+		Called by Browser.open() so a single dead/restarted Chromium recovers
+		instead of 500ing on a stale URL.
+
+		- Remote mode (shared systemd Chromium / external): re-fetch the live
+		  browser URL from /json/version. The GUID changes on every Chromium
+		  restart, so `force=True` (after a failed connect) picks up the new one.
+		- Local mode: if the owned process died, terminate the husk and start a
+		  fresh Chromium, then read its URL from stderr.
+		"""
+		if self._remote_mode:
+			if self._remote_port:
+				# On-demand shared Chromium: start the systemd service if it is
+				# down (it auto-stops when idle to free RAM), mark activity, and
+				# always return a freshly-fetched URL (its GUID changes on restart).
+				url = self._ensure_remote_service()
+				if not url:
+					frappe.throw(
+						_("Chrome PDF: shared Chromium could not be started on the configured debug port.")
+					)
+				self._devtools_url = url
+				return self._devtools_url
+			# External full websocket URL mode (advanced).
+			if force or not self._devtools_url:
+				if not self.CHROMIUM_WEBSOCKET_URL:
+					frappe.throw(_("Chrome PDF: external chromium websocket url is not reachable."))
+				self._devtools_url = self.CHROMIUM_WEBSOCKET_URL
+			return self._devtools_url
+
+		# Local-spawn mode.
+		process_dead = not self._chromium_process or self._chromium_process.poll() is not None
+		if force or process_dead:
+			self._terminate_chromium()
+			self._chromium_process = None
+			self._devtools_url = None
+			self._initialize_chromium()
+			self._set_devtools_url()
+		elif not self._devtools_url:
+			self._set_devtools_url()
+		return self._devtools_url
+
+	# Activity marker read by the chromium-pdf-idle systemd timer to decide when
+	# the shared Chromium has been unused long enough to stop (free its RAM).
+	ACTIVITY_FILE = os.path.expanduser("~/.cache/chromium-pdf/.last-activity")
+
+	def _touch_activity(self):
+		try:
+			from pathlib import Path
+
+			p = Path(self.ACTIVITY_FILE)
+			p.parent.mkdir(parents=True, exist_ok=True)
+			p.touch()
+		except Exception:
+			pass
+
+	def _ensure_remote_service(self):
+		"""Return a live DevTools URL for the shared Chromium, starting the
+		on-demand systemd service if it is currently stopped (idle).
+
+		The service auto-stops after inactivity to free ~300 MB; the first PDF
+		after an idle period transparently restarts it (a scoped sudoers rule
+		lets the worker run `systemctl start chromium-pdf.service`).
+		"""
+		url = self.fetch_devtools_url(self._remote_port)
+		if url:
+			self._touch_activity()
+			return url
+		# Endpoint down → start the service on demand, then poll for it.
+		try:
+			subprocess.run(
+				["sudo", "-n", "/usr/bin/systemctl", "start", "chromium-pdf.service"],
+				timeout=10,
+				check=False,
+				stdout=subprocess.DEVNULL,
+				stderr=subprocess.DEVNULL,
+			)
+		except Exception as e:
+			frappe.log_error("Chrome PDF: failed to start chromium-pdf.service", str(e))
+		deadline = time.time() + 8  # Chromium cold start is ~1-2s; allow margin
+		while time.time() < deadline:
+			url = self.fetch_devtools_url(self._remote_port)
+			if url:
+				self._touch_activity()
+				return url
+			time.sleep(0.25)
+		return None
+
 	def _close_browser(self):
 		"""
 		Close the headless Chromium browser.
@@ -284,14 +396,15 @@ class ChromePDFGenerator:
 			return None
 		url = f"http://127.0.0.1:{port}/json/version"
 		try:
-			response = requests.get(url)
+			response = requests.get(url, timeout=5)
 			response.raise_for_status()  # Raise an exception for HTTP errors
 			response_data = response.json()
 			return response_data["webSocketDebuggerUrl"].strip()
 		except requests.ConnectionError:
 			frappe.log_error(
-				f"Failed to connect to the Chrome DevTools Protocol. Is Chrome running with --remote-debugging-port={port}"
+				"Chrome PDF DevTools unreachable",
+				f"Failed to connect to {url}. Is the chromium-pdf service running with --remote-debugging-port={port}?",
 			)
 		except requests.RequestException as e:
-			frappe.log_error(f"An error occurred: {e}")
+			frappe.log_error("Chrome PDF DevTools fetch error", f"{url}: {e}")
 		return None

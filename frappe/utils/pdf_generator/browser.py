@@ -63,13 +63,17 @@ class Browser:
 	def open(self, generator):
 		from frappe.utils.pdf_generator.cdp_connection import CDPSocketClient
 
-		# checking because if we share browser accross request _devtools_url will already be set for subsequent requests.
-		if not generator._devtools_url:
-			generator._set_devtools_url()
-		# start the CDP websocket connection to browser
-		self.session = CDPSocketClient(generator._devtools_url)
-
-		self.session.connect()
+		# Resolve a live DevTools URL (re-fetches a shared Chromium URL or restarts
+		# a dead local Chromium). Retry once on a refused/broken socket so a single
+		# Chromium crash or systemd restart self-heals instead of returning a 500.
+		url = generator.ensure_devtools_url()
+		self.session = CDPSocketClient(url)
+		try:
+			self.session.connect()
+		except (ConnectionRefusedError, OSError):
+			url = generator.ensure_devtools_url(force=True)
+			self.session = CDPSocketClient(url)
+			self.session.connect()
 		self.create_browser_context()
 
 	def create_browser_context(self):
@@ -136,6 +140,16 @@ class Browser:
 		options = self.options
 		# open header and footer pages
 		self._open_header_footer_pages()
+
+		# Inject update_page_no.js into <head> BEFORE capturing head contents so
+		# clone_and_update is available in both the body page and the header/footer
+		# page contexts (the header template renders {% for tag in head %}).
+		# Backport of bvisible/frappe develop 12050baed8 — without it dynamic page
+		# numbers silently fall back to a single-page header (header only on p.1).
+		script_path = frappe.get_app_path("frappe", "utils", "pdf_generator", "update_page_no.js")
+		script_tag = soup.new_tag("script")
+		script_tag.append(soup.new_string(frappe.read_file(script_path)))
+		soup.head.append(script_tag)
 
 		# get tags to pass to header template.
 		head = soup.find("head").contents
@@ -317,10 +331,19 @@ class Browser:
 
 		if self.footer_page:
 			footer_height = self.footer_height
+			# paperHeight must include the bottom margin, mirroring the header
+			# (header_with_spacing_top_margin). The extra 3mm buffer gives the
+			# footer wrapper slack: its usable area is paperHeight - marginBottom,
+			# which otherwise equals the fixed wrapper height exactly, so sub-pixel
+			# rounding spills every wrapper onto a trailing blank page — doubling
+			# the footer pages and misaligning the footer↔body merge on 3+ pages.
+			footer_buffer = convert_uom(3, "mm", "px", only_number=True)
+			footer_with_bottom_margin = self.footer_height + margin_bottom + footer_buffer
 			self.footer_page.options["paperHeight"] = (
-				convert_uom(footer_height, "px", "in", only_number=True) if footer_height else 0
+				convert_uom(footer_with_bottom_margin, "px", "in", only_number=True)
+				if footer_with_bottom_margin
+				else 0
 			)
-			footer_with_bottom_margin = self.footer_height + margin_bottom
 
 		margin_bottom = convert_uom(margin_bottom, "px", "in", only_number=True)
 
@@ -363,18 +386,32 @@ class Browser:
 		if not self.header_page and not self.footer_page:
 			return
 		total_pages = len(self.body_pdf.pages)
-		# function is added to html from update_page_no.js
-		if self.header_page:
-			if self.is_header_dynamic:
+
+		# clone_and_update is provided by update_page_no.js (injected into <head>
+		# in prepare_header_footer). It clones the header/footer wrapper once per
+		# body page and fills the page-number placeholders (classes `page` /
+		# `topage` for non-print_designer formats).
+		if self.header_page and self.is_header_dynamic:
+			if self.is_print_designer:
 				self.header_page.evaluate(
-					f"clone_and_update('{'#header-render-container' if self.is_print_designer else '.wrapper'}', {total_pages}, {1 if self.is_print_designer else 0}, 'Header', 1);",
+					f"clone_and_update('#header-render-container', {total_pages}, 1, 'Header', 1);",
+					await_promise=True,
+				)
+			else:
+				self.header_page.evaluate(
+					f"clone_and_update('.wrapper', {total_pages}, 0, 'Header', 1);",
 					await_promise=True,
 				)
 
-		if self.footer_page:
-			if self.is_footer_dynamic:
+		if self.footer_page and self.is_footer_dynamic:
+			if self.is_print_designer:
 				self.footer_page.evaluate(
-					f"clone_and_update('{'#footer-render-container' if self.is_print_designer else '.wrapper'}', {total_pages}, {1 if self.is_print_designer else 0}, 'Footer', 1);",
+					f"clone_and_update('#footer-render-container', {total_pages}, 1, 'Footer', 1);",
+					await_promise=True,
+				)
+			else:
+				self.footer_page.evaluate(
+					f"clone_and_update('.wrapper', {total_pages}, 0, 'Footer', 1);",
 					await_promise=True,
 				)
 
