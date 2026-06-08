@@ -2591,7 +2591,23 @@ get_lazy_doc = get_doc
 
 #//// added function
 def neolog(title=None, message=None, reference_doctype=None, reference_name=None):
-	"""Log error to Error Log"""
+	"""Neoffice debug trace.
+
+	Historically every call inserted an Error Log record (+ immediate commit), which
+	floods the Error Log doctype with debug noise (QR/OCR/supplier traces, etc.). By
+	default the trace now goes to the bench logger instead of the Error Log doctype.
+	Set ``neolog_to_error_log: 1`` in site_config to restore the legacy behaviour for a
+	focused debugging session.
+	"""
+	if not (conf or {}).get("neolog_to_error_log"):
+		try:
+			line = " | ".join(str(p) for p in (title, message) if p)
+			logger("neolog").info(line or "neolog")
+		except Exception:
+			pass
+		return
+
+	# Legacy path (flag enabled) — persist to Error Log.
 	# Parameter ALERT:
 	# the title and message may be swapped
 	# the better API for this is log_error(title, message), and used in many cases this way
