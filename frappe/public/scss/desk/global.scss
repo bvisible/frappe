@@ -527,7 +527,8 @@ kbd {
 	.freeze-message-container {
 		inset: 0;
 		padding: 3rem;
-		background-color: var(--bg-light-gray);
+		background: radial-gradient(circle, rgba(253, 249, 250, 0.9) 30%, rgba(255, 255, 255, 0) 100%);
+		background-color: transparent;
 		color: var(--text-on-light-gray);
 		font-size: larger;
 		position: absolute;
@@ -537,7 +538,8 @@ kbd {
 }
 
 #freeze.in {
-	opacity: 0.8;
+	background-color: transparent;
+	opacity: 1;
 }
 
 .msg-box {
