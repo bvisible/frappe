@@ -20,18 +20,24 @@ frappe.ui.form.GridTotals = class GridTotals {
 		this.frm = frm;
 	}
 
-	applies() {
+	meta_applies() {
 		const meta = this.frm.meta;
 		if (!meta || meta.istable || meta.issingle) return false;
 		const has = (f) => meta.fields.some((df) => df.fieldname === f);
-		return Boolean(
-			has("items") && has("net_total") && has("grand_total") && this.frm.fields_dict.items
-		);
+		return has("items") && has("net_total") && has("grand_total");
 	}
 
 	refresh() {
 		if (!document.body.classList.contains("neoffice-cockpit")) return;
-		if (!this.applies()) return;
+		if (!this.meta_applies()) return;
+		if (!this.frm.fields_dict.items) {
+			// the first toolbar refresh can beat the field layout — retry a
+			// few times, the observer takes over once the control exists
+			this._retries = (this._retries || 0) + 1;
+			if (this._retries <= 10) setTimeout(() => this.refresh(), 300);
+			return;
+		}
+		this._retries = 0;
 		this.observe();
 		this.ensure_band();
 		this.render();
@@ -59,11 +65,11 @@ frappe.ui.form.GridTotals = class GridTotals {
 		const $grid = this.frm.fields_dict.items.$wrapper.find(".form-grid").first();
 		if (!$grid.length) return; // layout not built yet
 		if (this.$band && $.contains(document.body, this.$band[0])) return;
-		// last child of the grid card so it hugs the table (rounded corners
-		// come from the card's overflow:hidden). The band lives inside the
-		// observed subtree — the _last_html guard in render() keeps the
-		// observer->render cycle from feeding itself.
-		this.$band = $('<div class="grid-totals-band"></div>').appendTo($grid);
+		// sibling right AFTER the grid card: outside the table but glued to
+		// its bottom edge (the CSS squares the card's bottom corners via
+		// :has). Still inside the observed subtree — the _last_html guard
+		// in render() keeps the observer->render cycle from feeding itself.
+		this.$band = $('<div class="grid-totals-band"></div>').insertAfter($grid);
 		this._last_html = null; // fresh band must always take the next render
 	}
 

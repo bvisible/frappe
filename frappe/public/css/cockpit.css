@@ -518,6 +518,17 @@ body.neoffice-cockpit .form-grid .grid-body .grid-row {
 body.neoffice-cockpit .form-grid .grid-body .grid-row:hover {
 	background: var(--subtle-fg, #faf8f3);
 }
+/* no vertical separators between cells — rows breathe, per design review */
+body.neoffice-cockpit .grid-row > .row .col,
+body.neoffice-cockpit .form-section .grid-row > .section-body .col,
+body.neoffice-cockpit .form-dashboard-section .grid-row > .section-body .col,
+body.neoffice-cockpit .grid-row > .dialog-assignment-row .col {
+	border-right: none;
+}
+body.neoffice-cockpit .form-grid .grid-heading-row .grid-static-col {
+	border-right: none;
+}
+
 /* numbers: tabular, key amount bold; row index + checkbox quiet */
 body.neoffice-cockpit .form-grid .grid-body .grid-static-col[data-fieldtype="Currency"],
 body.neoffice-cockpit .form-grid .grid-body .grid-static-col[data-fieldtype="Float"],
@@ -622,15 +633,22 @@ body.neoffice-cockpit .grid-footer .grid-add-row {
 	display: none !important;
 }
 
-/* totals band hugging the bottom of the items grid card (grid_totals.js) —
-   corners come from .form-grid's overflow:hidden */
+/* totals band OUTSIDE the grid card but glued to its bottom edge
+   (grid_totals.js inserts it right after .form-grid; the card squares
+   its bottom corners so the two read as one block) */
+body.neoffice-cockpit .form-grid:has(+ .grid-totals-band) {
+	border-bottom-left-radius: 0;
+	border-bottom-right-radius: 0;
+	border-bottom: none;
+}
 body.neoffice-cockpit .grid-totals-band {
 	display: flex;
 	justify-content: flex-end;
 	align-items: baseline;
 	gap: 26px;
 	padding: 13px 18px;
-	border-top: 1px solid var(--border-color);
+	border: 1px solid var(--border-color);
+	border-radius: 0 0 12px 12px;
 	background: var(--subtle-fg, #f6f1e9);
 }
 body.neoffice-cockpit .grid-totals-band .tot-pair {
