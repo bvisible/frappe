@@ -1046,6 +1046,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this._all_items = [];
 		this._selected = -1;
 		this._help_search_cache = null; // Clear search-specific help cache
+		// host hook (NeoCockpit centered overlay hides its shell here)
+		if (this.on_close) this.on_close();
 	}
 
 	// ── Deduplication ──────────────────────────────────────

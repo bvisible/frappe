@@ -383,24 +383,60 @@ frappe.Application = class Application {
 	}
 
 	setup_cockpit_awesomebar() {
-		// Bind the real Awesome Bar (mega-panel) onto the cockpit search input.
-		// The input appears after the React render — poll briefly for it.
+		// Drive-like centered search: the cockpit inputs are pure TRIGGERS; the
+		// real Awesome Bar input lives in a centered overlay (backdrop + pill),
+		// and the mega-panel anchors under it via the existing positioning.
 		if (!frappe.boot.desk_settings.search_bar) return;
+
+		// `search-bar` class keeps the box whitelisted by the Awesome Bar's
+		// outside-click close handler.
+		const $shell = $(`
+			<div class="cockpit-search-overlay" style="display: none;">
+				<div class="cockpit-search-box search-bar">
+					<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+						stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>
+					</svg>
+					<input type="text" class="cockpit-search-field"
+						placeholder="${__("Search or type a command")}" />
+				</div>
+			</div>
+		`);
+		$("body").append($shell);
+		const field = $shell.find(".cockpit-search-field").get(0);
+
+		const awesome_bar = new frappe.search.AwesomeBar();
+		awesome_bar.setup(field);
+		awesome_bar.on_close = () => $shell.css("display", "none");
+		frappe.search.utils.make_function_searchable(
+			frappe.utils.generate_tracking_url,
+			__("Generate Tracking URL")
+		);
+
+		const open = () => {
+			$shell.css("display", "flex");
+			// focus after paint so the panel anchors to the final position
+			requestAnimationFrame(() => field.focus());
+		};
+
+		// cockpit inputs (desktop sidebar, drawer, mobile strip) appear after the
+		// React render — poll briefly, then turn them into overlay triggers.
 		let tries = 0;
-		const bind = () => {
-			const input = document.querySelector(".nc-side .nc-search input");
-			if (!input) {
-				if (tries++ < 60) setTimeout(bind, 50);
+		const wire = () => {
+			const triggers = document.querySelectorAll(".neocockpit .nc-search input");
+			if (!triggers.length) {
+				if (tries++ < 60) setTimeout(wire, 50);
 				return;
 			}
-			const awesome_bar = new frappe.search.AwesomeBar();
-			awesome_bar.setup(input);
-			frappe.search.utils.make_function_searchable(
-				frappe.utils.generate_tracking_url,
-				__("Generate Tracking URL")
-			);
+			triggers.forEach((t) => {
+				t.readOnly = true; // no inline typing, no mobile keyboard flash
+				t.addEventListener("focus", () => {
+					t.blur();
+					open();
+				});
+			});
 		};
-		bind();
+		wire();
 	}
 	// //// END NEOFFICE PATCH
 

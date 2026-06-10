@@ -39,6 +39,45 @@ body.neoffice-cockpit .page-head {
 	top: 0 !important;
 }
 
+/* ── Centered search overlay (Drive-like command palette) ──
+   The cockpit search inputs only TRIGGER this; the bound Awesome Bar input
+   lives here and the mega-panel (z-index 1060) anchors under it. */
+.cockpit-search-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 1055;
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	padding-top: 15vh;
+	background: rgba(20, 26, 34, 0.38);
+	backdrop-filter: blur(4px);
+	-webkit-backdrop-filter: blur(4px);
+}
+.cockpit-search-box {
+	width: min(680px, 92vw);
+	display: flex;
+	align-items: center;
+	gap: 11px;
+	padding: 0 18px;
+	background: var(--card-bg, #fff);
+	color: var(--text-muted, #6b7280);
+	border: 1px solid var(--border-color, #e5e7eb);
+	border-radius: 14px;
+	box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+}
+.cockpit-search-box input.cockpit-search-field {
+	flex: 1;
+	min-width: 0;
+	height: 52px;
+	border: 0 !important;
+	outline: none !important;
+	box-shadow: none !important;
+	background: transparent !important;
+	font-size: 15px;
+	color: var(--text-color, #1f272e);
+}
+
 /* mobile: the cockpit shows a top strip + drawer; the panel goes full-bleed */
 @media (max-width: 1023px) {
 	body.neoffice-cockpit {
