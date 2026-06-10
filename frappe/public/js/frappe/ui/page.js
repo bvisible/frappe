@@ -635,6 +635,7 @@ frappe.ui.Page = class Page {
 		// reset: show all buttons, demote previously promoted menu items
 		this.custom_actions.children().removeClass("pao-overflowed");
 		this.menu.find("li.pao-promoted").addClass("hidden-xl").removeClass("pao-promoted");
+		this.menu_btn_group.find(".pao-count").remove();
 		if (this._pao_unhid_menu) {
 			this.menu_btn_group.addClass("hidden-xl");
 			this._pao_unhid_menu = false;
@@ -649,20 +650,31 @@ frappe.ui.Page = class Page {
 		const avail = $actions[0].clientWidth - others - 8;
 
 		const children = [...this.custom_actions[0].children].filter((el) => el.offsetWidth);
-		let used = 0;
-		let cut = -1; // children up to (and including) this index overflow
-		for (let i = children.length - 1; i >= 0; i--) {
-			used += children[i].offsetWidth + GAP;
-			if (used > avail) {
-				cut = i;
-				break;
-			}
-		}
-		if (cut < 0) return; // everything fits
+		const widths = new Map(children.map((el) => [el, el.offsetWidth + GAP]));
+		let total = 0;
+		widths.forEach((w) => (total += w));
+		if (total <= avail) return; // everything fits
 
-		let promoted = false;
-		for (let i = 0; i <= cut; i++) {
-			const el = children[i];
+		// eviction order: dropdown GROUPS first (a menu relocated into ⋯
+		// loses almost nothing), then plain buttons (direct actions like
+		// WebStamp/Acompte matter more), the primary group last. Within a
+		// tier: data-pao-priority desc (higher sticks around), then left
+		// evicted first.
+		const tier = (el) => {
+			if (el.querySelector(".btn-primary")) return 2;
+			return el.classList.contains("inner-group-button") ? 0 : 1;
+		};
+		const prio = (el) => parseFloat(el.getAttribute("data-pao-priority")) || 0;
+		const order = [...children].sort(
+			(a, b) =>
+				tier(a) - tier(b) ||
+				prio(a) - prio(b) ||
+				children.indexOf(a) - children.indexOf(b)
+		);
+
+		let promoted_entries = 0;
+		for (const el of order) {
+			if (total <= avail) break;
 			const key = el.getAttribute("data-label");
 			const $dupes = key ? this.menu.find(`li[data-overflow-key="${key}"]`) : $();
 			// never hide a button we cannot represent in the menu
@@ -674,11 +686,18 @@ frappe.ui.Page = class Page {
 				// legacy re-adds left hidden-xl on the inner <a> too
 				.find(".hidden-xl")
 				.removeClass("hidden-xl");
-			promoted = true;
+			total -= widths.get(el);
+			promoted_entries += $dupes.length;
 		}
-		if (promoted && this.menu_btn_group.hasClass("hidden-xl")) {
-			this.menu_btn_group.removeClass("hidden-xl");
-			this._pao_unhid_menu = true;
+		if (promoted_entries) {
+			if (this.menu_btn_group.hasClass("hidden-xl")) {
+				this.menu_btn_group.removeClass("hidden-xl");
+				this._pao_unhid_menu = true;
+			}
+			// count pill on the ⋯ button: how many actions moved inside
+			this.menu_btn_group
+				.children("button")
+				.append(`<span class="pao-count">${promoted_entries}</span>`);
 		}
 	}
 

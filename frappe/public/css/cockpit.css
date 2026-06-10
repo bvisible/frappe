@@ -283,11 +283,33 @@ body.neoffice-cockpit .form-hero-id {
 	flex: 1;
 	min-width: 0;
 }
+/* Forum (OFL, vendored from Google Fonts) — display serif for hero titles */
+@font-face {
+	font-family: "Forum";
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url("/assets/frappe/fonts/forum/Forum-Regular.woff2") format("woff2");
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+		U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+		U+FEFF, U+FFFD;
+}
+@font-face {
+	font-family: "Forum";
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url("/assets/frappe/fonts/forum/Forum-Regular-latin-ext.woff2") format("woff2");
+	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+		U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+		U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
 body.neoffice-cockpit .form-hero-title {
-	font-size: 24px;
-	font-weight: 700;
-	letter-spacing: -0.02em;
-	line-height: 1.15;
+	font-size: 30px;
+	font-family: "Forum", Georgia, serif;
+	font-weight: 400;
+	letter-spacing: 0;
+	line-height: 1.1;
 	color: var(--text-color);
 	white-space: nowrap;
 	overflow: hidden;
@@ -417,13 +439,39 @@ body.neoffice-cockpit .page-actions .form-meta-cluster {
 	box-shadow: none !important;
 }
 
-/* preview button: eye + label, ghost */
+/* preview button: eye + label, outlined — one of the key actions */
 body.neoffice-cockpit .page-preview-btn {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
 	white-space: nowrap;
 	flex-shrink: 0;
+	border: 1px solid var(--border-color);
+}
+body.neoffice-cockpit .page-preview-btn:hover {
+	border-color: #4e72ac;
+	color: #4e72ac;
+}
+
+/* count pill on the ⋯ button: actions relocated inside by the overflow */
+body.neoffice-cockpit .menu-btn-group > button {
+	position: relative;
+}
+body.neoffice-cockpit .pao-count {
+	position: absolute;
+	top: -5px;
+	right: -5px;
+	min-width: 16px;
+	height: 16px;
+	padding: 0 4px;
+	border-radius: 999px;
+	background: #4e72ac;
+	color: #fff;
+	font-size: 10px;
+	font-weight: 700;
+	line-height: 16px;
+	text-align: center;
+	pointer-events: none;
 }
 
 /* ── Head: harmonized buttons, bigger primary in Neoffice blue ── */
@@ -676,6 +724,70 @@ body.neoffice-cockpit .grid-totals-band .tot-serif {
 	font-size: 21px;
 	font-weight: 400;
 	line-height: 1;
+}
+
+/* ── Check fields as switches (form + dialog controls only — row-selection
+   checkboxes in grids and lists keep the native square look) ── */
+body.neoffice-cockpit .frappe-control[data-fieldtype="Check"] .checkbox input[type="checkbox"] {
+	appearance: none;
+	-webkit-appearance: none;
+	width: 34px;
+	height: 20px;
+	border-radius: 999px;
+	background: var(--control-bg, #e6e0d4) !important;
+	background-image: none !important;
+	border: none !important;
+	box-shadow: none;
+	position: relative;
+	cursor: pointer;
+	margin: 0;
+	flex-shrink: 0;
+	transition: background-color 0.18s ease;
+}
+body.neoffice-cockpit
+	.frappe-control[data-fieldtype="Check"]
+	.checkbox
+	input[type="checkbox"]::after {
+	content: "";
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	background: #fff;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+	transition: transform 0.18s ease;
+}
+body.neoffice-cockpit
+	.frappe-control[data-fieldtype="Check"]
+	.checkbox
+	input[type="checkbox"]:checked {
+	background: #4e72ac !important;
+	background-image: none !important;
+}
+body.neoffice-cockpit
+	.frappe-control[data-fieldtype="Check"]
+	.checkbox
+	input[type="checkbox"]:checked::after {
+	transform: translateX(14px);
+}
+body.neoffice-cockpit
+	.frappe-control[data-fieldtype="Check"]
+	.checkbox
+	input[type="checkbox"]:focus-visible {
+	outline: 2px solid rgba(78, 114, 172, 0.35);
+	outline-offset: 2px;
+}
+body.neoffice-cockpit
+	.frappe-control[data-fieldtype="Check"]
+	.checkbox
+	input[type="checkbox"]:disabled {
+	opacity: 0.55;
+	cursor: default;
+}
+body.neoffice-cockpit .frappe-control[data-fieldtype="Check"] .checkbox .label-area {
+	padding-left: 4px;
 }
 
 /* ── Notifications host (native frappe.ui.Notifications, anchored to the bell) ── */
