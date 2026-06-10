@@ -86,6 +86,10 @@ export default class Grid {
 								>
 								${__("No Data")}
 							</div>
+							<button type="button" class="grid-append-row hidden">
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+									stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>${__("Add Row")}
+							</button>
 						</div>
 					</div>
 				</div>
@@ -102,20 +106,28 @@ export default class Grid {
 							</button>
 							<!-- hack to allow firefox include this in tabs -->
 							<button type="button" class="btn btn-xs btn-secondary grid-add-row">
-								${__("Add Row")}
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+									stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>${__("Add Row")}
 							</button>
 							<button type="button" class="grid-add-multiple-rows btn btn-xs btn-secondary hidden">
-								${__("Add Multiple")}</a>
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+									stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>${__(
+				"Add Multiple"
+			)}
 							</button>
 						</div>
 						<div class="grid-pagination">
 						</div>
 						<div class="grid-bulk-actions text-right">
-							<button type="button" class="grid-download btn btn-xs btn-secondary hidden">
-								${__("Download")}
+							<button type="button" class="grid-download btn btn-xs btn-secondary grid-icon-btn hidden"
+								title="${__("Download")}" aria-label="${__("Download")}">
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+									stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
 							</button>
-							<button type="button" class="grid-upload btn btn-xs btn-secondary hidden">
-								${__("Upload")}
+							<button type="button" class="grid-upload btn btn-xs btn-secondary grid-icon-btn hidden"
+								title="${__("Upload")}" aria-label="${__("Upload")}">
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+									stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
 							</button>
 						</div>
 					</div>
@@ -590,10 +602,12 @@ export default class Grid {
 			// show, hide buttons to add rows
 			if (this.cannot_add_rows || (this.df && this.df.cannot_add_rows)) {
 				// add 'hidden' to buttons
-				this.wrapper.find(".grid-add-row, .grid-add-multiple-rows").addClass("hidden");
+				this.wrapper
+					.find(".grid-add-row, .grid-add-multiple-rows, .grid-append-row")
+					.addClass("hidden");
 			} else {
 				// show buttons
-				this.wrapper.find(".grid-add-row").removeClass("hidden");
+				this.wrapper.find(".grid-add-row, .grid-append-row").removeClass("hidden");
 
 				if (this.multiple_set) {
 					this.wrapper.find(".grid-add-multiple-rows").removeClass("hidden");
@@ -607,7 +621,7 @@ export default class Grid {
 		}
 
 		this.wrapper
-			.find(".grid-add-row, .grid-add-multiple-rows, .grid-upload")
+			.find(".grid-add-row, .grid-add-multiple-rows, .grid-upload, .grid-append-row")
 			.toggle(this.is_editable());
 	}
 
@@ -886,7 +900,8 @@ export default class Grid {
 	}
 
 	setup_add_row() {
-		this.wrapper.find(".grid-add-row").click(() => {
+		// .grid-append-row = the in-table CTA row (cockpit), same action
+		this.wrapper.find(".grid-add-row, .grid-append-row").click(() => {
 			this.add_new_row(null, null, true, null, true);
 			this.set_focus_on_row();
 

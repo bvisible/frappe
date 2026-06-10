@@ -484,13 +484,17 @@ body.neoffice-cockpit .form-dashboard-section .section-head {
 	color: var(--text-muted);
 }
 
-/* ── Child grids ("Articles"): rounded card, small-caps header, bold amounts ── */
+/* ── Child grids ("Articles"): airy card per the dirC mock — calm header,
+   tall rows, soft separators, quiet edit affordances, compact outline
+   footer buttons, totals band. Generic: applies to every .form-grid. ── */
 body.neoffice-cockpit .form-grid {
 	border-radius: 12px;
 	overflow: hidden;
+	border-color: var(--border-color);
 }
 body.neoffice-cockpit .form-grid .grid-heading-row {
 	background: var(--subtle-fg, #faf8f3);
+	border-bottom: 1px solid var(--border-color);
 }
 body.neoffice-cockpit .form-grid .grid-heading-row .grid-static-col {
 	font-size: 10.5px;
@@ -499,9 +503,22 @@ body.neoffice-cockpit .form-grid .grid-heading-row .grid-static-col {
 	letter-spacing: 0.06em;
 	color: var(--text-muted);
 }
+/* tall, breathing rows */
+body.neoffice-cockpit .form-grid .grid-body .grid-row > .data-row {
+	min-height: 44px;
+	align-items: center;
+}
+body.neoffice-cockpit .form-grid .grid-body .grid-static-col {
+	padding-top: 9px;
+	padding-bottom: 9px;
+}
+body.neoffice-cockpit .form-grid .grid-body .grid-row {
+	border-bottom: 1px solid color-mix(in srgb, var(--border-color) 55%, transparent);
+}
 body.neoffice-cockpit .form-grid .grid-body .grid-row:hover {
 	background: var(--subtle-fg, #faf8f3);
 }
+/* numbers: tabular, key amount bold; row index + checkbox quiet */
 body.neoffice-cockpit .form-grid .grid-body .grid-static-col[data-fieldtype="Currency"],
 body.neoffice-cockpit .form-grid .grid-body .grid-static-col[data-fieldtype="Float"],
 body.neoffice-cockpit .form-grid .grid-body .grid-static-col[data-fieldtype="Int"] {
@@ -509,6 +526,133 @@ body.neoffice-cockpit .form-grid .grid-body .grid-static-col[data-fieldtype="Int
 }
 body.neoffice-cockpit .form-grid .grid-body .grid-static-col[data-fieldname="amount"] {
 	font-weight: 600;
+}
+body.neoffice-cockpit .form-grid .row-index {
+	color: var(--text-muted);
+	opacity: 0.7;
+}
+body.neoffice-cockpit .form-grid .grid-row .btn-open-row .icon,
+body.neoffice-cockpit .form-grid .grid-row-check {
+	opacity: 0.55;
+}
+body.neoffice-cockpit .form-grid .grid-row:hover .btn-open-row .icon,
+body.neoffice-cockpit .form-grid .grid-row:hover .grid-row-check,
+body.neoffice-cockpit .form-grid .grid-row-check:checked {
+	opacity: 1;
+}
+/* footer: compact outlined buttons with icons; download/upload icon-only */
+body.neoffice-cockpit .grid-footer {
+	padding-top: 8px;
+}
+body.neoffice-cockpit .grid-footer .btn-xs {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 12px;
+	padding: 4px 10px;
+	border-radius: 8px;
+	border: 1px solid var(--border-color);
+	background: transparent;
+	color: var(--text-muted);
+	box-shadow: none;
+}
+body.neoffice-cockpit .grid-footer .btn-xs svg {
+	width: 13px;
+	height: 13px;
+	flex-shrink: 0;
+}
+body.neoffice-cockpit .grid-footer .btn-xs:hover {
+	background: var(--subtle-fg, #faf8f3);
+	color: var(--text-color);
+	border-color: var(--border-color);
+}
+body.neoffice-cockpit .grid-footer .grid-icon-btn {
+	padding: 4px 7px;
+}
+body.neoffice-cockpit .grid-footer .btn-danger {
+	border-color: transparent;
+	background: var(--bg-red, #fcebeb);
+	color: var(--text-on-red, #b52a2a);
+}
+/* the theme's "Select items" style primary stays an accent OUTLINE here */
+body.neoffice-cockpit .grid-footer .btn-primary,
+body.neoffice-cockpit .grid-footer .btn-custom.btn-primary {
+	background: transparent;
+	border-color: #4e72ac;
+	color: #4e72ac;
+	font-weight: 600;
+}
+body.neoffice-cockpit .grid-footer .btn-primary:hover {
+	background: rgba(78, 114, 172, 0.08);
+	color: #44639a;
+}
+/* in-table "+ Add Row" CTA after the last row — replaces the footer
+   button under the cockpit (markup ships in core grid.js, inert on the
+   legacy chrome) */
+.grid-append-row {
+	display: none;
+}
+body.neoffice-cockpit .grid-append-row {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	width: 100%;
+	padding: 11px 14px;
+	border: none;
+	border-top: 1px solid color-mix(in srgb, var(--border-color) 55%, transparent);
+	background: transparent;
+	color: var(--text-muted);
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+	text-align: left;
+}
+body.neoffice-cockpit .grid-append-row:hover {
+	background: var(--subtle-fg, #faf8f3);
+	color: #44639a;
+}
+body.neoffice-cockpit .grid-append-row svg {
+	width: 13px;
+	height: 13px;
+}
+body.neoffice-cockpit .grid-append-row.hidden {
+	display: none;
+}
+body.neoffice-cockpit .grid-footer .grid-add-row {
+	display: none !important;
+}
+
+/* totals band under the items grid (grid_totals.js) */
+body.neoffice-cockpit .grid-totals-band {
+	display: flex;
+	justify-content: flex-end;
+	align-items: baseline;
+	gap: 26px;
+	margin-top: 6px;
+	padding: 12px 18px;
+	border-radius: 10px;
+	background: var(--subtle-fg, #f6f1e9);
+}
+body.neoffice-cockpit .grid-totals-band .tot-pair {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 8px;
+}
+body.neoffice-cockpit .grid-totals-band .tot-label {
+	font-size: 12px;
+	color: var(--text-muted);
+}
+body.neoffice-cockpit .grid-totals-band .tot-value {
+	font-size: 13.5px;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	color: var(--text-color);
+}
+body.neoffice-cockpit .grid-totals-band .tot-serif {
+	font-family: Georgia, "Instrument Serif", serif;
+	font-size: 21px;
+	font-weight: 400;
+	line-height: 1;
 }
 
 /* ── Notifications host (native frappe.ui.Notifications, anchored to the bell) ── */

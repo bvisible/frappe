@@ -14,6 +14,7 @@ import "./success_action";
 import "./toolbar";
 import "./form_hero";
 import "./tab_slider";
+import "./grid_totals";
 import { UndoManager } from "./undo_manager";
 import "./workflow";
 
