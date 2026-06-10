@@ -734,7 +734,8 @@ body.neoffice-cockpit .frappe-control[data-fieldtype="Check"] .checkbox input[ty
 	width: 34px !important;
 	height: 20px !important;
 	border-radius: 999px;
-	background: var(--control-bg, #e6e0d4) !important;
+	/* unchecked track must read against the cream panel */
+	background: #e8e1d3 !important;
 	background-image: none !important;
 	border: none !important;
 	box-shadow: none;
@@ -743,6 +744,13 @@ body.neoffice-cockpit .frappe-control[data-fieldtype="Check"] .checkbox input[ty
 	margin: 0;
 	flex-shrink: 0;
 	transition: background-color 0.18s ease;
+}
+[data-theme="dark"]
+	body.neoffice-cockpit
+	.frappe-control[data-fieldtype="Check"]
+	.checkbox
+	input[type="checkbox"] {
+	background: #3b4046 !important;
 }
 body.neoffice-cockpit
 	.frappe-control[data-fieldtype="Check"]
@@ -756,7 +764,7 @@ body.neoffice-cockpit
 	height: 16px;
 	border-radius: 50%;
 	background: #fff;
-	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28), 0 2px 6px rgba(0, 0, 0, 0.12);
 	transition: transform 0.18s ease;
 }
 body.neoffice-cockpit
