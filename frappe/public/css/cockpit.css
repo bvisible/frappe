@@ -52,21 +52,28 @@ body.neoffice-cockpit .page-head .page-head-content {
 	height: 54px;
 	flex-wrap: nowrap;
 }
-/* neutralize the bootstrap column widths — natural flex row instead */
+/* neutralize the bootstrap column widths — natural flex row instead.
+   The title keeps its natural size; the ACTIONS side absorbs the pressure
+   (its custom buttons scroll horizontally). */
 body.neoffice-cockpit .page-head .page-title {
-	flex: 1 1 auto;
+	flex: 0 0 auto;
 	min-width: 0;
-	max-width: none;
+	max-width: 46%;
 	width: auto;
 	padding-right: 12px;
 }
+body.neoffice-cockpit .page-head .title-text {
+	max-width: 300px;
+}
 body.neoffice-cockpit .page-head .page-actions {
-	flex: 0 0 auto;
+	flex: 1 1 auto;
+	min-width: 0;
 	width: auto;
 	max-width: none;
 	flex-wrap: nowrap;
 	align-items: center;
 	gap: 6px;
+	justify-content: flex-end;
 }
 /* breadcrumb trail inline with the title */
 body.neoffice-cockpit .page-breadcrumbs {
