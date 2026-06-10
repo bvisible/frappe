@@ -415,7 +415,8 @@ frappe.Application = class Application {
 
 		const open = () => {
 			$shell.css("display", "flex");
-			// focus after paint so the panel anchors to the final position
+			field.focus();
+			// belt: re-assert after the browser settles default focus handling
 			requestAnimationFrame(() => field.focus());
 		};
 
@@ -430,6 +431,13 @@ frappe.Application = class Application {
 			}
 			triggers.forEach((t) => {
 				t.readOnly = true; // no inline typing, no mobile keyboard flash
+				// mousedown + preventDefault: the trigger never takes focus, so
+				// there is no focus/blur race with the overlay field.
+				t.addEventListener("mousedown", (e) => {
+					e.preventDefault();
+					open();
+				});
+				// keyboard path (Tab / the cockpit's Cmd+G handler focuses it)
 				t.addEventListener("focus", () => {
 					t.blur();
 					open();
