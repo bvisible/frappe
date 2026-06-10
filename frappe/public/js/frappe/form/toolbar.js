@@ -18,6 +18,7 @@ frappe.ui.form.Toolbar = class Toolbar {
 		this.show_title_as_dirty();
 		this.set_primary_action();
 		this.setup_preview_button();
+		this.refresh_hero();
 
 		if (this.frm.meta.hide_toolbar) {
 			this.page.hide_menu();
@@ -299,6 +300,12 @@ frappe.ui.form.Toolbar = class Toolbar {
 			this.page.clear_indicator();
 		}
 	}
+	refresh_hero() {
+		if (!frappe.ui.form.FormHero) return;
+		if (!this.hero) this.hero = new frappe.ui.form.FormHero(this.frm);
+		this.hero.refresh();
+	}
+
 	// //// NEOFFICE PATCH — cockpit compact head: a promoted "Preview" button
 	// (eye) next to the primary action for printable doctypes, so the most
 	// common journey (see the PDF the customer receives) is one click.

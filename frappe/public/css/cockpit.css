@@ -233,6 +233,115 @@ body.neoffice-cockpit .datatable > .dt-paste-target {
 	height: 1px !important;
 }
 
+/* ── Form hero (stage 2 — soft gradient card: identity + key value + pipeline) ── */
+body.neoffice-cockpit .form-hero {
+	margin: 14px 0 4px;
+	padding: 20px 24px 16px;
+	border: 1px solid var(--border-color);
+	border-radius: 18px;
+	background:
+		radial-gradient(ellipse 420px 180px at 85% 0%, rgba(214, 138, 89, 0.10), transparent 70%),
+		linear-gradient(135deg, #faf3ea 0%, var(--card-bg, #fffdf8) 60%);
+}
+[data-theme="dark"] body.neoffice-cockpit .form-hero {
+	background:
+		radial-gradient(ellipse 420px 180px at 85% 0%, rgba(214, 138, 89, 0.08), transparent 70%),
+		linear-gradient(135deg, #26211c 0%, var(--card-bg, #1c2127) 60%);
+}
+body.neoffice-cockpit .form-hero-top {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+}
+body.neoffice-cockpit .form-hero-avatar {
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	flex-shrink: 0;
+	display: grid;
+	place-items: center;
+	font-size: 19px;
+	font-weight: 700;
+	color: #fff;
+	background: linear-gradient(140deg, #4e72ac, #6d8fc4);
+}
+body.neoffice-cockpit .form-hero-id {
+	flex: 1;
+	min-width: 0;
+}
+body.neoffice-cockpit .form-hero-title {
+	font-size: 24px;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	line-height: 1.15;
+	color: var(--text-color);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+body.neoffice-cockpit .form-hero-sub {
+	font-size: 13px;
+	color: var(--text-muted);
+	margin-top: 3px;
+}
+body.neoffice-cockpit .form-hero-value {
+	text-align: right;
+	flex-shrink: 0;
+}
+body.neoffice-cockpit .form-hero-amount {
+	font-family: Georgia, "Instrument Serif", serif;
+	font-size: 34px;
+	line-height: 1;
+	color: var(--text-color);
+	font-variant-numeric: tabular-nums;
+}
+body.neoffice-cockpit .form-hero-currency {
+	font-size: 11.5px;
+	letter-spacing: 0.05em;
+	color: var(--text-muted);
+	margin-top: 4px;
+	text-transform: uppercase;
+}
+body.neoffice-cockpit .form-hero-pipeline {
+	display: flex;
+	gap: 10px;
+	margin-top: 16px;
+}
+body.neoffice-cockpit .form-hero-step {
+	flex: 1;
+	min-width: 0;
+}
+body.neoffice-cockpit .form-hero-step .bar {
+	height: 6px;
+	border-radius: 999px;
+	background: var(--control-bg, #e6e0d4);
+}
+body.neoffice-cockpit .form-hero-step .lbl {
+	margin-top: 7px;
+	font-size: 12px;
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+body.neoffice-cockpit .form-hero-step.done .bar {
+	background: #4f8a6e;
+}
+body.neoffice-cockpit .form-hero-step.done .lbl {
+	color: #4f8a6e;
+}
+body.neoffice-cockpit .form-hero-step.current .bar {
+	background: #4e72ac;
+}
+body.neoffice-cockpit .form-hero-step.current .lbl {
+	color: #3d5c8c;
+	font-weight: 700;
+}
+body.neoffice-cockpit .form-hero-step.dead .bar {
+	background: var(--control-bg, #e6e0d4);
+	opacity: 0.6;
+}
+
 /* ── Notifications host (native frappe.ui.Notifications, anchored to the bell) ── */
 .cockpit-notifications-host {
 	position: fixed;

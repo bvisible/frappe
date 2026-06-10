@@ -12,6 +12,7 @@ import "./script_manager";
 import "./sidebar/form_sidebar";
 import "./success_action";
 import "./toolbar";
+import "./form_hero";
 import { UndoManager } from "./undo_manager";
 import "./workflow";
 
