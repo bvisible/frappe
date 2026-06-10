@@ -426,14 +426,42 @@ frappe.Application = class Application {
 	}
 
 	toggle_cockpit_notifications() {
+		// Manual show/hide: triggering bootstrap's dropdown("toggle") from the
+		// bell's own click gets undone by bootstrap's document clearMenus in the
+		// same tick. The tab views fetch their data at construction, so plain
+		// .show classes are all the dropdown needs.
 		if (!this.$cockpit_notif_host) return;
+		if (this.$cockpit_notif_host.find(".notifications-list").hasClass("show")) {
+			this.close_cockpit_notifications();
+			return;
+		}
 		const bell = document.querySelector(".nc-side .nc-bell") || document.querySelector(".nc-bell");
 		if (bell) {
 			const r = bell.getBoundingClientRect();
 			this.$cockpit_notif_host.css({ left: r.right + 10, top: Math.max(8, r.top - 4) });
 		}
 		$(".nc-bell").removeClass("has-unseen");
-		this.$cockpit_notif_host.find('[data-toggle="dropdown"]').dropdown("toggle");
+		this.$cockpit_notif_host.find(".dropdown-notifications").addClass("show");
+		this.$cockpit_notif_host.find(".notifications-list").addClass("show");
+		setTimeout(() => {
+			$(document).on("mousedown.cockpit-notif", (e) => {
+				if (
+					!$(e.target).closest(".cockpit-notifications-host").length &&
+					!$(e.target).closest(".nc-bell").length
+				) {
+					this.close_cockpit_notifications();
+				}
+			});
+			$(document).one("page-change.cockpit-notif", () => this.close_cockpit_notifications());
+		}, 0);
+	}
+
+	close_cockpit_notifications() {
+		if (!this.$cockpit_notif_host) return;
+		this.$cockpit_notif_host.find(".dropdown-notifications").removeClass("show");
+		this.$cockpit_notif_host.find(".notifications-list").removeClass("show");
+		$(document).off("mousedown.cockpit-notif");
+		$(document).off("page-change.cockpit-notif");
 	}
 
 	setup_cockpit_awesomebar() {
