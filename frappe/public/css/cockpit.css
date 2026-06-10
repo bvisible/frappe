@@ -444,10 +444,12 @@ body.neoffice-cockpit .page-head .btn-primary:active {
 	color: #fff;
 }
 
-/* ── Form tabs: continuous baseline, accent underline on the active tab only
-   (the stock nav-link borders punched holes in the container line) ── */
+/* ── Form tabs: continuous baseline + a single sliding indicator that
+   glides along it (positioned by form/tab_slider.js). The stock nav-link
+   borders punched holes in the container line — neutralized. ── */
 body.neoffice-cockpit .form-tabs-list {
 	background: transparent;
+	position: relative;
 }
 body.neoffice-cockpit .form-tabs-list .form-tabs .nav-item .nav-link {
 	font-size: 13.5px;
@@ -456,23 +458,20 @@ body.neoffice-cockpit .form-tabs-list .form-tabs .nav-item .nav-link {
 	border: none !important;
 	box-shadow: none !important;
 	background: transparent !important;
-	position: relative;
-}
-body.neoffice-cockpit .form-tabs-list .form-tabs .nav-item .nav-link::before {
-	content: "";
-	position: absolute;
-	left: 0;
-	right: 0;
-	bottom: -1px;
-	height: 2.5px;
-	border-radius: 3px;
-	background: transparent;
 }
 body.neoffice-cockpit .form-tabs-list .form-tabs .nav-item .nav-link.active {
 	color: var(--text-color);
 }
-body.neoffice-cockpit .form-tabs-list .form-tabs .nav-item .nav-link.active::before {
+body.neoffice-cockpit .nc-tab-indicator {
+	position: absolute;
+	bottom: -2px; /* sits ON the 2px container baseline */
+	height: 2.5px;
+	border-radius: 3px;
 	background: #4e72ac;
+	opacity: 0;
+	transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1), width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+		opacity 0.15s ease;
+	pointer-events: none;
 }
 
 /* ── Form sections: small-caps headers, calmer card ── */

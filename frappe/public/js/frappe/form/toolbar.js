@@ -304,6 +304,10 @@ frappe.ui.form.Toolbar = class Toolbar {
 		if (!frappe.ui.form.FormHero) return;
 		if (!this.hero) this.hero = new frappe.ui.form.FormHero(this.frm);
 		this.hero.refresh();
+		if (frappe.ui.form.TabSlider) {
+			if (!this.tab_slider) this.tab_slider = new frappe.ui.form.TabSlider(this.frm);
+			this.tab_slider.refresh();
+		}
 	}
 
 	// //// NEOFFICE PATCH — cockpit compact head: a promoted "Preview" button
