@@ -602,12 +602,10 @@ export default class Grid {
 			// show, hide buttons to add rows
 			if (this.cannot_add_rows || (this.df && this.df.cannot_add_rows)) {
 				// add 'hidden' to buttons
-				this.wrapper
-					.find(".grid-add-row, .grid-add-multiple-rows, .grid-append-row")
-					.addClass("hidden");
+				this.wrapper.find(".grid-add-row, .grid-add-multiple-rows").addClass("hidden");
 			} else {
 				// show buttons
-				this.wrapper.find(".grid-add-row, .grid-append-row").removeClass("hidden");
+				this.wrapper.find(".grid-add-row").removeClass("hidden");
 
 				if (this.multiple_set) {
 					this.wrapper.find(".grid-add-multiple-rows").removeClass("hidden");
@@ -621,8 +619,14 @@ export default class Grid {
 		}
 
 		this.wrapper
-			.find(".grid-add-row, .grid-add-multiple-rows, .grid-upload, .grid-append-row")
+			.find(".grid-add-row, .grid-add-multiple-rows, .grid-upload")
 			.toggle(this.is_editable());
+		// class-driven (not jQuery .toggle): show() would force an inline
+		// display and surface the CTA on the legacy chrome where the
+		// stylesheet keeps it hidden
+		const append_row_hidden =
+			!this.is_editable() || this.cannot_add_rows || (this.df && this.df.cannot_add_rows);
+		this.wrapper.find(".grid-append-row").toggleClass("hidden", Boolean(append_row_hidden));
 	}
 
 	truncate_rows() {
