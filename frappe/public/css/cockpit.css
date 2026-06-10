@@ -1,0 +1,55 @@
+/* ──────────────────────────────────────────────────────────────
+   //// NEOFFICE PATCH — NeoCockpit desk shell (default chrome)
+
+   The cockpit sidebar styles ship INSIDE neocockpit.global.js (injected on
+   load). This file only styles the DESK around it: <body> becomes the gray
+   frame, .main-section becomes the white floating rounded panel. The legacy
+   navbar + sidebar are NOT rendered at all (desk.js make_chrome), so there
+   are no hide rules here. Scoped to body.neoffice-cockpit (added by
+   make_cockpit) so the legacy kill-switch path is untouched.
+   ────────────────────────────────────────────────────────────── */
+
+body.neoffice-cockpit {
+	--navbar-height: 0px; /* page-head & friends offset from the old navbar */
+	background: var(--bg-color) !important;
+	display: flex !important;
+	flex-direction: row !important;
+	padding: 8px !important;
+	gap: 8px !important;
+	box-sizing: border-box !important;
+	height: 100vh !important;
+	overflow: hidden !important;
+}
+
+/* the desk content area = the floating white rounded panel */
+body.neoffice-cockpit .main-section {
+	flex: 1 !important;
+	min-width: 0 !important;
+	border-radius: 18px !important;
+	border: 1px solid var(--border-color) !important;
+	background: var(--card-bg, #fff) !important;
+	height: calc(100vh - 16px) !important;
+	overflow-y: auto !important;
+	overflow-x: hidden !important;
+	scrollbar-gutter: stable;
+}
+
+/* the page-head used to stick below the navbar; it now sticks to the panel top */
+body.neoffice-cockpit .page-head {
+	top: 0 !important;
+}
+
+/* mobile: the cockpit shows a top strip + drawer; the panel goes full-bleed */
+@media (max-width: 1023px) {
+	body.neoffice-cockpit {
+		flex-direction: column !important;
+		padding: 0 !important;
+		gap: 0 !important;
+	}
+	body.neoffice-cockpit .main-section {
+		border-radius: 0 !important;
+		border: 0 !important;
+		height: auto !important;
+		flex: 1 !important;
+	}
+}

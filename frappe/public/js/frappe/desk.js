@@ -36,8 +36,7 @@ frappe.Application = class Application {
 
 		this.load_bootinfo();
 		this.load_user_permissions();
-		this.make_nav_bar();
-		this.make_sidebar();
+		this.make_chrome();
 		this.set_favicon();
 		this.set_fullwidth_if_enabled();
 		this.add_browser_class();
@@ -340,6 +339,71 @@ frappe.Application = class Application {
 			frappe.container = new frappe.views.Container();
 		}
 	}
+	// //// NEOFFICE PATCH — NeoCockpit unified chrome (single menu, no navbar).
+	// Default chrome for every Neoffice desk: ONE React sidebar that absorbs the
+	// header (search, notifications bell, NORA, user menu). The legacy navbar +
+	// sidebar are NOT instantiated at all — no hidden DOM, no double chrome.
+	// Emergency kill-switch (legacy chrome): site_config `neoffice_cockpit_disable`.
+	make_chrome() {
+		if (frappe.boot.neoffice_cockpit_disable || frappe.boot.home_page === "setup-wizard") {
+			this.make_nav_bar();
+			this.make_sidebar();
+			return;
+		}
+		this.make_cockpit();
+	}
+
+	make_cockpit() {
+		// headless sidebar: workspace.js consumes it as its data source
+		// (setup_pages / all_pages / frappe.workspaces maps) — no DOM rendered.
+		this.sidebar = new frappe.ui.Sidebar({ headless: true });
+
+		document.body.classList.add("neoffice-cockpit");
+		const root = document.createElement("div");
+		root.id = "neoffice-cockpit-root";
+		root.style.display = "contents";
+		document.body.insertBefore(root, document.body.firstChild);
+
+		const mount = () => {
+			if (!window.NeoCockpit || !window.NeoCockpit.mount) {
+				setTimeout(mount, 50);
+				return;
+			}
+			window.NeoCockpit.mount(root, {
+				env: "desk",
+				layout: "sidebar",
+				homeUrl: "/app/home",
+				onNavigate: (r) => {
+					frappe.set_route(String(r).replace(/^\/app\/?/, "") || "home");
+				},
+			});
+			this.setup_cockpit_awesomebar();
+		};
+		mount();
+	}
+
+	setup_cockpit_awesomebar() {
+		// Bind the real Awesome Bar (mega-panel) onto the cockpit search input.
+		// The input appears after the React render — poll briefly for it.
+		if (!frappe.boot.desk_settings.search_bar) return;
+		let tries = 0;
+		const bind = () => {
+			const input = document.querySelector(".nc-side .nc-search input");
+			if (!input) {
+				if (tries++ < 60) setTimeout(bind, 50);
+				return;
+			}
+			const awesome_bar = new frappe.search.AwesomeBar();
+			awesome_bar.setup(input);
+			frappe.search.utils.make_function_searchable(
+				frappe.utils.generate_tracking_url,
+				__("Generate Tracking URL")
+			);
+		};
+		bind();
+	}
+	// //// END NEOFFICE PATCH
+
 	make_nav_bar() {
 		// toolbar
 		if (frappe.boot && frappe.boot.home_page !== "setup-wizard") {

@@ -1,5 +1,10 @@
 frappe.ui.Sidebar = class Sidebar {
-	constructor() {
+	// //// NEOFFICE PATCH — headless mode for the NeoCockpit chrome.
+	// WHY: workspace.js consumes this class as its DATA source (setup_pages,
+	// all_pages, frappe.workspaces / workspace_map). With the cockpit chrome
+	// the native sidebar DOM must never render, but the data layer must stay.
+	constructor({ headless = false } = {}) {
+		this.headless = headless;
 		this.items = {};
 		this.parent_items = [];
 		this.sidebar_expanded = false;
@@ -10,7 +15,7 @@ frappe.ui.Sidebar = class Sidebar {
 		}
 
 		this.set_all_pages();
-		this.make_dom();
+		if (!this.headless) this.make_dom();
 		this.sidebar_items = {
 			public: {},
 			private: {},
@@ -31,9 +36,11 @@ frappe.ui.Sidebar = class Sidebar {
 		];
 
 		this.setup_pages();
-		this.apps_switcher.populate_apps_menu();
-		this.handle_outside_click();
-		this.setup_route_listener();
+		if (!this.headless) {
+			this.apps_switcher.populate_apps_menu();
+			this.handle_outside_click();
+			this.setup_route_listener();
+		}
 	}
 
 	setup_route_listener() {
@@ -234,8 +241,10 @@ frappe.ui.Sidebar = class Sidebar {
 				frappe.workspace_map[page.name] = page;
 				frappe.workspace_list.push(page);
 			}
-			this.make_sidebar();
+			// //// NEOFFICE PATCH — headless (cockpit): data maps only, no DOM
+			if (!this.headless) this.make_sidebar();
 		}
+		if (this.headless) return;
 		this.set_hover();
 		this.set_sidebar_state();
 	}

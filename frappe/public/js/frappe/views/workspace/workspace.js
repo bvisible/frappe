@@ -227,7 +227,8 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	make_sidebar() {
-		if (!this.sidebar) return;
+		// //// NEOFFICE PATCH — cockpit chrome: native sidebar DOM doesn't exist
+		if (!this.sidebar || this.sidebar.headless) return;
 		// Get the actual jQuery sidebar element
 		const $sidebar = this.sidebar.$sidebar || this.sidebar;
 
@@ -702,7 +703,7 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	show_sidebar_actions() {
-		if (!this.sidebar) return;
+		if (!this.sidebar || this.sidebar.headless) return;
 		// Get the actual jQuery sidebar element
 		const $sidebar = this.sidebar.$sidebar || this.sidebar;
 		$sidebar.find(".standard-sidebar-section").addClass("show-control");
@@ -710,7 +711,7 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	hide_sidebar_actions() {
-		if (!this.sidebar) return;
+		if (!this.sidebar || this.sidebar.headless) return;
 		// Get the actual jQuery sidebar element
 		const $sidebar = this.sidebar.$sidebar || this.sidebar;
 		$sidebar.find(".standard-sidebar-section").removeClass("show-control");
@@ -1282,7 +1283,7 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	prepare_sorted_sidebar(is_public) {
-		if (!this.sidebar) return;
+		if (!this.sidebar || this.sidebar.headless) return;
 		// Get the actual jQuery sidebar element
 		const $sidebar = this.sidebar.$sidebar || this.sidebar;
 
@@ -1738,6 +1739,7 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	create_sidebar_skeleton() {
+		if (this.sidebar?.headless) return;
 		if ($(".workspace-sidebar-skeleton").length) return;
 
 		const $sidebar = this.sidebar.$sidebar || this.sidebar;
@@ -1746,6 +1748,7 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	remove_sidebar_skeleton() {
+		if (this.sidebar?.headless) return;
 		const $sidebar = this.sidebar.$sidebar || this.sidebar;
 		$sidebar.removeClass("hidden");
 		$(".workspace-sidebar-skeleton").remove();

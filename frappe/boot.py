@@ -52,6 +52,11 @@ def get_bootinfo():
 	bootinfo.sysdefaults = frappe.defaults.get_defaults()
 	bootinfo.sysdefaults["setup_complete"] = frappe.is_setup_complete()
 
+	# //// NEOFFICE PATCH — NeoCockpit unified chrome is the DEFAULT desk chrome.
+	# Emergency kill-switch back to the legacy navbar+sidebar:
+	#   bench --site <site> set-config neoffice_cockpit_disable 1
+	bootinfo.neoffice_cockpit_disable = 1 if frappe.conf.get("neoffice_cockpit_disable") else 0
+
 	bootinfo.server_date = frappe.utils.nowdate()
 
 	if frappe.session["user"] != "Guest":
