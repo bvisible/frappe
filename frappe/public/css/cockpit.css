@@ -401,37 +401,9 @@ body.neoffice-cockpit .form-hero-step.dead .when {
 	background: var(--card-bg, #1c2127);
 }
 
-/* ── Head: meta cluster (attachments / comments / tags counts) ── */
-body.neoffice-cockpit .page-meta-cluster {
-	display: flex;
-	align-items: center;
-	gap: 2px;
-	flex-shrink: 0;
-	padding-right: 10px;
-	margin-right: 4px;
-	border-right: 1px solid var(--border-color);
-}
-body.neoffice-cockpit .page-meta-cluster .meta-item {
-	display: flex;
-	align-items: center;
-	gap: 5px;
-	padding: 4px 7px;
-	border-radius: 8px;
-	font-size: 12.5px;
-	font-variant-numeric: tabular-nums;
-	color: var(--text-muted);
-	cursor: pointer;
-	border: none;
-	background: transparent;
-}
-body.neoffice-cockpit .page-meta-cluster .meta-item:hover {
-	background: var(--control-bg, #f0ece3);
-	color: var(--text-color);
-}
-body.neoffice-cockpit .page-meta-cluster .meta-item svg {
-	width: 15px;
-	height: 15px;
-}
+/* NB: the attachments/comments/tags counts cluster in the head is the
+   pre-existing Neoffice compact_header.js module (.form-meta-cluster) —
+   do not add a second one here. */
 
 /* eye-only preview button: square, balanced padding */
 body.neoffice-cockpit .page-preview-btn {

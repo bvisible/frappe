@@ -144,7 +144,12 @@ function extract_transitions(frm) {
 function short_date(d) {
 	if (!d) return "";
 	try {
-		return moment(d).format("D MMM");
+		// Intl, not moment: frappe pins moment to an "en" locale internally,
+		// so moment-formatted month names ignore the user's language.
+		return new Intl.DateTimeFormat(frappe.boot.lang || "en", {
+			day: "numeric",
+			month: "short",
+		}).format(frappe.datetime.str_to_obj(String(d)));
 	} catch (e) {
 		return frappe.datetime.str_to_user(String(d).split(" ")[0]);
 	}
