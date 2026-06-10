@@ -731,8 +731,8 @@ body.neoffice-cockpit .grid-totals-band .tot-serif {
 body.neoffice-cockpit .frappe-control[data-fieldtype="Check"] .checkbox input[type="checkbox"] {
 	appearance: none;
 	-webkit-appearance: none;
-	width: 34px;
-	height: 20px;
+	width: 34px !important;
+	height: 20px !important;
 	border-radius: 999px;
 	background: var(--control-bg, #e6e0d4) !important;
 	background-image: none !important;
