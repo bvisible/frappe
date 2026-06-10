@@ -101,7 +101,8 @@ frappe.ui.form.FormHero = class FormHero {
 		const title = (meta.title_field && doc[meta.title_field]) || doc.name;
 		const initial = (title || "?").trim().charAt(0).toUpperCase();
 		const contact = doc.contact_display && doc.contact_display !== title ? doc.contact_display : null;
-		const sub = [__(this.frm.doctype) + " " + doc.name, contact].filter(Boolean).join(" · ");
+		const id_part = doc.name === title ? __(this.frm.doctype) : __(this.frm.doctype) + " " + doc.name;
+		const sub = [id_part, contact].filter(Boolean).join(" · ");
 
 		// key value (right side): registry override, else auto grand_total
 		let value_html = "";
@@ -118,8 +119,21 @@ frappe.ui.form.FormHero = class FormHero {
 				</div>`;
 		}
 
-		// pipeline
-		const conf = HERO_REGISTRY[this.frm.doctype] || DEFAULT_PIPELINE;
+		// pipeline — only for submittable doctypes (masters have no lifecycle)
+		const conf = HERO_REGISTRY[this.frm.doctype] || (meta.is_submittable ? DEFAULT_PIPELINE : null);
+		if (!conf) {
+			this.$wrapper.html(`
+				<div class="form-hero-top">
+					<div class="form-hero-avatar">${frappe.utils.escape_html(initial)}</div>
+					<div class="form-hero-id">
+						<div class="form-hero-title">${frappe.utils.escape_html(title)}</div>
+						<div class="form-hero-sub">${frappe.utils.escape_html(sub)}</div>
+					</div>
+					${value_html}
+				</div>
+			`);
+			return;
+		}
 		const steps = conf.steps();
 		const rank = conf.rank(doc);
 		const seg = steps
