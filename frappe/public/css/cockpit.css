@@ -39,6 +39,16 @@ body.neoffice-cockpit .page-head {
 	top: 0 !important;
 }
 
+/* List/report views: the desk gives .page-container the gray page background
+   and sizes it against the old navbar — inside the white floating panel that
+   painted a shorter gray block with a visible seam at the bottom. Let the
+   panel's own surface show through and fill the full height. */
+body.neoffice-cockpit .content.page-container,
+body.neoffice-cockpit .page-container {
+	background: transparent !important;
+	min-height: calc(100vh - 18px) !important;
+}
+
 /* ── Notifications host (native frappe.ui.Notifications, anchored to the bell) ── */
 .cockpit-notifications-host {
 	position: fixed;
