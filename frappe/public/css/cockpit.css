@@ -109,8 +109,19 @@ body.neoffice-cockpit .datatable-wrapper > .datatable {
 	min-height: 0;
 }
 body.neoffice-cockpit .datatable > .dt-scrollable {
-	flex: 1;
-	min-height: 0;
+	/* frappe-datatable pins min/max-height in its own <style> tag from a JS
+	   viewport computation that predates the cockpit panel — override hard */
+	flex: 1 !important;
+	height: auto !important;
+	min-height: 0 !important;
+	max-height: none !important;
+}
+/* utility paste-target textarea: keep it focusable but out of the flex flow
+   (it ate 48px at the bottom of the stretched datatable) */
+body.neoffice-cockpit .datatable > .dt-paste-target {
+	position: absolute !important;
+	left: -9999px !important;
+	height: 1px !important;
 }
 
 /* ── Notifications host (native frappe.ui.Notifications, anchored to the bell) ── */
