@@ -312,11 +312,17 @@ frappe.ui.form.Toolbar = class Toolbar {
 						stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;">
 						<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path>
 						<circle cx="12" cy="12" r="3"></circle>
-					</svg>${__("Preview")}
+					</svg>${__("Preview")} / ${__("Print")}
 				</button>
 			`);
 			this.$preview_btn.on("click", () => this.frm.print_doc());
-			this.page.wrapper.find(".standard-actions .primary-action").before(this.$preview_btn);
+			// sits left of the Create/actions group AND the primary action
+			const $anchor = this.page.wrapper.find(".standard-actions .actions-btn-group");
+			if ($anchor.length) {
+				$anchor.before(this.$preview_btn);
+			} else {
+				this.page.wrapper.find(".standard-actions .primary-action").before(this.$preview_btn);
+			}
 		}
 		// hide on unsaved documents (nothing meaningful to print yet)
 		this.$preview_btn.toggleClass("hide", Boolean(this.frm.doc.__islocal));
@@ -379,14 +385,17 @@ frappe.ui.form.Toolbar = class Toolbar {
 					},
 					true
 				);
-				this.print_icon = this.page.add_action_icon(
-					"printer",
-					function () {
-						me.frm.print_doc();
-					},
-					"",
-					__("Print")
-				);
+				if (!document.body.classList.contains("neoffice-cockpit")) {
+					// cockpit: the promoted "Preview / Print" button covers this
+					this.print_icon = this.page.add_action_icon(
+						"printer",
+						function () {
+							me.frm.print_doc();
+						},
+						"",
+						__("Print")
+					);
+				}
 			}
 		}
 
@@ -719,6 +728,12 @@ frappe.ui.form.Toolbar = class Toolbar {
 			);
 		} else if (status === "Cancel") {
 			let add_cancel_button = () => {
+				if (document.body.classList.contains("neoffice-cockpit")) {
+					// cockpit: cancelling is a rare destructive act — keep it in
+					// the ... menu instead of a prominent button
+					this.page.add_menu_item(__(status), () => me.frm.savecancel(this), true);
+					return;
+				}
 				this.page.set_secondary_action(__(status), function () {
 					me.frm.savecancel(this);
 				});
