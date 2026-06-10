@@ -4,15 +4,9 @@
 	padding: 0;
 	position: relative;
 
-	&::before {
-		content: "";
-		position: absolute;
-		bottom: -16px;
-		left: 0;
-		width: 16px;
-		height: 16px;
-		background: radial-gradient(circle at bottom right, transparent 16px, var(--navbar-bg) 16px);
-	}
+	// NEOFFICE: the ::before concave-corner (radial-gradient) was removed with
+	// the NeoCockpit chrome — it leaked onto every .navbar-classed element
+	// (e.g. the cockpit notifications host).
 
 	.navbar-brand {
 		margin-right: 0;

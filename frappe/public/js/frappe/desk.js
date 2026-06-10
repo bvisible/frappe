@@ -502,28 +502,42 @@ frappe.Application = class Application {
 			requestAnimationFrame(() => field.focus());
 		};
 
-		// cockpit inputs (desktop sidebar, drawer, mobile strip) appear after the
-		// React render — poll briefly, then turn them into overlay triggers.
+		// Cmd/Ctrl+G opens the overlay directly (the cockpit input doesn't
+		// exist in the collapsed rail, so focusing it can't be the only path).
+		document.addEventListener("keydown", (e) => {
+			if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "g") {
+				e.preventDefault();
+				open();
+			}
+		});
+
+		// cockpit search boxes (desktop sidebar, drawer, mobile strip) appear
+		// after the React render — poll briefly, then turn them into overlay
+		// triggers. Bound on the CONTAINER so the collapsed rail (icon only,
+		// no input) opens the overlay too.
 		let tries = 0;
 		const wire = () => {
-			const triggers = document.querySelectorAll(".neocockpit .nc-search input");
-			if (!triggers.length) {
+			const boxes = document.querySelectorAll(".neocockpit .nc-search");
+			if (!boxes.length) {
 				if (tries++ < 60) setTimeout(wire, 50);
 				return;
 			}
-			triggers.forEach((t) => {
-				t.readOnly = true; // no inline typing, no mobile keyboard flash
+			boxes.forEach((box) => {
 				// mousedown + preventDefault: the trigger never takes focus, so
 				// there is no focus/blur race with the overlay field.
-				t.addEventListener("mousedown", (e) => {
+				box.addEventListener("mousedown", (e) => {
 					e.preventDefault();
 					open();
 				});
-				// keyboard path (Tab / the cockpit's Cmd+G handler focuses it)
-				t.addEventListener("focus", () => {
-					t.blur();
-					open();
-				});
+				const input = box.querySelector("input");
+				if (input) {
+					input.readOnly = true; // no inline typing, no mobile keyboard flash
+					// keyboard path (Tab / the cockpit's Cmd+G handler focuses it)
+					input.addEventListener("focus", () => {
+						input.blur();
+						open();
+					});
+				}
 			});
 		};
 		wire();
