@@ -668,7 +668,12 @@ frappe.ui.Page = class Page {
 			// never hide a button we cannot represent in the menu
 			if (!$dupes.length) continue;
 			el.classList.add("pao-overflowed");
-			$dupes.removeClass("hidden-xl").addClass("pao-promoted");
+			$dupes
+				.removeClass("hidden-xl")
+				.addClass("pao-promoted")
+				// legacy re-adds left hidden-xl on the inner <a> too
+				.find(".hidden-xl")
+				.removeClass("hidden-xl");
 			promoted = true;
 		}
 		if (promoted && this.menu_btn_group.hasClass("hidden-xl")) {
@@ -741,8 +746,11 @@ frappe.ui.Page = class Page {
 		// Add actions as menu item in Mobile View
 		let menu_item_label = group ? `${group} > ${label}` : label;
 		let menu_item = this.add_menu_item(menu_item_label, _action, false, false, false);
+		// add_menu_item returns the <a> on first add but the inner <span>
+		// when the item already exists — closest() lands on the <li> in
+		// both cases (.parent() used to mis-tag the <a> on re-adds)
 		menu_item
-			.parent()
+			.closest("li")
 			.addClass("hidden-xl")
 			// NEOFFICE cockpit: the overflow manager reveals this duplicate
 			// when the matching toolbar button doesn't fit the head
@@ -874,14 +882,17 @@ frappe.ui.Page = class Page {
 
 	add_button(label, click, opts) {
 		if (!opts) opts = {};
-		let button = $(`<button
+		let button = $(`<button data-label="${encodeURIComponent(label)}"
 			class="btn ${opts.btn_class || "btn-default"} ${opts.btn_size || "btn-sm"} ellipsis">
 				${opts.icon ? frappe.utils.icon(opts.icon) : ""}
 				${label}
 		</button>`);
 		// Add actions as menu item in Mobile View (similar to "add_custom_button" in forms.js)
 		let menu_item = this.add_menu_item(label, click, false);
-		menu_item.parent().addClass("hidden-xl");
+		menu_item
+			.closest("li")
+			.addClass("hidden-xl")
+			.attr("data-overflow-key", encodeURIComponent(label));
 
 		button.appendTo(this.custom_actions);
 		button.on("click", click);
