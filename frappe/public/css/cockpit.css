@@ -152,6 +152,13 @@ body.neoffice-cockpit .page-preview-btn {
 	display: inline-flex;
 	align-items: center;
 	margin-right: 4px;
+	white-space: nowrap;
+}
+/* the standard cluster (menu/preview/create/primary) never shrinks or clips */
+body.neoffice-cockpit .page-head .standard-actions {
+	flex-shrink: 0;
+	flex-wrap: nowrap;
+	align-items: center;
 }
 
 /* List/report views: the desk gives .page-container the gray page background

@@ -100,9 +100,8 @@ frappe.ui.form.FormHero = class FormHero {
 		const meta = this.frm.meta;
 		const title = (meta.title_field && doc[meta.title_field]) || doc.name;
 		const initial = (title || "?").trim().charAt(0).toUpperCase();
-		const sub = [__(this.frm.doctype) + " " + doc.name, doc.contact_display || null]
-			.filter(Boolean)
-			.join(" · ");
+		const contact = doc.contact_display && doc.contact_display !== title ? doc.contact_display : null;
+		const sub = [__(this.frm.doctype) + " " + doc.name, contact].filter(Boolean).join(" · ");
 
 		// key value (right side): registry override, else auto grand_total
 		let value_html = "";
