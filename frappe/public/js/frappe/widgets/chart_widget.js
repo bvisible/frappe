@@ -40,6 +40,12 @@ export default class ChartWidget extends Widget {
 	}
 
 	setup_container() {
+		// a refresh rebuilds the body: drop any pending first-draw observer
+		// targeting the previous chart wrapper
+		if (this._layout_observer) {
+			this._layout_observer.disconnect();
+			this._layout_observer = null;
+		}
 		this.body.empty();
 
 		if (this.chart_doc.type == "Heatmap") {
@@ -528,12 +534,33 @@ export default class ChartWidget extends Widget {
 
 	async render() {
 		let setup_dashboard_chart = () => {
-			const chart_args = this.get_chart_args();
-
-			if (!this.dashboard_chart) {
-				this.dashboard_chart = frappe.utils.make_chart(this.chart_wrapper[0], chart_args);
-			} else {
+			if (this.dashboard_chart) {
 				this.dashboard_chart.update(this.data);
+				return;
+			}
+
+			// Workspace blocks are built detached (EditorJS appends them after
+			// render()) and frappe-charts measures its container at construct
+			// time — a detached or zero-width host turns every coordinate into
+			// NaN (broken first paint + console noise). Defer the first draw
+			// until the wrapper actually has layout.
+			const host = this.chart_wrapper[0];
+			const first_draw = () => {
+				if (this._layout_observer) {
+					this._layout_observer.disconnect();
+					this._layout_observer = null;
+				}
+				this.dashboard_chart = frappe.utils.make_chart(host, this.get_chart_args());
+			};
+
+			if (host.isConnected && host.offsetWidth) {
+				first_draw();
+			} else if (!this._layout_observer) {
+				this._layout_observer = new ResizeObserver(() => {
+					if (this.dashboard_chart || !host.isConnected || !host.offsetWidth) return;
+					first_draw();
+				});
+				this._layout_observer.observe(host);
 			}
 		};
 
