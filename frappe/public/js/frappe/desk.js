@@ -376,10 +376,64 @@ frappe.Application = class Application {
 				onNavigate: (r) => {
 					frappe.set_route(String(r).replace(/^\/app\/?/, "") || "home");
 				},
+				// NORA Quick Chat is an OVERLAY, not a route
+				onNora: () => {
+					if (frappe.ui.NoraQuickChat && frappe.ui.NoraQuickChat.show) {
+						frappe.ui.NoraQuickChat.show();
+					} else {
+						frappe.set_route("nora-chat");
+					}
+				},
+				onBell: () => this.toggle_cockpit_notifications(),
 			});
 			this.setup_cockpit_awesomebar();
+			this.setup_cockpit_notifications();
 		};
 		mount();
+	}
+
+	setup_cockpit_notifications() {
+		// Reuse the NATIVE frappe.ui.Notifications (realtime, mark-read, events,
+		// changelog tabs). It binds on `.navbar .dropdown-notifications`, so we
+		// host that exact navbar markup in a hidden fixed shell the bell anchors.
+		if (!frappe.boot.desk_settings.notifications || frappe.session.user === "Guest") return;
+		this.$cockpit_notif_host = $(`
+			<nav class="navbar cockpit-notifications-host">
+				<li class="nav-item dropdown dropdown-notifications dropdown-mobile hidden">
+					<button class="btn-reset nav-link notifications-icon text-muted"
+						data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+						style="width:1px;height:1px;overflow:hidden;opacity:0;"></button>
+					<div class="dropdown-menu notifications-list" role="menu">
+						<div class="notification-list-header">
+							<div class="header-items"></div>
+							<div class="header-actions"></div>
+						</div>
+						<div class="notification-list-body">
+							<div class="panel-notifications"></div>
+							<div class="panel-events"></div>
+							<div class="panel-changelog-feed"></div>
+						</div>
+					</div>
+				</li>
+			</nav>
+		`).appendTo("body");
+		this.cockpit_notifications = new frappe.ui.Notifications();
+
+		// realtime unseen indicator on the cockpit bell
+		frappe.realtime.on("notification", () => {
+			$(".nc-bell").addClass("has-unseen");
+		});
+	}
+
+	toggle_cockpit_notifications() {
+		if (!this.$cockpit_notif_host) return;
+		const bell = document.querySelector(".nc-side .nc-bell") || document.querySelector(".nc-bell");
+		if (bell) {
+			const r = bell.getBoundingClientRect();
+			this.$cockpit_notif_host.css({ left: r.right + 10, top: Math.max(8, r.top - 4) });
+		}
+		$(".nc-bell").removeClass("has-unseen");
+		this.$cockpit_notif_host.find('[data-toggle="dropdown"]').dropdown("toggle");
 	}
 
 	setup_cockpit_awesomebar() {

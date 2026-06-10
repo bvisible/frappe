@@ -39,6 +39,32 @@ body.neoffice-cockpit .page-head {
 	top: 0 !important;
 }
 
+/* ── Notifications host (native frappe.ui.Notifications, anchored to the bell) ── */
+.cockpit-notifications-host {
+	position: fixed;
+	z-index: 1058;
+	padding: 0 !important;
+	margin: 0 !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	border: 0 !important;
+	min-height: 0 !important;
+	height: 0;
+	width: 0;
+	display: block !important;
+}
+.cockpit-notifications-host .nav-item {
+	list-style: none;
+}
+.cockpit-notifications-host .notifications-list {
+	min-width: 380px;
+	max-width: 420px;
+	max-height: 70vh;
+	overflow-y: auto;
+	border-radius: 14px;
+	box-shadow: 0 14px 44px rgba(0, 0, 0, 0.22);
+}
+
 /* ── Centered search overlay (Drive-like command palette) ──
    The cockpit search inputs only TRIGGER this; the bound Awesome Bar input
    lives here and the mega-panel (z-index 1060) anchors under it. */
