@@ -40,9 +40,111 @@ body.neoffice-cockpit .main-section {
 	scrollbar-gutter: stable;
 }
 
-/* the page-head used to stick below the navbar; it now sticks to the panel top */
+/* ── Compact page head (handoff .pnl-head) ──────────────────────────
+   ONE fixed-height row: breadcrumb trail › title · status pill … tools |
+   Preview | primary. Custom buttons never wrap to a second line. */
 body.neoffice-cockpit .page-head {
 	top: 0 !important;
+	height: 54px;
+	border-bottom: 1px solid var(--border-color);
+}
+body.neoffice-cockpit .page-head .page-head-content {
+	height: 54px;
+	flex-wrap: nowrap;
+}
+/* neutralize the bootstrap column widths — natural flex row instead */
+body.neoffice-cockpit .page-head .page-title {
+	flex: 1 1 auto;
+	min-width: 0;
+	max-width: none;
+	width: auto;
+	padding-right: 12px;
+}
+body.neoffice-cockpit .page-head .page-actions {
+	flex: 0 0 auto;
+	width: auto;
+	max-width: none;
+	flex-wrap: nowrap;
+	align-items: center;
+	gap: 6px;
+}
+/* breadcrumb trail inline with the title */
+body.neoffice-cockpit .page-breadcrumbs {
+	display: flex;
+	align-items: center;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	color: var(--text-muted);
+	font-size: 13px;
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+body.neoffice-cockpit .page-breadcrumbs li {
+	display: flex;
+	align-items: center;
+}
+body.neoffice-cockpit .page-breadcrumbs li + li::before {
+	content: "›";
+	margin: 0 7px;
+	opacity: 0.45;
+}
+body.neoffice-cockpit .page-breadcrumbs:not(:empty)::after {
+	content: "›";
+	margin: 0 8px;
+	opacity: 0.45;
+}
+body.neoffice-cockpit .page-breadcrumbs a {
+	color: inherit;
+}
+body.neoffice-cockpit .page-breadcrumbs a:hover {
+	color: var(--text-color);
+	text-decoration: none;
+}
+/* the title is the LAST crumb: compact, semibold */
+body.neoffice-cockpit .page-head .title-text {
+	font-size: 14.5px;
+	font-weight: 600;
+	margin: 0;
+	line-height: 1.3;
+	cursor: default;
+}
+body.neoffice-cockpit .page-head .title-area .flex {
+	align-items: center;
+	min-width: 0;
+}
+body.neoffice-cockpit .page-head .indicator-pill {
+	margin-left: 10px;
+}
+body.neoffice-cockpit .page-head .sub-heading {
+	display: none !important;
+}
+/* custom buttons: single line, horizontal scroll if they overflow */
+body.neoffice-cockpit .page-head .custom-actions {
+	display: flex;
+	flex-wrap: nowrap;
+	align-items: center;
+	gap: 6px;
+	overflow-x: auto;
+	max-width: 38vw;
+	scrollbar-width: none;
+}
+body.neoffice-cockpit .page-head .custom-actions::-webkit-scrollbar {
+	display: none;
+}
+body.neoffice-cockpit .page-head .custom-actions .inner-group-button,
+body.neoffice-cockpit .page-head .custom-actions .btn {
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+/* slight pill rounding on head buttons + the promoted Preview */
+body.neoffice-cockpit .page-head .btn {
+	border-radius: 10px;
+}
+body.neoffice-cockpit .page-preview-btn {
+	display: inline-flex;
+	align-items: center;
+	margin-right: 4px;
 }
 
 /* List/report views: the desk gives .page-container the gray page background

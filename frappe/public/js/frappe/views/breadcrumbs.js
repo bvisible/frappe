@@ -185,6 +185,9 @@ frappe.breadcrumbs = {
 	},
 
 	set_form_breadcrumb(breadcrumbs, view) {
+		// NEOFFICE cockpit: the compact page head already shows the document
+		// title right after the trail — a name crumb would duplicate it.
+		if (document.body.classList.contains("neoffice-cockpit")) return;
 		const doctype = breadcrumbs.doctype;
 		let docname = frappe.get_route().slice(2).join("/");
 		let docname_title;
@@ -231,7 +234,20 @@ frappe.breadcrumbs = {
 	},
 
 	clear() {
-		this.$breadcrumbs = $("#navbar-breadcrumbs").empty();
+		// NEOFFICE: with the NeoCockpit chrome the trail renders inside the
+		// CURRENT page's head (the navbar host is gone). Fall back to the
+		// legacy navbar slot for the kill-switch chrome.
+		let $el = $();
+		if (frappe.container && frappe.container.page) {
+			$el = $(frappe.container.page).find(".page-head .page-breadcrumbs").first();
+		}
+		if (!$el.length) {
+			$el = $(".page-container:visible .page-head .page-breadcrumbs").first();
+		}
+		if (!$el.length) {
+			$el = $("#navbar-breadcrumbs");
+		}
+		this.$breadcrumbs = $el.empty();
 	},
 
 	toggle(show) {

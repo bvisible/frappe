@@ -17,6 +17,7 @@ frappe.ui.form.Toolbar = class Toolbar {
 		this.page.clear_user_actions();
 		this.show_title_as_dirty();
 		this.set_primary_action();
+		this.setup_preview_button();
 
 		if (this.frm.meta.hide_toolbar) {
 			this.page.hide_menu();
@@ -298,6 +299,29 @@ frappe.ui.form.Toolbar = class Toolbar {
 			this.page.clear_indicator();
 		}
 	}
+	// //// NEOFFICE PATCH — cockpit compact head: a promoted "Preview" button
+	// (eye) next to the primary action for printable doctypes, so the most
+	// common journey (see the PDF the customer receives) is one click.
+	setup_preview_button() {
+		if (!document.body.classList.contains("neoffice-cockpit")) return;
+		if (!this.$preview_btn) {
+			if (this.frm.meta.issingle || !frappe.model.can_print(null, this.frm)) return;
+			this.$preview_btn = $(`
+				<button class="btn btn-default btn-sm page-preview-btn">
+					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+						stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;">
+						<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path>
+						<circle cx="12" cy="12" r="3"></circle>
+					</svg>${__("Preview")}
+				</button>
+			`);
+			this.$preview_btn.on("click", () => this.frm.print_doc());
+			this.page.wrapper.find(".standard-actions .primary-action").before(this.$preview_btn);
+		}
+		// hide on unsaved documents (nothing meaningful to print yet)
+		this.$preview_btn.toggleClass("hide", Boolean(this.frm.doc.__islocal));
+	}
+
 	make_menu() {
 		this.page.clear_icons();
 		this.page.clear_menu();
