@@ -19,7 +19,21 @@ frappe.ui.form.TabSlider = class TabSlider {
 
 		if (!this.$bar || !$.contains($list[0], this.$bar[0])) {
 			this.$bar = $('<span class="nc-tab-indicator"></span>').appendTo($list);
-			$list.on("shown.bs.tab", ".nav-link", () => this.position());
+			// frappe switches tabs itself (no bootstrap shown.bs.tab event):
+			// watch the .active class instead, whatever flips it
+			this._observer && this._observer.disconnect();
+			this._observer = new MutationObserver(() => {
+				if (this._raf) return;
+				this._raf = requestAnimationFrame(() => {
+					this._raf = null;
+					this.position();
+				});
+			});
+			this._observer.observe($list[0], {
+				subtree: true,
+				attributes: true,
+				attributeFilter: ["class"],
+			});
 			$(window).on(
 				"resize",
 				frappe.utils.debounce(() => this.position(), 150)
