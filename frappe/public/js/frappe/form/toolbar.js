@@ -314,13 +314,12 @@ frappe.ui.form.Toolbar = class Toolbar {
 		if (!this.$preview_btn) {
 			if (this.frm.meta.issingle || !frappe.model.can_print(null, this.frm)) return;
 			this.$preview_btn = $(`
-				<button class="btn btn-default btn-sm page-preview-btn icon-btn"
-					title="${__("Preview")} / ${__("Print")}">
+				<button class="btn btn-default btn-sm page-preview-btn">
 					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
 						stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
 						<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path>
 						<circle cx="12" cy="12" r="3"></circle>
-					</svg>
+					</svg>${__("Preview")} / ${__("Print")}
 				</button>
 			`);
 			this.$preview_btn.on("click", () => this.frm.print_doc());

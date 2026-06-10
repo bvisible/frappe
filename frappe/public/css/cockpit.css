@@ -61,6 +61,7 @@ body.neoffice-cockpit .page-head .page-title {
 	max-width: 46%;
 	width: auto;
 	padding-right: 12px;
+	overflow: hidden;
 }
 body.neoffice-cockpit .page-head .title-text {
 	max-width: 300px;
@@ -122,6 +123,7 @@ body.neoffice-cockpit .page-head .title-area .flex {
 }
 body.neoffice-cockpit .page-head .indicator-pill {
 	margin-left: 10px;
+	flex-shrink: 0;
 }
 body.neoffice-cockpit .page-head .sub-heading {
 	display: none !important;
@@ -403,20 +405,36 @@ body.neoffice-cockpit .form-hero-step.dead .when {
 
 /* NB: the attachments/comments/tags counts cluster in the head is the
    pre-existing Neoffice compact_header.js module (.form-meta-cluster) —
-   do not add a second one here. */
-
-/* eye-only preview button: square, balanced padding */
-body.neoffice-cockpit .page-preview-btn {
-	display: inline-grid;
-	place-items: center;
-	padding: 5px 8px;
+   restyled boxless below, do not add a second one. */
+body.neoffice-cockpit .page-actions .form-meta-cluster {
+	border: none !important;
+	background: transparent !important;
+	box-shadow: none !important;
 }
 
-/* ── Head: primary action in Neoffice blue ── */
+/* preview button: eye + label, ghost */
+body.neoffice-cockpit .page-preview-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+
+/* ── Head: harmonized buttons, bigger primary in Neoffice blue ── */
+body.neoffice-cockpit .page-head .btn-sm {
+	padding: 6px 12px;
+	border-radius: 9px;
+	font-size: 13px;
+}
 body.neoffice-cockpit .page-head .btn-primary {
 	background: #4e72ac;
 	border-color: #4e72ac;
 	color: #fff;
+	padding: 8px 18px;
+	font-size: 13.5px;
+	font-weight: 600;
+	border-radius: 10px;
 }
 body.neoffice-cockpit .page-head .btn-primary:hover,
 body.neoffice-cockpit .page-head .btn-primary:focus,
@@ -426,18 +444,35 @@ body.neoffice-cockpit .page-head .btn-primary:active {
 	color: #fff;
 }
 
-/* ── Form tabs: calm underline, accent on active ── */
+/* ── Form tabs: continuous baseline, accent underline on the active tab only
+   (the stock nav-link borders punched holes in the container line) ── */
 body.neoffice-cockpit .form-tabs-list {
 	background: transparent;
 }
-body.neoffice-cockpit .form-tabs-list .nav-link {
+body.neoffice-cockpit .form-tabs-list .form-tabs .nav-item .nav-link {
 	font-size: 13.5px;
 	font-weight: 600;
 	color: var(--text-muted);
+	border: none !important;
+	box-shadow: none !important;
+	background: transparent !important;
+	position: relative;
 }
-body.neoffice-cockpit .form-tabs-list .nav-link.active {
+body.neoffice-cockpit .form-tabs-list .form-tabs .nav-item .nav-link::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: -1px;
+	height: 2.5px;
+	border-radius: 3px;
+	background: transparent;
+}
+body.neoffice-cockpit .form-tabs-list .form-tabs .nav-item .nav-link.active {
 	color: var(--text-color);
-	border-bottom-color: #4e72ac;
+}
+body.neoffice-cockpit .form-tabs-list .form-tabs .nav-item .nav-link.active::before {
+	background: #4e72ac;
 }
 
 /* ── Form sections: small-caps headers, calmer card ── */
