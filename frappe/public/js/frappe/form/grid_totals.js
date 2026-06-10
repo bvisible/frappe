@@ -9,8 +9,9 @@
 // Liveness: the first toolbar refresh can run BEFORE the field layout is
 // in the DOM, so a MutationObserver on the items control wrapper (re)tries
 // the band and re-reads frm.doc whenever the grid re-renders (which is how
-// recalculated totals surface). The band itself lives OUTSIDE the observed
-// wrapper — rendering it cannot retrigger the observer.
+// recalculated totals surface). The band hugs the grid card (last child of
+// .form-grid) — inside the observed subtree, so render() skips identical
+// html to keep the observer from feeding itself.
 
 frappe.provide("frappe.ui.form");
 
@@ -55,11 +56,15 @@ frappe.ui.form.GridTotals = class GridTotals {
 	}
 
 	ensure_band() {
-		const $wrapper = this.frm.fields_dict.items.$wrapper;
-		if (!$wrapper.find(".form-grid").length) return; // layout not built yet
+		const $grid = this.frm.fields_dict.items.$wrapper.find(".form-grid").first();
+		if (!$grid.length) return; // layout not built yet
 		if (this.$band && $.contains(document.body, this.$band[0])) return;
-		// inserted AFTER the control wrapper: outside the observed subtree
-		this.$band = $('<div class="grid-totals-band"></div>').insertAfter($wrapper);
+		// last child of the grid card so it hugs the table (rounded corners
+		// come from the card's overflow:hidden). The band lives inside the
+		// observed subtree — the _last_html guard in render() keeps the
+		// observer->render cycle from feeding itself.
+		this.$band = $('<div class="grid-totals-band"></div>').appendTo($grid);
+		this._last_html = null; // fresh band must always take the next render
 	}
 
 	render() {

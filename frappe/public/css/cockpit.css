@@ -622,15 +622,15 @@ body.neoffice-cockpit .grid-footer .grid-add-row {
 	display: none !important;
 }
 
-/* totals band under the items grid (grid_totals.js) */
+/* totals band hugging the bottom of the items grid card (grid_totals.js) —
+   corners come from .form-grid's overflow:hidden */
 body.neoffice-cockpit .grid-totals-band {
 	display: flex;
 	justify-content: flex-end;
 	align-items: baseline;
 	gap: 26px;
-	margin-top: 6px;
-	padding: 12px 18px;
-	border-radius: 10px;
+	padding: 13px 18px;
+	border-top: 1px solid var(--border-color);
 	background: var(--subtle-fg, #f6f1e9);
 }
 body.neoffice-cockpit .grid-totals-band .tot-pair {
