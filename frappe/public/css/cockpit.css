@@ -11,7 +11,8 @@
 
 body.neoffice-cockpit {
 	--navbar-height: 0px; /* page-head & friends offset from the old navbar */
-	background: var(--bg-color) !important;
+	/* plain warm frame — the theme's animated grid + dots were removed */
+	background: #f5f3ef !important;
 	display: flex !important;
 	flex-direction: row !important;
 	padding: 8px !important;
@@ -19,6 +20,11 @@ body.neoffice-cockpit {
 	box-sizing: border-box !important;
 	height: 100vh !important;
 	overflow: hidden !important;
+}
+
+/* dark mode keeps the theme surface (a light frame around a dark panel would clash) */
+[data-theme="dark"] body.neoffice-cockpit {
+	background: var(--bg-color) !important;
 }
 
 /* the desk content area = the floating white rounded panel */
