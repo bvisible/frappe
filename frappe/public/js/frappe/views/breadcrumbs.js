@@ -67,7 +67,11 @@ frappe.breadcrumbs = {
 				this.set_list_breadcrumb(breadcrumbs);
 				this.set_form_breadcrumb(breadcrumbs, view);
 			} else if (breadcrumbs.doctype && view === "list") {
-				this.set_list_breadcrumb(breadcrumbs);
+				// NEOFFICE cockpit: the compact page title IS the list name —
+				// a list crumb would duplicate it
+				if (!document.body.classList.contains("neoffice-cockpit")) {
+					this.set_list_breadcrumb(breadcrumbs);
+				}
 			} else if (breadcrumbs.doctype && view == "dashboard-view") {
 				this.set_list_breadcrumb(breadcrumbs);
 				this.set_dashboard_breadcrumb(breadcrumbs);
