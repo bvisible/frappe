@@ -22,9 +22,9 @@ body.neoffice-cockpit {
 	overflow: hidden !important;
 }
 
-/* dark mode keeps the theme surface (a light frame around a dark panel would clash) */
+/* dark mode: warm dark equivalent of the light #f5f3ef frame */
 [data-theme="dark"] body.neoffice-cockpit {
-	background: var(--bg-color) !important;
+	background: #1b1917 !important;
 }
 
 /* the desk content area = the floating white rounded panel */
@@ -53,6 +53,42 @@ body.neoffice-cockpit .content.page-container,
 body.neoffice-cockpit .page-container {
 	background: transparent !important;
 	min-height: calc(100vh - 18px) !important;
+}
+
+/* Stretch the page down to the panel bottom (short lists ended mid-panel):
+   flex chain page-container → .container → layout row → list, with the
+   paging area pinned at the end. */
+body.neoffice-cockpit .content.page-container {
+	display: flex;
+	flex-direction: column;
+}
+body.neoffice-cockpit .content.page-container > .container {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+body.neoffice-cockpit .content.page-container > .container > .row.layout-main {
+	flex: 1;
+	min-height: 0;
+}
+body.neoffice-cockpit .layout-main-section-wrapper {
+	display: flex;
+	flex-direction: column;
+	margin-bottom: 0 !important;
+}
+body.neoffice-cockpit .layout-main-section {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+}
+body.neoffice-cockpit .layout-main-section > .frappe-list {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+}
+body.neoffice-cockpit .frappe-list .result {
+	flex: 1;
 }
 
 /* ── Notifications host (native frappe.ui.Notifications, anchored to the bell) ── */
