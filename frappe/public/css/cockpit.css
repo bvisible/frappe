@@ -128,15 +128,20 @@ body.neoffice-cockpit .page-head .indicator-pill {
 body.neoffice-cockpit .page-head .sub-heading {
 	display: none !important;
 }
-/* custom buttons: single line, horizontal scroll if they overflow */
+/* custom buttons: single line — page.js redistribute_custom_actions()
+   moves what doesn't fit into the ⋯ menu (scroll kept as a last-resort
+   net for unkeyed elements) */
 body.neoffice-cockpit .page-head .custom-actions {
 	display: flex;
 	flex-wrap: nowrap;
 	align-items: center;
 	gap: 6px;
 	overflow-x: auto;
-	max-width: 38vw;
+	min-width: 0;
 	scrollbar-width: none;
+}
+body.neoffice-cockpit .page-head .custom-actions > .pao-overflowed {
+	display: none !important;
 }
 body.neoffice-cockpit .page-head .custom-actions::-webkit-scrollbar {
 	display: none;

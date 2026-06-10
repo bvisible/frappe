@@ -152,6 +152,8 @@ frappe.ui.Page = class Page {
 		this.inner_toolbar = this.custom_actions;
 		this.icon_group = this.page_actions.find(".page-icon-group");
 
+		this.setup_actions_overflow();
+
 		if (this.make_page) {
 			this.make_page();
 		}
@@ -608,6 +610,73 @@ frappe.ui.Page = class Page {
 		return $('<li class="dropdown-divider"></li>').appendTo(this.menu);
 	}
 
+	// //// NEOFFICE PATCH — cockpit head priority overflow.
+	//
+	// The compact head is ONE line: custom buttons that don't fit would get
+	// clipped by the scroll container. Instead, overflowing buttons (taken
+	// from the LEFT — the rightmost ones stay, they sit next to the primary
+	// action) are hidden and their pre-existing menu duplicates (the
+	// hidden-xl items frappe already creates for mobile) are revealed in
+	// the ⋯ menu. Re-runs on resize and whenever buttons are (re)added.
+	setup_actions_overflow() {
+		if (!this.custom_actions.length || !window.ResizeObserver) return;
+		const run = frappe.utils.debounce(() => this.redistribute_custom_actions(), 120);
+		this._overflow_observer = new MutationObserver(run);
+		this._overflow_observer.observe(this.custom_actions[0], { childList: true });
+		this._overflow_resizer = new ResizeObserver(run);
+		this._overflow_resizer.observe(this.page_actions[0]);
+	}
+
+	redistribute_custom_actions() {
+		if (!document.body.classList.contains("neoffice-cockpit")) return;
+		const $actions = this.page_actions;
+		if (!$actions[0] || !$actions[0].clientWidth) return; // page hidden
+
+		// reset: show all buttons, demote previously promoted menu items
+		this.custom_actions.children().removeClass("pao-overflowed");
+		this.menu.find("li.pao-promoted").addClass("hidden-xl").removeClass("pao-promoted");
+		if (this._pao_unhid_menu) {
+			this.menu_btn_group.addClass("hidden-xl");
+			this._pao_unhid_menu = false;
+		}
+
+		// available room = head actions row minus its other children
+		const GAP = 6;
+		let others = 0;
+		[...$actions[0].children].forEach((el) => {
+			if (el !== this.custom_actions[0] && el.offsetWidth) others += el.offsetWidth + GAP;
+		});
+		const avail = $actions[0].clientWidth - others - 8;
+
+		const children = [...this.custom_actions[0].children].filter((el) => el.offsetWidth);
+		let used = 0;
+		let cut = -1; // children up to (and including) this index overflow
+		for (let i = children.length - 1; i >= 0; i--) {
+			used += children[i].offsetWidth + GAP;
+			if (used > avail) {
+				cut = i;
+				break;
+			}
+		}
+		if (cut < 0) return; // everything fits
+
+		let promoted = false;
+		for (let i = 0; i <= cut; i++) {
+			const el = children[i];
+			const key = el.getAttribute("data-label");
+			const $dupes = key ? this.menu.find(`li[data-overflow-key="${key}"]`) : $();
+			// never hide a button we cannot represent in the menu
+			if (!$dupes.length) continue;
+			el.classList.add("pao-overflowed");
+			$dupes.removeClass("hidden-xl").addClass("pao-promoted");
+			promoted = true;
+		}
+		if (promoted && this.menu_btn_group.hasClass("hidden-xl")) {
+			this.menu_btn_group.removeClass("hidden-xl");
+			this._pao_unhid_menu = true;
+		}
+	}
+
 	get_or_add_inner_group_button(label) {
 		var $group = this.inner_toolbar.find(
 			`.inner-group-button[data-label="${encodeURIComponent(label)}"]`
@@ -672,7 +741,12 @@ frappe.ui.Page = class Page {
 		// Add actions as menu item in Mobile View
 		let menu_item_label = group ? `${group} > ${label}` : label;
 		let menu_item = this.add_menu_item(menu_item_label, _action, false, false, false);
-		menu_item.parent().addClass("hidden-xl");
+		menu_item
+			.parent()
+			.addClass("hidden-xl")
+			// NEOFFICE cockpit: the overflow manager reveals this duplicate
+			// when the matching toolbar button doesn't fit the head
+			.attr("data-overflow-key", encodeURIComponent(group || label));
 		if (this.menu_btn_group.hasClass("hide")) {
 			this.menu_btn_group.removeClass("hide").addClass("hidden-xl");
 		}
