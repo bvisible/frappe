@@ -18,6 +18,7 @@ frappe.ui.form.Toolbar = class Toolbar {
 		this.show_title_as_dirty();
 		this.set_primary_action();
 		this.setup_preview_button();
+		this.refresh_meta_cluster();
 		this.refresh_hero();
 
 		if (this.frm.meta.hide_toolbar) {
@@ -314,12 +315,13 @@ frappe.ui.form.Toolbar = class Toolbar {
 		if (!this.$preview_btn) {
 			if (this.frm.meta.issingle || !frappe.model.can_print(null, this.frm)) return;
 			this.$preview_btn = $(`
-				<button class="btn btn-default btn-sm page-preview-btn">
+				<button class="btn btn-default btn-sm page-preview-btn icon-btn"
+					title="${__("Preview")} / ${__("Print")}">
 					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-						stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;">
+						stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
 						<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path>
 						<circle cx="12" cy="12" r="3"></circle>
-					</svg>${__("Preview")} / ${__("Print")}
+					</svg>
 				</button>
 			`);
 			this.$preview_btn.on("click", () => this.frm.print_doc());
@@ -333,6 +335,55 @@ frappe.ui.form.Toolbar = class Toolbar {
 		}
 		// hide on unsaved documents (nothing meaningful to print yet)
 		this.$preview_btn.toggleClass("hide", Boolean(this.frm.doc.__islocal));
+	}
+
+	// //// NEOFFICE PATCH — cockpit compact head: attachments / comments /
+	// tags counts at a glance, each scrolling to the matching form area.
+	refresh_meta_cluster() {
+		if (!document.body.classList.contains("neoffice-cockpit")) return;
+		if (this.frm.meta.issingle) return;
+		if (!this.$meta_cluster) {
+			this.$meta_cluster = $('<div class="page-meta-cluster"></div>');
+			this.page.wrapper.find(".page-actions").prepend(this.$meta_cluster);
+		}
+		if (this.frm.doc.__islocal) {
+			this.$meta_cluster.addClass("hide");
+			return;
+		}
+		const docinfo = frappe.model.get_docinfo(this.frm.doctype, this.frm.docname) || {};
+		const stroke = `fill="none" stroke="currentColor" stroke-width="1.8"
+			stroke-linecap="round" stroke-linejoin="round"`;
+		const items = [
+			{
+				icon: `<svg viewBox="0 0 24 24" ${stroke}><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>`,
+				count: (docinfo.attachments || []).length,
+				title: __("Attachments"),
+				target: ".form-sidebar .form-attachments, .form-sidebar .sidebar-attachments",
+			},
+			{
+				icon: `<svg viewBox="0 0 24 24" ${stroke}><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>`,
+				count: (docinfo.comments || []).length,
+				title: __("Comments"),
+				target: ".form-footer",
+			},
+			{
+				icon: `<svg viewBox="0 0 24 24" ${stroke}><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.83z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>`,
+				count: String(this.frm.doc._user_tags || "")
+					.split(",")
+					.filter(Boolean).length,
+				title: __("Tags"),
+				target: ".form-sidebar .form-tags, .form-sidebar .tags-area",
+			},
+		];
+		this.$meta_cluster.removeClass("hide").empty();
+		items.forEach((c) => {
+			$(`<button class="meta-item" title="${c.title}">${c.icon}<span>${c.count}</span></button>`)
+				.on("click", () => {
+					const $t = this.frm.$wrapper.find(c.target).first();
+					if ($t.length) $t[0].scrollIntoView({ behavior: "smooth", block: "center" });
+				})
+				.appendTo(this.$meta_cluster);
+		});
 	}
 
 	make_menu() {

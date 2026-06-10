@@ -309,44 +309,200 @@ body.neoffice-cockpit .form-hero-currency {
 	margin-top: 4px;
 	text-transform: uppercase;
 }
-body.neoffice-cockpit .form-hero-pipeline {
+/* numbered stepper: ✓/N bubble + label + date, connectors between bubbles */
+body.neoffice-cockpit .form-hero-steps {
 	display: flex;
-	gap: 10px;
-	margin-top: 16px;
+	margin-top: 18px;
 }
 body.neoffice-cockpit .form-hero-step {
 	flex: 1;
 	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	position: relative;
+	text-align: center;
 }
-body.neoffice-cockpit .form-hero-step .bar {
-	height: 6px;
+body.neoffice-cockpit .form-hero-step:not(:first-child)::before {
+	content: "";
+	position: absolute;
+	top: 13px;
+	left: calc(-50% + 20px);
+	right: calc(50% + 20px);
+	height: 2px;
 	border-radius: 999px;
-	background: var(--control-bg, #e6e0d4);
+	background: var(--border-color, #e6e0d4);
+}
+body.neoffice-cockpit .form-hero-step .bubble {
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	display: grid;
+	place-items: center;
+	font-size: 12.5px;
+	font-weight: 700;
+	z-index: 1;
+	background: var(--card-bg, #fffdf8);
+	border: 2px solid var(--border-color, #d8d2c6);
+	color: var(--text-muted);
+}
+body.neoffice-cockpit .form-hero-step .bubble svg {
+	width: 13px;
+	height: 13px;
 }
 body.neoffice-cockpit .form-hero-step .lbl {
-	margin-top: 7px;
-	font-size: 12px;
+	margin-top: 8px;
+	font-size: 12.5px;
+	font-weight: 600;
 	color: var(--text-muted);
+	max-width: 100%;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
-body.neoffice-cockpit .form-hero-step.done .bar {
+body.neoffice-cockpit .form-hero-step .when {
+	margin-top: 1px;
+	font-size: 11px;
+	color: var(--text-muted);
+	opacity: 0.85;
+}
+body.neoffice-cockpit .form-hero-step.done .bubble {
 	background: #4f8a6e;
+	border-color: #4f8a6e;
+	color: #fff;
 }
 body.neoffice-cockpit .form-hero-step.done .lbl {
-	color: #4f8a6e;
+	color: var(--text-color);
 }
-body.neoffice-cockpit .form-hero-step.current .bar {
-	background: #4e72ac;
+body.neoffice-cockpit .form-hero-step.done::before,
+body.neoffice-cockpit .form-hero-step.current::before {
+	background: #4f8a6e;
+}
+body.neoffice-cockpit .form-hero-step.current .bubble {
+	background: var(--card-bg, #fffdf8);
+	border-color: #4e72ac;
+	color: #4e72ac;
+	box-shadow: 0 0 0 4px rgba(78, 114, 172, 0.16);
 }
 body.neoffice-cockpit .form-hero-step.current .lbl {
 	color: #3d5c8c;
 	font-weight: 700;
 }
-body.neoffice-cockpit .form-hero-step.dead .bar {
-	background: var(--control-bg, #e6e0d4);
-	opacity: 0.6;
+body.neoffice-cockpit .form-hero-step.current .when {
+	color: #4e72ac;
+	opacity: 1;
+}
+body.neoffice-cockpit .form-hero-step.dead .bubble,
+body.neoffice-cockpit .form-hero-step.dead .lbl,
+body.neoffice-cockpit .form-hero-step.dead .when {
+	opacity: 0.45;
+}
+[data-theme="dark"] body.neoffice-cockpit .form-hero-step.current .bubble {
+	background: var(--card-bg, #1c2127);
+}
+
+/* ── Head: meta cluster (attachments / comments / tags counts) ── */
+body.neoffice-cockpit .page-meta-cluster {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	flex-shrink: 0;
+	padding-right: 10px;
+	margin-right: 4px;
+	border-right: 1px solid var(--border-color);
+}
+body.neoffice-cockpit .page-meta-cluster .meta-item {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	padding: 4px 7px;
+	border-radius: 8px;
+	font-size: 12.5px;
+	font-variant-numeric: tabular-nums;
+	color: var(--text-muted);
+	cursor: pointer;
+	border: none;
+	background: transparent;
+}
+body.neoffice-cockpit .page-meta-cluster .meta-item:hover {
+	background: var(--control-bg, #f0ece3);
+	color: var(--text-color);
+}
+body.neoffice-cockpit .page-meta-cluster .meta-item svg {
+	width: 15px;
+	height: 15px;
+}
+
+/* eye-only preview button: square, balanced padding */
+body.neoffice-cockpit .page-preview-btn {
+	display: inline-grid;
+	place-items: center;
+	padding: 5px 8px;
+}
+
+/* ── Head: primary action in Neoffice blue ── */
+body.neoffice-cockpit .page-head .btn-primary {
+	background: #4e72ac;
+	border-color: #4e72ac;
+	color: #fff;
+}
+body.neoffice-cockpit .page-head .btn-primary:hover,
+body.neoffice-cockpit .page-head .btn-primary:focus,
+body.neoffice-cockpit .page-head .btn-primary:active {
+	background: #44639a !important;
+	border-color: #44639a !important;
+	color: #fff;
+}
+
+/* ── Form tabs: calm underline, accent on active ── */
+body.neoffice-cockpit .form-tabs-list {
+	background: transparent;
+}
+body.neoffice-cockpit .form-tabs-list .nav-link {
+	font-size: 13.5px;
+	font-weight: 600;
+	color: var(--text-muted);
+}
+body.neoffice-cockpit .form-tabs-list .nav-link.active {
+	color: var(--text-color);
+	border-bottom-color: #4e72ac;
+}
+
+/* ── Form sections: small-caps headers, calmer card ── */
+body.neoffice-cockpit .form-section .section-head,
+body.neoffice-cockpit .form-dashboard-section .section-head {
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--text-muted);
+}
+
+/* ── Child grids ("Articles"): rounded card, small-caps header, bold amounts ── */
+body.neoffice-cockpit .form-grid {
+	border-radius: 12px;
+	overflow: hidden;
+}
+body.neoffice-cockpit .form-grid .grid-heading-row {
+	background: var(--subtle-fg, #faf8f3);
+}
+body.neoffice-cockpit .form-grid .grid-heading-row .grid-static-col {
+	font-size: 10.5px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--text-muted);
+}
+body.neoffice-cockpit .form-grid .grid-body .grid-row:hover {
+	background: var(--subtle-fg, #faf8f3);
+}
+body.neoffice-cockpit .form-grid .grid-body .grid-static-col[data-fieldtype="Currency"],
+body.neoffice-cockpit .form-grid .grid-body .grid-static-col[data-fieldtype="Float"],
+body.neoffice-cockpit .form-grid .grid-body .grid-static-col[data-fieldtype="Int"] {
+	font-variant-numeric: tabular-nums;
+}
+body.neoffice-cockpit .form-grid .grid-body .grid-static-col[data-fieldname="amount"] {
+	font-weight: 600;
 }
 
 /* ── Notifications host (native frappe.ui.Notifications, anchored to the bell) ── */
