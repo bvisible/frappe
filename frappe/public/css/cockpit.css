@@ -72,6 +72,10 @@ body.neoffice-cockpit.nf-ws .container.page-body {
 body.neoffice-cockpit.nf-ws-home .page-head {
 	display: none;
 }
+/* lists & reports (body.nf-list): edge-to-edge content */
+body.neoffice-cockpit.nf-list .content.page-container > .container {
+	padding: 0;
+}
 /* neutralize the bootstrap column widths — natural flex row instead.
    The title keeps its natural size; the ACTIONS side absorbs the pressure
    (its custom buttons scroll horizontally). */

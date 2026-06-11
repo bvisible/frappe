@@ -405,8 +405,9 @@ frappe.Application = class Application {
 		};
 		mount();
 
-		// route flags for workspace-specific chrome (relaxed head on
-		// workspaces, no head at all on the Home dashboard)
+		// route flags for surface-specific chrome (relaxed head on
+		// workspaces, no head on the Home dashboard, flush container on
+		// lists & reports)
 		const update_route_class = () => {
 			const route = frappe.get_route() || [];
 			const is_ws = !route.length || route[0] === "Workspaces";
@@ -414,6 +415,10 @@ frappe.Application = class Application {
 			document.body.classList.toggle(
 				"nf-ws-home",
 				is_ws && (route[1] || "Home") === "Home"
+			);
+			document.body.classList.toggle(
+				"nf-list",
+				["List", "query-report", "dashboard-view"].includes(route[0])
 			);
 		};
 		frappe.router.on("change", update_route_class);
