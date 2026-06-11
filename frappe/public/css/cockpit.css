@@ -52,6 +52,26 @@ body.neoffice-cockpit .page-head .page-head-content {
 	height: 54px;
 	flex-wrap: nowrap;
 }
+/* ── workspaces (body.nf-ws set by desk.js): relaxed head — big title,
+   no border, not sticky, flush body. The Home dashboard hides it all. ── */
+body.neoffice-cockpit.nf-ws .page-head {
+	position: static;
+	border-bottom: none;
+	height: auto;
+}
+body.neoffice-cockpit.nf-ws .page-head .page-head-content {
+	height: 64px;
+}
+body.neoffice-cockpit.nf-ws .page-head .title-text {
+	font-size: 34.5px;
+	margin-left: 20px;
+}
+body.neoffice-cockpit.nf-ws .container.page-body {
+	padding: 0;
+}
+body.neoffice-cockpit.nf-ws-home .page-head {
+	display: none;
+}
 /* neutralize the bootstrap column widths — natural flex row instead.
    The title keeps its natural size; the ACTIONS side absorbs the pressure
    (its custom buttons scroll horizontally). */

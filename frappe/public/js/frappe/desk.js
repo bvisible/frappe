@@ -404,6 +404,20 @@ frappe.Application = class Application {
 			if (has_synk) this.setup_cockpit_synk();
 		};
 		mount();
+
+		// route flags for workspace-specific chrome (relaxed head on
+		// workspaces, no head at all on the Home dashboard)
+		const update_route_class = () => {
+			const route = frappe.get_route() || [];
+			const is_ws = !route.length || route[0] === "Workspaces";
+			document.body.classList.toggle("nf-ws", is_ws);
+			document.body.classList.toggle(
+				"nf-ws-home",
+				is_ws && (route[1] || "Home") === "Home"
+			);
+		};
+		frappe.router.on("change", update_route_class);
+		update_route_class();
 	}
 
 	setup_cockpit_synk() {
