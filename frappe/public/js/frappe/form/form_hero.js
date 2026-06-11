@@ -28,20 +28,32 @@ frappe.provide("frappe.ui.form");
 // NB: Quotation "Accepted"/"Invoiced" statuses are Neoffice additions
 // (Property Setter on the status DocField), not stock v15.
 
-// shared step-action builders
+// shared step-action builders (each may return null — filtered out).
+// Tiny lucide-style icons inlined: the CTAs are icon + short label pills.
+const STEP_ICONS = {
+	check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+	send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 9.5 21 3m0 0h-6m6 0v6M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/></svg>',
+	mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>',
+	print: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg>',
+	plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>',
+};
 function submit_action(frm) {
 	if (frm.doc.docstatus !== 0) return null;
 	if (!frm.perm || !frm.perm[0] || !frm.perm[0].submit) return null;
-	return { label: __("Validate"), run: () => frm.savesubmit() };
+	return { label: __("Validate"), icon: "check", run: () => frm.savesubmit() };
 }
 function send_action(frm) {
 	if (frm.doc.docstatus !== 1) return null;
-	return { label: __("Send"), run: () => frm.email_doc() };
+	return { label: __("Send"), icon: "mail", run: () => frm.email_doc() };
+}
+function print_action(frm) {
+	if (frm.doc.docstatus !== 1) return null;
+	return { label: __("Print"), icon: "print", run: () => frm.print_doc() };
 }
 function make_action(frm, label, method, target_doctype) {
 	if (frm.doc.docstatus !== 1) return null;
 	if (!frappe.model.can_create(target_doctype)) return null;
-	return { label, run: () => frappe.model.open_mapped_doc({ method, frm }) };
+	return { label, icon: "plus", run: () => frappe.model.open_mapped_doc({ method, frm }) };
 }
 
 const HERO_REGISTRY = {
@@ -60,17 +72,20 @@ const HERO_REGISTRY = {
 			if (doc.docstatus === 1) return 2;
 			return 1;
 		},
-		action(rank, frm) {
-			if (rank === 1) return submit_action(frm);
-			if (rank === 2) return send_action(frm);
+		actions(rank, frm) {
+			if (rank === 1) return [submit_action(frm)];
+			if (rank === 2) return [send_action(frm), print_action(frm)];
 			if (rank === 3)
-				return make_action(
-					frm,
-					__("Create order"),
-					"erpnext.selling.doctype.quotation.quotation.make_sales_order",
-					"Sales Order"
-				);
-			return null;
+				return [
+					make_action(
+						frm,
+						__("Create order"),
+						"erpnext.selling.doctype.quotation.quotation.make_sales_order",
+						"Sales Order"
+					),
+					print_action(frm),
+				];
+			return [];
 		},
 	},
 	"Sales Order": {
@@ -87,23 +102,29 @@ const HERO_REGISTRY = {
 			if (flt(doc.per_delivered) >= 100) return 3;
 			return 2;
 		},
-		action(rank, frm) {
-			if (rank === 1) return submit_action(frm);
+		actions(rank, frm) {
+			if (rank === 1) return [submit_action(frm)];
 			if (rank === 2)
-				return make_action(
-					frm,
-					__("Create delivery"),
-					"erpnext.selling.doctype.sales_order.sales_order.make_delivery_note",
-					"Delivery Note"
-				);
+				return [
+					make_action(
+						frm,
+						__("Create delivery"),
+						"erpnext.selling.doctype.sales_order.sales_order.make_delivery_note",
+						"Delivery Note"
+					),
+					print_action(frm),
+				];
 			if (rank === 3)
-				return make_action(
-					frm,
-					__("Create invoice"),
-					"erpnext.selling.doctype.sales_order.sales_order.make_sales_invoice",
-					"Sales Invoice"
-				);
-			return null;
+				return [
+					make_action(
+						frm,
+						__("Create invoice"),
+						"erpnext.selling.doctype.sales_order.sales_order.make_sales_invoice",
+						"Sales Invoice"
+					),
+					print_action(frm),
+				];
+			return [];
 		},
 	},
 	"Sales Invoice": {
@@ -118,10 +139,10 @@ const HERO_REGISTRY = {
 			if (doc.status === "Paid") return 4;
 			return 2;
 		},
-		action(rank, frm) {
-			if (rank === 1) return submit_action(frm);
-			if (rank === 2) return send_action(frm);
-			return null;
+		actions(rank, frm) {
+			if (rank === 1) return [submit_action(frm)];
+			if (rank === 2) return [send_action(frm), print_action(frm)];
+			return [];
 		},
 	},
 	"Purchase Invoice": {
@@ -136,9 +157,10 @@ const HERO_REGISTRY = {
 			if (doc.status === "Paid") return 4;
 			return 2;
 		},
-		action(rank, frm) {
-			if (rank === 1) return submit_action(frm);
-			return null;
+		actions(rank, frm) {
+			if (rank === 1) return [submit_action(frm)];
+			if (rank === 2) return [print_action(frm)];
+			return [];
 		},
 	},
 	"Delivery Note": {
@@ -153,16 +175,19 @@ const HERO_REGISTRY = {
 			if (flt(doc.per_billed) >= 100) return 4;
 			return 2;
 		},
-		action(rank, frm) {
-			if (rank === 1) return submit_action(frm);
+		actions(rank, frm) {
+			if (rank === 1) return [submit_action(frm)];
 			if (rank === 2)
-				return make_action(
-					frm,
-					__("Create invoice"),
-					"erpnext.stock.doctype.delivery_note.delivery_note.make_sales_invoice",
-					"Sales Invoice"
-				);
-			return null;
+				return [
+					make_action(
+						frm,
+						__("Create invoice"),
+						"erpnext.stock.doctype.delivery_note.delivery_note.make_sales_invoice",
+						"Sales Invoice"
+					),
+					print_action(frm),
+				];
+			return [];
 		},
 	},
 };
@@ -176,8 +201,8 @@ const DEFAULT_PIPELINE = {
 		if (doc.docstatus === 2) return -1;
 		return doc.docstatus === 1 ? 3 : 1;
 	},
-	action(rank, frm) {
-		return rank === 1 ? submit_action(frm) : null;
+	actions(rank, frm) {
+		return rank === 1 ? [submit_action(frm)] : [];
 	},
 };
 
@@ -297,8 +322,10 @@ frappe.ui.form.FormHero = class FormHero {
 		const tx = extract_transitions(this.frm);
 		const steps = conf.steps(doc, tx);
 		const rank = conf.rank(doc);
-		// contextual micro-action under the CURRENT step (Validate / Send / …)
-		const step_action = rank >= 1 && conf.action ? conf.action(rank, this.frm) : null;
+		// contextual micro-actions under the CURRENT step (Validate / Send / Print…)
+		const step_actions = (rank >= 1 && conf.actions ? conf.actions(rank, this.frm) : []).filter(
+			Boolean
+		);
 		const seg = steps
 			.map((step, i) => {
 				const n = i + 1;
@@ -319,8 +346,15 @@ frappe.ui.form.FormHero = class FormHero {
 				else if (cls === "todo") when = "—";
 
 				const cta =
-					cls === "current" && step_action
-						? `<button class="step-cta">${frappe.utils.escape_html(step_action.label)}</button>`
+					cls === "current" && step_actions.length
+						? `<div class="step-ctas">${step_actions
+								.map(
+									(a, ai) => `
+							<button class="step-cta" data-idx="${ai}" title="${frappe.utils.escape_html(a.label)}">
+								${STEP_ICONS[a.icon] || ""}<span>${frappe.utils.escape_html(a.label)}</span>
+							</button>`
+								)
+								.join("")}</div>`
 						: "";
 
 				return `
@@ -334,11 +368,12 @@ frappe.ui.form.FormHero = class FormHero {
 			.join("");
 
 		this.$wrapper.html(`${top_html}<div class="form-hero-steps">${seg}</div>`);
-		if (step_action) {
+		if (step_actions.length) {
 			this.$wrapper.find(".step-cta").on("click", (e) => {
 				e.preventDefault();
 				e.stopPropagation();
-				step_action.run();
+				const idx = cint($(e.currentTarget).attr("data-idx"));
+				if (step_actions[idx]) step_actions[idx].run();
 			});
 		}
 	}

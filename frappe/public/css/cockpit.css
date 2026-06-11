@@ -424,19 +424,33 @@ body.neoffice-cockpit .form-hero-step .when {
 	color: var(--text-muted);
 	opacity: 0.85;
 }
-/* contextual micro-action under the current step (Validate / Send / …) */
-body.neoffice-cockpit .form-hero-step .step-cta {
+/* contextual micro-actions under the current step (Validate / Send / Print…) */
+body.neoffice-cockpit .form-hero-step .step-ctas {
+	display: flex;
+	gap: 5px;
+	justify-content: center;
 	margin-top: 5px;
-	padding: 2px 11px;
-	font-size: 10.5px;
+}
+body.neoffice-cockpit .form-hero-step .step-cta {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 9px;
+	font-size: 10px;
 	font-weight: 600;
-	line-height: 1.6;
+	line-height: 1.7;
 	border: 1px solid #4e72ac;
 	border-radius: 999px;
 	background: transparent;
 	color: #4e72ac;
 	cursor: pointer;
+	white-space: nowrap;
 	transition: background 0.12s ease, color 0.12s ease;
+}
+body.neoffice-cockpit .form-hero-step .step-cta svg {
+	width: 11px;
+	height: 11px;
+	flex-shrink: 0;
 }
 body.neoffice-cockpit .form-hero-step .step-cta:hover {
 	background: #4e72ac;
@@ -590,6 +604,13 @@ body.neoffice-cockpit .form-grid {
 	/* NO overflow:hidden — it clipped the in-cell Link autocomplete dropdown.
 	   Corners are rounded via the heading row (top) + totals band (bottom). */
 	border-color: var(--border-color);
+	/* warm gradient (light only — dark restores the flat card below) */
+	background:
+		radial-gradient(ellipse 420px 180px at 85% 0%, rgba(214, 138, 89, 0.10), transparent 70%),
+		linear-gradient(135deg, #faf3ea 0%, #fffdf8 60%);
+}
+[data-theme="dark"] body.neoffice-cockpit .form-grid {
+	background: var(--card-bg);
 }
 body.neoffice-cockpit .form-grid .grid-heading-row {
 	background: var(--subtle-fg, #faf8f3);
