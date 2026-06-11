@@ -424,6 +424,24 @@ body.neoffice-cockpit .form-hero-step .when {
 	color: var(--text-muted);
 	opacity: 0.85;
 }
+/* contextual micro-action under the current step (Validate / Send / …) */
+body.neoffice-cockpit .form-hero-step .step-cta {
+	margin-top: 5px;
+	padding: 2px 11px;
+	font-size: 10.5px;
+	font-weight: 600;
+	line-height: 1.6;
+	border: 1px solid #4e72ac;
+	border-radius: 999px;
+	background: transparent;
+	color: #4e72ac;
+	cursor: pointer;
+	transition: background 0.12s ease, color 0.12s ease;
+}
+body.neoffice-cockpit .form-hero-step .step-cta:hover {
+	background: #4e72ac;
+	color: #fff;
+}
 body.neoffice-cockpit .form-hero-step.done .bubble {
 	background: #4f8a6e;
 	border-color: #4f8a6e;

@@ -21,9 +21,29 @@ frappe.provide("frappe.ui.form");
 // rank(doc): 1-based index of the CURRENT step; > steps.length = all
 //   done; -1 = dead (lost/cancelled/expired)
 // value_field: the key figure shown on the right (auto-detected when absent)
+// action(rank, frm): optional tiny CTA under the CURRENT step — the one
+//   move that completes this stage (Validate / Send / Create next doc).
+//   Return null when not applicable (permissions checked here).
 //
 // NB: Quotation "Accepted"/"Invoiced" statuses are Neoffice additions
 // (Property Setter on the status DocField), not stock v15.
+
+// shared step-action builders
+function submit_action(frm) {
+	if (frm.doc.docstatus !== 0) return null;
+	if (!frm.perm || !frm.perm[0] || !frm.perm[0].submit) return null;
+	return { label: __("Validate"), run: () => frm.savesubmit() };
+}
+function send_action(frm) {
+	if (frm.doc.docstatus !== 1) return null;
+	return { label: __("Send"), run: () => frm.email_doc() };
+}
+function make_action(frm, label, method, target_doctype) {
+	if (frm.doc.docstatus !== 1) return null;
+	if (!frappe.model.can_create(target_doctype)) return null;
+	return { label, run: () => frappe.model.open_mapped_doc({ method, frm }) };
+}
+
 const HERO_REGISTRY = {
 	Quotation: {
 		steps: (doc, tx) => [
@@ -40,6 +60,18 @@ const HERO_REGISTRY = {
 			if (doc.docstatus === 1) return 2;
 			return 1;
 		},
+		action(rank, frm) {
+			if (rank === 1) return submit_action(frm);
+			if (rank === 2) return send_action(frm);
+			if (rank === 3)
+				return make_action(
+					frm,
+					__("Create order"),
+					"erpnext.selling.doctype.quotation.quotation.make_sales_order",
+					"Sales Order"
+				);
+			return null;
+		},
 	},
 	"Sales Order": {
 		steps: (doc, tx) => [
@@ -55,6 +87,24 @@ const HERO_REGISTRY = {
 			if (flt(doc.per_delivered) >= 100) return 3;
 			return 2;
 		},
+		action(rank, frm) {
+			if (rank === 1) return submit_action(frm);
+			if (rank === 2)
+				return make_action(
+					frm,
+					__("Create delivery"),
+					"erpnext.selling.doctype.sales_order.sales_order.make_delivery_note",
+					"Delivery Note"
+				);
+			if (rank === 3)
+				return make_action(
+					frm,
+					__("Create invoice"),
+					"erpnext.selling.doctype.sales_order.sales_order.make_sales_invoice",
+					"Sales Invoice"
+				);
+			return null;
+		},
 	},
 	"Sales Invoice": {
 		steps: (doc, tx) => [
@@ -67,6 +117,11 @@ const HERO_REGISTRY = {
 			if (doc.docstatus === 0) return 1;
 			if (doc.status === "Paid") return 4;
 			return 2;
+		},
+		action(rank, frm) {
+			if (rank === 1) return submit_action(frm);
+			if (rank === 2) return send_action(frm);
+			return null;
 		},
 	},
 	"Purchase Invoice": {
@@ -81,6 +136,10 @@ const HERO_REGISTRY = {
 			if (doc.status === "Paid") return 4;
 			return 2;
 		},
+		action(rank, frm) {
+			if (rank === 1) return submit_action(frm);
+			return null;
+		},
 	},
 	"Delivery Note": {
 		steps: (doc, tx) => [
@@ -94,6 +153,17 @@ const HERO_REGISTRY = {
 			if (flt(doc.per_billed) >= 100) return 4;
 			return 2;
 		},
+		action(rank, frm) {
+			if (rank === 1) return submit_action(frm);
+			if (rank === 2)
+				return make_action(
+					frm,
+					__("Create invoice"),
+					"erpnext.stock.doctype.delivery_note.delivery_note.make_sales_invoice",
+					"Sales Invoice"
+				);
+			return null;
+		},
 	},
 };
 
@@ -105,6 +175,9 @@ const DEFAULT_PIPELINE = {
 	rank(doc) {
 		if (doc.docstatus === 2) return -1;
 		return doc.docstatus === 1 ? 3 : 1;
+	},
+	action(rank, frm) {
+		return rank === 1 ? submit_action(frm) : null;
 	},
 };
 
