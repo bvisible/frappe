@@ -30,14 +30,14 @@ app_include_js = [
 	# //// NEOFFICE PATCH — NeoCockpit unified chrome (default desk chrome).
 	# Self-contained React bundle (source: bvisible/frappe-sidebar-react);
 	# mounted by desk.js make_cockpit(). Re-vendor: cp dist/neocockpit.global.js here.
-	"/assets/frappe/js/lib/neocockpit.global.js?v=21",
+	"/assets/frappe/js/lib/neocockpit.global.js?v=22",
 ]
 
 app_include_css = [
 	"desk.bundle.css",
 	"report.bundle.css",
 	# //// NEOFFICE PATCH — cockpit desk shell (gray frame + floating panel)
-	"/assets/frappe/css/cockpit.css?v=28",
+	"/assets/frappe/css/cockpit.css?v=29",
 ]
 app_include_icons = [
 	"frappe/icons/timeless/icons.svg",

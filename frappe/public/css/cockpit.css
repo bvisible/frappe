@@ -910,8 +910,10 @@ body.neoffice-cockpit .frappe-control[data-fieldtype="Check"] .checkbox .label-a
 	color: var(--text-color, #1f272e);
 }
 
-/* mobile: the cockpit shows a top strip + drawer; the panel goes full-bleed */
-@media (max-width: 1023px) {
+/* mobile: the cockpit shows a top strip + drawer; the panel goes full-bleed.
+   768-1023px keeps the desktop row layout with a forced-collapsed rail
+   (NeoCockpit `narrow` state) — the strip/drawer only appear below 768. */
+@media (max-width: 767.98px) {
 	body.neoffice-cockpit {
 		flex-direction: column !important;
 		padding: 0 !important;
