@@ -297,6 +297,8 @@ frappe.ui.form.FormHero = class FormHero {
 		const tx = extract_transitions(this.frm);
 		const steps = conf.steps(doc, tx);
 		const rank = conf.rank(doc);
+		// contextual micro-action under the CURRENT step (Validate / Send / …)
+		const step_action = rank >= 1 && conf.action ? conf.action(rank, this.frm) : null;
 		const seg = steps
 			.map((step, i) => {
 				const n = i + 1;
@@ -316,15 +318,28 @@ frappe.ui.form.FormHero = class FormHero {
 				else if (cls === "current") when = __("In progress");
 				else if (cls === "todo") when = "—";
 
+				const cta =
+					cls === "current" && step_action
+						? `<button class="step-cta">${frappe.utils.escape_html(step_action.label)}</button>`
+						: "";
+
 				return `
 					<div class="form-hero-step ${cls}">
 						<div class="bubble">${bubble}</div>
 						<div class="lbl">${frappe.utils.escape_html(step.label)}</div>
 						<div class="when">${frappe.utils.escape_html(when)}</div>
+						${cta}
 					</div>`;
 			})
 			.join("");
 
 		this.$wrapper.html(`${top_html}<div class="form-hero-steps">${seg}</div>`);
+		if (step_action) {
+			this.$wrapper.find(".step-cta").on("click", (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				step_action.run();
+			});
+		}
 	}
 };
