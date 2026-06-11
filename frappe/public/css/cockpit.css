@@ -918,6 +918,9 @@ body.neoffice-cockpit .frappe-control[data-fieldtype="Check"] .checkbox .label-a
 		flex-direction: column !important;
 		padding: 0 !important;
 		gap: 0 !important;
+		/* the theme sets align-items:flex-start on the row layout — in the
+		   column the strip must stretch to full width */
+		align-items: stretch !important;
 	}
 	body.neoffice-cockpit .main-section {
 		border-radius: 0 !important;
