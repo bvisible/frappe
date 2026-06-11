@@ -76,6 +76,11 @@ body.neoffice-cockpit.nf-ws-home .page-head {
 body.neoffice-cockpit.nf-list .content.page-container > .container {
 	padding: 0;
 }
+/* the card is edge-to-edge now — frappe core's .frappe-card radius
+   (--border-radius-lg) leaves ugly rounded corners over the table */
+body.neoffice-cockpit.nf-list .layout-main-section.frappe-card {
+	border-radius: 0;
+}
 /* neutralize the bootstrap column widths — natural flex row instead.
    The title keeps its natural size; the ACTIONS side absorbs the pressure
    (its custom buttons scroll horizontally). */
