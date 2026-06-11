@@ -369,6 +369,12 @@ frappe.Application = class Application {
 				setTimeout(mount, 50);
 				return;
 			}
+			// synk (Raven docked widget) and the help panel are optional apps:
+			// only wire their rail buttons when the app ships the feature.
+			const has_synk =
+				frappe.boot.show_raven_chat_on_desk && frappe.user.has_role("Raven User");
+			const has_help = !!(frappe.boot.versions && frappe.boot.versions.nora);
+
 			window.NeoCockpit.mount(root, {
 				env: "desk",
 				layout: "sidebar",
@@ -385,11 +391,40 @@ frappe.Application = class Application {
 					}
 				},
 				onBell: () => this.toggle_cockpit_notifications(),
+				onSynk: has_synk ? () => this.toggle_cockpit_synk() : undefined,
+				onHelp: has_help
+					? () => {
+							if (window.nora && nora.help_panel) nora.help_panel.toggle();
+							else window.open("/wiki", "_blank");
+					  }
+					: undefined,
 			});
 			this.setup_cockpit_awesomebar();
 			this.setup_cockpit_notifications();
+			if (has_synk) this.setup_cockpit_synk();
 		};
 		mount();
+	}
+
+	setup_cockpit_synk() {
+		// The Raven widget mounts itself DOCKED under the cockpit (see
+		// raven.bundle.js) and reports its unread total — paint the rail badge.
+		window.addEventListener("raven-chat:unread-count", (e) => {
+			const badge = document.querySelector(".nc-synk .nc-count");
+			if (badge) badge.textContent = e.detail > 0 ? String(e.detail) : "";
+		});
+	}
+
+	toggle_cockpit_synk() {
+		// position the docked widget next to the rail's synk icon, then toggle
+		const anchor = document.querySelector(".nc-side .nc-synk") || document.querySelector(".nc-synk");
+		const docked = document.querySelector(".raven-chat-docked");
+		if (anchor && docked) {
+			const r = anchor.getBoundingClientRect();
+			docked.style.left = Math.round(r.right + 12) + "px";
+			docked.style.top = Math.max(10, Math.round(r.top - 6)) + "px";
+		}
+		window.dispatchEvent(new CustomEvent("raven-chat:toggle"));
 	}
 
 	setup_cockpit_notifications() {
