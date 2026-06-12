@@ -127,16 +127,18 @@ frappe.ui.form.FloatingNavArrows = class FloatingNavArrows {
 		const tr = ($top.length ? $top[0] : $hero[0]).getBoundingClientRect();
 		const mid = Math.round(tr.top + tr.height / 2 - wr.top);
 
-		const SIZE = 20; // keep in sync with .form-floating-nav--hero width
-		// Centre each chevron in its gutter (rail→card on the left,
-		// card→viewport edge on the right); tuck it just inside the
-		// card edge when the gutter can't fit it.
+		const SIZE = 22; // keep in sync with .form-floating-nav--hero width
+		const GAP = 2; // breathing room between chevron and card edge
+		// Anchor each chevron just OUTSIDE the card edge (fixed gap, so the
+		// distance to the card never depends on viewport width). When the
+		// gutter (rail→card on the left, card→viewport on the right) can't
+		// fit it without being clipped/covered, tuck it inside the card.
 		const $rail = $(".neocockpit aside").first();
 		const rail_right = $rail.length ? $rail[0].getBoundingClientRect().right : 0;
 		const lgut = hr.left - Math.max(rail_right, 0);
 		const rgut = window.innerWidth - hr.right;
-		const left = lgut >= SIZE + 2 ? -Math.round((lgut + SIZE) / 2) : 2;
-		const right = rgut >= SIZE + 2 ? -Math.round((rgut + SIZE) / 2) : 2;
+		const left = lgut >= SIZE + GAP + 2 ? -(SIZE + GAP) : 6;
+		const right = rgut >= SIZE + GAP + 2 ? -(SIZE + GAP) : 6;
 
 		this.$prev.add(this.$next).addClass("form-floating-nav--hero");
 		this.$prev.css({ top: mid + "px", left: left + "px", right: "" });

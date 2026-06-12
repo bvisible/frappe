@@ -89,25 +89,29 @@ body.neoffice-cockpit .layout-main-section-wrapper {
 
 .form-floating-nav.form-floating-nav--hero {
 	position: absolute;
-	width: 20px; // keep in sync with SIZE in floating_nav_arrows.js
-	height: 20px;
+	width: 22px; // keep in sync with SIZE in floating_nav_arrows.js
+	height: 22px;
+	border-radius: 0;
 	background: transparent;
 	border: none;
 	box-shadow: none;
 	color: var(--text-muted);
-	opacity: 0.35;
+	opacity: 0.4;
 	z-index: 3;
 
 	svg {
-		width: 14px;
-		height: 14px;
+		width: 19px;
+		height: 19px;
 	}
 
+	// Bare glyph only — no circle/pill on hover: any background gets
+	// visually cut when the chevron sits in the narrow gutter next to
+	// the nav rail or the viewport edge.
 	&:hover {
 		opacity: 1;
 		transform: translateY(-50%); // cancel the carousel scale-up
 		box-shadow: none;
-		background: var(--fg-hover-color, rgba(0, 0, 0, 0.05));
+		background: transparent;
 		color: var(--text-color);
 	}
 
