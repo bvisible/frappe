@@ -550,6 +550,16 @@ export default class ChartWidget extends Widget {
 					this._layout_observer.disconnect();
 					this._layout_observer = null;
 				}
+				// re-renders (period filter, data refresh) must not strand the
+				// previous instance — its internal ResizeObserver would keep
+				// drawing against a detached SVG (removeChild NotFoundError)
+				if (this.dashboard_chart && this.dashboard_chart.destroy) {
+					try {
+						this.dashboard_chart.destroy();
+					} catch (e) {
+						// already torn down with its DOM
+					}
+				}
 				this.dashboard_chart = frappe.utils.make_chart(host, this.get_chart_args());
 			};
 

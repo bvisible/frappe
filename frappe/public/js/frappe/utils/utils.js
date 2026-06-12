@@ -1283,6 +1283,8 @@ Object.assign(frappe.utils, {
 			}
 		}
 		frappe.utils.set_space_label_ratio(chart_args);
+		// stale-instance cleanup lives in frappe.Chart itself (ui/chart.js
+		// ManagedChart) so every call site is covered, not just this one
 		return new frappe.Chart(wrapper, chart_args);
 	},
 
