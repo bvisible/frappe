@@ -112,7 +112,7 @@ body.neoffice-cockpit.nf-ws-home .page-head::after {
 }
 
 /* print page: the embedded PDF.js viewer goes edge-to-edge in the panel */
-body.neoffice-cockpit .page-body:has([data-page-route="print"]) {
+body.neoffice-cockpit [data-page-route="print"] .container.page-body {
 	padding: 0 !important;
 }
 body.neoffice-cockpit .page-head .page-head-content {

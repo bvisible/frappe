@@ -96,14 +96,9 @@ frappe.ui.form.PrintView = class {
 			icon: "refresh",
 		});
 
-		this.page.add_action_icon(
-			"es-line-filetype",
-			() => {
-				this.go_to_form_view();
-			},
-			"",
-			__("Form")
-		);
+		this.page.add_button(__("Back to form"), () => this.go_to_form_view(), {
+			icon: "es-line-filetype",
+		});
 	}
 
 	//// Neoffice ▼▼▼ embedded PDF.js preview (vendored viewer, thumbnails on)
@@ -155,6 +150,18 @@ frappe.ui.form.PrintView = class {
 				iframe.contentWindow.PDFViewerApplicationOptions.set("sidebarViewOnLoad", 1);
 			} catch (e) {
 				// option surface moved — viewer still works, sidebar closed
+			}
+			try {
+				// the v6 viewer styles itself with CSS light-dark() following
+				// prefers-color-scheme (the OS) — pin it to the DESK theme
+				const desk_theme =
+					document.documentElement.getAttribute("data-theme-mode") ||
+					document.documentElement.getAttribute("data-theme") ||
+					"light";
+				iframe.contentWindow.document.documentElement.style.colorScheme =
+					desk_theme.includes("dark") ? "dark" : "light";
+			} catch (e) {
+				// theming is cosmetic — never block the preview on it
 			}
 			app.initializedPromise.then(() => {
 				app.open({ url: pdf_url });
