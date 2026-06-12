@@ -47,6 +47,10 @@ frappe.ui.form.PrintView = class {
 		<div class="preview-beta-wrapper">
 			<iframe width="100%" height="0" frameBorder="0"></iframe>
 		</div>
+		<div class="pdfjs-preview-wrapper" style="display:none">
+			<iframe class="pdfjs-frame" width="100%" height="100%" frameBorder="0"
+				style="border:0;display:block;border-radius:0 0 16px 16px"></iframe>
+		</div>
 		`
 		);
 
@@ -75,14 +79,18 @@ frappe.ui.form.PrintView = class {
 	}
 
 	setup_toolbar() {
-		/*////commented this.page.set_primary_action(__("Print"), () => this.printit(), "printer");*/
+		//// Neoffice: the embedded PDF.js viewer shows the REAL server-rendered
+		//// PDF, so Print / Download become first-class page actions that drive
+		//// the viewer (legacy paths kept as fallbacks: print server, raw/QZ).
+		this.page.set_primary_action(__("Print"), () => this.print_pdfjs(), "printer");
+
+		this.page.add_button(__("Download PDF"), () => this.download_pdfjs(), {
+			icon: "small-file",
+		});
 
 		this.page.add_button(__("Full Page"), () => this.render_page("/printview?"), {
 			icon: "full-page",
 		});
-
-		//// this.page.add_button(__("PDF"), () => this.render_pdf(), { icon: "small-file" });
-		this.page.add_button(__("PDF and printing"), () => this.render_pdf(), { icon: "small-file" });
 
 		this.page.add_button(__("Refresh"), () => this.refresh_print_format(), {
 			icon: "refresh",
@@ -97,6 +105,71 @@ frappe.ui.form.PrintView = class {
 			__("Form")
 		);
 	}
+
+	//// Neoffice ▼▼▼ embedded PDF.js preview (vendored viewer, thumbnails on)
+	viewer_app() {
+		const iframe = this.print_wrapper.find(".pdfjs-preview-wrapper iframe").get(0);
+		try {
+			return iframe && iframe.contentWindow && iframe.contentWindow.PDFViewerApplication;
+		} catch (e) {
+			return null; // cross-origin safety net — never expected (same origin)
+		}
+	}
+
+	get_pdf_url() {
+		const print_format = this.get_print_format();
+		const pdf_generator = this.get_pdf_generator(print_format?.pdf_generator);
+		const params = new URLSearchParams({
+			doctype: this.frm.doc.doctype,
+			name: this.frm.doc.name,
+			format: this.selected_format(),
+			no_letterhead: this.with_letterhead() ? "0" : "1",
+			letterhead: this.get_letterhead(),
+			settings: JSON.stringify(this.additional_settings),
+			pdf_generator: pdf_generator,
+		});
+		if (this.lang_code) params.set("_lang", this.lang_code);
+		return "/api/method/frappe.utils.print_format.download_pdf?" + params.toString();
+	}
+
+	preview_pdfjs() {
+		this.print_wrapper.find(".print-preview-wrapper").hide();
+		this.print_wrapper.find(".preview-beta-wrapper").hide();
+		const $wrap = this.print_wrapper.find(".pdfjs-preview-wrapper").show();
+		// fill the viewport under the page head
+		const top = $wrap.get(0).getBoundingClientRect().top;
+		$wrap.css("height", Math.max(420, window.innerHeight - top - 14) + "px");
+		// #pagemode=thumbs opens the thumbnail sidebar by default
+		const src =
+			"/assets/frappe/pdfjs/web/viewer.html?file=" +
+			encodeURIComponent(this.get_pdf_url()) +
+			"#pagemode=thumbs&zoom=page-width";
+		const iframe = $wrap.find("iframe").get(0);
+		if (iframe.getAttribute("src") !== src) {
+			iframe.setAttribute("src", src);
+		}
+	}
+
+	print_pdfjs() {
+		// print server / raw (QZ tray) printing keep their dedicated flow
+		if (cint(this.print_settings.enable_print_server) || this.is_raw_printing()) {
+			return this.printit();
+		}
+		const app = this.viewer_app();
+		if (app && app.pdfDocument) {
+			return app.eventBus.dispatch("print", { source: this });
+		}
+		this.render_page("/printview?", true);
+	}
+
+	download_pdfjs() {
+		const app = this.viewer_app();
+		if (app && app.pdfDocument) {
+			return app.eventBus.dispatch("download", { source: this });
+		}
+		this.render_pdf();
+	}
+	//// Neoffice ▲▲▲ embedded PDF.js preview
 
 	setup_sidebar() {
 		this.sidebar = this.page.sidebar.addClass("print-preview-sidebar");
@@ -400,13 +473,23 @@ frappe.ui.form.PrintView = class {
 		let print_format = this.get_print_format();
 		if (print_format.print_format_builder_beta) {
 			this.print_wrapper.find(".print-preview-wrapper").hide();
+			this.print_wrapper.find(".pdfjs-preview-wrapper").hide(); //// added
 			this.print_wrapper.find(".preview-beta-wrapper").show();
 			this.print_wrapper.find('.preview-beta-wrapper iframe').css("height","100vh"); //// added
 			this.preview_beta();
 			return;
 		}
 
+		//// Neoffice: default preview = the real PDF in the embedded PDF.js
+		//// viewer. Only raw printing keeps the legacy HTML message path
+		//// (there is no PDF to show for raw commands).
+		if (!print_format.raw_printing) {
+			this.preview_pdfjs();
+			return;
+		}
+
 		this.print_wrapper.find(".preview-beta-wrapper").hide();
+		this.print_wrapper.find(".pdfjs-preview-wrapper").hide(); //// added
 		this.print_wrapper.find(".print-preview-wrapper").show();
 
 		const $print_format = this.print_wrapper.find("iframe");
