@@ -977,3 +977,21 @@ body.neoffice-cockpit .step-cta-menu .item {
 body.neoffice-cockpit .step-cta-menu .item:hover {
 	background: var(--control-bg);
 }
+
+/* ── query reports (Grand Livre, …): the stretched flex chain must reach
+   the datatable or its JS sizes .dt-scrollable to 0px and the virtual
+   scroller renders NOTHING (data present, zero rows painted). The
+   .report-view class only exists on list report views — query reports
+   mount .report-wrapper straight under .layout-main-section. ── */
+body.neoffice-cockpit .layout-main-section > .report-wrapper {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+body.neoffice-cockpit .report-wrapper .datatable {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
