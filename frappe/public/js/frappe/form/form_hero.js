@@ -477,13 +477,13 @@ frappe.ui.form.FormHero = class FormHero {
 		this.$wrapper.find(".form-hero-top").append(price_html);
 		this.$wrapper.find(".hero-edit-prices").on("click", (e) => {
 			e.preventDefault();
-			this.trigger_native_button(".add_price");
+			this.trigger_native_button(".add_change_price");
 		});
 
 		// hide the head buttons the hero now carries (retry: business scripts
 		// may add them after this render)
 		const hide_native = () => {
-			this.frm.page.wrapper.find(".add_price").hide();
+			this.frm.page.wrapper.find(".add_change_price").hide();
 			if (cint(doc.is_stock_item)) this.frm.page.wrapper.find(".add_stock").hide();
 		};
 		hide_native();
