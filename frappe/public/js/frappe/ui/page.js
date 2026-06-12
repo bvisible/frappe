@@ -46,6 +46,14 @@ frappe.ui.Page = class Page {
 	}
 
 	setup_scroll_handler() {
+		// Neoffice cockpit: this legacy hide-on-scroll dance mutates the
+		// sticky .page-head (class toggle + inline top) every 500ms WHILE a
+		// trackpad gesture is latched — recompositing a sticky element
+		// mid-gesture kills the latch on macOS and the scroll freezes until
+		// the user pauses or grabs the scrollbar. The cockpit head is
+		// permanently sticky at top:0 (the inline top is dead anyway under
+		// the cockpit !important), so there is nothing to animate — skip.
+		if (document.body.classList.contains("neoffice-cockpit")) return;
 		let last_scroll = 0;
 		$(".main-section").scroll(
 			frappe.utils.throttle((e) => {
