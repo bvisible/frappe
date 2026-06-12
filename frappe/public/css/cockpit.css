@@ -1068,3 +1068,30 @@ body.neoffice-cockpit .form-hero-stockrow .stock-chip.empty {
 	color: var(--text-muted);
 	font-style: italic;
 }
+
+/* Customer hero extras — unpaid amount alert + accented History CTA */
+body.neoffice-cockpit .form-hero-custstats .price-line.bad .pv {
+	font-size: 16px;
+	color: var(--red-500, #e03636);
+}
+body.neoffice-cockpit .form-hero-custstats .price-line.bad .pl {
+	color: var(--red-500, #e03636);
+}
+body.neoffice-cockpit .form-hero-custrow .email-chip {
+	gap: 5px;
+}
+body.neoffice-cockpit .form-hero .step-cta.accent {
+	background: #4e72ac;
+	border-color: #4e72ac;
+	color: #fff;
+}
+body.neoffice-cockpit .form-hero .step-cta.accent:hover {
+	background: #41639a;
+	border-color: #41639a;
+	color: #fff;
+}
+[data-theme="dark"] body.neoffice-cockpit .form-hero .step-cta.accent {
+	background: #5d80b8;
+	border-color: #5d80b8;
+	color: #10141a;
+}

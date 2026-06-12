@@ -37,6 +37,7 @@ const STEP_ICONS = {
 	print: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg>',
 	plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>',
 	edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>',
+	clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>',
 };
 function submit_action(frm) {
 	if (frm.doc.docstatus !== 0) return null;
@@ -450,6 +451,99 @@ frappe.ui.form.FormHero = class FormHero {
 
 	render_extras() {
 		if (this.frm.doctype === "Item") this.render_item_extras();
+		else if (this.frm.doctype === "Customer") this.render_customer_extras();
+	}
+
+	// Customer: party dashboard stats on the right (annual billing, unpaid
+	// total, loyalty points — all already loaded by erpnext in
+	// __onload.dashboard_info) + an email row with the two key actions:
+	// History (important, accented) and Change Emails. The native head
+	// buttons are hidden since the hero carries them now.
+	render_customer_extras() {
+		const doc = this.frm.doc;
+		const onload = doc.__onload || {};
+		let info = onload.dashboard_info || [];
+		if (!Array.isArray(info)) info = [info];
+		// one entry per company — prefer the session default company
+		const default_company = frappe.defaults.get_default("company");
+		const stats =
+			info.find((d) => d && d.company === default_company) || info[0] || null;
+
+		if (stats) {
+			const currency = stats.currency || frappe.boot.sysdefaults.currency || "";
+			const unpaid = flt(stats.total_unpaid);
+			const loyalty =
+				stats.loyalty_points != null ? cint(stats.loyalty_points) : null;
+			const stats_html = `
+				<div class="form-hero-value form-hero-prices form-hero-custstats">
+					<div class="price-line">
+						<span class="pl">${__("Annual billing")}</span>
+						<span class="pv">${format_currency(flt(stats.billing_this_year), currency)}</span>
+					</div>
+					<div class="price-line ${unpaid > 0 ? "bad" : "muted"}">
+						<span class="pl">${__("Unpaid")}</span>
+						<span class="pv">${format_currency(unpaid, currency)}</span>
+					</div>
+					${
+						loyalty != null
+							? `<div class="price-line muted">
+								<span class="pl">${__("Loyalty points")}</span>
+								<span class="pv">${loyalty}</span>
+							</div>`
+							: ""
+					}
+				</div>`;
+			this.$wrapper.find(".form-hero-top").append(stats_html);
+		}
+
+		const email = (doc.email_id || "").trim();
+		const $row = $('<div class="form-hero-stockrow form-hero-custrow"></div>').appendTo(
+			this.$wrapper
+		);
+		$row.html(`
+			<span class="stock-chip email-chip ${email ? "" : "empty"}">
+				${
+					email
+						? frappe.utils.escape_html(email)
+						: __("No email")
+				}
+			</span>
+			<button class="step-cta hero-change-emails">${STEP_ICONS.edit || ""}<span>${__(
+				"Change Emails"
+			)}</span></button>
+			<button class="step-cta accent hero-history">${STEP_ICONS.clock || ""}<span>${__(
+				"History"
+			)}</span></button>
+		`);
+		$row.find(".hero-change-emails").on("click", (e) => {
+			e.preventDefault();
+			this.trigger_custom_button(__("Change Emails"));
+		});
+		$row.find(".hero-history").on("click", (e) => {
+			e.preventDefault();
+			frappe.set_route("history", "Customer", doc.name);
+		});
+
+		// hide the head buttons the hero now carries (retry: theme scripts
+		// re-add them on their own refresh)
+		const hide_native = () => {
+			["Change Emails", "History"].forEach((label) => {
+				const $btn = this.frm.custom_buttons && this.frm.custom_buttons[__(label)];
+				if ($btn) $btn.hide();
+			});
+		};
+		hide_native();
+		setTimeout(hide_native, 600);
+	}
+
+	// trigger a frm custom button by (translated) label, even when hidden
+	trigger_custom_button(label) {
+		const $btn = this.frm.custom_buttons && this.frm.custom_buttons[label];
+		if ($btn) {
+			$btn.trigger("click");
+		} else {
+			frappe.show_alert({ message: __("Action not available yet"), indicator: "orange" });
+		}
 	}
 
 	// Item: selling/buying prices on the right (Neoffice stores them on the
