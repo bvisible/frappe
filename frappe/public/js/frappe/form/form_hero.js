@@ -524,8 +524,10 @@ frappe.ui.form.FormHero = class FormHero {
 			frappe.set_route("history", "Customer", doc.name);
 		});
 
-		// hide the head buttons the hero now carries (retry: theme scripts
-		// re-add them on their own refresh)
+		// hide the head buttons the hero now carries. The theme re-adds
+		// them on its own refresh/onload_post_render — possibly AFTER this
+		// render — so watch the actions area and re-hide on every addition
+		// (childList only: .hide() mutates attributes, no feedback loop).
 		const hide_native = () => {
 			["Change Emails", "History"].forEach((label) => {
 				const $btn = this.frm.custom_buttons && this.frm.custom_buttons[__(label)];
@@ -533,7 +535,13 @@ frappe.ui.form.FormHero = class FormHero {
 			});
 		};
 		hide_native();
-		setTimeout(hide_native, 600);
+		if (!this._native_btn_mo && window.MutationObserver) {
+			const actions = this.frm.page.wrapper.find(".page-actions").get(0);
+			if (actions) {
+				this._native_btn_mo = new MutationObserver(hide_native);
+				this._native_btn_mo.observe(actions, { childList: true, subtree: true });
+			}
+		}
 	}
 
 	// trigger a frm custom button by (translated) label, even when hidden
