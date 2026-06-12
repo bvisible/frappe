@@ -62,6 +62,16 @@ body.neoffice-cockpit .page-head {
 	top: 0 !important;
 	height: 54px;
 	border-bottom: 1px solid var(--border-color);
+	/* liquid-glass: the head used to hide itself on scroll (killed with the
+	   legacy JS handler — it broke the trackpad latch), so content now
+	   slides UNDER it. Translucent fill + backdrop blur keeps it readable.
+	   Static properties only: no mutation while scrolling, latch-safe. */
+	background: rgba(255, 253, 248, 0.68);
+	-webkit-backdrop-filter: blur(14px) saturate(1.6);
+	backdrop-filter: blur(14px) saturate(1.6);
+}
+[data-theme="dark"] body.neoffice-cockpit .page-head {
+	background: rgba(28, 33, 39, 0.68);
 }
 /* Sticky-head shadow, scroll-driven in PURE CSS. The legacy JS version
    (page.js toggling .drop-shadow while scrolling) mutated the sticky
