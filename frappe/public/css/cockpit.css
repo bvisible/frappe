@@ -63,6 +63,43 @@ body.neoffice-cockpit .page-head {
 	height: 54px;
 	border-bottom: 1px solid var(--border-color);
 }
+/* Sticky-head shadow, scroll-driven in PURE CSS. The legacy JS version
+   (page.js toggling .drop-shadow while scrolling) mutated the sticky
+   element mid-gesture and killed the macOS trackpad latch — an
+   animation-timeline runs on the compositor instead: zero JS, zero
+   mutation, the latch survives. Fades in over the first 60px of scroll.
+   Browsers without scroll() support simply never show the shadow. */
+body.neoffice-cockpit .page-head::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: -11px;
+	height: 11px;
+	pointer-events: none;
+	background: linear-gradient(to bottom, rgba(20, 16, 10, 0.07), transparent);
+	opacity: 0;
+}
+@supports (animation-timeline: scroll()) {
+	body.neoffice-cockpit .page-head::after {
+		animation: nf-head-shadow linear both;
+		animation-timeline: scroll(nearest);
+		animation-range: 0 60px;
+	}
+}
+@keyframes nf-head-shadow {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+/* workspaces & home: the head is static/hidden there — no floating shadow */
+body.neoffice-cockpit.nf-ws .page-head::after,
+body.neoffice-cockpit.nf-ws-home .page-head::after {
+	display: none;
+}
 body.neoffice-cockpit .page-head .page-head-content {
 	height: 54px;
 	flex-wrap: nowrap;
