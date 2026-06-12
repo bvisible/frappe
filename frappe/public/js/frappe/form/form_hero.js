@@ -50,6 +50,49 @@ function print_action(frm) {
 	if (frm.doc.docstatus !== 1) return null;
 	return { label: __("Print"), icon: "print", run: () => frm.print_doc() };
 }
+function create_menu_action(frm) {
+	if (frm.doc.docstatus !== 1) return null;
+	return {
+		label: __("Create"),
+		icon: "plus",
+		menu: true,
+		run: (anchor_el) => show_create_menu(frm, anchor_el),
+	};
+}
+function show_create_menu(frm, anchor_el) {
+	$(".step-cta-menu").remove();
+	const $group = frm.page.inner_toolbar.find(
+		`.inner-group-button[data-label="${encodeURIComponent(__("Create"))}"]`
+	);
+	const $items = $group.find(".dropdown-item");
+	if (!$items.length) {
+		frappe.show_alert({ message: __("No create action available"), indicator: "orange" });
+		return;
+	}
+	const $menu = $('<div class="step-cta-menu"></div>');
+	$items.each(function () {
+		const $it = $(this);
+		const label = $it.text().trim();
+		if (!label) return;
+		$('<button class="item"></button>')
+			.text(label)
+			.on("click", (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				$menu.remove();
+				$it.trigger("click");
+			})
+			.appendTo($menu);
+	});
+	const rect = anchor_el.getBoundingClientRect();
+	$menu.css({ position: "fixed", top: rect.bottom + 6, left: rect.left + rect.width / 2 });
+	$("body").append($menu);
+	setTimeout(() => {
+		$(document).one("mousedown.stepCtaMenu", (e) => {
+			if (!$menu[0].contains(e.target)) $menu.remove();
+		});
+	}, 0);
+}
 function make_action(frm, label, method, target_doctype) {
 	if (frm.doc.docstatus !== 1) return null;
 	if (!frappe.model.can_create(target_doctype)) return null;
@@ -74,7 +117,7 @@ const HERO_REGISTRY = {
 		},
 		actions(rank, frm) {
 			if (rank === 1) return [submit_action(frm)];
-			if (rank === 2) return [send_action(frm), print_action(frm)];
+			if (rank === 2) return [send_action(frm), print_action(frm), create_menu_action(frm)];
 			if (rank === 3)
 				return [
 					make_action(
@@ -113,6 +156,7 @@ const HERO_REGISTRY = {
 						"Delivery Note"
 					),
 					print_action(frm),
+					create_menu_action(frm),
 				];
 			if (rank === 3)
 				return [
@@ -123,6 +167,7 @@ const HERO_REGISTRY = {
 						"Sales Invoice"
 					),
 					print_action(frm),
+					create_menu_action(frm),
 				];
 			return [];
 		},
@@ -141,7 +186,7 @@ const HERO_REGISTRY = {
 		},
 		actions(rank, frm) {
 			if (rank === 1) return [submit_action(frm)];
-			if (rank === 2) return [send_action(frm), print_action(frm)];
+			if (rank === 2) return [send_action(frm), print_action(frm), create_menu_action(frm)];
 			return [];
 		},
 	},
@@ -159,7 +204,22 @@ const HERO_REGISTRY = {
 		},
 		actions(rank, frm) {
 			if (rank === 1) return [submit_action(frm)];
-			if (rank === 2) return [print_action(frm)];
+			if (rank === 2) return [print_action(frm), create_menu_action(frm)];
+			return [];
+		},
+	},
+	"Payment Entry": {
+		value_field: "paid_amount",
+		steps: (doc, tx) => [
+			{ label: __("Draft"), when: doc.creation },
+			{ label: __("Submitted"), when: tx.submit() },
+		],
+		rank(doc) {
+			if (doc.docstatus === 2) return -1;
+			return doc.docstatus === 1 ? 3 : 1;
+		},
+		actions(rank, frm) {
+			if (rank === 1) return [submit_action(frm)];
 			return [];
 		},
 	},
@@ -186,6 +246,7 @@ const HERO_REGISTRY = {
 						"Sales Invoice"
 					),
 					print_action(frm),
+					create_menu_action(frm),
 				];
 			return [];
 		},
@@ -294,7 +355,11 @@ frappe.ui.form.FormHero = class FormHero {
 			(meta.fields.some((f) => f.fieldname === "grand_total") ? "grand_total" : null);
 		if (vf && doc[vf] != null) {
 			const amount = format_number(flt(doc[vf]), null, 2);
-			const currency = doc.currency || frappe.boot.sysdefaults.currency || "";
+			const currency =
+				doc.currency ||
+				doc.paid_to_account_currency ||
+				frappe.boot.sysdefaults.currency ||
+				"";
 			value_html = `
 				<div class="form-hero-value">
 					<div class="form-hero-amount">${amount}</div>
@@ -351,7 +416,7 @@ frappe.ui.form.FormHero = class FormHero {
 								.map(
 									(a, ai) => `
 							<button class="step-cta" data-idx="${ai}" title="${frappe.utils.escape_html(a.label)}">
-								${STEP_ICONS[a.icon] || ""}<span>${frappe.utils.escape_html(a.label)}</span>
+								${STEP_ICONS[a.icon] || ""}<span>${frappe.utils.escape_html(a.label)}${a.menu ? " ▾" : ""}</span>
 							</button>`
 								)
 								.join("")}</div>`
@@ -373,7 +438,7 @@ frappe.ui.form.FormHero = class FormHero {
 				e.preventDefault();
 				e.stopPropagation();
 				const idx = cint($(e.currentTarget).attr("data-idx"));
-				if (step_actions[idx]) step_actions[idx].run();
+				if (step_actions[idx]) step_actions[idx].run(e.currentTarget);
 			});
 		}
 	}
