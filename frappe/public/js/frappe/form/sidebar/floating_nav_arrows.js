@@ -6,16 +6,22 @@
 //// Spec : Obsidian → Neoffice/Form-Header-Compact/00-README.md
 ////
 //// Moves the prev-doc / next-doc chevrons out of the cramped
-//// .page-actions and into two floating buttons pinned to the left
-//// and right edges of the form, vertically centred — like a record
-//// carousel. Frees up horizontal space for custom buttons (Purchase
-//// Invoice / Journal Entry / etc.) on the right.
+//// .page-actions and into two floating buttons.
 ////
-//// Active only when the compact form header mode is on
-//// (frappe.compact_form_header). Defers to frm.navigate_records()
-//// which is already exposed by Frappe core, so no business logic
-//// is duplicated. The native prev-doc / next-doc icons in
-//// .standard-actions are hidden by SCSS in the same mode.
+//// Two placement modes:
+//// - HERO mode (Neoffice cockpit, .form-hero rendered): bare, very
+////   low-key chevrons flanking the hero card at title level, centred
+////   in the gutters between the nav rail / viewport edge and the
+////   card. position:absolute inside .layout-main-section-wrapper so
+////   they scroll away with the head. Falls back inside the card edge
+////   when a gutter is too narrow.
+//// - LEGACY mode (no hero): viewport-centred fixed carousel arrows,
+////   the original behaviour.
+////
+//// Defers to frm.navigate_records() which is already exposed by
+//// Frappe core, so no business logic is duplicated. The native
+//// prev-doc / next-doc icons in .standard-actions are hidden by SCSS
+//// in the same mode.
 ////
 //// Maintenance contract: this module only READS frm + DOM and calls
 //// the existing frm.navigate_records() API. If upstream renames
@@ -75,13 +81,8 @@ frappe.ui.form.FloatingNavArrows = class FloatingNavArrows {
 
 		$anchor.append(this.$prev).append(this.$next);
 
-		// The previous arrow used to be a fixed `left: 56px` which sits
-		// fine when the module rail is collapsed (≈ 50 px) but ends up
-		// hidden behind the rail when it's expanded (≈ 140-200 px).
-		// Recompute the left edge dynamically based on the form body
-		// container so the arrow is always flush against the form.
 		this.bind_position_handlers();
-		this.position_prev_arrow();
+		this.position_arrows();
 	}
 
 	bind_position_handlers() {
@@ -91,22 +92,71 @@ frappe.ui.form.FloatingNavArrows = class FloatingNavArrows {
 		let timer = null;
 		this._position_handler = () => {
 			clearTimeout(timer);
-			timer = setTimeout(() => this.position_prev_arrow(), 60);
+			timer = setTimeout(() => this.position_arrows(), 60);
 		};
 		window.addEventListener("resize", this._position_handler);
 		// The module rail toggle button lives in the navbar; intercept
 		// any click in the navbar area as a cheap heuristic to re-run
 		// positioning shortly after, when the rail width has settled.
 		$(document).on("click.compact-nav", ".navbar, .toggle-sidebar", () => {
-			setTimeout(() => this.position_prev_arrow(), 350);
+			setTimeout(() => this.position_arrows(), 350);
 		});
 	}
 
-	position_prev_arrow() {
-		if (!this.$prev || !this.$prev.is(":visible")) return;
-		// Anchor the prev arrow to the page-body's left edge with a
-		// small 8 px gap. Falls back gracefully if the wrapper is not
-		// in the DOM yet (e.g. during the first refresh).
+	position_arrows() {
+		if (!this.$prev || !this.$next || !this.$prev.is(":visible")) return;
+		const $hero = this.frm.$wrapper.find(".form-hero").first();
+		if ($hero.length && $hero.is(":visible")) {
+			this.position_hero_mode($hero);
+		} else {
+			this.position_legacy_mode();
+		}
+	}
+
+	// HERO mode — bare chevrons flanking the hero card at title level.
+	// Coordinates are relative to .layout-main-section-wrapper, which
+	// the cockpit SCSS turns into the positioning context.
+	position_hero_mode($hero) {
+		const $wrap = this.frm.$wrapper.find(".layout-main-section-wrapper").first();
+		if (!$wrap.length) return;
+		const wr = $wrap[0].getBoundingClientRect();
+		const hr = $hero[0].getBoundingClientRect();
+		// Vertical anchor: the identity row (avatar + title), not the
+		// whole card — with a pipeline the card is much taller.
+		const $top = $hero.find(".form-hero-top").first();
+		const tr = ($top.length ? $top[0] : $hero[0]).getBoundingClientRect();
+		const mid = Math.round(tr.top + tr.height / 2 - wr.top);
+
+		const SIZE = 20; // keep in sync with .form-floating-nav--hero width
+		// Centre each chevron in its gutter (rail→card on the left,
+		// card→viewport edge on the right); tuck it just inside the
+		// card edge when the gutter can't fit it.
+		const $rail = $(".neocockpit aside").first();
+		const rail_right = $rail.length ? $rail[0].getBoundingClientRect().right : 0;
+		const lgut = hr.left - Math.max(rail_right, 0);
+		const rgut = window.innerWidth - hr.right;
+		const left = lgut >= SIZE + 2 ? -Math.round((lgut + SIZE) / 2) : 2;
+		const right = rgut >= SIZE + 2 ? -Math.round((rgut + SIZE) / 2) : 2;
+
+		this.$prev.add(this.$next).addClass("form-floating-nav--hero");
+		this.$prev.css({ top: mid + "px", left: left + "px", right: "" });
+		this.$next.css({ top: mid + "px", right: right + "px", left: "" });
+
+		// The hero re-renders (and can change height) on every frm
+		// refresh; track it once so the arrows follow.
+		if (window.ResizeObserver && !this._hero_ro) {
+			this._hero_ro = new ResizeObserver(() => this.position_arrows());
+			this._hero_ro.observe($hero[0]);
+		}
+	}
+
+	// LEGACY mode — original viewport-centred fixed carousel. The prev
+	// arrow hugs the page-body's left edge so it never hides behind an
+	// expanded module rail.
+	position_legacy_mode() {
+		this.$prev.add(this.$next).removeClass("form-floating-nav--hero");
+		this.$next.css({ top: "", right: "", left: "" });
+		this.$prev.css({ top: "", right: "" });
 		const $page_body = $(".container.page-body, .page-body").first();
 		if (!$page_body.length) return;
 		const left = Math.max(8, $page_body[0].getBoundingClientRect().left + 8);
@@ -119,7 +169,11 @@ frappe.ui.form.FloatingNavArrows = class FloatingNavArrows {
 		const should_show = !this.frm.is_new() && !this.frm.meta.issingle;
 		this.$prev.toggle(should_show);
 		this.$next.toggle(should_show);
-		if (should_show) this.position_prev_arrow();
+		if (!should_show) return;
+		this.position_arrows();
+		// The hero of this refresh cycle may not be rendered yet when
+		// the sidebar refreshes — re-measure right after paint.
+		requestAnimationFrame(() => this.position_arrows());
 	}
 };
 

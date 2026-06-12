@@ -77,6 +77,47 @@
 	}
 }
 
+// ── HERO mode (Neoffice cockpit) ───────────────────────────────────
+// Bare, very low-key chevrons flanking the .form-hero card at title
+// level. top/left/right are computed by floating_nav_arrows.js
+// relative to .layout-main-section-wrapper, which becomes the
+// positioning context below. They scroll away with the head (absolute,
+// not fixed) — deliberate: they belong to the head, not the viewport.
+body.neoffice-cockpit .layout-main-section-wrapper {
+	position: relative;
+}
+
+.form-floating-nav.form-floating-nav--hero {
+	position: absolute;
+	width: 20px; // keep in sync with SIZE in floating_nav_arrows.js
+	height: 20px;
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	color: var(--text-muted);
+	opacity: 0.35;
+	z-index: 3;
+
+	svg {
+		width: 14px;
+		height: 14px;
+	}
+
+	&:hover {
+		opacity: 1;
+		transform: translateY(-50%); // cancel the carousel scale-up
+		box-shadow: none;
+		background: var(--fg-hover-color, rgba(0, 0, 0, 0.05));
+		color: var(--text-color);
+	}
+
+	&:active {
+		transform: translateY(-50%);
+	}
+	// No per-arrow left/right here: in hero mode the coordinates are
+	// inline styles set by JS, which outrank the legacy media queries.
+}
+
 // Mobile (< 768px) — sidebar overlay handles navigation differently;
 // hide the floating arrows to keep the form content clean.
 @media (max-width: 767px) {
