@@ -1017,6 +1017,18 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 		if (this.report_settings.after_datatable_render) {
 			this.report_settings.after_datatable_render(this.datatable);
 		}
+
+		// //// NEOFFICE PATCH — the report area is display:none during the
+		// loading screen (and flexed by the cockpit): DataTable can measure a
+		// 0px viewport and its virtual scroller then paints ZERO rows despite
+		// having data. Once the frame settles, re-measure and repaint.
+		requestAnimationFrame(() => {
+			const sc = this.datatable && this.datatable.bodyScrollable;
+			if (sc && parseInt(sc.style.height, 10) === 0 && (this.data || []).length) {
+				this.datatable.setDimensions();
+				this.datatable.refresh();
+			}
+		});
 	}
 
 	show_loading_screen() {
