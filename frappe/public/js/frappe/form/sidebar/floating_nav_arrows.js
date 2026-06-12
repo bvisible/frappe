@@ -137,8 +137,8 @@ frappe.ui.form.FloatingNavArrows = class FloatingNavArrows {
 		const rail_right = $rail.length ? $rail[0].getBoundingClientRect().right : 0;
 		const lgut = hr.left - Math.max(rail_right, 0);
 		const rgut = window.innerWidth - hr.right;
-		const left = lgut >= SIZE + GAP + 2 ? -(SIZE + GAP) : 6;
-		const right = rgut >= SIZE + GAP + 2 ? -(SIZE + GAP) : 6;
+		const left = lgut >= SIZE + GAP ? -(SIZE + GAP) : 6;
+		const right = rgut >= SIZE + GAP ? -(SIZE + GAP) : 6;
 
 		this.$prev.add(this.$next).addClass("form-floating-nav--hero");
 		this.$prev.css({ top: mid + "px", left: left + "px", right: "" });

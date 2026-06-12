@@ -91,6 +91,7 @@ body.neoffice-cockpit .layout-main-section-wrapper {
 	position: absolute;
 	width: 22px; // keep in sync with SIZE in floating_nav_arrows.js
 	height: 22px;
+	padding: 0; // UA button padding would crush the flex svg (22-12=10px)
 	border-radius: 0;
 	background: transparent;
 	border: none;
