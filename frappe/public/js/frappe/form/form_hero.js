@@ -210,6 +210,7 @@ const HERO_REGISTRY = {
 	},
 	"Payment Entry": {
 		value_field: "paid_amount",
+		value_label: "Paid Amount",
 		steps: (doc, tx) => [
 			{ label: __("Draft"), when: doc.creation },
 			{ label: __("Submitted"), when: tx.submit() },
@@ -350,8 +351,9 @@ frappe.ui.form.FormHero = class FormHero {
 
 		// key value (right side): registry override, else auto grand_total
 		let value_html = "";
+		const conf_entry = HERO_REGISTRY[this.frm.doctype] || {};
 		const vf =
-			(HERO_REGISTRY[this.frm.doctype] || {}).value_field ||
+			conf_entry.value_field ||
 			(meta.fields.some((f) => f.fieldname === "grand_total") ? "grand_total" : null);
 		if (vf && doc[vf] != null) {
 			const amount = format_number(flt(doc[vf]), null, 2);
@@ -363,7 +365,7 @@ frappe.ui.form.FormHero = class FormHero {
 			value_html = `
 				<div class="form-hero-value">
 					<div class="form-hero-amount">${amount}</div>
-					<div class="form-hero-currency">${frappe.utils.escape_html(currency)} · ${__("Grand Total")}</div>
+					<div class="form-hero-currency">${frappe.utils.escape_html(currency)} · ${__(conf_entry.value_label || "Grand Total")}</div>
 				</div>`;
 		}
 
