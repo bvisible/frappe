@@ -139,14 +139,44 @@ frappe.ui.form.PrintView = class {
 		// fill the viewport under the page head
 		const top = $wrap.get(0).getBoundingClientRect().top;
 		$wrap.css("height", Math.max(420, window.innerHeight - top - 14) + "px");
-		// #pagemode=thumbs opens the thumbnail sidebar by default
-		const src =
-			"/assets/frappe/pdfjs/web/viewer.html?file=" +
-			encodeURIComponent(this.get_pdf_url()) +
-			"#pagemode=thumbs&zoom=page-width";
+
+		// PDF.js v6 no longer URL-decodes the ?file= query param, so drive
+		// the viewer programmatically instead: boot it once with an empty
+		// file, then open() each (re)rendered PDF — also lets us force the
+		// thumbnail sidebar open through the proper API.
 		const iframe = $wrap.find("iframe").get(0);
-		if (iframe.getAttribute("src") !== src) {
-			iframe.setAttribute("src", src);
+		const pdf_url = new URL(this.get_pdf_url(), window.location.origin).href;
+		const open_in_viewer = () => {
+			const app = this.viewer_app();
+			if (!app) return;
+			app.initializedPromise.then(() => {
+				app.eventBus.on(
+					"documentloaded",
+					() => {
+						try {
+							app.pdfSidebar.switchView(1, true); // 1 = thumbnails
+						} catch (e) {
+							// sidebar API drift across pdf.js versions — non-fatal
+						}
+					},
+					{ once: true }
+				);
+				app.open({ url: pdf_url });
+			});
+		};
+		if (iframe.getAttribute("data-viewer-booted")) {
+			open_in_viewer();
+		} else {
+			iframe.addEventListener(
+				"load",
+				() => {
+					iframe.setAttribute("data-viewer-booted", "1");
+					open_in_viewer();
+				},
+				{ once: true }
+			);
+			// explicit empty file → the generic viewer skips its default doc
+			iframe.setAttribute("src", "/assets/frappe/pdfjs/web/viewer.html?file=");
 		}
 	}
 
