@@ -38,6 +38,21 @@ body.neoffice-cockpit .main-section {
 	overflow-y: auto !important;
 	overflow-x: hidden !important;
 	scrollbar-gutter: stable;
+	/* macOS trackpad: when a fling hits this scroller's edge (or starts on
+	   a zone with nothing to scroll), default overscroll chaining hands the
+	   gesture latch to the root scroller — which is overflow:hidden, so
+	   every subsequent swipe goes nowhere until the user pauses or grabs
+	   the scrollbar ("scroll freezes mid-page"). contain keeps the latch
+	   here so the next swipe always works. */
+	overscroll-behavior: contain;
+}
+/* same latch protection for the desk's inner scrollers (report-view
+   datatable, list results, dialogs) */
+body.neoffice-cockpit .dt-scrollable,
+body.neoffice-cockpit .frappe-list .result,
+body.neoffice-cockpit .modal-body,
+body.neoffice-cockpit .layout-side-section {
+	overscroll-behavior: contain;
 }
 
 /* ── Compact page head (handoff .pnl-head) ──────────────────────────
