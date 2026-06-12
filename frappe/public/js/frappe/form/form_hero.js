@@ -472,7 +472,7 @@ frappe.ui.form.FormHero = class FormHero {
 					<span class="pl">${__("Buying price")}</span>
 					<span class="pv">${format_currency(buy, currency)}</span>
 				</div>
-				<button class="step-cta hero-edit-prices">${STEP_ICONS.edit || ""}<span>${__("Edit prices")}</span></button>
+				<button class="step-cta hero-edit-prices">${STEP_ICONS.edit || ""}<span>${__("Add/Change Price")}</span></button>
 			</div>`;
 		this.$wrapper.find(".form-hero-top").append(price_html);
 		this.$wrapper.find(".hero-edit-prices").on("click", (e) => {

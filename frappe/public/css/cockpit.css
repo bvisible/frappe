@@ -431,7 +431,7 @@ body.neoffice-cockpit .form-hero-step .step-ctas {
 	justify-content: center;
 	margin-top: 5px;
 }
-body.neoffice-cockpit .form-hero-step .step-cta {
+body.neoffice-cockpit .form-hero .step-cta {
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
@@ -447,12 +447,12 @@ body.neoffice-cockpit .form-hero-step .step-cta {
 	white-space: nowrap;
 	transition: background 0.12s ease, color 0.12s ease;
 }
-body.neoffice-cockpit .form-hero-step .step-cta svg {
+body.neoffice-cockpit .form-hero .step-cta svg {
 	width: 11px;
 	height: 11px;
 	flex-shrink: 0;
 }
-body.neoffice-cockpit .form-hero-step .step-cta:hover {
+body.neoffice-cockpit .form-hero .step-cta:hover {
 	background: #4e72ac;
 	color: #fff;
 }
