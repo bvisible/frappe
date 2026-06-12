@@ -236,6 +236,20 @@ body.neoffice-cockpit .layout-main-section-wrapper {
 	flex-direction: column;
 	margin-bottom: 0 !important;
 }
+/* Workspaces: stock desktop.scss pins .layout-main to the viewport and
+   makes the wrapper/side-section their own scrollers (height:100% +
+   overflow-y:auto). In the cockpit the ONE scroller is .main-section —
+   the height calc collapses (vars unset) but the phantom overflow-y:auto
+   remains and swallows native-scrollbar drags over its whole right band
+   (wheel still chains, dragging the scrollbar does nothing). Neutralise. */
+body.neoffice-cockpit [data-page-route="Workspaces"] .layout-main {
+	height: auto !important;
+}
+body.neoffice-cockpit [data-page-route="Workspaces"] .layout-main .layout-main-section-wrapper,
+body.neoffice-cockpit [data-page-route="Workspaces"] .layout-main .layout-side-section {
+	height: auto !important;
+	overflow-y: visible !important;
+}
 body.neoffice-cockpit .layout-main-section {
 	flex: 1;
 	display: flex;
