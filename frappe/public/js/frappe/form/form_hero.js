@@ -36,6 +36,7 @@ const STEP_ICONS = {
 	mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>',
 	print: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg>',
 	plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>',
+	edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>',
 };
 function submit_action(frm) {
 	if (frm.doc.docstatus !== 0) return null;
@@ -383,6 +384,7 @@ frappe.ui.form.FormHero = class FormHero {
 		const conf = HERO_REGISTRY[this.frm.doctype] || (meta.is_submittable ? DEFAULT_PIPELINE : null);
 		if (!conf) {
 			this.$wrapper.html(top_html);
+			this.render_extras();
 			return;
 		}
 
@@ -442,6 +444,98 @@ frappe.ui.form.FormHero = class FormHero {
 				const idx = cint($(e.currentTarget).attr("data-idx"));
 				if (step_actions[idx]) step_actions[idx].run(e.currentTarget);
 			});
+		}
+		this.render_extras();
+	}
+
+	render_extras() {
+		if (this.frm.doctype === "Item") this.render_item_extras();
+	}
+
+	// Item: selling/buying prices on the right (Neoffice stores them on the
+	// item itself) + per-warehouse stock chips, with tiny CTAs that trigger
+	// the theme's native buttons (.add_price / .add_stock) — which we hide
+	// from the page head since the hero carries them now.
+	render_item_extras() {
+		const doc = this.frm.doc;
+		const currency = frappe.boot.sysdefaults.currency || "";
+		const sell = flt(doc.view_item_price) || flt(doc.standard_rate);
+		const buy = flt(doc.view_item_buy_price) || flt(doc.last_purchase_rate);
+
+		const price_html = `
+			<div class="form-hero-value form-hero-prices">
+				<div class="price-line">
+					<span class="pl">${__("Selling price")}</span>
+					<span class="pv">${format_currency(sell, currency)}</span>
+				</div>
+				<div class="price-line muted">
+					<span class="pl">${__("Buying price")}</span>
+					<span class="pv">${format_currency(buy, currency)}</span>
+				</div>
+				<button class="step-cta hero-edit-prices">${STEP_ICONS.edit || ""}<span>${__("Edit prices")}</span></button>
+			</div>`;
+		this.$wrapper.find(".form-hero-top").append(price_html);
+		this.$wrapper.find(".hero-edit-prices").on("click", (e) => {
+			e.preventDefault();
+			this.trigger_native_button(".add_price");
+		});
+
+		// hide the head buttons the hero now carries (retry: business scripts
+		// may add them after this render)
+		const hide_native = () => {
+			this.frm.page.wrapper.find(".add_price").hide();
+			if (cint(doc.is_stock_item)) this.frm.page.wrapper.find(".add_stock").hide();
+		};
+		hide_native();
+		setTimeout(hide_native, 600);
+
+		if (!cint(doc.is_stock_item)) return;
+		const $stock = $('<div class="form-hero-stockrow"></div>').appendTo(this.$wrapper);
+		frappe
+			.call({
+				method: "frappe.client.get_list",
+				args: {
+					doctype: "Bin",
+					filters: { item_code: doc.name },
+					fields: ["warehouse", "actual_qty"],
+					limit_page_length: 20,
+				},
+			})
+			.then((r) => {
+				const bins = (r.message || []).filter((b) => flt(b.actual_qty) !== 0);
+				const uom = doc.stock_uom ? " " + __(doc.stock_uom) : "";
+				let chips = bins
+					.map(
+						(b) => `
+						<span class="stock-chip" title="${frappe.utils.escape_html(b.warehouse)}">
+							<span class="w">${frappe.utils.escape_html(b.warehouse)}</span>
+							<span class="q">${flt(b.actual_qty)}${frappe.utils.escape_html(uom)}</span>
+						</span>`
+					)
+					.join("");
+				if (!bins.length) {
+					chips = `<span class="stock-chip empty">${__("No stock")}</span>`;
+				}
+				$stock.html(`
+					<span class="stock-label">${__("Stock")}</span>
+					${chips}
+					<button class="step-cta hero-add-stock">${STEP_ICONS.plus || ""}<span>${__("Add stock")}</span></button>
+				`);
+				$stock.find(".hero-add-stock").on("click", (e) => {
+					e.preventDefault();
+					this.trigger_native_button(".add_stock");
+				});
+			});
+	}
+
+	// click a (possibly hidden / overflowed) native button by selector —
+	// lazy DOM read: theme scripts register them on their own refresh
+	trigger_native_button(selector) {
+		const $btn = this.frm.page.wrapper.find(selector).first();
+		if ($btn.length) {
+			$btn.trigger("click");
+		} else {
+			frappe.show_alert({ message: __("Action not available yet"), indicator: "orange" });
 		}
 	}
 };

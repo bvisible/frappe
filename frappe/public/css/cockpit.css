@@ -995,3 +995,76 @@ body.neoffice-cockpit .report-wrapper .datatable {
 	flex-direction: column;
 	min-height: 0;
 }
+
+/* ── Item hero extras: prices on the right, stock chips below ── */
+body.neoffice-cockpit .form-hero-prices {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 2px;
+}
+body.neoffice-cockpit .form-hero-prices .price-line {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+}
+body.neoffice-cockpit .form-hero-prices .price-line .pl {
+	font-size: 11px;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+body.neoffice-cockpit .form-hero-prices .price-line .pv {
+	font-family: Forum, Georgia, serif;
+	font-size: 24px;
+	line-height: 1.15;
+	color: var(--text-color);
+}
+body.neoffice-cockpit .form-hero-prices .price-line.muted .pv {
+	font-size: 16px;
+	color: var(--text-light, #4c5a67);
+}
+body.neoffice-cockpit .form-hero-prices .step-cta {
+	margin-top: 5px;
+}
+body.neoffice-cockpit .form-hero-stockrow {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 7px;
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: 1px solid rgba(120, 80, 20, 0.08);
+}
+body.neoffice-cockpit .form-hero-stockrow .stock-label {
+	font-size: 11px;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	margin-right: 3px;
+}
+body.neoffice-cockpit .form-hero-stockrow .stock-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	padding: 3px 11px;
+	border: 1px solid var(--border-color);
+	border-radius: 999px;
+	background: var(--card-bg, #fff);
+	font-size: 12px;
+}
+body.neoffice-cockpit .form-hero-stockrow .stock-chip .w {
+	color: var(--text-light, #4c5a67);
+	max-width: 220px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+body.neoffice-cockpit .form-hero-stockrow .stock-chip .q {
+	font-weight: 700;
+	color: var(--text-color);
+}
+body.neoffice-cockpit .form-hero-stockrow .stock-chip.empty {
+	color: var(--text-muted);
+	font-style: italic;
+}
