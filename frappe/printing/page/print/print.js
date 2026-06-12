@@ -153,11 +153,9 @@ frappe.ui.form.PrintView = class {
 				app.eventBus.on(
 					"documentloaded",
 					() => {
-						try {
-							app.pdfSidebar.switchView(1, true); // 1 = thumbnails
-						} catch (e) {
-							// sidebar API drift across pdf.js versions — non-fatal
-						}
+						// same event the #pagemode= open-param dispatches —
+						// opens the thumbnail sidebar (canonical v6 API)
+						app.eventBus.dispatch("pagemode", { mode: "thumbs" });
 					},
 					{ once: true }
 				);
