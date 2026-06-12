@@ -110,6 +110,11 @@ body.neoffice-cockpit.nf-ws .page-head::after,
 body.neoffice-cockpit.nf-ws-home .page-head::after {
 	display: none;
 }
+
+/* print page: the embedded PDF.js viewer goes edge-to-edge in the panel */
+body.neoffice-cockpit .page-body:has([data-page-route="print"]) {
+	padding: 0 !important;
+}
 body.neoffice-cockpit .page-head .page-head-content {
 	height: 54px;
 	flex-wrap: nowrap;

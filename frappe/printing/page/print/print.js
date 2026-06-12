@@ -149,16 +149,14 @@ frappe.ui.form.PrintView = class {
 		const open_in_viewer = () => {
 			const app = this.viewer_app();
 			if (!app) return;
+			try {
+				// official AppOption, consulted on every document load:
+				// 1 = SidebarView.THUMBS → thumbnails open by default
+				iframe.contentWindow.PDFViewerApplicationOptions.set("sidebarViewOnLoad", 1);
+			} catch (e) {
+				// option surface moved — viewer still works, sidebar closed
+			}
 			app.initializedPromise.then(() => {
-				app.eventBus.on(
-					"documentloaded",
-					() => {
-						// same event the #pagemode= open-param dispatches —
-						// opens the thumbnail sidebar (canonical v6 API)
-						app.eventBus.dispatch("pagemode", { mode: "thumbs" });
-					},
-					{ once: true }
-				);
 				app.open({ url: pdf_url });
 			});
 		};
