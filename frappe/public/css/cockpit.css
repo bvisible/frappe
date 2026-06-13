@@ -1454,7 +1454,10 @@ body.neoffice-cockpit.nf-list .list-sidebar:not(.nf-pill-enhanced) {
 	width: 15px;
 	height: 15px;
 	flex: 0 0 auto;
-	margin-left: 4px;
+	/* pushed to the far right; resolves to 0 in the content-sized collapsed chip
+	   (no free space) so the chip stays compact, and to the right edge once the
+	   pill expands to its fixed width */
+	margin-left: auto;
 	fill: none;
 	stroke: currentColor;
 	stroke-width: 2;
@@ -1502,6 +1505,26 @@ body.neoffice-cockpit.nf-list .layout-side-section:not(.nf-pill-collapsed) .list
 }
 body.neoffice-cockpit.nf-list .layout-side-section:not(.nf-pill-collapsed) .nf-pill-chevron {
 	transform: rotate(180deg);
+}
+/* expanded: the panel already has Frappe's own clear (×) button, so the header
+   reset is redundant — hide it, leaving a clean "title … chevron" header */
+body.neoffice-cockpit.nf-list .layout-side-section:not(.nf-pill-collapsed) .nf-pill-reset {
+	display: none;
+}
+/* reveal the fields only AFTER the capsule has finished opening, otherwise they
+   briefly spill out of the still-rounded pill while it reshapes */
+body.neoffice-cockpit.nf-list .layout-side-section:not(.nf-pill-collapsed) .list-sidebar > *:not(.nf-pill-head) {
+	animation: nf-pill-fields-in 200ms ease 180ms both;
+}
+@keyframes nf-pill-fields-in {
+	from {
+		opacity: 0;
+		transform: translateY(-4px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
 }
 body.neoffice-cockpit.nf-list .layout-side-section:not(.nf-pill-collapsed) .nf-pill-head {
 	border-radius: 0;

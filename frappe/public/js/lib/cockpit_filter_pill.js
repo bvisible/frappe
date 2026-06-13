@@ -107,6 +107,21 @@
 		return ["List", "query-report", "dashboard-view"].indexOf(r[0]) !== -1;
 	}
 
+	// Frappe sometimes re-renders the filter/sort controls as DIRECT children of
+	// .layout-side-section (a sibling of .list-sidebar) instead of inside it —
+	// notably on back-navigation — which makes them spill OUT of the glass pill.
+	// Move any such stray back into the pill, just after the header.
+	function rehomeStrays(side, sidebar) {
+		var kids = Array.prototype.slice.call(side.children);
+		for (var i = 0; i < kids.length; i++) {
+			var c = kids[i];
+			if (c === sidebar) continue;
+			var head = sidebar.querySelector(".nf-pill-head");
+			if (head && head.nextSibling) sidebar.insertBefore(c, head.nextSibling);
+			else sidebar.insertBefore(c, sidebar.firstChild);
+		}
+	}
+
 	function enhance() {
 		// Gate on the route, not the body .nf-list class: desk.js sets that class
 		// on the same page-change event we listen to, so it can lag our handler.
@@ -116,11 +131,22 @@
 		var sidebar = side.querySelector(".list-sidebar");
 		if (!sidebar) return;
 
+		// pull any spilled controls back into the pill (runs every time, so it
+		// also heals the back-navigation case where we're already enhanced)
+		rehomeStrays(side, sidebar);
+
 		if (sidebar.classList.contains(ENHANCED)) {
 			refreshCount(side);
 			return;
 		}
 		sidebar.classList.add(ENHANCED);
+		// keep healing if Frappe re-adds controls outside the pill later
+		if (window.MutationObserver) {
+			new MutationObserver(function () {
+				var sb = side.querySelector(".list-sidebar");
+				if (sb) rehomeStrays(side, sb);
+			}).observe(side, { childList: true });
+		}
 
 		var head = buildHead();
 		sidebar.insertBefore(head, sidebar.firstChild);
