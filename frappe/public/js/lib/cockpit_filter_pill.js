@@ -169,8 +169,35 @@
 		})();
 	}
 
+	// Inject the SVG displacement filter once. This is what gives the pill REAL
+	// glass refraction (the backdrop bends/ripples through the glass) — the
+	// effect a pure backdrop-blur can't produce. It's a static filter (no
+	// per-frame recompute, no html2canvas, no WebGL), referenced from CSS via
+	// backdrop-filter: url(#nf-glass-distort). Chrome renders the refraction;
+	// browsers that ignore url() in backdrop-filter fall back to plain frost.
+	function injectGlassFilter() {
+		if (document.getElementById("nf-glass-svg")) return;
+		var ns = "http://www.w3.org/2000/svg";
+		var svg = document.createElementNS(ns, "svg");
+		svg.id = "nf-glass-svg";
+		svg.setAttribute("width", "0");
+		svg.setAttribute("height", "0");
+		svg.style.cssText = "position:absolute;width:0;height:0;pointer-events:none";
+		svg.innerHTML =
+			'<defs><filter id="nf-glass-distort" x="-20%" y="-20%" width="140%" height="140%" ' +
+			'color-interpolation-filters="sRGB">' +
+			'<feTurbulence type="fractalNoise" baseFrequency="0.011 0.013" numOctaves="2" seed="7" result="n"/>' +
+			'<feGaussianBlur in="n" stdDeviation="2.2" result="sn"/>' +
+			'<feDisplacementMap in="SourceGraphic" in2="sn" scale="26" ' +
+			'xChannelSelector="R" yChannelSelector="G" result="d"/>' +
+			'<feGaussianBlur in="d" stdDeviation="5"/>' +
+			"</filter></defs>";
+		document.body.appendChild(svg);
+	}
+
 	// page-change fires once the new page is shown (covers SPA navigation);
 	// ready covers the initial hard load.
+	$(document).ready(injectGlassFilter);
 	$(document).on("page-change", scheduleEnhance);
 	$(document).ready(scheduleEnhance);
 })();

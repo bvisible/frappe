@@ -1353,6 +1353,23 @@ body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar {
 		0 12px 34px -12px rgba(0, 0, 0, 0.5);
 	color: rgba(255, 255, 255, 0.92);
 }
+/* REAL glass refraction: where the browser supports an SVG filter in
+   backdrop-filter (Chromium), the backdrop ripples/bends through the glass
+   (feDisplacementMap, injected by cockpit_filter_pill.js). The base rule above
+   keeps a plain frost as the universal fallback. The blur lives inside the SVG
+   filter, so here we only add saturate + brightness. */
+@supports (backdrop-filter: url("#nf-glass-distort")) or (-webkit-backdrop-filter: url("#nf-glass-distort")) {
+	body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar {
+		-webkit-backdrop-filter: url("#nf-glass-distort") saturate(var(--nf-glass-sat)) brightness(1.05);
+		backdrop-filter: url("#nf-glass-distort") saturate(var(--nf-glass-sat)) brightness(1.05);
+	}
+}
+/* No flash of the stock 220px sidebar on load: keep it hidden until the pill
+   JS has injected the header + collapsed state (enhance() is synchronous, so
+   the browser only paints the finished chip, never the raw sidebar). */
+body.neoffice-cockpit.nf-list .list-sidebar:not(.nf-pill-enhanced) {
+	visibility: hidden;
+}
 
 /* ---- header chip (injected by cockpit_filter_pill.js) ---- */
 .nf-pill-head {
