@@ -64,32 +64,49 @@ body.neoffice-cockpit .layout-side-section {
    custom properties; apply .nf-glass (light) or .nf-glass-dark (smoked) to any
    surface — pill, page-head, future floating dialogs. */
 body.neoffice-cockpit {
-	--nf-glass-blur: 16px;
-	--nf-glass-sat: 1.6;
-	--nf-glass-tint: rgba(255, 253, 248, 0.66);
-	--nf-glass-border: rgba(255, 255, 255, 0.4);
-	--nf-glass-lip: rgba(255, 255, 255, 0.55);
-	/* dark smoked variant */
-	--nf-glass-dark-tint: rgba(26, 28, 36, 0.66);
-	--nf-glass-dark-border: rgba(255, 255, 255, 0.13);
-	--nf-glass-dark-lip: rgba(255, 255, 255, 0.18);
+	--nf-glass-blur: 22px;
+	--nf-glass-sat: 1.9;
+	/* light liquid glass — translucent so the content refracts through it */
+	--nf-glass-tint: rgba(255, 254, 250, 0.46);
+	--nf-glass-border: rgba(255, 255, 255, 0.6);
+	--nf-glass-lip: rgba(255, 255, 255, 0.9);
+	/* dark smoked variant (still translucent — it's glass, not a fill) */
+	--nf-glass-dark-tint: rgba(22, 24, 32, 0.4);
+	--nf-glass-dark-border: rgba(255, 255, 255, 0.22);
+	--nf-glass-dark-lip: rgba(255, 255, 255, 0.32);
 }
 .nf-glass,
 .nf-glass-dark {
-	-webkit-backdrop-filter: blur(var(--nf-glass-blur)) saturate(var(--nf-glass-sat));
-	backdrop-filter: blur(var(--nf-glass-blur)) saturate(var(--nf-glass-sat));
+	-webkit-backdrop-filter: blur(var(--nf-glass-blur)) saturate(var(--nf-glass-sat)) brightness(1.04);
+	backdrop-filter: blur(var(--nf-glass-blur)) saturate(var(--nf-glass-sat)) brightness(1.04);
 }
+/* The "liquid glass" read comes from THREE layers working together: a diagonal
+   specular sheen (light raking across), bright inset lips top+bottom (the glass
+   thickness), and an inner glow — over a translucent tint so the content shows
+   through. Pure CSS, compositor-only. */
 .nf-glass {
-	background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 42%),
+	background: linear-gradient(
+				135deg,
+				rgba(255, 255, 255, 0.6) 0%,
+				rgba(255, 255, 255, 0.1) 22%,
+				rgba(255, 255, 255, 0) 46%
+			),
 		var(--nf-glass-tint);
 	border: 1px solid var(--nf-glass-border);
-	box-shadow: inset 0 1px 0 0 var(--nf-glass-lip), 0 8px 30px -12px rgba(15, 12, 8, 0.28);
+	box-shadow: inset 0 1px 1px 0 var(--nf-glass-lip), inset 0 -1px 1px 0 rgba(255, 255, 255, 0.28),
+		inset 0 0 22px rgba(255, 255, 255, 0.14), 0 10px 30px -10px rgba(15, 12, 8, 0.26);
 }
 .nf-glass-dark {
-	background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 45%),
+	background: linear-gradient(
+				135deg,
+				rgba(255, 255, 255, 0.34) 0%,
+				rgba(255, 255, 255, 0.07) 24%,
+				rgba(255, 255, 255, 0) 48%
+			),
 		var(--nf-glass-dark-tint);
 	border: 1px solid var(--nf-glass-dark-border);
-	box-shadow: inset 0 1px 0 0 var(--nf-glass-dark-lip), 0 10px 34px -14px rgba(0, 0, 0, 0.5);
+	box-shadow: inset 0 1px 1px 0 var(--nf-glass-dark-lip), inset 0 0 22px rgba(255, 255, 255, 0.07),
+		0 12px 34px -12px rgba(0, 0, 0, 0.5);
 	color: rgba(255, 255, 255, 0.92);
 }
 
@@ -100,49 +117,16 @@ body.neoffice-cockpit .page-head {
 	top: 0 !important;
 	height: 54px;
 	border-bottom: 1px solid var(--border-color);
-	/* dark smoked liquid glass (reusable .nf-glass-dark recipe). The head no
-	   longer hides on scroll (that broke the trackpad latch), so content slides
-	   UNDER it — the translucent graphite + blur keeps it a readable command
-	   bar. Static properties only: latch-safe. */
-	background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 45%),
-		var(--nf-glass-dark-tint);
-	-webkit-backdrop-filter: blur(var(--nf-glass-blur)) saturate(var(--nf-glass-sat));
-	backdrop-filter: blur(var(--nf-glass-blur)) saturate(var(--nf-glass-sat));
-	border-bottom: 1px solid var(--nf-glass-dark-border);
-	box-shadow: inset 0 1px 0 0 var(--nf-glass-dark-lip);
+	/* liquid-glass: the head used to hide itself on scroll (killed with the
+	   legacy JS handler — it broke the trackpad latch), so content now
+	   slides UNDER it. Translucent fill + backdrop blur keeps it readable.
+	   Static properties only: no mutation while scrolling, latch-safe. */
+	background: rgba(255, 253, 248, 0.68);
+	-webkit-backdrop-filter: blur(14px) saturate(1.6);
+	backdrop-filter: blur(14px) saturate(1.6);
 }
-
-/* dark smoked glass ⇒ the head text + controls must read light. Baseline light
-   color for the bar; colored elements (primary button, status pill) keep their
-   own styling via more specific rules below. */
-body.neoffice-cockpit .page-head,
-body.neoffice-cockpit .page-head a,
-body.neoffice-cockpit .page-head .btn-default,
-body.neoffice-cockpit .page-head .text-muted,
-body.neoffice-cockpit .page-head .title-text,
-body.neoffice-cockpit .page-head .breadcrumb-item,
-body.neoffice-cockpit .page-head .ellipsis {
-	color: rgba(255, 255, 255, 0.92);
-}
-body.neoffice-cockpit .page-head .btn-default {
-	background: transparent;
-}
-body.neoffice-cockpit .page-head .btn-default:hover {
-	background: rgba(255, 255, 255, 0.12);
-}
-/* icons (breadcrumb chevrons, tool glyphs, the … menu) follow the light text */
-body.neoffice-cockpit .page-head .es-icon,
-body.neoffice-cockpit .page-head svg.icon {
-	color: rgba(255, 255, 255, 0.82);
-	fill: none;
-	stroke: currentColor;
-}
-body.neoffice-cockpit .page-head use {
-	color: rgba(255, 255, 255, 0.82);
-}
-/* keep the primary action vivid on the dark bar */
-body.neoffice-cockpit .page-head .btn-primary {
-	color: #fff;
+[data-theme="dark"] body.neoffice-cockpit .page-head {
+	background: rgba(28, 33, 39, 0.68);
 }
 /* Sticky-head shadow, scroll-driven in PURE CSS. The legacy JS version
    (page.js toggling .drop-shadow while scrolling) mutated the sticky
@@ -1329,8 +1313,9 @@ body.neoffice-cockpit.nf-list .layout-side-section {
 	margin: 0;
 	overflow: visible; /* let inner dropdowns escape the pill, no clipping */
 }
-/* glass shell — liquid-glass like the sticky page-head, but more opaque + a
-   lighter blur so the filter labels stay readable over the busy datatable */
+/* glass shell — the reusable .nf-glass liquid-glass material, applied the SAME
+   way collapsed AND expanded: a translucent frosted glass (content refracts
+   through) with a diagonal specular sheen + bright lips. */
 body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar {
 	margin: 0;
 	width: auto;
@@ -1338,28 +1323,35 @@ body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar {
 	   though Frappe prepends the filter/sort controls after we insert it */
 	display: flex;
 	flex-direction: column;
-	/* collapsed = dark smoked glass chip (matches the command-bar page-head) */
-	background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 45%),
-		var(--nf-glass-dark-tint);
-	-webkit-backdrop-filter: blur(var(--nf-glass-blur)) saturate(var(--nf-glass-sat));
-	backdrop-filter: blur(var(--nf-glass-blur)) saturate(var(--nf-glass-sat));
-	border: 1px solid var(--nf-glass-dark-border);
+	background: linear-gradient(
+				135deg,
+				rgba(255, 255, 255, 0.6) 0%,
+				rgba(255, 255, 255, 0.1) 22%,
+				rgba(255, 255, 255, 0) 46%
+			),
+		var(--nf-glass-tint);
+	-webkit-backdrop-filter: blur(var(--nf-glass-blur)) saturate(var(--nf-glass-sat)) brightness(1.04);
+	backdrop-filter: blur(var(--nf-glass-blur)) saturate(var(--nf-glass-sat)) brightness(1.04);
+	border: 1px solid var(--nf-glass-border);
 	border-radius: 999px;
-	box-shadow: inset 0 1px 0 0 var(--nf-glass-dark-lip), 0 10px 34px -14px rgba(0, 0, 0, 0.45);
-	color: rgba(255, 255, 255, 0.92);
+	box-shadow: inset 0 1px 1px 0 var(--nf-glass-lip), inset 0 -1px 1px 0 rgba(255, 255, 255, 0.28),
+		inset 0 0 22px rgba(255, 255, 255, 0.14), 0 10px 30px -10px rgba(15, 12, 8, 0.26);
+	color: var(--text-color);
 	padding: 4px;
 	transition: border-radius 0.18s ease;
 }
-/* expanded = readable light panel: the Frappe controls inside (filter / sort /
-   report / saved filters) are dark-text, so the dark chip opens onto light */
-body.neoffice-cockpit.nf-list .layout-side-section:not(.nf-pill-collapsed) .list-sidebar {
-	background: rgba(255, 253, 248, 0.96);
-	border-color: var(--border-color);
-	box-shadow: 0 12px 34px -12px rgba(20, 16, 10, 0.28);
-	color: var(--text-color);
-}
-[data-theme="dark"] body.neoffice-cockpit.nf-list .layout-side-section:not(.nf-pill-collapsed) .list-sidebar {
-	background: rgba(28, 33, 39, 0.97);
+[data-theme="dark"] body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar {
+	background: linear-gradient(
+				135deg,
+				rgba(255, 255, 255, 0.34) 0%,
+				rgba(255, 255, 255, 0.07) 24%,
+				rgba(255, 255, 255, 0) 48%
+			),
+		var(--nf-glass-dark-tint);
+	border-color: var(--nf-glass-dark-border);
+	box-shadow: inset 0 1px 1px 0 var(--nf-glass-dark-lip), inset 0 0 22px rgba(255, 255, 255, 0.07),
+		0 12px 34px -12px rgba(0, 0, 0, 0.5);
+	color: rgba(255, 255, 255, 0.92);
 }
 
 /* ---- header chip (injected by cockpit_filter_pill.js) ---- */
@@ -1455,17 +1447,6 @@ body.neoffice-cockpit.nf-list .layout-side-section:not(.nf-pill-collapsed) .list
 /* ---- collapsed: only the chip shows (pill shape) ---- */
 body.neoffice-cockpit.nf-list .layout-side-section.nf-pill-collapsed .list-sidebar > *:not(.nf-pill-head) {
 	display: none !important;
-}
-/* collapsed chip is dark glass → header text + reset read light */
-body.neoffice-cockpit.nf-list .layout-side-section.nf-pill-collapsed .nf-pill-head {
-	color: rgba(255, 255, 255, 0.95);
-}
-body.neoffice-cockpit.nf-list .layout-side-section.nf-pill-collapsed .nf-pill-reset {
-	color: rgba(255, 255, 255, 0.72);
-}
-body.neoffice-cockpit.nf-list .layout-side-section.nf-pill-collapsed .nf-pill-reset:hover {
-	background: rgba(255, 255, 255, 0.16);
-	color: #fff;
 }
 /* filtered state tints the funnel so "is it filtered?" reads at a glance even
    when collapsed */
