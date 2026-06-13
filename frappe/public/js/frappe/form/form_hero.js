@@ -436,6 +436,20 @@ frappe.ui.form.FormHero = class FormHero {
 			if (a) all_actions.push({ ...a, _anchor: clamp(a.step || rank) });
 		});
 
+		// View/Print stays anchored to the validated step for the whole
+		// validated life of the document — you often re-open a paid invoice
+		// to view or reprint it. Like WebStamp, it persists once validated;
+		// deduped against the current-step actions so it never doubles up.
+		if (cint(this.frm.doc.docstatus) === 1) {
+			const p = print_action(this.frm);
+			if (p) {
+				const at = clamp(2);
+				if (!all_actions.some((a) => a.label === p.label && a._anchor === at)) {
+					all_actions.push({ ...p, _anchor: at });
+				}
+			}
+		}
+
 		const seg = steps
 			.map((step, i) => {
 				const n = i + 1;

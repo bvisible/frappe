@@ -280,6 +280,13 @@ body.neoffice-cockpit .page-head .custom-actions {
 body.neoffice-cockpit .page-head .custom-actions > .pao-overflowed {
 	display: none !important;
 }
+/* Buttons keep their natural width — never let flex/ellipsis shrink them to
+   a clipped stub ("…ctions"). Their natural width makes the row's overflow
+   measurable (scrollWidth > clientWidth) so the JS reliably moves whole
+   buttons into the ⋯ menu instead of leaving a half-cut one. */
+body.neoffice-cockpit .page-head .custom-actions > * {
+	flex: 0 0 auto;
+}
 body.neoffice-cockpit .page-head .custom-actions::-webkit-scrollbar {
 	display: none;
 }
