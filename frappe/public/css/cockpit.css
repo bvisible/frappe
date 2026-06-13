@@ -1248,7 +1248,7 @@ body.neoffice-cockpit.nf-list .layout-main {
    datatable, not .layout-main, so it does not scroll away with the rows */
 body.neoffice-cockpit.nf-list .layout-side-section {
 	position: absolute;
-	top: 6px;
+	top: 80px; /* clears the toolbar + column-header / quick-filter band */
 	right: 12px;
 	z-index: 20;
 	width: auto;
@@ -1258,13 +1258,14 @@ body.neoffice-cockpit.nf-list .layout-side-section {
 	margin: 0;
 	overflow: visible; /* let inner dropdowns escape the pill, no clipping */
 }
-/* glass shell — same liquid-glass recipe as the sticky page-head */
+/* glass shell — liquid-glass like the sticky page-head, but more opaque + a
+   lighter blur so the filter labels stay readable over the busy datatable */
 body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar {
 	margin: 0;
 	width: auto;
-	background: rgba(255, 253, 248, 0.72);
-	-webkit-backdrop-filter: blur(14px) saturate(1.6);
-	backdrop-filter: blur(14px) saturate(1.6);
+	background: rgba(255, 253, 248, 0.93);
+	-webkit-backdrop-filter: blur(6px) saturate(1.4);
+	backdrop-filter: blur(6px) saturate(1.4);
 	border: 1px solid var(--border-color);
 	border-radius: 999px;
 	box-shadow: 0 8px 28px -10px rgba(20, 16, 10, 0.22), 0 1px 2px rgba(20, 16, 10, 0.06);
@@ -1272,7 +1273,7 @@ body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar {
 	transition: border-radius 0.18s ease;
 }
 [data-theme="dark"] body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar {
-	background: rgba(28, 33, 39, 0.72);
+	background: rgba(28, 33, 39, 0.94);
 }
 
 /* ---- header chip (injected by cockpit_filter_pill.js) ---- */
@@ -1365,6 +1366,28 @@ body.neoffice-cockpit.nf-list .layout-side-section:not(.nf-pill-collapsed) .nf-p
 /* the stock sidebar sets margins assuming a 220px column — relax inside the pill */
 body.neoffice-cockpit.nf-list .layout-side-section:not(.nf-pill-collapsed) .sidebar-section {
 	margin-bottom: 10px;
+}
+/* top controls (Filtres / Ajouter un groupe / Dernière mise à jour): stack them
+   full-width instead of the wrapping "staircase" — one clean row each */
+body.neoffice-cockpit.nf-list .layout-side-section:not(.nf-pill-collapsed) .filter-section.flex {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 6px;
+	width: 100%;
+	margin-bottom: 10px;
+}
+body.neoffice-cockpit.nf-list .layout-side-section:not(.nf-pill-collapsed) .filter-section.flex > *,
+body.neoffice-cockpit.nf-list .layout-side-section:not(.nf-pill-collapsed) .filter-section.flex .btn-group {
+	width: 100%;
+	display: flex;
+}
+/* the primary control in each group grows; left-align the labels */
+body.neoffice-cockpit.nf-list .layout-side-section:not(.nf-pill-collapsed) .filter-section.flex .filter-button,
+body.neoffice-cockpit.nf-list .layout-side-section:not(.nf-pill-collapsed) .filter-section.flex .group-by-button,
+body.neoffice-cockpit.nf-list .layout-side-section:not(.nf-pill-collapsed) .filter-section.flex .sort-selector-button {
+	flex: 1 1 auto;
+	justify-content: flex-start;
+	text-align: left;
 }
 
 /* the title-level "toggle sidebar" button is redundant — the pill is always there */

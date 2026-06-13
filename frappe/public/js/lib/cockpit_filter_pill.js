@@ -79,8 +79,15 @@
 		return null;
 	}
 
+	function isListRoute() {
+		var r = (frappe.get_route && frappe.get_route()) || [];
+		return ["List", "query-report", "dashboard-view"].indexOf(r[0]) !== -1;
+	}
+
 	function enhance() {
-		if (!document.body.classList.contains("nf-list")) return;
+		// Gate on the route, not the body .nf-list class: desk.js sets that class
+		// on the same page-change event we listen to, so it can lag our handler.
+		if (!isListRoute()) return;
 		var side = visibleSide();
 		if (!side) return;
 		var sidebar = side.querySelector(".list-sidebar");
@@ -116,15 +123,19 @@
 	// single delayed call races the render. Poll for the sidebar (up to ~5s)
 	// each time we land on a list view, then enhance once it exists.
 	function scheduleEnhance() {
-		if (!document.body.classList.contains("nf-list")) return;
 		var tries = 0;
 		(function attempt() {
-			if (!document.body.classList.contains("nf-list")) return; // navigated away
-			var side = visibleSide();
-			if (side && side.querySelector(".list-sidebar")) {
-				enhance();
-				return;
+			var route = (frappe.get_route && frappe.get_route()) || [];
+			if (["List", "query-report", "dashboard-view"].indexOf(route[0]) !== -1) {
+				var side = visibleSide();
+				if (side && side.querySelector(".list-sidebar")) {
+					enhance();
+					return;
+				}
+			} else if (route.length) {
+				return; // route resolved to a non-list page → nothing to do
 			}
+			// route not a list yet, or sidebar not rendered → keep polling (~5s)
 			if (tries++ < 25) setTimeout(attempt, 200);
 		})();
 	}
