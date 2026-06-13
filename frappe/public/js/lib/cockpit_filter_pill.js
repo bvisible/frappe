@@ -183,14 +183,17 @@
 		svg.setAttribute("width", "0");
 		svg.setAttribute("height", "0");
 		svg.style.cssText = "position:absolute;width:0;height:0;pointer-events:none";
+		// Gentle, large-scale waves (low baseFrequency) + a small displacement +
+		// a generous post-blur frost the refracted backdrop into a soft, elegant
+		// ripple instead of a sharp smear of the text behind.
 		svg.innerHTML =
-			'<defs><filter id="nf-glass-distort" x="-20%" y="-20%" width="140%" height="140%" ' +
+			'<defs><filter id="nf-glass-distort" x="-15%" y="-15%" width="130%" height="130%" ' +
 			'color-interpolation-filters="sRGB">' +
-			'<feTurbulence type="fractalNoise" baseFrequency="0.011 0.013" numOctaves="2" seed="7" result="n"/>' +
-			'<feGaussianBlur in="n" stdDeviation="2.2" result="sn"/>' +
-			'<feDisplacementMap in="SourceGraphic" in2="sn" scale="26" ' +
+			'<feTurbulence type="fractalNoise" baseFrequency="0.0055 0.007" numOctaves="2" seed="11" result="n"/>' +
+			'<feGaussianBlur in="n" stdDeviation="1.4" result="sn"/>' +
+			'<feDisplacementMap in="SourceGraphic" in2="sn" scale="13" ' +
 			'xChannelSelector="R" yChannelSelector="G" result="d"/>' +
-			'<feGaussianBlur in="d" stdDeviation="5"/>' +
+			'<feGaussianBlur in="d" stdDeviation="8"/>' +
 			"</filter></defs>";
 		document.body.appendChild(svg);
 	}
