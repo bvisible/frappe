@@ -41,29 +41,19 @@ const STEP_ICONS = {
 	stamp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22h14"/><path d="M19.27 13.73A2.5 2.5 0 0 0 17.5 13h-11A2.5 2.5 0 0 0 4 15.5V17a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-1.5c0-.66-.26-1.3-.73-1.77"/><path d="M14 13V8.5C14 7 15 7 15 5a3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 2 1 2 1 3.5V13"/></svg>',
 };
 
-// WebStamp lives on the "validated" step (docstatus 1) for any printable
-// doc that carries the swisspost_barcode field — detected by the field so
-// frappe core stays decoupled from that app. Runs the hidden native head
-// button (lazy lookup: the swisspost refresh handler may register it after
-// the hero first paints).
-function webstamp_action(frm) {
-	if (frm.doc.docstatus !== 1) return null;
-	const has_field = (frm.meta.fields || []).some((f) => f.fieldname === "webstamp_order");
-	if (!has_field) return null;
-	return {
-		label: __("WebStamp"),
-		icon: "stamp",
-		run: () => {
-			const $btn = frm.custom_buttons && frm.custom_buttons[__("WebStamp")];
-			if ($btn && $btn.length) $btn.trigger("click");
-			else
-				frappe.show_alert({
-					message: __("Action not available yet"),
-					indicator: "orange",
-				});
-		},
-	};
-}
+// Generic step-anchored actions. Apps register a provider per doctype that
+// returns { label, icon|icon_svg, step, run } (or null) to surface a CTA
+// under a specific pipeline step — and it stays there even once that step is
+// done (e.g. WebStamp under "Validated" on a paid invoice). Keeps the hero
+// decoupled from app-specific features: the swisspost_barcode app owns all
+// the WebStamp logic and just registers here.
+//   frappe.ui.form.add_hero_step_action("Sales Invoice", (frm) => ({...}))
+// `step` is the 1-based pipeline index to anchor under (default: current).
+frappe.ui.form.hero_step_actions = frappe.ui.form.hero_step_actions || {};
+frappe.ui.form.add_hero_step_action = function (doctype, provider) {
+	(frappe.ui.form.hero_step_actions[doctype] =
+		frappe.ui.form.hero_step_actions[doctype] || []).push(provider);
+};
 function submit_action(frm) {
 	if (frm.doc.docstatus !== 0) return null;
 	if (!frm.perm || !frm.perm[0] || !frm.perm[0].submit) return null;
@@ -203,7 +193,7 @@ const HERO_REGISTRY = {
 		steps: (doc, tx) => [
 			{ label: __("Draft"), when: doc.creation },
 			{ label: __("Submitted"), when: tx.submit() },
-			{ label: __("Paid"), when: tx.status("Paid") },
+			{ label: __("Paid"), when: tx.status("Paid") || (doc.status === "Paid" ? doc.modified : null) },
 		],
 		rank(doc) {
 			if (doc.docstatus === 2 || doc.status === "Cancelled") return -1;
@@ -221,7 +211,7 @@ const HERO_REGISTRY = {
 		steps: (doc, tx) => [
 			{ label: __("Draft"), when: doc.creation },
 			{ label: __("Submitted"), when: tx.submit() },
-			{ label: __("Paid"), when: tx.status("Paid") },
+			{ label: __("Paid"), when: tx.status("Paid") || (doc.status === "Paid" ? doc.modified : null) },
 		],
 		rank(doc) {
 			if (doc.docstatus === 2 || doc.status === "Cancelled") return -1;
@@ -324,7 +314,14 @@ function extract_transitions(frm) {
 			for (const n of names) if (status_dates[n]) return status_dates[n];
 			return null;
 		},
-		submit: () => submit_date,
+		// Validation date from the version history; fall back to the document
+		// date (posting/transaction) for docs without a tracked version yet —
+		// seeded/imported records have no versions, so the step would read "—".
+		submit: () =>
+			submit_date ||
+			(cint(frm.doc.docstatus) >= 1
+				? frm.doc.posting_date || frm.doc.transaction_date || null
+				: null),
 	};
 }
 
@@ -417,14 +414,28 @@ frappe.ui.form.FormHero = class FormHero {
 		const tx = extract_transitions(this.frm);
 		const steps = conf.steps(doc, tx);
 		const rank = conf.rank(doc);
-		// contextual micro-actions under the CURRENT step (Validate / Send / Print…)
-		const step_actions = (rank >= 1 && conf.actions ? conf.actions(rank, this.frm) : []).filter(
+		// Assemble all step CTAs into one flat list, each tagged with the
+		// step it anchors under (1-based). Native actions sit on the CURRENT
+		// step, clamped to the last step so they still show when the pipeline
+		// is complete (e.g. SI Paid: rank 4 > 3 steps). App-registered actions
+		// (e.g. WebStamp) carry their own anchor and stay even on a done step.
+		const native = (rank >= 1 && conf.actions ? conf.actions(rank, this.frm) : []).filter(
 			Boolean
 		);
-		// WebStamp is cross-doctype (any doc with the swisspost field) — append
-		// it on the validated step rather than wiring it into every registry
-		const ws = webstamp_action(this.frm);
-		if (ws) step_actions.push(ws);
+		const clamp = (s) => Math.min(Math.max(s, 1), steps.length);
+		const native_anchor = clamp(rank);
+		const all_actions = native.map((a) => ({ ...a, _anchor: native_anchor }));
+		const providers = frappe.ui.form.hero_step_actions[this.frm.doctype] || [];
+		providers.forEach((p) => {
+			let a;
+			try {
+				a = p(this.frm);
+			} catch (e) {
+				a = null;
+			}
+			if (a) all_actions.push({ ...a, _anchor: clamp(a.step || rank) });
+		});
+
 		const seg = steps
 			.map((step, i) => {
 				const n = i + 1;
@@ -444,17 +455,19 @@ frappe.ui.form.FormHero = class FormHero {
 				else if (cls === "current") when = __("In progress");
 				else if (cls === "todo") when = "—";
 
-				const cta =
-					cls === "current" && step_actions.length
-						? `<div class="step-ctas">${step_actions
-								.map(
-									(a, ai) => `
-							<button class="step-cta" data-idx="${ai}" title="${frappe.utils.escape_html(a.label)}">
-								${STEP_ICONS[a.icon] || ""}<span>${frappe.utils.escape_html(a.label)}${a.menu ? " ▾" : ""}</span>
-							</button>`
-								)
-								.join("")}</div>`
-						: "";
+				const my = all_actions.filter((a) => a._anchor === n);
+				const cta = my.length
+					? `<div class="step-ctas">${my
+							.map((a) => {
+								const gidx = all_actions.indexOf(a);
+								const icon = STEP_ICONS[a.icon] || a.icon_svg || "";
+								return `
+							<button class="step-cta" data-idx="${gidx}" title="${frappe.utils.escape_html(a.label)}">
+								${icon}<span>${frappe.utils.escape_html(a.label)}${a.menu ? " ▾" : ""}</span>
+							</button>`;
+							})
+							.join("")}</div>`
+					: "";
 
 				return `
 					<div class="form-hero-step ${cls}">
@@ -467,12 +480,12 @@ frappe.ui.form.FormHero = class FormHero {
 			.join("");
 
 		this.$wrapper.html(`${top_html}<div class="form-hero-steps">${seg}</div>`);
-		if (step_actions.length) {
+		if (all_actions.length) {
 			this.$wrapper.find(".step-cta").on("click", (e) => {
 				e.preventDefault();
 				e.stopPropagation();
 				const idx = cint($(e.currentTarget).attr("data-idx"));
-				if (step_actions[idx]) step_actions[idx].run(e.currentTarget);
+				if (all_actions[idx]) all_actions[idx].run(e.currentTarget);
 			});
 		}
 		this.render_extras();
