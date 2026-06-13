@@ -183,17 +183,17 @@
 		svg.setAttribute("width", "0");
 		svg.setAttribute("height", "0");
 		svg.style.cssText = "position:absolute;width:0;height:0;pointer-events:none";
-		// Gentle, large-scale waves (low baseFrequency) + a small displacement +
-		// a generous post-blur frost the refracted backdrop into a soft, elegant
-		// ripple instead of a sharp smear of the text behind.
+		// Apple liquid-glass distortion (lucasromerodb): very low-frequency
+		// fractal noise → a smooth, large-scale coherent warp, softened by a
+		// blur, then used to displace the backdrop. Applied via CSS as
+		// filter:url(#nf-glass-distort) on the pill's ::before.
 		svg.innerHTML =
-			'<defs><filter id="nf-glass-distort" x="-15%" y="-15%" width="130%" height="130%" ' +
-			'color-interpolation-filters="sRGB">' +
-			'<feTurbulence type="fractalNoise" baseFrequency="0.0055 0.007" numOctaves="2" seed="11" result="n"/>' +
-			'<feGaussianBlur in="n" stdDeviation="1.4" result="sn"/>' +
-			'<feDisplacementMap in="SourceGraphic" in2="sn" scale="13" ' +
-			'xChannelSelector="R" yChannelSelector="G" result="d"/>' +
-			'<feGaussianBlur in="d" stdDeviation="8"/>' +
+			'<defs><filter id="nf-glass-distort" x="0%" y="0%" width="100%" height="100%" ' +
+			'filterUnits="objectBoundingBox">' +
+			'<feTurbulence type="fractalNoise" baseFrequency="0.001 0.005" numOctaves="1" seed="17" result="turb"/>' +
+			'<feGaussianBlur in="turb" stdDeviation="3" result="softMap"/>' +
+			'<feDisplacementMap in="SourceGraphic" in2="softMap" scale="140" ' +
+			'xChannelSelector="R" yChannelSelector="G"/>' +
 			"</filter></defs>";
 		document.body.appendChild(svg);
 	}
