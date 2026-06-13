@@ -327,13 +327,20 @@ class ChromePDFGenerator:
 			)
 		except Exception as e:
 			frappe.log_error("Chrome PDF: failed to start chromium-pdf.service", str(e))
-		deadline = time.time() + 8  # Chromium cold start is ~1-2s; allow margin
+		deadline = time.time() + 15  # Chromium cold start ~1-2s; extra margin under memory pressure
 		while time.time() < deadline:
 			url = self.fetch_devtools_url(self._remote_port)
 			if url:
 				self._touch_activity()
 				return url
 			time.sleep(0.25)
+		# Auto-start + poll window elapsed and the endpoint is still down: a genuine
+		# failure worth a single Error Log entry (not one per poll).
+		frappe.log_error(
+			"Chrome PDF DevTools unreachable",
+			f"chromium-pdf.service did not expose a DevTools endpoint on "
+			f"127.0.0.1:{self._remote_port} within 15s after an on-demand start.",
+		)
 		return None
 
 	def _close_browser(self):
@@ -390,7 +397,8 @@ class ChromePDFGenerator:
 		self._chromium_process = None
 		self._devtools_url = None
 
-	# not used anywhere in the code. read _set_devtools_url for more info.  useful in case we want to take different approch to fetch devtools url.
+	# Polling helper used by _ensure_remote_service() to fetch the DevTools
+	# WebSocket URL of the shared on-demand Chromium (re-fetched on each restart).
 	def fetch_devtools_url(self, port):
 		if not port:
 			return None
@@ -400,11 +408,10 @@ class ChromePDFGenerator:
 			response.raise_for_status()  # Raise an exception for HTTP errors
 			response_data = response.json()
 			return response_data["webSocketDebuggerUrl"].strip()
-		except requests.ConnectionError:
-			frappe.log_error(
-				"Chrome PDF DevTools unreachable",
-				f"Failed to connect to {url}. Is the chromium-pdf service running with --remote-debugging-port={port}?",
-			)
-		except requests.RequestException as e:
-			frappe.log_error("Chrome PDF DevTools fetch error", f"{url}: {e}")
-		return None
+		except requests.RequestException:
+			# Polling helper: a refused connection / timeout here is EXPECTED while
+			# the on-demand chromium-pdf service is still starting (cold start). Stay
+			# silent; _ensure_remote_service() logs a single error if it never comes
+			# up. Logging on every poll spammed Error Log with dozens of false
+			# "unreachable" entries per PDF generated after an idle period.
+			return None
