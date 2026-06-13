@@ -69,18 +69,19 @@
 		return head;
 	}
 
+	// The side section of the page that is actually visible (offsetParent guards
+	// against a stale hidden page-container in the desk SPA).
+	function visibleSide() {
+		var sides = document.querySelectorAll(".layout-side-section");
+		for (var i = 0; i < sides.length; i++) {
+			if (sides[i].offsetParent !== null) return sides[i];
+		}
+		return null;
+	}
+
 	function enhance() {
 		if (!document.body.classList.contains("nf-list")) return;
-		// The visible page's side section (offsetParent guards against a stale
-		// hidden page-container in the desk SPA).
-		var sides = document.querySelectorAll(".layout-side-section");
-		var side = null;
-		for (var i = 0; i < sides.length; i++) {
-			if (sides[i].offsetParent !== null) {
-				side = sides[i];
-				break;
-			}
-		}
+		var side = visibleSide();
 		if (!side) return;
 		var sidebar = side.querySelector(".list-sidebar");
 		if (!sidebar) return;
@@ -111,15 +112,25 @@
 		}
 	}
 
-	// Re-run after every page render (page-change fires once the new page is
-	// shown), on list refreshes, and once at boot.
-	$(document).on("page-change", function () {
-		setTimeout(enhance, 60);
-	});
-	$(document).on("list_view_loaded", function () {
-		setTimeout(enhance, 60);
-	});
-	$(document).ready(function () {
-		setTimeout(enhance, 250);
-	});
+	// The list sidebar renders asynchronously after the page is shown, so a
+	// single delayed call races the render. Poll for the sidebar (up to ~5s)
+	// each time we land on a list view, then enhance once it exists.
+	function scheduleEnhance() {
+		if (!document.body.classList.contains("nf-list")) return;
+		var tries = 0;
+		(function attempt() {
+			if (!document.body.classList.contains("nf-list")) return; // navigated away
+			var side = visibleSide();
+			if (side && side.querySelector(".list-sidebar")) {
+				enhance();
+				return;
+			}
+			if (tries++ < 25) setTimeout(attempt, 200);
+		})();
+	}
+
+	// page-change fires once the new page is shown (covers SPA navigation);
+	// ready covers the initial hard load.
+	$(document).on("page-change", scheduleEnhance);
+	$(document).ready(scheduleEnhance);
 })();
