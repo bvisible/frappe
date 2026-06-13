@@ -115,6 +115,47 @@ body.neoffice-cockpit.nf-ws-home .page-head::after {
 body.neoffice-cockpit [data-page-route="print"] .container.page-body {
 	padding: 0 !important;
 }
+/* the viewer wrapper is a flex child of .layout-main-section (flex column),
+   so it fills the panel exactly — no JS height, no grey gap at the bottom */
+body.neoffice-cockpit [data-page-route="print"] .pdfjs-preview-wrapper {
+	flex: 1 1 auto;
+	min-height: 0;
+	position: relative;
+}
+/* loading overlay shown while the server renders the PDF (Chrome generation
+   can take a few seconds — an empty grey viewer would read as broken) */
+.pdfjs-preview-wrapper {
+	position: relative;
+}
+.pdfjs-loader {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 14px;
+	background: var(--card-bg, #fff);
+	border-radius: 0 0 16px 16px;
+}
+.pdfjs-loader .pdfjs-spinner {
+	width: 34px;
+	height: 34px;
+	border: 3px solid var(--border-color, #e5e1d8);
+	border-top-color: #4e72ac;
+	border-radius: 50%;
+	animation: pdfjs-spin 0.7s linear infinite;
+}
+@keyframes pdfjs-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+.pdfjs-loader .pdfjs-loader-text {
+	font-size: 13px;
+	color: var(--text-muted);
+}
 body.neoffice-cockpit .page-head .page-head-content {
 	height: 54px;
 	flex-wrap: nowrap;

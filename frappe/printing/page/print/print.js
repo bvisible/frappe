@@ -48,6 +48,10 @@ frappe.ui.form.PrintView = class {
 			<iframe width="100%" height="0" frameBorder="0"></iframe>
 		</div>
 		<div class="pdfjs-preview-wrapper" style="display:none">
+			<div class="pdfjs-loader" style="display:none">
+				<div class="pdfjs-spinner"></div>
+				<div class="pdfjs-loader-text">${__("Preparing document…")}</div>
+			</div>
 			<iframe class="pdfjs-frame" width="100%" height="100%" frameBorder="0"
 				style="border:0;display:block;border-radius:0 0 16px 16px"></iframe>
 		</div>
@@ -131,9 +135,23 @@ frappe.ui.form.PrintView = class {
 		this.print_wrapper.find(".print-preview-wrapper").hide();
 		this.print_wrapper.find(".preview-beta-wrapper").hide();
 		const $wrap = this.print_wrapper.find(".pdfjs-preview-wrapper").show();
-		// fill the viewport under the page head
-		const top = $wrap.get(0).getBoundingClientRect().top;
-		$wrap.css("height", Math.max(420, window.innerHeight - top - 14) + "px");
+		// Height: under the cockpit the wrapper is a flex child that fills the
+		// panel exactly (cockpit.css), so drop any inline height. Elsewhere,
+		// fall back to a viewport measurement.
+		if (document.body.classList.contains("neoffice-cockpit")) {
+			$wrap.css("height", "");
+		} else {
+			const top = $wrap.get(0).getBoundingClientRect().top;
+			$wrap.css("height", Math.max(420, window.innerHeight - top - 14) + "px");
+		}
+
+		// Loader stays up until the viewer reports the document is rendered —
+		// server-side Chrome PDF generation can take a few seconds, and an
+		// empty grey viewer in the meantime reads as "broken".
+		const $loader = $wrap.find(".pdfjs-loader").show();
+		clearTimeout(this._pdfjs_loader_timeout);
+		// safety net: never strand the spinner if no load/error event fires
+		this._pdfjs_loader_timeout = setTimeout(() => $loader.hide(), 30000);
 
 		// PDF.js v6 no longer URL-decodes the ?file= query param, so drive
 		// the viewer programmatically instead: boot it once with an empty
@@ -164,6 +182,12 @@ frappe.ui.form.PrintView = class {
 				// theming is cosmetic — never block the preview on it
 			}
 			app.initializedPromise.then(() => {
+				const drop_loader = () => {
+					clearTimeout(this._pdfjs_loader_timeout);
+					$loader.hide();
+				};
+				app.eventBus.on("documentloaded", drop_loader, { once: true });
+				app.eventBus.on("documenterror", drop_loader, { once: true });
 				app.open({ url: pdf_url });
 			});
 		};
