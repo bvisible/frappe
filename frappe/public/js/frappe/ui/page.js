@@ -639,6 +639,7 @@ frappe.ui.Page = class Page {
 		if (!document.body.classList.contains("neoffice-cockpit")) return;
 		const $actions = this.page_actions;
 		if (!$actions[0] || !$actions[0].clientWidth) return; // page hidden
+		const ca = this.custom_actions[0];
 
 		// reset: show all buttons, demote previously promoted menu items
 		this.custom_actions.children().removeClass("pao-overflowed");
@@ -649,25 +650,19 @@ frappe.ui.Page = class Page {
 			this._pao_unhid_menu = false;
 		}
 
-		// available room = head actions row minus its other children
-		const GAP = 6;
-		let others = 0;
-		[...$actions[0].children].forEach((el) => {
-			if (el !== this.custom_actions[0] && el.offsetWidth) others += el.offsetWidth + GAP;
-		});
-		const avail = $actions[0].clientWidth - others - 8;
-
-		const children = [...this.custom_actions[0].children].filter((el) => el.offsetWidth);
-		const widths = new Map(children.map((el) => [el, el.offsetWidth + GAP]));
-		let total = 0;
-		widths.forEach((w) => (total += w));
-		if (total <= avail) return; // everything fits
+		// Overflow is decided by MEASUREMENT, not a width budget: a budget
+		// calc that's off by a few px leaves one button clipped by the
+		// scroll container (the "…Stamp" cut-off). Instead we evict from the
+		// row one button at a time and re-check the real overflow after each,
+		// so the row is guaranteed never to clip a button.
+		const overflows = () => ca.scrollWidth > ca.clientWidth + 1;
+		if (!overflows()) return; // everything fits
 
 		// eviction order: dropdown GROUPS first (a menu relocated into ⋯
 		// loses almost nothing), then plain buttons (direct actions like
-		// WebStamp/Acompte matter more), the primary group last. Within a
-		// tier: data-pao-priority desc (higher sticks around), then left
-		// evicted first.
+		// Acompte matter more), the primary group last. Within a tier:
+		// data-pao-priority desc (higher sticks around), then left first.
+		const children = [...ca.children].filter((el) => el.offsetWidth);
 		const tier = (el) => {
 			if (el.querySelector(".btn-primary")) return 2;
 			return el.classList.contains("inner-group-button") ? 0 : 1;
@@ -682,7 +677,7 @@ frappe.ui.Page = class Page {
 
 		let promoted_entries = 0;
 		for (const el of order) {
-			if (total <= avail) break;
+			if (!overflows()) break;
 			const key = el.getAttribute("data-label");
 			const $dupes = key ? this.menu.find(`li[data-overflow-key="${key}"]`) : $();
 			// never hide a button we cannot represent in the menu
@@ -694,8 +689,9 @@ frappe.ui.Page = class Page {
 				// legacy re-adds left hidden-xl on the inner <a> too
 				.find(".hidden-xl")
 				.removeClass("hidden-xl");
-			total -= widths.get(el);
 			promoted_entries += $dupes.length;
+			// force a synchronous reflow so the next overflows() re-measures
+			void ca.offsetWidth;
 		}
 		if (promoted_entries) {
 			if (this.menu_btn_group.hasClass("hidden-xl")) {

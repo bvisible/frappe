@@ -38,7 +38,32 @@ const STEP_ICONS = {
 	plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>',
 	edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>',
 	clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>',
+	stamp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22h14"/><path d="M19.27 13.73A2.5 2.5 0 0 0 17.5 13h-11A2.5 2.5 0 0 0 4 15.5V17a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-1.5c0-.66-.26-1.3-.73-1.77"/><path d="M14 13V8.5C14 7 15 7 15 5a3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 2 1 2 1 3.5V13"/></svg>',
 };
+
+// WebStamp lives on the "validated" step (docstatus 1) for any printable
+// doc that carries the swisspost_barcode field — detected by the field so
+// frappe core stays decoupled from that app. Runs the hidden native head
+// button (lazy lookup: the swisspost refresh handler may register it after
+// the hero first paints).
+function webstamp_action(frm) {
+	if (frm.doc.docstatus !== 1) return null;
+	const has_field = (frm.meta.fields || []).some((f) => f.fieldname === "webstamp_order");
+	if (!has_field) return null;
+	return {
+		label: __("WebStamp"),
+		icon: "stamp",
+		run: () => {
+			const $btn = frm.custom_buttons && frm.custom_buttons[__("WebStamp")];
+			if ($btn && $btn.length) $btn.trigger("click");
+			else
+				frappe.show_alert({
+					message: __("Action not available yet"),
+					indicator: "orange",
+				});
+		},
+	};
+}
 function submit_action(frm) {
 	if (frm.doc.docstatus !== 0) return null;
 	if (!frm.perm || !frm.perm[0] || !frm.perm[0].submit) return null;
@@ -396,6 +421,10 @@ frappe.ui.form.FormHero = class FormHero {
 		const step_actions = (rank >= 1 && conf.actions ? conf.actions(rank, this.frm) : []).filter(
 			Boolean
 		);
+		// WebStamp is cross-doctype (any doc with the swisspost field) — append
+		// it on the validated step rather than wiring it into every registry
+		const ws = webstamp_action(this.frm);
+		if (ws) step_actions.push(ws);
 		const seg = steps
 			.map((step, i) => {
 				const n = i + 1;
