@@ -651,11 +651,22 @@ frappe.ui.Page = class Page {
 		}
 
 		// Overflow is decided by MEASUREMENT, not a width budget: a budget
-		// calc that's off by a few px leaves one button clipped by the
-		// scroll container (the "…Stamp" cut-off). Instead we evict from the
-		// row one button at a time and re-check the real overflow after each,
-		// so the row is guaranteed never to clip a button.
-		const overflows = () => ca.scrollWidth > ca.clientWidth + 1;
+		// calc that's off by a few px leaves one button clipped (the "…Stamp"
+		// cut-off). We compare the buttons' NATURAL total width (they carry
+		// flex:0 0 auto, so offsetWidth is their real width even while the
+		// flex parent squeezes the row to a stub) against the width the row
+		// is actually allotted, evicting one button at a time and re-checking
+		// after each — so the row is guaranteed never to clip a button.
+		const GAP = 6;
+		const overflows = () => {
+			const kids = [...ca.children].filter(
+				(el) => el.offsetWidth && !el.classList.contains("pao-overflowed")
+			);
+			if (!kids.length) return false;
+			const needed =
+				kids.reduce((s, el) => s + el.offsetWidth, 0) + GAP * (kids.length - 1);
+			return needed > ca.clientWidth + 1;
+		};
 		if (!overflows()) return; // everything fits
 
 		// eviction order: dropdown GROUPS first (a menu relocated into ⋯
