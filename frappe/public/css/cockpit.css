@@ -1263,6 +1263,10 @@ body.neoffice-cockpit.nf-list .layout-side-section {
 body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar {
 	margin: 0;
 	width: auto;
+	/* flex column so the injected header pins to the top via order:-1, even
+	   though Frappe prepends the filter/sort controls after we insert it */
+	display: flex;
+	flex-direction: column;
 	background: rgba(255, 253, 248, 0.93);
 	-webkit-backdrop-filter: blur(6px) saturate(1.4);
 	backdrop-filter: blur(6px) saturate(1.4);
@@ -1278,6 +1282,7 @@ body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar {
 
 /* ---- header chip (injected by cockpit_filter_pill.js) ---- */
 .nf-pill-head {
+	order: -1; /* pin to the top of the flex column, above Frappe's controls */
 	display: flex;
 	align-items: center;
 	gap: 7px;
@@ -1323,6 +1328,34 @@ body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar {
 	background: #4e72ac;
 	border-radius: 999px;
 }
+/* reset (×) — one-click clear, shown only when a filter is active */
+.nf-pill-reset {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 19px;
+	height: 19px;
+	padding: 0;
+	margin-left: 1px;
+	border: 0;
+	background: transparent;
+	border-radius: 999px;
+	cursor: pointer;
+	color: var(--text-muted);
+	transition: background 0.12s ease, color 0.12s ease;
+}
+.nf-pill-reset:hover {
+	background: rgba(220, 53, 69, 0.13);
+	color: #dc3545;
+}
+.nf-pill-reset svg {
+	width: 12px;
+	height: 12px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2.3;
+	stroke-linecap: round;
+}
 .nf-pill-chevron {
 	width: 15px;
 	height: 15px;
@@ -1346,6 +1379,25 @@ body.neoffice-cockpit.nf-list .layout-side-section.nf-pill-collapsed .list-sideb
 body.neoffice-cockpit.nf-list .layout-side-section.nf-pill-active .nf-pill-funnel {
 	opacity: 1;
 	color: #4e72ac;
+}
+/* …and an active filter softly glows the collapsed pill (draws the eye) +
+   accent border, so it's obvious a filter is on without expanding */
+body.neoffice-cockpit.nf-list .layout-side-section.nf-pill-active .list-sidebar {
+	border-color: rgba(78, 114, 172, 0.5);
+}
+body.neoffice-cockpit.nf-list .layout-side-section.nf-pill-active.nf-pill-collapsed .list-sidebar {
+	animation: nf-pill-glow 2.6s ease-in-out infinite;
+}
+@keyframes nf-pill-glow {
+	0%,
+	100% {
+		box-shadow: 0 0 0 1px rgba(78, 114, 172, 0.25), 0 0 8px 0 rgba(78, 114, 172, 0.25),
+			0 8px 28px -10px rgba(20, 16, 10, 0.22);
+	}
+	50% {
+		box-shadow: 0 0 0 1px rgba(78, 114, 172, 0.45), 0 0 16px 2px rgba(78, 114, 172, 0.5),
+			0 8px 28px -10px rgba(20, 16, 10, 0.22);
+	}
 }
 
 /* ---- expanded: card shape, all sections visible ---- */

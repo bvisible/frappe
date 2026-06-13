@@ -50,13 +50,31 @@
 		var n = activeCount(side);
 		badge.textContent = n;
 		badge.style.display = n > 0 ? "" : "none";
+		var reset = side.querySelector(".nf-pill-reset");
+		if (reset) reset.style.display = n > 0 ? "" : "none";
+		// drives the glow (CSS) + the reset/badge visibility
 		side.classList.toggle("nf-pill-active", n > 0);
+	}
+
+	// Clear every applied filter in one click. The stock clear-filters button
+	// (.filter-x-button) is the native path; fall back to the list API.
+	function clearFilters(side) {
+		var x = side.querySelector(".filter-x-button");
+		if (x) {
+			x.click();
+			return;
+		}
+		try {
+			if (window.cur_list && cur_list.filter_area) cur_list.filter_area.clear();
+		} catch (e) {
+			/* no-op */
+		}
 	}
 
 	function buildHead() {
 		var head = document.createElement("div");
 		head.className = "nf-pill-head";
-		// Inline SVGs (no sprite dependency): funnel + chevron.
+		// Inline SVGs (no sprite dependency): funnel + reset (×) + chevron.
 		head.innerHTML =
 			'<svg class="nf-pill-funnel" viewBox="0 0 24 24" aria-hidden="true">' +
 			'<path d="M3 5h18l-7 8.5V20l-4-2v-4.5z"/></svg>' +
@@ -64,6 +82,11 @@
 			__("Filters") +
 			"</span>" +
 			'<span class="nf-pill-count" style="display:none">0</span>' +
+			'<button type="button" class="nf-pill-reset" style="display:none" title="' +
+			__("Clear filters") +
+			'" aria-label="' +
+			__("Clear filters") +
+			'"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
 			'<svg class="nf-pill-chevron" viewBox="0 0 24 24" aria-hidden="true">' +
 			'<path d="M6 9l6 6 6-6"/></svg>';
 		return head;
@@ -103,6 +126,12 @@
 		sidebar.insertBefore(head, sidebar.firstChild);
 		head.addEventListener("click", function () {
 			setCollapsed(side, !side.classList.contains("nf-pill-collapsed"));
+		});
+		// reset (×) clears filters without toggling the pill open/closed
+		var reset = head.querySelector(".nf-pill-reset");
+		reset.addEventListener("click", function (e) {
+			e.stopPropagation();
+			clearFilters(side);
 		});
 
 		setCollapsed(side, isCollapsed());
