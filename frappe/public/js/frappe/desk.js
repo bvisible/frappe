@@ -421,7 +421,13 @@ frappe.Application = class Application {
 				["List", "query-report", "dashboard-view"].includes(route[0])
 			);
 		};
-		frappe.router.on("change", update_route_class);
+		// Drive these body flags off "page-change" (fired by container.js
+		// AFTER the new page is shown and the old one hidden) rather than the
+		// router "change" event (fires the instant the route updates, while
+		// the OLD page is still on screen). The router-timed version stripped
+		// e.g. nf-list before the form had rendered, so the still-visible list
+		// briefly lost its flush padding — a padding flash on every row click.
+		$(document).on("page-change", update_route_class);
 		update_route_class();
 	}
 
