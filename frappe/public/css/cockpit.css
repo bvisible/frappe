@@ -64,16 +64,27 @@ body.neoffice-cockpit .layout-side-section {
    custom properties; apply .nf-glass (light) or .nf-glass-dark (smoked) to any
    surface — pill, page-head, future floating dialogs. */
 body.neoffice-cockpit {
-	--nf-glass-blur: 22px;
-	--nf-glass-sat: 1.9;
-	/* light liquid glass — translucent so the content refracts through it */
-	--nf-glass-tint: rgba(255, 254, 250, 0.46);
-	--nf-glass-border: rgba(255, 255, 255, 0.6);
-	--nf-glass-lip: rgba(255, 255, 255, 0.9);
-	/* dark smoked variant (still translucent — it's glass, not a fill) */
-	--nf-glass-dark-tint: rgba(22, 24, 32, 0.4);
-	--nf-glass-dark-border: rgba(255, 255, 255, 0.22);
-	--nf-glass-dark-lip: rgba(255, 255, 255, 0.32);
+	/* Brand accent — clay / terracotta (Neoffice Design System #D68A59),
+	   de-hardcoded from the old #4e72ac blue. Solid action buttons stay ink
+	   (handled in neoffice-theme). */
+	--nc-accent: #d68a59;
+	--nc-accent-deep: #a15a2e;
+	--nc-accent-light: #dda479;
+	--nc-accent-rgb: 214, 138, 89;
+	/* Glass dialled DOWN to the DS stance ("not a glassmorphism system" — blur
+	   used lightly): a barely-translucent warm-paper surface, no heavy
+	   refraction / sheen. */
+	--nf-glass-blur: 10px;
+	--nf-glass-sat: 1.25;
+	--nf-glass-tint: rgba(255, 253, 248, 0.88);
+	--nf-glass-border: rgba(60, 45, 20, 0.1);
+	--nf-glass-lip: rgba(255, 255, 255, 0.65);
+	--nf-glass-dark-tint: rgba(28, 26, 23, 0.9);
+	--nf-glass-dark-border: rgba(255, 255, 255, 0.1);
+	--nf-glass-dark-lip: rgba(255, 255, 255, 0.12);
+}
+[data-theme="dark"] body.neoffice-cockpit {
+	--nc-accent: #dda479; /* clay-300 reads better on the dark canvas */
 }
 .nf-glass,
 .nf-glass-dark {
@@ -198,7 +209,7 @@ body.neoffice-cockpit [data-page-route="print"] .pdfjs-preview-wrapper {
 	width: 34px;
 	height: 34px;
 	border: 3px solid var(--border-color, #e5e1d8);
-	border-top-color: #4e72ac;
+	border-top-color: var(--nc-accent);
 	border-radius: 50%;
 	animation: pdfjs-spin 0.7s linear infinite;
 }
@@ -490,7 +501,7 @@ body.neoffice-cockpit .form-hero-avatar {
 	font-size: 19px;
 	font-weight: 700;
 	color: #fff;
-	background: linear-gradient(140deg, #4e72ac, #6d8fc4);
+	background: linear-gradient(140deg, var(--nc-accent), #6d8fc4);
 }
 body.neoffice-cockpit .form-hero-id {
 	flex: 1;
@@ -623,10 +634,10 @@ body.neoffice-cockpit .form-hero .step-cta {
 	font-size: 10px;
 	font-weight: 600;
 	line-height: 1.7;
-	border: 1px solid #4e72ac;
+	border: 1px solid var(--nc-accent);
 	border-radius: 999px;
 	background: transparent;
-	color: #4e72ac;
+	color: var(--nc-accent);
 	cursor: pointer;
 	white-space: nowrap;
 	transition: background 0.12s ease, color 0.12s ease;
@@ -637,7 +648,7 @@ body.neoffice-cockpit .form-hero .step-cta svg {
 	flex-shrink: 0;
 }
 body.neoffice-cockpit .form-hero .step-cta:hover {
-	background: #4e72ac;
+	background: var(--nc-accent);
 	color: #fff;
 }
 body.neoffice-cockpit .form-hero-step.done .bubble {
@@ -654,16 +665,16 @@ body.neoffice-cockpit .form-hero-step.current::before {
 }
 body.neoffice-cockpit .form-hero-step.current .bubble {
 	background: var(--card-bg, #fffdf8);
-	border-color: #4e72ac;
-	color: #4e72ac;
-	box-shadow: 0 0 0 4px rgba(78, 114, 172, 0.16);
+	border-color: var(--nc-accent);
+	color: var(--nc-accent);
+	box-shadow: 0 0 0 4px rgba(var(--nc-accent-rgb), 0.16);
 }
 body.neoffice-cockpit .form-hero-step.current .lbl {
-	color: #3d5c8c;
+	color: var(--nc-accent-deep);
 	font-weight: 700;
 }
 body.neoffice-cockpit .form-hero-step.current .when {
-	color: #4e72ac;
+	color: var(--nc-accent);
 	opacity: 1;
 }
 body.neoffice-cockpit .form-hero-step.dead .bubble,
@@ -694,8 +705,8 @@ body.neoffice-cockpit .page-preview-btn {
 	border: 1px solid var(--border-color);
 }
 body.neoffice-cockpit .page-preview-btn:hover {
-	border-color: #4e72ac;
-	color: #4e72ac;
+	border-color: var(--nc-accent);
+	color: var(--nc-accent);
 }
 
 /* count pill on the ⋯ button: actions relocated inside by the overflow */
@@ -710,7 +721,7 @@ body.neoffice-cockpit .pao-count {
 	height: 16px;
 	padding: 0 4px;
 	border-radius: 999px;
-	background: #4e72ac;
+	background: var(--nc-accent);
 	color: #fff;
 	font-size: 10px;
 	font-weight: 700;
@@ -726,8 +737,8 @@ body.neoffice-cockpit .page-head .btn-sm {
 	font-size: 13px;
 }
 body.neoffice-cockpit .page-head .btn-primary {
-	background: #4e72ac;
-	border-color: #4e72ac;
+	background: var(--nc-accent);
+	border-color: var(--nc-accent);
 	color: #fff;
 	padding: 8px 18px;
 	font-size: 13.5px;
@@ -765,7 +776,7 @@ body.neoffice-cockpit .nc-tab-indicator {
 	bottom: -2px; /* sits ON the 2px container baseline */
 	height: 2.5px;
 	border-radius: 3px;
-	background: #4e72ac;
+	background: var(--nc-accent);
 	opacity: 0;
 	transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1), width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
 		opacity 0.15s ease;
@@ -894,12 +905,12 @@ body.neoffice-cockpit .grid-footer .btn-danger {
 body.neoffice-cockpit .grid-footer .btn-primary,
 body.neoffice-cockpit .grid-footer .btn-custom.btn-primary {
 	background: transparent;
-	border-color: #4e72ac;
-	color: #4e72ac;
+	border-color: var(--nc-accent);
+	color: var(--nc-accent);
 	font-weight: 600;
 }
 body.neoffice-cockpit .grid-footer .btn-primary:hover {
-	background: rgba(78, 114, 172, 0.08);
+	background: rgba(var(--nc-accent-rgb), 0.08);
 	color: #44639a;
 }
 /* in-table "+ Add Row" CTA after the last row — replaces the footer
@@ -1023,7 +1034,7 @@ body.neoffice-cockpit
 	.frappe-control[data-fieldtype="Check"]
 	.checkbox
 	input[type="checkbox"]:checked {
-	background: #4e72ac !important;
+	background: var(--nc-accent) !important;
 	background-image: none !important;
 }
 body.neoffice-cockpit
@@ -1036,7 +1047,7 @@ body.neoffice-cockpit
 	.frappe-control[data-fieldtype="Check"]
 	.checkbox
 	input[type="checkbox"]:focus-visible {
-	outline: 2px solid rgba(78, 114, 172, 0.35);
+	outline: 2px solid rgba(var(--nc-accent-rgb), 0.35);
 	outline-offset: 2px;
 }
 body.neoffice-cockpit
@@ -1265,18 +1276,18 @@ body.neoffice-cockpit .form-hero-custrow .email-chip {
 	gap: 5px;
 }
 body.neoffice-cockpit .form-hero .step-cta.accent {
-	background: #4e72ac;
-	border-color: #4e72ac;
+	background: var(--nc-accent);
+	border-color: var(--nc-accent);
 	color: #fff;
 }
 body.neoffice-cockpit .form-hero .step-cta.accent:hover {
-	background: #41639a;
-	border-color: #41639a;
+	background: var(--nc-accent-deep);
+	border-color: var(--nc-accent-deep);
 	color: #fff;
 }
 [data-theme="dark"] body.neoffice-cockpit .form-hero .step-cta.accent {
-	background: #5d80b8;
-	border-color: #5d80b8;
+	background: var(--nc-accent-light);
+	border-color: var(--nc-accent-light);
 	color: #10141a;
 }
 
@@ -1326,46 +1337,23 @@ body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar {
 	display: flex;
 	flex-direction: column;
 	position: relative;
-	isolation: isolate; /* contain the ::before distortion layer */
-	background: rgba(255, 255, 255, 0.4);
+	/* DS-compliant (not a glassmorphism system): a lightly-translucent warm
+	   paper surface with a thin warm border + a light blur — NO SVG refraction,
+	   NO bright shine. Tint/blur/border come from the shared --nf-glass tokens. */
+	background: var(--nf-glass-tint);
+	border: 1px solid var(--nf-glass-border);
+	-webkit-backdrop-filter: blur(var(--nf-glass-blur));
+	backdrop-filter: blur(var(--nf-glass-blur));
 	border-radius: 999px;
-	box-shadow: 0 6px 16px -6px rgba(15, 12, 8, 0.3), 0 0 18px rgba(15, 12, 8, 0.06);
+	box-shadow: 0 6px 16px -6px rgba(15, 12, 8, 0.16);
 	color: var(--text-color);
 	padding: 4px;
 	transition: border-radius 0.18s ease;
 }
-/* refraction layer: blur the backdrop, then bend it through the SVG filter
-   (#nf-glass-distort, injected by cockpit_filter_pill.js). pointer-events:none
-   so the filter controls underneath stay clickable. */
-body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar::before {
-	content: "";
-	position: absolute;
-	inset: 0;
-	z-index: -1;
-	border-radius: inherit;
-	pointer-events: none;
-	-webkit-backdrop-filter: blur(3px) saturate(1.5);
-	backdrop-filter: blur(3px) saturate(1.5);
-	filter: url("#nf-glass-distort");
-}
-/* outline shine — the bright glass rim catching the light */
-body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar::after {
-	content: "";
-	position: absolute;
-	inset: 0;
-	z-index: 2;
-	border-radius: inherit;
-	pointer-events: none;
-	box-shadow: inset 2px 2px 1px 0 rgba(255, 255, 255, 0.65),
-		inset -1.5px -1.5px 1px 1px rgba(255, 255, 255, 0.55);
-}
 [data-theme="dark"] body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar {
-	background: rgba(24, 26, 34, 0.42);
+	background: var(--nf-glass-dark-tint);
+	border-color: var(--nf-glass-dark-border);
 	color: rgba(255, 255, 255, 0.92);
-}
-[data-theme="dark"] body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar::after {
-	box-shadow: inset 2px 2px 1px 0 rgba(255, 255, 255, 0.22),
-		inset -1.5px -1.5px 1px 1px rgba(255, 255, 255, 0.16);
 }
 /* No flash of the stock 220px sidebar on load: keep it hidden until the pill
    JS has injected the header + collapsed state (enhance() is synchronous, so
@@ -1419,7 +1407,7 @@ body.neoffice-cockpit.nf-list .list-sidebar:not(.nf-pill-enhanced) {
 	font-weight: 600;
 	line-height: 1;
 	color: #fff;
-	background: #4e72ac;
+	background: var(--nc-accent);
 	border-radius: 999px;
 }
 /* reset (×) — one-click clear, shown only when a filter is active */
@@ -1475,12 +1463,12 @@ body.neoffice-cockpit.nf-list .layout-side-section.nf-pill-collapsed .list-sideb
    when collapsed */
 body.neoffice-cockpit.nf-list .layout-side-section.nf-pill-active .nf-pill-funnel {
 	opacity: 1;
-	color: #4e72ac;
+	color: var(--nc-accent);
 }
 /* …and an active filter softly glows the collapsed pill (draws the eye) +
    accent border, so it's obvious a filter is on without expanding */
 body.neoffice-cockpit.nf-list .layout-side-section.nf-pill-active .list-sidebar {
-	border-color: rgba(78, 114, 172, 0.5);
+	border-color: rgba(var(--nc-accent-rgb), 0.5);
 }
 body.neoffice-cockpit.nf-list .layout-side-section.nf-pill-active.nf-pill-collapsed .list-sidebar {
 	animation: nf-pill-glow 2.6s ease-in-out infinite;
@@ -1488,11 +1476,11 @@ body.neoffice-cockpit.nf-list .layout-side-section.nf-pill-active.nf-pill-collap
 @keyframes nf-pill-glow {
 	0%,
 	100% {
-		box-shadow: 0 0 0 1px rgba(78, 114, 172, 0.25), 0 0 8px 0 rgba(78, 114, 172, 0.25),
+		box-shadow: 0 0 0 1px rgba(var(--nc-accent-rgb), 0.25), 0 0 8px 0 rgba(var(--nc-accent-rgb), 0.25),
 			0 8px 28px -10px rgba(20, 16, 10, 0.22);
 	}
 	50% {
-		box-shadow: 0 0 0 1px rgba(78, 114, 172, 0.45), 0 0 16px 2px rgba(78, 114, 172, 0.5),
+		box-shadow: 0 0 0 1px rgba(var(--nc-accent-rgb), 0.45), 0 0 16px 2px rgba(var(--nc-accent-rgb), 0.5),
 			0 8px 28px -10px rgba(20, 16, 10, 0.22);
 	}
 }
