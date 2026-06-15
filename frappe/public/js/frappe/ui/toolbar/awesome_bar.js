@@ -294,10 +294,10 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			 (this._help_page_cache.resources && this._help_page_cache.resources.length));
 		if (!has_help) {
 			$sidebar.append(
-				`<div class="search-section-header">${__("Tips")}</div>
+				`<div class="search-section-header">${__("Search Tips")}</div>
 				<div class="search-sidebar-tip">${__("Type a name, ID, or keyword to search")}</div>
 				<div class="search-sidebar-tip">${__("Math expressions:")} <code>55+434/4</code></div>
-				<div class="search-sidebar-tip">${__("Type")} <code>random</code> ${__("for a password")}</div>`
+				<div class="search-sidebar-tip">${__("Type {0} for a password", ["<code>random</code>"])}</div>`
 			);
 		}
 
