@@ -588,6 +588,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			});
 
 			for (const [doctype, results] of Object.entries(grouped)) {
+				// Skip the matched DocType — its recent records are already shown above
+				if (doctype === dt_match) continue;
 				const items = results.slice(0, 4).map((r) => ({
 					label: r.name,
 					description: this._format_content(r.content, txt),
