@@ -435,7 +435,6 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			this._make_document_link(txt);
 		}
 		this._make_amount_search(txt);
-		this._make_nora_action(txt);
 
 		// Custom search providers
 		for (const provider of frappe.search.AwesomeBar.custom_providers) {
@@ -529,12 +528,6 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		const $sidebar = $body.find(".search-panel-sidebar");
 
 		// ── LEFT COLUMN: Results ──
-
-		// 0. Ask Nora — surface the AI assistant for any query
-		const nora_actions = this.options.filter((o) => o.default === "NoraAction");
-		if (nora_actions.length) {
-			this._render_section_into($main, "", nora_actions, "nora-action");
-		}
 
 		// 1. DocType action ("View all Articles") — always first when matched
 		const dt_actions = this.options.filter((o) => o.default === "DocTypeAction");
@@ -1151,23 +1144,6 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		}
 	}
 
-	// ── Ask Nora (opens the Quick Chat with the typed query) ──
-	_make_nora_action(txt) {
-		if (!txt || txt.length < 3) return;
-		if (this._is_math_expression(txt)) return;
-		// Only when Nora's Quick Chat is available on this instance
-		if (!(frappe.ui.NoraQuickChat && frappe.ui.NoraQuickChat.ask)) return;
-		this.options.push({
-			label: __("Ask Nora: {0}", [frappe.utils.xss_sanitise(txt).bold()]),
-			value: __("Ask Nora: {0}", [txt]),
-			index: 70,
-			default: "NoraAction",
-			onclick: function () {
-				frappe.ui.NoraQuickChat.ask(txt);
-			},
-		});
-	}
-
 	// ── Search in current list ─────────────────────────────
 	_make_search_in_current(txt) {
 		var route = frappe.get_route();
@@ -1203,7 +1179,11 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		if (!txt || txt.length < 3) return;
 		const txt_lower = txt.toLowerCase();
 
-		// Match against all readable DocTypes (English name + translated name)
+		// Match against all readable DocTypes (English name + translated name).
+		// Prefixes score high regardless of name length, so typing the start of a
+		// DocType name (e.g. "scan de" → "Scan de document") surfaces it and its
+		// recent records — not just one fulltext hit.
+		const txt_words = txt_lower.split(/\s+/).filter((w) => w.length > 1);
 		let best_match = null;
 		let best_score = 0;
 
@@ -1212,25 +1192,26 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 			const en = dt.toLowerCase();
 			const tr = __(dt).toLowerCase();
+			let score = 0;
 
-			// Exact match is best
 			if (en === txt_lower || tr === txt_lower) {
-				best_match = dt;
-				best_score = 100;
-				break;
+				score = 100;
+			} else if (en.startsWith(txt_lower) || tr.startsWith(txt_lower)) {
+				// Prefix — strong; small bonus for shorter (more specific) names
+				const name = en.startsWith(txt_lower) ? en : tr;
+				score = 80 + (txt_lower.length / name.length) * 15;
+			} else if (en.includes(txt_lower) || tr.includes(txt_lower)) {
+				score = 58;
+			} else if (txt_words.length > 1 && txt_words.every((w) => en.includes(w) || tr.includes(w))) {
+				// All words present in any order — e.g. "scan document" → "Document Scan"
+				score = 55;
 			}
-			// startsWith is good
-			if (en.startsWith(txt_lower) && txt_lower.length >= 3) {
-				const score = txt_lower.length / en.length * 90;
-				if (score > best_score) { best_match = dt; best_score = score; }
-			}
-			if (tr.startsWith(txt_lower) && txt_lower.length >= 3) {
-				const score = txt_lower.length / tr.length * 90;
-				if (score > best_score) { best_match = dt; best_score = score; }
-			}
+
+			if (score > best_score) { best_match = dt; best_score = score; }
+			if (best_score === 100) break;
 		}
 
-		if (!best_match || best_score < 40) return;
+		if (!best_match || best_score < 50) return;
 
 		const doctype = best_match;
 		const translated = __(doctype);

@@ -541,6 +541,9 @@ frappe.Application = class Application {
 					</svg>
 					<input type="text" class="cockpit-search-field"
 						placeholder="${__("Search or type a command")}" />
+					<button type="button" class="cockpit-search-nora" title="${__("Ask Nora")}" tabindex="-1">
+						<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.94 14.66A2 2 0 0 0 8.5 13.2l-5.4-1.4a.5.5 0 0 1 0-1l5.4-1.4A2 2 0 0 0 9.94 8L11.34 2.6a.5.5 0 0 1 1 0L13.74 8a2 2 0 0 0 1.44 1.44l5.4 1.4a.5.5 0 0 1 0 1l-5.4 1.4a2 2 0 0 0-1.44 1.44l-1.4 5.4a.5.5 0 0 1-1 0z"></path><path d="M20 3v4"></path><path d="M22 5h-4"></path></svg>
+					</button>
 				</div>
 			</div>
 		`);
@@ -550,6 +553,23 @@ frappe.Application = class Application {
 		const awesome_bar = new frappe.search.AwesomeBar();
 		awesome_bar.setup(field);
 		awesome_bar.on_close = () => $shell.css("display", "none");
+
+		// "Ask Nora" button inside the search box → opens the Quick Chat with the query
+		const $nora_btn = $shell.find(".cockpit-search-nora");
+		if (!(frappe.ui.NoraQuickChat && frappe.ui.NoraQuickChat.ask)) {
+			$nora_btn.remove();
+		} else {
+			$nora_btn.on("mousedown", (e) => e.preventDefault());
+			$nora_btn.on("click", (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				const q = (field.value || "").trim();
+				$shell.css("display", "none");
+				if (awesome_bar._close) awesome_bar._close();
+				if (q) frappe.ui.NoraQuickChat.ask(q);
+				else frappe.ui.NoraQuickChat.show();
+			});
+		}
 		frappe.search.utils.make_function_searchable(
 			frappe.utils.generate_tracking_url,
 			__("Generate Tracking URL")
