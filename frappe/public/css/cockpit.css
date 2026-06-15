@@ -1337,23 +1337,50 @@ body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar {
 	display: flex;
 	flex-direction: column;
 	position: relative;
-	/* DS-compliant (not a glassmorphism system): a lightly-translucent warm
-	   paper surface with a thin warm border + a light blur — NO SVG refraction,
-	   NO bright shine. Tint/blur/border come from the shared --nf-glass tokens. */
-	background: var(--nf-glass-tint);
-	border: 1px solid var(--nf-glass-border);
-	-webkit-backdrop-filter: blur(var(--nf-glass-blur));
-	backdrop-filter: blur(var(--nf-glass-blur));
+	isolation: isolate; /* contain the ::before distortion layer */
+	/* liquid glass (lucasromerodb technique): a translucent WARM tint so the
+	   refracted backdrop reads through; the blur + SVG refraction live on the
+	   ::before, the bright rim on the ::after. Warm-toned to stay on the clay
+	   DS palette instead of the original pure white. */
+	background: rgba(255, 253, 248, 0.42);
 	border-radius: 999px;
-	box-shadow: 0 6px 16px -6px rgba(15, 12, 8, 0.16);
+	box-shadow: 0 6px 16px -6px rgba(15, 12, 8, 0.3), 0 0 18px rgba(15, 12, 8, 0.06);
 	color: var(--text-color);
 	padding: 4px;
 	transition: border-radius 0.18s ease;
 }
+/* refraction layer: blur the backdrop, then bend it through the SVG filter
+   (#nf-glass-distort, injected by cockpit_filter_pill.js). pointer-events:none
+   so the filter controls underneath stay clickable. */
+body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	border-radius: inherit;
+	pointer-events: none;
+	-webkit-backdrop-filter: blur(3px) saturate(1.5);
+	backdrop-filter: blur(3px) saturate(1.5);
+	filter: url("#nf-glass-distort");
+}
+/* outline shine — the bright glass rim catching the light */
+body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	border-radius: inherit;
+	pointer-events: none;
+	box-shadow: inset 2px 2px 1px 0 rgba(255, 255, 255, 0.65),
+		inset -1.5px -1.5px 1px 1px rgba(255, 255, 255, 0.55);
+}
 [data-theme="dark"] body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar {
-	background: var(--nf-glass-dark-tint);
-	border-color: var(--nf-glass-dark-border);
+	background: rgba(24, 26, 34, 0.42);
 	color: rgba(255, 255, 255, 0.92);
+}
+[data-theme="dark"] body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar::after {
+	box-shadow: inset 2px 2px 1px 0 rgba(255, 255, 255, 0.22),
+		inset -1.5px -1.5px 1px 1px rgba(255, 255, 255, 0.16);
 }
 /* No flash of the stock 220px sidebar on load: keep it hidden until the pill
    JS has injected the header + collapsed state (enhance() is synchronous, so
