@@ -126,7 +126,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		left = Math.max(12, Math.min(left, vw - panel_width - 12));
 
 		this.$panel.css({
-			top: rect.bottom + 8,
+			top: rect.bottom + 18,
 			left: left,
 			width: panel_width,
 		});
@@ -435,6 +435,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			this._make_document_link(txt);
 		}
 		this._make_amount_search(txt);
+		this._make_nora_action(txt);
 
 		// Custom search providers
 		for (const provider of frappe.search.AwesomeBar.custom_providers) {
@@ -529,10 +530,27 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 		// ── LEFT COLUMN: Results ──
 
+		// 0. Ask Nora — surface the AI assistant for any query
+		const nora_actions = this.options.filter((o) => o.default === "NoraAction");
+		if (nora_actions.length) {
+			this._render_section_into($main, "", nora_actions, "nora-action");
+		}
+
 		// 1. DocType action ("View all Articles") — always first when matched
 		const dt_actions = this.options.filter((o) => o.default === "DocTypeAction");
 		if (dt_actions.length) {
 			this._render_section_into($main, "", dt_actions, "doctype-action");
+		}
+
+		// 1b. Recent records of the matched DocType (e.g. "document scan" → latest Document Scans)
+		const dt_match = dt_actions.length && dt_actions[0].route ? dt_actions[0].route[1] : null;
+		if (dt_match && this._dt_records && this._dt_records._doctype === dt_match && this._dt_records.records.length) {
+			const rec_items = this._dt_records.records.map((name) => ({
+				label: name,
+				route: ["Form", dt_match, name],
+				doctype: dt_match,
+			}));
+			this._render_section_into($main, __(dt_match), rec_items, "global");
 		}
 
 		// 2. Direct document matches (max 3)
@@ -1133,6 +1151,23 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		}
 	}
 
+	// ── Ask Nora (opens the Quick Chat with the typed query) ──
+	_make_nora_action(txt) {
+		if (!txt || txt.length < 3) return;
+		if (this._is_math_expression(txt)) return;
+		// Only when Nora's Quick Chat is available on this instance
+		if (!(frappe.ui.NoraQuickChat && frappe.ui.NoraQuickChat.ask)) return;
+		this.options.push({
+			label: __("Ask Nora: {0}", [frappe.utils.xss_sanitise(txt).bold()]),
+			value: __("Ask Nora: {0}", [txt]),
+			index: 70,
+			default: "NoraAction",
+			onclick: function () {
+				frappe.ui.NoraQuickChat.ask(txt);
+			},
+		});
+	}
+
 	// ── Search in current list ─────────────────────────────
 	_make_search_in_current(txt) {
 		var route = frappe.get_route();
@@ -1210,6 +1245,41 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 		// Load help context for the MATCHED DocType (not just the current page)
 		this._load_help_for_doctype(doctype);
+
+		// Load recent records of the matched DocType so the user sees actual
+		// entries (e.g. typing "document scan" surfaces the latest Document Scans)
+		this._load_doctype_records(doctype);
+	}
+
+	// ── Load recent records of the matched DocType ─────────
+	_load_doctype_records(doctype) {
+		// Skip if already loading or already loaded for this DocType
+		if (this._dt_records_loading === doctype) return;
+		if (this._dt_records && this._dt_records._doctype === doctype) return;
+		this._dt_records_loading = doctype;
+		frappe.call({
+			method: "frappe.client.get_list",
+			args: {
+				doctype: doctype,
+				fields: ["name"],
+				limit_page_length: 5,
+				order_by: "modified desc",
+			},
+			callback: (r) => {
+				this._dt_records_loading = null;
+				this._dt_records = {
+					_doctype: doctype,
+					records: (r.message || []).map((d) => d.name),
+				};
+				// Re-render if the panel is still open on the same query
+				if (this.$panel.hasClass("active") && this._current_txt) {
+					this._render(this._current_txt);
+				}
+			},
+			error: () => {
+				this._dt_records_loading = null;
+			},
+		});
 	}
 
 	// ── Load help for a specific DocType (used by DocType action) ──
