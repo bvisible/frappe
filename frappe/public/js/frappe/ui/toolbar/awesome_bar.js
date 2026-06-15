@@ -426,6 +426,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 	// ── Local defaults (calculator, doc link, custom) ──────
 	_add_defaults(txt) {
+		this._make_create_action(txt);
 		this._make_calculator(txt);
 		this._make_random(txt);
 		this._make_doctype_action(txt);
@@ -528,6 +529,12 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		const $sidebar = $body.find(".search-panel-sidebar");
 
 		// ── LEFT COLUMN: Results ──
+
+		// 0. Create action ("Create Customer" → Quick Entry) — prominent, first
+		const create_actions = this.options.filter((o) => o.default === "CreateAction");
+		if (create_actions.length) {
+			this._render_section_into($main, "", create_actions, "doctype-action");
+		}
 
 		// 1. DocType action ("View all Articles") — always first when matched
 		const dt_actions = this.options.filter((o) => o.default === "DocTypeAction");
@@ -1177,14 +1184,12 @@ frappe.search.AwesomeBar = class AwesomeBar {
 	}
 
 	// ── DocType action (type "devis"/"article"/"item" → "View all") ──
-	_make_doctype_action(txt) {
-		if (!txt || txt.length < 3) return;
-		const txt_lower = txt.toLowerCase();
-
-		// Match against all readable DocTypes (English name + translated name).
-		// Prefixes score high regardless of name length, so typing the start of a
-		// DocType name (e.g. "scan de" → "Scan de document") surfaces it and its
-		// recent records — not just one fulltext hit.
+	// Best readable DocType matching `txt` (EN name + translated name).
+	// Prefixes score high regardless of name length, so typing the start of a
+	// DocType name (e.g. "scan de" → "Scan de document") matches it.
+	_best_doctype_match(txt) {
+		const txt_lower = (txt || "").toLowerCase().trim();
+		if (txt_lower.length < 3) return null;
 		const txt_words = txt_lower.split(/\s+/).filter((w) => w.length > 1);
 		let best_match = null;
 		let best_score = 0;
@@ -1213,9 +1218,43 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			if (best_score === 100) break;
 		}
 
-		if (!best_match || best_score < 50) return;
+		return best_score >= 50 ? best_match : null;
+	}
 
-		const doctype = best_match;
+	// ── Create action (type "créer client" / "new customer" → Quick Entry) ──
+	_make_create_action(txt) {
+		if (!txt || txt.length < 5) return;
+		const txt_lower = txt.toLowerCase().trim();
+		// "create"/"new" verb prefixes (FR + EN); the rest is the DocType name
+		const verbs = ["créer ", "creer ", "create ", "new ", "nouveau ", "nouvelle ", "ajouter ", "add "];
+		let rest = null;
+		for (const v of verbs) {
+			if (txt_lower.startsWith(v)) { rest = txt_lower.slice(v.length).trim(); break; }
+		}
+		if (!rest || rest.length < 2) return;
+
+		const doctype = this._best_doctype_match(rest);
+		if (!doctype) return;
+		// Only when the user can actually create this DocType
+		if (frappe.model.can_create && !frappe.model.can_create(doctype)) return;
+
+		const translated = __(doctype);
+		this.options.push({
+			label: __("Create {0}", [translated]),
+			value: __("Create {0}", [translated]),
+			index: 260, // above "View all"
+			default: "CreateAction",
+			onclick: function () {
+				// new_doc opens the Quick Entry dialog when the DocType has one,
+				// otherwise the full form in new mode.
+				frappe.new_doc(doctype);
+			},
+		});
+	}
+
+	_make_doctype_action(txt) {
+		const doctype = this._best_doctype_match(txt);
+		if (!doctype) return;
 		const translated = __(doctype);
 		// Single prominent action — always first
 		this.options.push({
