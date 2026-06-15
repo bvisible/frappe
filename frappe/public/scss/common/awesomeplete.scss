@@ -160,7 +160,7 @@
 		min-width: 0;
 		overflow-y: scroll;
 		overflow-x: hidden;
-		padding: 8px 0;
+		padding: 0 0 8px 0;
 		background: rgba(255, 255, 255, 0.97);
 		border: 1px solid rgba(0, 0, 0, 0.06);
 		border-radius: var(--border-radius-lg, 12px);
@@ -253,17 +253,24 @@
 
 		.search-item {
 			padding: 10px 16px;
-			background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.06));
-			border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+			// DS: this is the panel's PRIMARY action → solid ink fill + white text
+			// (same treatment as filled primary buttons). The old indigo/violet
+			// gradient was off-palette. Same in light & dark (it's a solid fill).
+			background: #141414;
 			border-radius: var(--border-radius-lg, 12px) var(--border-radius-lg, 12px) 0 0;
 
 			.search-item-label {
 				@include get_textstyle("base", "bold");
-				color: var(--primary);
+				color: #fff;
+			}
+			.search-item-icon,
+			.search-item-desc {
+				color: rgba(255, 255, 255, 0.72);
 			}
 
-			&:hover {
-				background: linear-gradient(135deg, rgba(99, 102, 241, 0.14), rgba(139, 92, 246, 0.10));
+			&:hover,
+			&.selected {
+				background: #242424;
 			}
 		}
 	}
