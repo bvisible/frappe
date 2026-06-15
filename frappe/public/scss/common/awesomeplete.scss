@@ -255,8 +255,10 @@
 			padding: 10px 16px;
 			// DS: this is the panel's PRIMARY action → solid ink fill + white text
 			// (same treatment as filled primary buttons). The old indigo/violet
-			// gradient was off-palette. Same in light & dark (it's a solid fill).
-			background: #141414;
+			// gradient was off-palette. !important because this bar is AUTO-selected,
+			// and the generic .search-item:hover/.selected rules (light AND dark)
+			// would otherwise override the ink fill with their neutral tint.
+			background: #141414 !important;
 			border-radius: var(--border-radius-lg, 12px) var(--border-radius-lg, 12px) 0 0;
 
 			.search-item-label {
@@ -268,9 +270,8 @@
 				color: rgba(255, 255, 255, 0.72);
 			}
 
-			&:hover,
-			&.selected {
-				background: #242424;
+			&:hover {
+				background: #242424 !important;
 			}
 		}
 	}
