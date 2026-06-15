@@ -737,8 +737,8 @@ body.neoffice-cockpit .page-head .btn-sm {
 	font-size: 13px;
 }
 body.neoffice-cockpit .page-head .btn-primary {
-	background: var(--nc-accent);
-	border-color: var(--nc-accent);
+	background: var(--color-primary, #141414);
+	border-color: var(--color-primary, #141414);
 	color: #fff;
 	padding: 8px 18px;
 	font-size: 13.5px;
@@ -748,8 +748,8 @@ body.neoffice-cockpit .page-head .btn-primary {
 body.neoffice-cockpit .page-head .btn-primary:hover,
 body.neoffice-cockpit .page-head .btn-primary:focus,
 body.neoffice-cockpit .page-head .btn-primary:active {
-	background: #44639a !important;
-	border-color: #44639a !important;
+	background: var(--color-primary-hover, #232020) !important;
+	border-color: var(--color-primary-hover, #232020) !important;
 	color: #fff;
 }
 
@@ -911,7 +911,7 @@ body.neoffice-cockpit .grid-footer .btn-custom.btn-primary {
 }
 body.neoffice-cockpit .grid-footer .btn-primary:hover {
 	background: rgba(var(--nc-accent-rgb), 0.08);
-	color: #44639a;
+	color: var(--nc-accent);
 }
 /* in-table "+ Add Row" CTA after the last row — replaces the footer
    button under the cockpit (markup ships in core grid.js, inert on the
@@ -936,7 +936,7 @@ body.neoffice-cockpit .grid-append-row {
 }
 body.neoffice-cockpit .grid-append-row:hover {
 	background: var(--subtle-fg, #faf8f3);
-	color: #44639a;
+	color: var(--nc-accent);
 }
 body.neoffice-cockpit .grid-append-row svg {
 	width: 13px;
