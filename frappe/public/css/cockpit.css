@@ -1336,7 +1336,7 @@ body.neoffice-cockpit.nf-list .layout-main {
    datatable, not .layout-main, so it does not scroll away with the rows */
 body.neoffice-cockpit.nf-list .layout-side-section {
 	position: absolute;
-	top: 80px; /* clears the toolbar + column-header / quick-filter band */
+	top: 115px; /* clears the toolbar + column-header / quick-filter band */
 	right: 12px;
 	z-index: 20;
 	width: auto;
