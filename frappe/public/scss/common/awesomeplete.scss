@@ -545,6 +545,11 @@
 	.search-item.selected {
 		background-color: rgba(255, 255, 255, 0.05);
 	}
+	// the bottom fade mask was hardcoded to white → a light smear over the dark
+	// results list; fade to the dark panel colour instead.
+	.search-panel-body::after {
+		background: linear-gradient(to bottom, transparent, rgba(30, 41, 59, 0.97));
+	}
 }
 
 // ── Hide old panel class ──
