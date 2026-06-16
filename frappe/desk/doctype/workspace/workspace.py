@@ -283,7 +283,7 @@ def new_page(new_page):
 
 
 @frappe.whitelist()
-def save_page(title, public, new_widgets, blocks):
+def save_page(title, public, new_widgets, blocks, deleted_widgets=None):
 	public = frappe.parse_json(public)
 
 	filters = {"public": public, "label": title}
@@ -299,7 +299,7 @@ def save_page(title, public, new_widgets, blocks):
 	doc.content = blocks
 	doc.save(ignore_permissions=True)
 
-	save_new_widget(doc, title, blocks, new_widgets)
+	save_new_widget(doc, title, blocks, new_widgets, deleted_widgets)
 
 	return {"name": title, "public": public, "label": doc.label}
 

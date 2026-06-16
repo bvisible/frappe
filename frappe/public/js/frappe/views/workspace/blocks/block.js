@@ -153,6 +153,29 @@ export default class Block {
 		});
 	}
 
+	record_widget_deletion() {
+		// Track explicit widget deletions so the server removes the child-table row.
+		// clean_up() re-adds widgets present in the child table but missing from content
+		// (anti widget-loss guard, 00e69dc), otherwise shortcuts cannot be deleted from
+		// the UI. Accidental editor drops never reach this explicit path.
+		try {
+			const types = ["shortcut", "chart", "quick_list", "number_card", "custom_block"];
+			for (const t of types) {
+				const name = this.wrapper && this.wrapper.getAttribute(t + "_name");
+				if (name) {
+					frappe.workspace_deleted_widgets = frappe.workspace_deleted_widgets || {};
+					frappe.workspace_deleted_widgets[t] = frappe.workspace_deleted_widgets[t] || [];
+					if (!frappe.workspace_deleted_widgets[t].includes(name)) {
+						frappe.workspace_deleted_widgets[t].push(name);
+					}
+					break;
+				}
+			}
+		} catch (e) {
+			// best-effort; never block the delete
+		}
+	}
+
 	add_settings_button() {
 		let me = this;
 		this.dropdown_list = [
@@ -160,7 +183,10 @@ export default class Block {
 				label: "Delete",
 				title: "Delete Block",
 				icon: frappe.utils.icon("delete-active", "sm"),
-				action: () => this.api.blocks.delete(),
+				action: () => {
+					this.record_widget_deletion();
+					this.api.blocks.delete();
+				},
 			},
 			{
 				label: "Expand",

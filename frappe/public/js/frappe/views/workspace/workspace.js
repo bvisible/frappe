@@ -1697,6 +1697,7 @@ frappe.views.Workspace = class Workspace {
 						public: page.public || 0,
 						new_widgets: new_widgets,
 						blocks: JSON.stringify(blocks),
+						deleted_widgets: JSON.stringify(frappe.workspace_deleted_widgets || {}),
 					},
 					callback: function (res) {
 						if (res.message) {
@@ -1719,6 +1720,7 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	reload() {
+		frappe.workspace_deleted_widgets = {};
 		this.sorted_public_items = [];
 		this.sorted_private_items = [];
 		this.discard = false;  // IMPORTANT: Set discard to false BEFORE setup_pages() so get_pages() is called

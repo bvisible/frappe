@@ -667,7 +667,7 @@ def get_custom_report_list(module):
 	]
 
 
-def save_new_widget(doc, page, blocks, new_widgets):
+def save_new_widget(doc, page, blocks, new_widgets, deleted_widgets=None):
 	if loads(new_widgets):
 		widgets = _dict(loads(new_widgets))
 
@@ -685,6 +685,17 @@ def save_new_widget(doc, page, blocks, new_widgets):
 			doc.number_cards.extend(new_widget(widgets.number_card, "Workspace Number Card", "number_cards"))
 		if widgets.card:
 			doc.build_links_table_from_card(widgets.card)
+
+	# Apply explicit user deletions (editor "Delete" action) BEFORE clean_up, which
+	# would otherwise re-add child rows missing from content (the anti widget-loss
+	# guard from 00e69dc) -- that re-add is what made shortcuts impossible to delete.
+	if deleted_widgets:
+		_dw = frappe.parse_json(deleted_widgets) or {}
+		for _wtype in ("shortcut", "chart", "quick_list", "number_card", "custom_block"):
+			_names = _dw.get(_wtype) or []
+			if _names:
+				_field = _wtype + "s"
+				doc.set(_field, [w for w in doc.get(_field) if w.label not in _names])
 
 	# remove duplicate and unwanted widgets
 	clean_up(doc, blocks)
