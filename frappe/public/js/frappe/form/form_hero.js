@@ -269,6 +269,29 @@ const HERO_REGISTRY = {
 			return [];
 		},
 	},
+	"Document Scan": {
+		// NEOFFICE: Document Scan lifecycle — Scanned -> Analysed (OCR +
+		// Nora) -> Imputed (a Purchase Invoice / Journal Entry was created).
+		steps: (doc) => [
+			{ label: __("Scanné"), when: doc.scan_date || doc.creation },
+			{
+				label: __("Analysé"),
+				when:
+					doc.suggestion_status === "Complete" ||
+					["Pending Action", "Processed"].includes(doc.status)
+						? doc.modified
+						: null,
+			},
+			{ label: __("Imputé"), when: doc.status === "Processed" ? doc.modified : null },
+		],
+		rank(doc) {
+			if (doc.status === "Processed") return 4;
+			if (doc.suggestion_status === "Complete" || doc.status === "Pending Action") return 3;
+			if (doc.status === "Error" || doc.suggestion_status === "Failed") return 2;
+			if (doc.status === "Processing" || doc.suggestion_status === "Pending") return 2;
+			return 1;
+		},
+	},
 };
 
 const DEFAULT_PIPELINE = {

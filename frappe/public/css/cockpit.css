@@ -501,7 +501,7 @@ body.neoffice-cockpit .form-hero-avatar {
 	font-size: 19px;
 	font-weight: 700;
 	color: #fff;
-	background: linear-gradient(140deg, var(--nc-accent), #6d8fc4);
+	background: linear-gradient(140deg, var(--nc-accent), #BE7339);
 }
 body.neoffice-cockpit .form-hero-id {
 	flex: 1;
