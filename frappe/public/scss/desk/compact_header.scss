@@ -243,16 +243,26 @@
 // IMPORTANT: do NOT scope to .page-form — Frappe also reuses that
 // class for the list-view filter bar, so the rule would leak.
 // ──────────────────────────────────────────────────────────────────
-// Desktop form pages only — mobile forms keep the native sidebar
-// overlay reachable via the `.sidebar-toggle-icon` next to the title.
-@media (min-width: 768px) {
-	body[data-route^="Form/"] .layout-side-section.right,
-	.editable-form .layout-side-section.right,
-	.submitted-form .layout-side-section.right,
-	.cancelled-form .layout-side-section.right {
-		display: none !important;
-	}
+// ── Breakpoint contract (FIX: align with Frappe's own 992 boundary) ──
+// The compact header REPLACES the native form sidebar only on real
+// desktop widths (>= 992px). 992 is the SAME boundary Frappe itself
+// uses to switch the form sidebar into the mobile overlay drawer — see
+// `setup_sidebar_toggle()` in ui/page.js (`window.innerWidth < 992 ->
+// setup_overlay_sidebar()`) and the `@media (max-width: 992px)` overlay
+// block in form_sidebar.scss.
+//
+// Below 992 (phones AND tablets, e.g. iPad portrait) we keep the native
+// sidebar overlay + its burger toggle and hide the cluster instead (see
+// the max-width rule near the end of this file). Pinning these to 768
+// was the bug: the 768-991 band rendered the meta cluster with no room
+// (it overlapped the breadcrumb / title) while the toggle was hidden, so
+// attachments / tags / shares became unreachable.
 
+// Full-width main section — from 768 up the form never shows a *column*
+// sidebar (it is the overlay below 992, hidden above 992), so the content
+// always claims the whole width. The overlay is position:fixed and takes
+// no flow space, so this stays correct on the 768-991 tablet band too.
+@media (min-width: 768px) {
 	body[data-route^="Form/"] .layout-main.layout-two-column .layout-main-section-wrapper,
 	.editable-form .layout-main.layout-two-column .layout-main-section-wrapper,
 	.submitted-form .layout-main.layout-two-column .layout-main-section-wrapper,
@@ -260,13 +270,23 @@
 		flex: 1 1 100%;
 		max-width: 100%;
 	}
+}
 
-	// The hamburger toggle (small `☰` next to the doc title) is meant
-	// to expand/collapse the form sidebar. With the sidebar permanently
-	// hidden on desktop forms, the toggle has nothing to flip — hide
-	// it. List views keep it (it toggles list filters) and mobile
-	// keeps it (it opens the sidebar overlay so the user can still
-	// reach attachments / tags / shares on a phone).
+// Desktop only (>= 992px): hide the native column sidebar — the compact
+// header cluster carries attachments / tags / follow / share here.
+@media (min-width: 992px) {
+	body[data-route^="Form/"] .layout-side-section.right,
+	.editable-form .layout-side-section.right,
+	.submitted-form .layout-side-section.right,
+	.cancelled-form .layout-side-section.right {
+		display: none !important;
+	}
+
+	// The hamburger toggle (small `☰` next to the doc title) expands the
+	// form sidebar. With the sidebar replaced by the cluster on desktop it
+	// has nothing to flip — hide it. Below 992 it stays VISIBLE and opens
+	// the sidebar overlay so attachments / tags / shares are reachable on
+	// phones and tablets. List views keep it (it toggles list filters).
 	//
 	// Frappe v15 renders the visible `☰` via the `.sidebar-toggle-btn`
 	// button; the legacy `.sidebar-toggle-icon` span inside is already
@@ -541,8 +561,13 @@
 	}
 }
 
-// Hide on small screens — sidebar overlay handles attachments natively
-@media (max-width: 767px) {
+// Hide below 992 — on phones AND tablets the cramped page-head can't fit
+// the cluster (it overlapped the breadcrumb / title). The native sidebar
+// overlay (burger toggle) carries attachments / tags / shares there. 992
+// matches Frappe's own mobile breakpoint (ui/page.js setup_sidebar_toggle,
+// form_sidebar.scss overlay-sidebar) so the cluster and the overlay never
+// coexist nor leave a gap.
+@media (max-width: 991.98px) {
 	.page-actions .form-meta-cluster {
 		display: none;
 	}

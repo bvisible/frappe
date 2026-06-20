@@ -123,7 +123,8 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 
 	// Adapt the gallery to the viewport: 4 thumbs on desktop, 3 on
 	// tablet (1024–1279px) where the buttons row gets cramped. The
-	// SCSS already hides the cluster entirely under 768px.
+	// SCSS hides the cluster entirely below 992px (mobile + tablet),
+	// where the native sidebar overlay takes over.
 	get_max_visible() {
 		const w = window.innerWidth || document.documentElement.clientWidth || 1440;
 		if (w < 1280) return 3;
@@ -212,7 +213,15 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 			return;
 		}
 
-		this.$wrapper.show();
+		// Do NOT use jQuery .show() here: when the first render happens at a
+		// viewport where the SCSS hides the cluster (< 992px — i.e. loading
+		// straight onto a phone or tablet), .show() detects the element as
+		// "hidden by stylesheet" and writes an inline `display: block`, which
+		// BEATS the responsive `display: none` rule and makes the cluster
+		// reappear, overlapping the page-head. Clearing the inline display
+		// instead lets the stylesheet own visibility (inline-flex on desktop,
+		// hidden < 992). This also undoes the .hide() above once a draft is saved.
+		this.$wrapper.css("display", "");
 
 		const attachments = this.get_attachments();
 		this.render_gallery(attachments);
