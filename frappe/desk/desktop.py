@@ -667,22 +667,51 @@ def get_custom_report_list(module):
 	]
 
 
+def _upsert_widgets(doc, parentfield, configs, doctype):
+	"""Edit-aware widget save: update the existing child row when the editor
+	re-saves a widget with the same label, otherwise append a new one.
+
+	Without this, every re-saved widget was appended as a duplicate that
+	clean_up() then dropped (it keeps the stale FIRST row by label), so editing
+	a shortcut filter, colour, type or URL silently never persisted. It also
+	blanks a URL shortcut leftover link_to (a stale DocType/Page target left
+	when the type is switched to URL) which otherwise fails link validation
+	with "DocType URL not found" and aborts the whole save.
+	"""
+	if not configs:
+		return
+	by_label = {}
+	for row in doc.get(parentfield):
+		by_label.setdefault(row.label, row)
+	to_add = []
+	for cfg in configs:
+		cfg = dict(cfg)
+		cfg.pop("name", None)
+		if cfg.get("type") == "URL":
+			cfg["link_to"] = None
+		existing = by_label.get(cfg.get("label"))
+		if existing:
+			existing.update(cfg)
+		else:
+			to_add.append(cfg)
+	if to_add:
+		doc.get(parentfield).extend(new_widget(to_add, doctype, parentfield))
+
+
 def save_new_widget(doc, page, blocks, new_widgets, deleted_widgets=None):
 	if loads(new_widgets):
 		widgets = _dict(loads(new_widgets))
 
 		if widgets.chart:
-			doc.charts.extend(new_widget(widgets.chart, "Workspace Chart", "charts"))
+			_upsert_widgets(doc, "charts", widgets.chart, "Workspace Chart")
 		if widgets.shortcut:
-			doc.shortcuts.extend(new_widget(widgets.shortcut, "Workspace Shortcut", "shortcuts"))
+			_upsert_widgets(doc, "shortcuts", widgets.shortcut, "Workspace Shortcut")
 		if widgets.quick_list:
-			doc.quick_lists.extend(new_widget(widgets.quick_list, "Workspace Quick List", "quick_lists"))
+			_upsert_widgets(doc, "quick_lists", widgets.quick_list, "Workspace Quick List")
 		if widgets.custom_block:
-			doc.custom_blocks.extend(
-				new_widget(widgets.custom_block, "Workspace Custom Block", "custom_blocks")
-			)
+			_upsert_widgets(doc, "custom_blocks", widgets.custom_block, "Workspace Custom Block")
 		if widgets.number_card:
-			doc.number_cards.extend(new_widget(widgets.number_card, "Workspace Number Card", "number_cards"))
+			_upsert_widgets(doc, "number_cards", widgets.number_card, "Workspace Number Card")
 		if widgets.card:
 			doc.build_links_table_from_card(widgets.card)
 
