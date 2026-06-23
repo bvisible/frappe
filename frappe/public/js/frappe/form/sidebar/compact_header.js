@@ -623,7 +623,7 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 		this.tags_dialog.$wrapper.on("shown.bs.modal", () => {
 			const $input = me.tags_dialog
 				.get_field("body")
-				.$wrapper.find(".tags-list .tag-input")
+				.$wrapper.find("input.tags-input")
 				.first();
 			if ($input.length) setTimeout(() => $input.trigger("focus"), 80);
 		});
@@ -636,17 +636,19 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 			.$wrapper.empty()
 			.addClass("compact-tags-modal");
 
-		// Render the same template Frappe uses for the sidebar tag block,
-		// then bind a fresh TagEditor against it so Enter / × work as on
-		// the original sidebar — no business logic is duplicated.
+		// Pass an EMPTY .form-tags container: frappe.ui.TagEditor (via
+		// frappe.ui.Tags) builds its OWN input (`input.tags-input`) + pills
+		// inside it. The previous code pre-built a `<ul.tags-list>` with an
+		// `input.tag-input` (singular) — so TWO inputs ended up in the DOM,
+		// the user typed into the dead pre-built one and Enter did nothing.
+		// frappe.ui.Tags drops its "+" placeholder button into a
+		// `.form-sidebar-items` inside .form-tags and appends the input/pills
+		// to .form-tags itself, so that wrapper must exist (an empty
+		// .form-tags would swallow the placeholder appendTo and the field
+		// would render nothing usable).
 		const html = `
 			<div class="form-tags">
-				<ul class="tags-list">
-					<li class="tags-input">
-						<input type="text" class="tag-input form-control input-xs"
-							placeholder="${__("Add a tag")}"/>
-					</li>
-				</ul>
+				<div class="form-sidebar-items"></div>
 			</div>
 			<div class="text-muted small" style="margin-top:8px;">
 				${__("Press Enter to add a tag. Click × on a pill to remove it.")}
@@ -654,15 +656,19 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 		`;
 		$body.html(html);
 
-		// Frappe re-instantiates a TagEditor wired to this DOM so the
-		// awesomplete autocomplete + persistence (`_user_tags` on the
-		// document) keep working unchanged.
+		// TagEditor builds the real input (input.tags-input) + awesomplete +
+		// persistence (`_user_tags`). We then activate() the Tags widget so the
+		// input is shown immediately (skip the "+" click) and the user can type
+		// straight away — Enter / focusout commit the tag.
 		this.dialog_tags = new frappe.ui.TagEditor({
 			parent: $body.find(".form-tags"),
 			frm: this.frm,
 			on_change: () => this.render_chips(this.get_attachments()),
 		});
 		this.dialog_tags.refresh(this.frm.get_docinfo().tags || "");
+		if (this.dialog_tags.tags && this.dialog_tags.tags.activate) {
+			this.dialog_tags.tags.activate();
+		}
 	}
 
 	// ---- Follow ------------------------------------------------------

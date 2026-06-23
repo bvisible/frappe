@@ -422,29 +422,52 @@
 // can manage tags now that the native sidebar is hidden.
 // ──────────────────────────────────────────────────────────────────
 .compact-tags-modal {
+	// frappe.ui.Tags builds: a `.form-sidebar-items` (the "+" placeholder),
+	// an <li> input wrapper (input.tags-input) and one <li.form-tag-row> per
+	// pill — all direct children of .form-tags. We lay them inline in a soft
+	// paper field (no heavy grey block).
 	.form-tags {
-		.tags-list {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 6px;
+		min-height: 42px;
+		padding: 7px 9px;
+		background: var(--card-bg, #fffdf8);
+		border: 1px solid var(--border-color);
+		border-radius: 10px;
+
+		> li,
+		.form-sidebar-items {
 			list-style: none;
-			padding: 0;
 			margin: 0;
-			display: flex;
-			flex-wrap: wrap;
-			gap: 6px;
-			min-height: 36px;
-			padding: 6px;
-			background: var(--bg-light-gray);
-			border: 1px solid var(--border-color);
-			border-radius: 8px;
+			padding: 0;
+			display: inline-flex;
+			align-items: center;
 		}
 
-		.tag-input {
+		input.tags-input {
 			border: 0;
 			background: transparent;
+			box-shadow: none;
 			outline: none;
-			min-width: 140px;
+			min-width: 150px;
 			flex: 1;
-			padding: 4px;
+			padding: 4px 2px;
+			height: auto;
 			font-size: 13px;
+		}
+
+		// the "+" placeholder button (visible only when the input is hidden)
+		.add-tags-btn {
+			padding: 2px 6px;
+			color: var(--text-muted);
+			text-decoration: none;
+		}
+
+		.form-tag-row .pill,
+		.form-tag-row .data-pill {
+			margin: 0;
 		}
 	}
 }
