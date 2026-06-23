@@ -324,9 +324,10 @@ body.neoffice-cockpit .page-head .title-area .flex {
 	align-items: center;
 	min-width: 0;
 }
+/* Status pill removed from the page-head — it now lives in the form hero
+   (.form-hero-status, above the title) to reclaim header width. */
 body.neoffice-cockpit .page-head .indicator-pill {
-	margin-left: 10px;
-	flex-shrink: 0;
+	display: none !important;
 }
 body.neoffice-cockpit .page-head .sub-heading {
 	display: none !important;
@@ -527,6 +528,21 @@ body.neoffice-cockpit .form-hero-id {
 	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
 		U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
 		U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* Status pill relocated here from the page-head — sits just above the title
+   as a small label. Reuses Frappe's .indicator-pill <color> so the status
+   colour code (yellow / green / red / gray …) is preserved exactly. */
+body.neoffice-cockpit .form-hero-status {
+	margin-bottom: 6px;
+	line-height: 1;
+}
+body.neoffice-cockpit .form-hero-status .indicator-pill {
+	display: inline-flex;
+	align-items: center;
+	margin: 0;
+	font-size: 11px;
+	font-weight: 600;
+	padding: 3px 10px;
 }
 body.neoffice-cockpit .form-hero-title {
 	font-size: 30px;

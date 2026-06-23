@@ -416,10 +416,28 @@ frappe.ui.form.FormHero = class FormHero {
 				</div>`;
 		}
 
+		// Status pill (the doc indicator) surfaced in the hero, above the title,
+		// so the page-head can drop its own pill and reclaim width. We reuse
+		// Frappe's `.indicator-pill <color>` so the STATUS COLOUR is preserved
+		// exactly (yellow / green / red / gray …) — get_indicator returns
+		// [label, color, filter].
+		let status_html = "";
+		try {
+			const ind = frappe.get_indicator ? frappe.get_indicator(doc, this.frm.doctype) : null;
+			if (ind && ind[0]) {
+				status_html = `<div class="form-hero-status"><span class="indicator-pill no-indicator-dot ${frappe.utils.escape_html(
+					ind[1] || "gray"
+				)}">${frappe.utils.escape_html(ind[0])}</span></div>`;
+			}
+		} catch (e) {
+			// no status is fine — just skip the pill
+		}
+
 		const top_html = `
 			<div class="form-hero-top">
 				<div class="form-hero-avatar">${frappe.utils.escape_html(initial)}</div>
 				<div class="form-hero-id">
+					${status_html}
 					<div class="form-hero-title">${frappe.utils.escape_html(title)}</div>
 					<div class="form-hero-sub">${frappe.utils.escape_html(sub)}</div>
 				</div>
