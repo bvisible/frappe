@@ -2,7 +2,10 @@ frappe.ui.form.FormViewers = class FormViewers {
 	constructor({ frm, parent }) {
 		this.frm = frm;
 		this.parent = parent;
-		this.parent.tooltip({ title: __("Currently Viewing") });
+		// Do NOT put a single tooltip on the whole container: it shows a
+		// generic "Currently Viewing" on every avatar and hides WHO is
+		// viewing. Per-avatar tooltips (the viewer's name) are wired in
+		// refresh() instead.
 
 		this._past_users = {};
 		this._active_users = {};
@@ -41,6 +44,10 @@ frappe.ui.form.FormViewers = class FormViewers {
 			overlap: true,
 		});
 		this.parent.empty().append(avatar_group);
+		// Each avatar already carries the viewer's name in its `title`; turn it
+		// into a real tooltip so hovering an avatar shows WHO is viewing,
+		// instead of one generic label on the whole group.
+		this.parent.find(".avatar").tooltip({ delay: { show: 200, hide: 100 } });
 	}
 
 	setup_events() {
