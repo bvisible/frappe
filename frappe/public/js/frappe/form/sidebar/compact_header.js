@@ -147,22 +147,19 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 		this.$wrapper = $(`
 			<div class="form-meta-cluster">
 				<div class="meta-gallery"></div>
-				<div class="meta-divider gallery-divider"></div>
 				<div class="meta-avatars" title="${__("Assigned To")}"></div>
-				<div class="meta-divider avatars-divider"></div>
 				<button class="meta-chip meta-attachments" type="button" title="${__(
 					"Attachments"
-				)}">${ic.paperclip}<strong class="count">0</strong></button>
+				)}">${ic.paperclip}<span class="count"></span></button>
 				<button class="meta-chip meta-comments" type="button" title="${__(
 					"Comments"
-				)}">${ic.chat}<strong class="count">0</strong></button>
+				)}">${ic.chat}<span class="count"></span></button>
 				<button class="meta-chip meta-tags" type="button" title="${__(
 					"Tags"
-				)}">${ic.tag}<strong class="count">0</strong></button>
-				<div class="meta-divider"></div>
+				)}">${ic.tag}<span class="count"></span></button>
 				<button class="meta-chip meta-follow" type="button" title="${__(
 					"Follow"
-				)}">${ic.heart}<span class="label">${__("Follow")}</span></button>
+				)}">${ic.heart}</button>
 				<button class="meta-chip meta-share" type="button" title="${__(
 					"Share"
 				)}">${ic.share}</button>
@@ -255,14 +252,18 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 
 	render_gallery(attachments) {
 		const $gallery = this.$wrapper.find(".meta-gallery").empty();
-		const $divider = this.$wrapper.find(".gallery-divider");
+		// With attachments: show the thumbnail gallery and hide the plain
+		// paperclip chip (the thumbnails already represent them — no point
+		// showing both). With none: hide the gallery and keep the chip
+		// (greyed, no count) so the user can still open / add attachments.
+		const $attach_chip = this.$wrapper.find(".meta-attachments");
 		if (!attachments.length) {
 			$gallery.hide();
-			$divider.hide();
+			$attach_chip.removeClass("chip-hidden");
 			return;
 		}
 		$gallery.show();
-		$divider.show();
+		$attach_chip.addClass("chip-hidden");
 
 		const visible = attachments.slice(0, this.max_visible);
 		const hidden = Math.max(0, attachments.length - this.max_visible);
@@ -549,15 +550,12 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 
 	render_avatars() {
 		const $av = this.$wrapper.find(".meta-avatars").empty();
-		const $divider = this.$wrapper.find(".avatars-divider");
 		const users = this.get_assigned_users();
 		if (!users.length) {
 			$av.hide();
-			$divider.hide();
 			return;
 		}
 		$av.show();
-		$divider.show();
 		const $group = frappe.avatar_group(users, this.max_avatars, {
 			align: "left",
 			overlap: true,
@@ -572,9 +570,17 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 		const tags = (docinfo.tags || "").split(",").filter((t) => t.trim());
 		const comments = Array.isArray(docinfo.comments) ? docinfo.comments : [];
 
-		this.$wrapper.find(".meta-attachments .count").text(attachments.length);
-		this.$wrapper.find(".meta-comments .count").text(comments.length);
-		this.$wrapper.find(".meta-tags .count").text(tags.length);
+		// Count shown as a small clay badge in the chip's top-right corner,
+		// ONLY when >= 1 (never a "0"). Empty chips get `.is-empty` (greyed
+		// icon) but stay clickable so the action (tag, comment...) is reachable.
+		const set_count = (cls, n) => {
+			const $chip = this.$wrapper.find(cls);
+			$chip.find(".count").text(n > 0 ? (n > 99 ? "99+" : n) : "");
+			$chip.toggleClass("is-empty", n === 0);
+		};
+		set_count(".meta-attachments", attachments.length);
+		set_count(".meta-comments", comments.length);
+		set_count(".meta-tags", tags.length);
 	}
 
 	scroll_to_comments() {
@@ -674,7 +680,6 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 		$btn.toggleClass("active", this.is_following);
 		$btn.attr("title", this.is_following ? __("Unfollow") : __("Follow"));
 		$btn.find("svg").replaceWith(this.is_following ? ic.heart_filled : ic.heart);
-		$btn.find(".label").text(this.is_following ? __("Following") : __("Follow"));
 	}
 
 	toggle_follow() {

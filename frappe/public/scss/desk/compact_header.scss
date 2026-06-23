@@ -22,27 +22,19 @@
 	display: inline-flex;
 	align-items: center;
 	height: 32px;
-	padding: 0 10px 0 4px;
+	padding: 0 2px;
 	// `margin-left: auto` pushes the cluster (and every action after it)
 	// flush against the right edge of .page-actions. Without this Frappe
 	// leaves the cluster where we prepended it (visually mid-page) while
 	// .custom-actions floats right on its own — leaving an awkward gap.
 	margin-left: auto;
-	margin-right: 6px;
+	margin-right: 2px;
 	background: var(--card-bg);
 	border: 1px solid var(--border-color);
 	border-radius: var(--border-radius);
 	font-size: var(--text-sm);
 	color: var(--text-muted);
-	gap: 10px;
-
-	// Vertical separators between cluster sections
-	.meta-divider {
-		width: 1px;
-		height: 14px;
-		background: var(--border-color);
-		flex-shrink: 0;
-	}
+	gap: 7px;
 
 	// Avatar stack (assignees)
 	.meta-avatars {
@@ -61,26 +53,21 @@
 		}
 	}
 
-	// Compact action chips (counts, follow, share)
+	// Compact action chips (counts, follow, share) — icon only; the count
+	// rides as a small badge in the top-right corner (never a "0").
 	.meta-chip {
+		position: relative; // anchor for the .count badge
 		display: inline-flex;
 		align-items: center;
-		gap: 4px;
-		padding: 0 2px;
+		padding: 0 1px;
 		background: transparent;
 		border: 0;
 		cursor: pointer;
 		color: var(--text-muted);
-		font-size: 12.5px;
 		line-height: 1;
-		white-space: nowrap;
 
-		&:hover {
+		&:hover svg {
 			color: var(--text-color);
-
-			svg {
-				color: var(--text-color);
-			}
 		}
 
 		&:focus-visible {
@@ -94,24 +81,51 @@
 			flex-shrink: 0;
 		}
 
-		strong.count {
-			color: var(--text-color);
-			font-weight: 500;
+		// Count badge — clay pill pinned to the icon's top-right corner,
+		// shown only when it has a value (empty span collapses, so no "0").
+		.count {
+			position: absolute;
+			top: -5px;
+			right: -6px;
+			min-width: 14px;
+			height: 14px;
+			padding: 0 3px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			background: var(--nc-accent, #d68a59);
+			color: #fff;
+			font-size: 9px;
+			font-weight: 700;
+			line-height: 1;
+			border-radius: 999px;
 			font-variant-numeric: tabular-nums;
-		}
+			pointer-events: none;
 
-		.label {
-			font-weight: 500;
-		}
-
-		// Follow / liked state — primary accent
-		&.meta-follow.active {
-			color: var(--primary);
-
-			svg {
-				color: var(--primary);
-				fill: var(--primary);
+			&:empty {
+				display: none;
 			}
+		}
+
+		// Empty counters: greyed icon, still clickable so the action
+		// (tag / comment / attach) stays reachable.
+		&.is-empty svg {
+			opacity: 0.4;
+		}
+		&.is-empty:hover svg {
+			opacity: 0.75;
+		}
+
+		// Attachment chip is hidden while the thumbnail gallery is shown
+		// (the thumbnails already represent the attachments).
+		&.chip-hidden {
+			display: none;
+		}
+
+		// Follow / liked state — clay accent (Neoffice DS)
+		&.meta-follow.active svg {
+			color: var(--nc-accent, #d68a59);
+			fill: var(--nc-accent, #d68a59);
 		}
 	}
 
@@ -551,13 +565,6 @@
 	.att-modal-delete:hover {
 		background: var(--red-100, #FEE2E2);
 		color: var(--red-600, #B91C1C);
-	}
-}
-
-// Drop labels (Follow / Following) under 1280px to keep the cluster compact
-@media (max-width: 1279px) {
-	.page-actions .form-meta-cluster .meta-chip .label {
-		display: none;
 	}
 }
 
