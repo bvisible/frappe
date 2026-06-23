@@ -533,16 +533,28 @@ body.neoffice-cockpit .form-hero-id {
    as a small label. Reuses Frappe's .indicator-pill <color> so the status
    colour code (yellow / green / red / gray …) is preserved exactly. */
 body.neoffice-cockpit .form-hero-status {
-	margin-bottom: 6px;
+	/* The pill is positioned absolutely (below) so it sits ASTRIDE the hero's
+	   top edge — it overflows above the card and draws the eye, while the
+	   title stays intact underneath. The wrapper itself must take no flow
+	   space (otherwise it would push the title down). Anchors to the nearest
+	   positioned ancestor (.layout-main-section-wrapper), and the hero is
+	   prepended at the top of it, so top:5px lands right on the hero's top. */
+	position: static;
+	margin: 0;
+	height: 0;
 	line-height: 1;
 }
 body.neoffice-cockpit .form-hero-status .indicator-pill {
+	position: absolute;
+	top: 5px;
 	display: inline-flex;
 	align-items: center;
 	margin: 0;
 	font-size: 11px;
 	font-weight: 600;
 	padding: 3px 10px;
+	border: 1px solid rgba(60, 45, 20, 0.14);
+	box-shadow: 0 2px 6px rgba(20, 16, 10, 0.1);
 }
 body.neoffice-cockpit .form-hero-title {
 	font-size: 30px;
