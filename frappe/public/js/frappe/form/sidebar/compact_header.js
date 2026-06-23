@@ -684,21 +684,43 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 		}
 		const ic = frappe.ui.form.COMPACT_ICONS;
 		$btn.toggleClass("active", this.is_following);
-		$btn.attr("title", this.is_following ? __("Unfollow") : __("Follow"));
+		// Reposition the heart as a change-notification subscription (distinct
+		// from the "Favoris" star, which is just a quick-access bookmark).
+		$btn.attr(
+			"title",
+			this.is_following ? __("Stop change notifications") : __("Notify me of changes")
+		);
 		$btn.find("svg").replaceWith(this.is_following ? ic.heart_filled : ic.heart);
 	}
 
 	toggle_follow() {
 		const want_follow = !this.is_following;
-		// Optimistic update — the click feels instant; we revert on server error.
+		// Optimistic update — the click feels instant; we reconcile with the
+		// server's real state in the callback (and revert on error).
 		this.is_following = want_follow;
 		this.render_follow_state();
 		frappe.call({
-			method: "frappe.desk.form.document_follow.update_follow",
+			// neoffice_theme wrapper: opt the user into document-follow
+			// notifications on the first follow (the native method silently
+			// no-ops while document_follow_notify is OFF) and return the real
+			// persisted state.
+			method: "neoffice_theme.api.toggle_document_follow",
 			args: {
 				doctype: this.frm.doctype,
 				doc_name: this.frm.docname,
 				following: want_follow ? 1 : 0,
+			},
+			callback: (r) => {
+				// Trust the server: the native follow can still no-op (e.g.
+				// Administrator), so reflect what was actually persisted.
+				const real = !!(r.message && r.message.following);
+				this.is_following = real;
+				// Keep docinfo in sync so a later re-render (a fresh header
+				// instance) seeds the correct state instead of the stale
+				// page-load value — that staleness made the heart "fill then empty".
+				const docinfo = this.frm.get_docinfo();
+				if (docinfo) docinfo.is_document_followed = real;
+				this.render_follow_state();
 			},
 			error: () => {
 				this.is_following = !want_follow;

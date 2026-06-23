@@ -231,6 +231,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 									<button class="btn btn-default btn-delete-settings">${__("Delete Personal Settings")}</button>
 									${frappe.session.user === "Administrator" ? `
 										<button class="btn btn-danger btn-save-global-settings">${__("Save as Global Default")}</button>
+										<button class="btn btn-default btn-push-reference">${__("Push this table to the reference")}</button>
+										<button class="btn btn-default btn-pull-reference">${__("Pull from the reference")}</button>
 									` : ''}
 								</div>
 							`
@@ -336,6 +338,59 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 						}
 					);
 				});				
+
+				// Push this table's column config UP to the central reference (NeoService hub).
+				dialog.fields_dict.actions.$wrapper.find(".btn-push-reference").on("click", function() {
+					frappe.confirm(
+						__('Push this table configuration to the central reference (NeoService)?'),
+						() => {
+							let column_order = me.fields.map(field => `${field[1]}:${field[0]}`);
+							setTimeout(() => {
+								let column_widths = {};
+								if (me.datatable && me.datatable.datamanager) {
+									column_widths = me.datatable.datamanager.getColumns(true).reduce((acc, curr) => {
+										acc[curr.id] = parseInt(curr.width);
+										return acc;
+									}, {});
+								}
+								frappe.call({
+									method: "neoffice_custom_fields.events.push_table_to_reference",
+									args: {
+										doctype: me.doctype,
+										settings: JSON.stringify({ order: column_order, widths: column_widths })
+									},
+									callback: function(r) {
+										frappe.show_alert({
+											message: __("Table pushed to the reference") + ": " + me.doctype,
+											indicator: 'green'
+										});
+									}
+								});
+								dialog.hide();
+							}, 20);
+						}
+					);
+				});
+
+				// Pull the reference (NeoService master) into this instance now.
+				dialog.fields_dict.actions.$wrapper.find(".btn-pull-reference").on("click", function() {
+					frappe.confirm(
+						__('Replace this instance table defaults with the reference (NeoService)?'),
+						() => {
+							frappe.call({
+								method: "neoffice_custom_fields.events.pull_report_view_defaults_now",
+								callback: function(r) {
+									frappe.show_alert({
+										message: __("Table defaults pulled from the reference"),
+										indicator: 'green'
+									});
+									setTimeout(() => { frappe.ui.toolbar.clear_cache() }, 1000);
+								}
+							});
+							dialog.hide();
+						}
+					);
+				});
 
 				dialog.fields_dict.actions.$wrapper.find(".btn-add-column").on("click", () => {
 					dialog.hide();
