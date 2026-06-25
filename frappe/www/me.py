@@ -14,3 +14,6 @@ def get_context(context):
 
 	context.current_user = frappe.get_doc("User", frappe.session.user)
 	context.show_sidebar = True
+	# Render as a clean portal page: keep the left portal menu but drop the
+	# website breadcrumb (the "Home / Shop / ..." trail Webshop injects).
+	context.no_breadcrumbs = 1

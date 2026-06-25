@@ -3,6 +3,13 @@
 {% block title %}
 {{ _("My Account") }}
 {% endblock %}
+{% block style %}
+<style>
+	/* Fill the portal content column (like /sav, /mon-serveur and the standard
+	   portal lists) instead of the default narrow 800px centered card. */
+	.my-account-container { max-width: none; margin-left: 0; margin-right: 0; }
+</style>
+{% endblock %}
 {% block page_content %}
 <div class="my-account-container">
 <h3 class="my-account-header">{{_("My Account") }}</h3>
