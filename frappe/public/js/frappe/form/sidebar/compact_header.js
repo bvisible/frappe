@@ -194,7 +194,15 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 
 	bind_events() {
 		const me = this;
-		this.$wrapper.find(".meta-attachments").on("click", () => me.show_all_attachments());
+		// Empty → jump straight to the uploader (no point showing an empty list);
+		// with attachments → open the dialog (view / add / delete).
+		this.$wrapper.find(".meta-attachments").on("click", () => {
+			if (me.get_attachments().length) {
+				me.show_all_attachments();
+			} else {
+				me.add_attachment();
+			}
+		});
 		this.$wrapper.find(".meta-comments").on("click", () => me.scroll_to_comments());
 		this.$wrapper.find(".meta-tags").on("click", () => me.focus_tag_input());
 		this.$wrapper.find(".meta-follow").on("click", () => me.toggle_follow());
@@ -252,18 +260,17 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 
 	render_gallery(attachments) {
 		const $gallery = this.$wrapper.find(".meta-gallery").empty();
-		// With attachments: show the thumbnail gallery and hide the plain
-		// paperclip chip (the thumbnails already represent them — no point
-		// showing both). With none: hide the gallery and keep the chip
-		// (greyed, no count) so the user can still open / add attachments.
+		// The paperclip chip is ALWAYS visible — it is the single entry point to
+		// view / add / delete attachments (it opens the attachments dialog, which
+		// carries the "Add attachment" action). The gallery thumbnails are an
+		// at-a-glance preview shown alongside it when there is >= 1 attachment.
 		const $attach_chip = this.$wrapper.find(".meta-attachments");
+		$attach_chip.removeClass("chip-hidden");
 		if (!attachments.length) {
 			$gallery.hide();
-			$attach_chip.removeClass("chip-hidden");
 			return;
 		}
 		$gallery.show();
-		$attach_chip.addClass("chip-hidden");
 
 		const visible = attachments.slice(0, this.max_visible);
 		const hidden = Math.max(0, attachments.length - this.max_visible);
@@ -411,6 +418,10 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 			title: __("Attachments"),
 			size: "large",
 			fields: [{ fieldtype: "HTML", fieldname: "list" }],
+			primary_action_label: __("Add attachment"),
+			primary_action() {
+				me.add_attachment();
+			},
 			secondary_action_label: __("Open File List"),
 			secondary_action() {
 				frappe.set_route("List", "File", {
@@ -422,6 +433,39 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 
 		this.refresh_attachments_dialog();
 		this.attachments_dialog.show();
+	}
+
+	// Native Frappe uploader (drag-drop / browse / link / camera), wired so the
+	// header gallery AND the open attachments dialog both refresh once the file
+	// is attached. This is the "add" capability the compact header was missing.
+	add_attachment() {
+		const me = this;
+		if (this.frm.doc.__islocal) {
+			frappe.msgprint(__("Please save the document before adding attachments."));
+			return;
+		}
+		const restrictions = {};
+		if (this.frm.meta.max_attachments) {
+			restrictions.max_number_of_files =
+				this.frm.meta.max_attachments - this.get_attachments().length;
+		}
+		new frappe.ui.FileUploader({
+			doctype: this.frm.doctype,
+			docname: this.frm.docname,
+			frm: this.frm,
+			folder: "Home/Attachments",
+			restrictions,
+			make_attachments_public: this.frm.meta.make_attachments_public,
+			on_success: (file_doc) => {
+				// Mirror the native bookkeeping without touching
+				// frm.attachments.fieldname (which could be stale): add to
+				// docinfo, then reload_docinfo() re-runs sidebar.refresh() →
+				// compact_header.refresh() so the gallery + paperclip update.
+				me.frm.attachments.update_attachment(file_doc);
+				me.frm.sidebar.reload_docinfo();
+				me.refresh_attachments_dialog();
+			},
+		});
 	}
 
 	refresh_attachments_dialog() {
@@ -578,7 +622,12 @@ frappe.ui.form.CompactHeader = class CompactHeader {
 			$chip.find(".count").text(n > 0 ? (n > 99 ? "99+" : n) : "");
 			$chip.toggleClass("is-empty", n === 0);
 		};
-		set_count(".meta-attachments", attachments.length);
+		// Attachments are represented by the gallery thumbnails (and the dialog),
+		// so the paperclip stays a clean "manage / add" button without a
+		// redundant count — only greyed (is-empty) when there is none.
+		const $attach = this.$wrapper.find(".meta-attachments");
+		$attach.find(".count").text("");
+		$attach.toggleClass("is-empty", attachments.length === 0);
 		set_count(".meta-comments", comments.length);
 		set_count(".meta-tags", tags.length);
 	}
