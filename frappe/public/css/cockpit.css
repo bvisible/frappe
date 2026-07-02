@@ -127,6 +127,12 @@ body.neoffice-cockpit {
 body.neoffice-cockpit .page-head {
 	top: 0 !important;
 	height: 54px;
+	/* Sit above the floating filter pill (.layout-side-section, z-index:20):
+	   the head is a sticky stacking context (core .page-head z-index:6), which
+	   trapped its own open dropdowns (Actions menu, ⋯) BELOW the pill. Lifting
+	   the head above the pill lets those menus overlay it. Stays under modals /
+	   search / notifications overlays (z-index 1040+). */
+	z-index: 21;
 	border-bottom: 1px solid var(--border-color);
 	/* liquid-glass: the head used to hide itself on scroll (killed with the
 	   legacy JS handler — it broke the trackpad latch), so content now
@@ -1387,31 +1393,24 @@ body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar {
 	display: flex;
 	flex-direction: column;
 	position: relative;
-	isolation: isolate; /* contain the ::before distortion layer */
-	/* liquid glass (lucasromerodb technique): a translucent WARM tint so the
-	   refracted backdrop reads through; the blur + SVG refraction live on the
-	   ::before, the bright rim on the ::after. Warm-toned to stay on the clay
-	   DS palette instead of the original pure white. */
-	background: rgba(255, 253, 248, 0.42);
+	isolation: isolate; /* own stacking context for the inner controls */
+	/* OPAQUE warm-paper surface. The pill floats over the datatable rows and,
+	   when the head's Actions/⋯ menu is open, sits under it — the old
+	   translucent "liquid glass" tint (rgba .42 + ::before refraction) let that
+	   content bleed through and was unreadable. Solid tint per user request;
+	   the ::before refraction is disabled below. */
+	background: rgb(255, 253, 248);
 	border-radius: 999px;
 	box-shadow: 0 6px 16px -6px rgba(15, 12, 8, 0.3), 0 0 18px rgba(15, 12, 8, 0.06);
 	color: var(--text-color);
 	padding: 4px;
 	transition: border-radius 0.18s ease;
 }
-/* refraction layer: blur the backdrop, then bend it through the SVG filter
-   (#nf-glass-distort, injected by cockpit_filter_pill.js). pointer-events:none
-   so the filter controls underneath stay clickable. */
+/* refraction layer DISABLED: the backdrop blur + SVG distortion (#nf-glass-distort)
+   made whatever sat behind the pill bleed through and warp — unreadable. The pill
+   surface is opaque now (above), so no refraction. */
 body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar::before {
-	content: "";
-	position: absolute;
-	inset: 0;
-	z-index: -1;
-	border-radius: inherit;
-	pointer-events: none;
-	-webkit-backdrop-filter: blur(3px) saturate(1.5);
-	backdrop-filter: blur(3px) saturate(1.5);
-	filter: url("#nf-glass-distort");
+	display: none;
 }
 /* outline shine — the bright glass rim catching the light */
 body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar::after {
@@ -1425,7 +1424,7 @@ body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar::after {
 		inset -1.5px -1.5px 1px 1px rgba(255, 255, 255, 0.55);
 }
 [data-theme="dark"] body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar {
-	background: rgba(24, 26, 34, 0.42);
+	background: rgb(24, 26, 34);
 	color: rgba(255, 255, 255, 0.92);
 }
 [data-theme="dark"] body.neoffice-cockpit.nf-list .layout-side-section .list-sidebar::after {
