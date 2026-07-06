@@ -494,9 +494,9 @@ Object.assign(frappe.utils, {
 			// Red/Danger statuses (English + French)
 			if (
 				has_words(["Open", "Urgent", "High", "Failed", "Rejected", "Error",
-					"Overdue", "Draft", "Cancelled", "Expired",
+					"Overdue", "Cancelled", "Expired",
 					"Ouvert", "Élevé", "Échoué", "Rejeté", "Erreur",
-					"En retard", "Échu", "Brouillon", "Annulé", "Expiré"], text)
+					"En retard", "Échu", "Annulé", "Expiré"], text)
 			) {
 				style = "danger";
 				colour = "red";
@@ -522,6 +522,7 @@ Object.assign(frappe.utils, {
 						"Fermé", "Terminé", "Converti", "Complété", "Complet",
 						"Confirmé", "Approuvé", "Oui", "Actif", "Disponible",
 						"Payé", "Succès", "Commandé", "Livré", "Facturé",
+						"Submitted", "Soumis", "Validé",
 					],
 					text
 				)
@@ -529,13 +530,13 @@ Object.assign(frappe.utils, {
 				style = "success";
 				colour = "green";
 			// Blue/Info statuses (English + French)
-			} else if (has_words(["Submitted", "In Payment Run", "In Progress",
-				"Soumis", "Validé", "En cours de paiement", "En cours"], text)) {
+			} else if (has_words(["In Payment Run", "In Progress",
+				"En cours de paiement", "En cours"], text)) {
 				style = "info";
 				colour = "blue";
 			// Gray statuses (English + French)
-			} else if (has_words(["Return", "Credit Note Issued", "Debit Note Issued", "Lost", "On Hold",
-				"Retour", "Note de crédit émise", "Note de débit émise", "Perdu", "En attente"], text)) {
+			} else if (has_words(["Return", "Credit Note Issued", "Debit Note Issued", "Lost", "On Hold", "Draft",
+				"Retour", "Note de crédit émise", "Note de débit émise", "Perdu", "En attente", "Brouillon"], text)) {
 				style = "default";
 				colour = "gray";
 			}

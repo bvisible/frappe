@@ -70,7 +70,7 @@ frappe.get_indicator = function (doc, doctype, show_workflow_state) {
 
 	// draft if document is submittable
 	if (is_submittable && doc.docstatus == 0 && !settings.has_indicator_for_draft) {
-		return [__("Draft", null, doctype), "red", "docstatus,=,0"];
+		return [__("Draft", null, doctype), "gray", "docstatus,=,0"];
 	}
 
 	// cancelled
@@ -92,7 +92,7 @@ frappe.get_indicator = function (doc, doctype, show_workflow_state) {
 
 	// if submittable
 	if (is_submittable && doc.docstatus == 1) {
-		return [__("Submitted", null, doctype), "blue", "docstatus,=,1"];
+		return [__("Submitted", null, doctype), "green", "docstatus,=,1"];
 	}
 
 	// based on status
