@@ -513,9 +513,10 @@ body.neoffice-cockpit .form-hero-avatar {
 /* When the doc has a main image, the avatar shows the picture instead of the
    initial (background-image set inline from image_field). */
 body.neoffice-cockpit .form-hero-avatar.has-image {
-	/* a touch bigger than the initial avatar so the real picture reads well */
-	width: 64px;
-	height: 64px;
+	/* noticeably bigger than the 48px initial avatar so the real picture
+	   reads as a proper product photo in the hero */
+	width: 96px;
+	height: 96px;
 	background-size: cover;
 	background-position: center;
 	background-repeat: no-repeat;
