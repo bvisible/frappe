@@ -510,6 +510,20 @@ body.neoffice-cockpit .form-hero-avatar {
 	color: #fff;
 	background: linear-gradient(140deg, var(--nc-accent), #BE7339);
 }
+/* When the doc has a main image, the avatar shows the picture instead of the
+   initial (background-image set inline from image_field). */
+body.neoffice-cockpit .form-hero-avatar.has-image {
+	background-size: cover;
+	background-position: center;
+	background-repeat: no-repeat;
+	color: transparent;
+	box-shadow: inset 0 0 0 1px var(--nc-border, rgba(0, 0, 0, 0.08));
+}
+/* Both settable states (empty on an image doctype, or filled) invite a click. */
+body.neoffice-cockpit .form-hero-avatar.is-settable,
+body.neoffice-cockpit .form-hero-avatar.has-image {
+	cursor: pointer;
+}
 body.neoffice-cockpit .form-hero-id {
 	flex: 1;
 	min-width: 0;

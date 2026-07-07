@@ -390,6 +390,18 @@ frappe.ui.form.FormHero = class FormHero {
 		const meta = this.frm.meta;
 		const title = (meta.title_field && doc[meta.title_field]) || doc.name;
 		const initial = (title || "?").trim().charAt(0).toUpperCase();
+		// Main image in the round hero avatar: any doctype that declares an
+		// `image_field` (Item, Customer, Employee…) shows its picture here;
+		// empty falls back to the title initial. The avatar is clickable to
+		// set/replace the picture — see bind_hero_avatar().
+		const image_field = meta.image_field;
+		const image_url = image_field ? doc[image_field] : null;
+		const avatar_html = image_url
+			? `<div class="form-hero-avatar has-image" title="${__("Change image")}"
+					style="background-image:url('${encodeURI(image_url)}')"></div>`
+			: `<div class="form-hero-avatar${image_field ? " is-settable" : ""}"${
+					image_field ? ` title="${__("Add an image")}"` : ""
+			  }>${frappe.utils.escape_html(initial)}</div>`;
 		const contact =
 			doc.contact_display && doc.contact_display !== title ? doc.contact_display : null;
 		const id_part =
@@ -435,7 +447,7 @@ frappe.ui.form.FormHero = class FormHero {
 
 		const top_html = `
 			<div class="form-hero-top">
-				<div class="form-hero-avatar">${frappe.utils.escape_html(initial)}</div>
+				${avatar_html}
 				<div class="form-hero-id">
 					${status_html}
 					<div class="form-hero-title">${frappe.utils.escape_html(title)}</div>
@@ -547,8 +559,34 @@ frappe.ui.form.FormHero = class FormHero {
 	}
 
 	render_extras() {
+		this.bind_hero_avatar();
 		if (this.frm.doctype === "Item") this.render_item_extras();
 		else if (this.frm.doctype === "Customer") this.render_customer_extras();
+	}
+
+	// Make the hero avatar an image dropzone for any doctype that declares an
+	// `image_field`: click to upload/replace the main picture (restores the
+	// old "click the image box to set it" behaviour lost when the sidebar
+	// image widget gave way to the cockpit header). No-op otherwise.
+	bind_hero_avatar() {
+		const image_field = this.frm.meta.image_field;
+		if (!image_field || this.frm.doc.__islocal) return;
+		const $av = this.$wrapper.find(".form-hero-avatar");
+		if (!$av.length) return;
+		$av.off("click.heroimg").on("click.heroimg", () => {
+			new frappe.ui.FileUploader({
+				doctype: this.frm.doctype,
+				docname: this.frm.docname,
+				frm: this.frm,
+				folder: "Home/Attachments",
+				restrictions: { allowed_file_types: ["image/*"] },
+				make_attachments_public: this.frm.meta.make_attachments_public,
+				on_success: (file_doc) => {
+					this.frm.set_value(image_field, file_doc.file_url);
+					this.frm.save();
+				},
+			});
+		});
 	}
 
 	// Customer: party dashboard stats on the right (annual billing, unpaid
