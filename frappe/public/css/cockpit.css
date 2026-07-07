@@ -1596,7 +1596,14 @@ body.neoffice-cockpit.nf-list .layout-side-section:not(.nf-pill-collapsed) .nf-p
 /* reveal the fields only AFTER the capsule has finished opening, otherwise they
    briefly spill out of the still-rounded pill while it reshapes */
 body.neoffice-cockpit.nf-list .layout-side-section:not(.nf-pill-collapsed) .list-sidebar > *:not(.nf-pill-head) {
-	animation: nf-pill-fields-in 200ms ease 180ms both;
+	/* `backwards` NOT `both`: `both` retains the final keyframe, and a keyframe
+	   ending on `transform: none` is kept as an IDENTITY MATRIX — which still
+	   forms a stacking context. Each section then traps its own dropdown, and
+	   the later sections paint OVER an open menu (sort / report / assigned-to…),
+	   making dropdowns look like they render "behind" the panel. `backwards`
+	   keeps the pre-open hidden state (no spill during the delay) but lets the
+	   transform fall back to a real `none` afterwards, so menus escape on top. */
+	animation: nf-pill-fields-in 200ms ease 180ms backwards;
 }
 @keyframes nf-pill-fields-in {
 	from {
