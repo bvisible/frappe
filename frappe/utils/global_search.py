@@ -545,7 +545,7 @@ def search(text, start=0, limit=20, doctype=""):
 	# care about most. Transactional doctypes come after.
 	ENTITY_PRIORITY = [
 		"Item", "Customer", "Supplier", "Contact", "Employee", "Lead",
-		"Address", "User", "Voice Note", "Document Scan",
+		"Address", "User", "Voice Note", "Document Scan", "Archived Document",
 	]
 
 	def doctype_sort_key(dt):

@@ -293,7 +293,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			$main.append($section);
 		}
 
-		// ── RIGHT: Help context first, tips only as fallback ──
+		// ── RIGHT: Upcoming appointments, then help context, tips as fallback ──
+		this._render_upcoming_into($sidebar, false);
+		this._load_upcoming_events();
 		this._render_help_into_sidebar($sidebar);
 		this._load_help_context();
 
@@ -445,6 +447,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			this._make_document_link(txt);
 		}
 		this._make_amount_search(txt);
+		this._make_drive_search(txt);
+		this._make_calendar_search(txt);
 
 		// Custom search providers
 		for (const provider of frappe.search.AwesomeBar.custom_providers) {
@@ -577,6 +581,18 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		const amount_matches = this.options.filter((o) => o.default === "AmountMatch");
 		if (amount_matches.length) {
 			this._render_section_into($main, __("Documents matching amount"), amount_matches, "amount");
+		}
+
+		// 3b. Calendar appointments matching the query (Suite calendar)
+		const cal_events = this.options.filter((o) => o.default === "CalendarEvent");
+		if (cal_events.length) {
+			this._render_section_into($main, __("Appointments"), cal_events, "goto");
+		}
+
+		// 3c. Drive files matching the query (Suite drive)
+		const drive_files = this.options.filter((o) => o.default === "DriveFile");
+		if (drive_files.length) {
+			this._render_section_into($main, __("Files"), drive_files, "goto");
 		}
 
 		// 4. Calculator result
@@ -751,11 +767,17 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this._render_help_into_sidebar($sidebar);
 		this._load_help_context();
 
+		// Upcoming appointments (Suite calendar)
+		const has_upcoming = this._render_upcoming_into($sidebar, has_context);
+		this._load_upcoming_events();
+
 		// Recently visited — from live route history
 		const recent = this._get_route_history().slice(0, 5);
 		if (recent.length) {
 			$sidebar.append(
-				`<div class="search-section-header${has_context ? " sidebar-section-spacer" : ""}">${__("Recently Visited")}</div>`
+				`<div class="search-section-header${
+					has_context || has_upcoming ? " sidebar-section-spacer" : ""
+				}">${__("Recently Visited")}</div>`
 			);
 			recent.forEach((r) => {
 				const route = r.route;
@@ -1080,6 +1102,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this._current_txt = "";
 		frappe.search.AwesomeBar._resolve_request_id++;
 		frappe.search.AwesomeBar._amount_search_id++;
+		frappe.search.AwesomeBar._drive_search_id++;
+		frappe.search.AwesomeBar._calendar_search_id++;
 		this.$panel.removeClass("active");
 		setTimeout(() => {
 			if (!this.$panel.hasClass("active")) {
@@ -1425,6 +1449,140 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		);
 	}
 
+	// ── Drive file search (Suite drive, name match) ────────
+	_make_drive_search(txt) {
+		if (!txt || txt.length < 3) return;
+
+		const me = this;
+		const search_id = ++frappe.search.AwesomeBar._drive_search_id;
+
+		frappe
+			.xcall("neoffice_theme.api.search_drive_files", { query: txt })
+			.then((results) => {
+				if (search_id !== frappe.search.AwesomeBar._drive_search_id) return;
+				if (!results || !results.length) return;
+				// Panel closed or query changed while the request was in flight
+				if (!me.$panel.hasClass("active") || me._current_txt !== txt) return;
+
+				results.forEach((r) => {
+					const route = r.route;
+					me.options.push({
+						label: r.file_name || r.name,
+						description: r.file_type
+							? __(r.file_type)
+							: __("Drive"),
+						index: 120,
+						default: "DriveFile",
+						onclick: () => {
+							window.location.assign(route);
+						},
+					});
+				});
+
+				me._render(me._current_txt);
+			})
+			.catch(() => {});
+	}
+
+	// ── Calendar event search (Suite calendar via JMAP) ────
+	_format_event_when(ev) {
+		if (!ev.start) return "";
+		const m = moment(ev.start);
+		const day = m.format("ddd D MMM YYYY");
+		return ev.show_without_time ? day : `${day} · ${m.format("HH:mm")}`;
+	}
+
+	_make_calendar_search(txt) {
+		if (!txt || txt.length < 3) return;
+
+		const me = this;
+		const search_id = ++frappe.search.AwesomeBar._calendar_search_id;
+
+		frappe
+			.xcall("neoffice_theme.api.search_calendar_events", { query: txt })
+			.then((results) => {
+				if (search_id !== frappe.search.AwesomeBar._calendar_search_id) return;
+				if (!results || !results.length) return;
+				// Panel closed or query changed while the request was in flight
+				if (!me.$panel.hasClass("active") || me._current_txt !== txt) return;
+
+				results.forEach((ev) => {
+					const parts = [me._format_event_when(ev)];
+					if (ev.location) parts.push(ev.location);
+					if (ev.calendar) parts.push(ev.calendar);
+					const route = ev.route;
+					me.options.push({
+						label: ev.title || __("Untitled event"),
+						description: parts.filter(Boolean).join(" · "),
+						index: 121,
+						default: "CalendarEvent",
+						onclick: () => {
+							window.location.assign(route);
+						},
+					});
+				});
+
+				me._render(me._current_txt);
+			})
+			.catch(() => {});
+	}
+
+	// ── Upcoming appointments (Suite calendar) for the panel ──
+	_load_upcoming_events() {
+		if (this._upcoming_events_loading) return;
+		if (this._upcoming_events !== undefined) return;
+		this._upcoming_events_loading = true;
+
+		frappe
+			.xcall("neoffice_theme.api.get_upcoming_events", {})
+			.then((events) => {
+				this._upcoming_events_loading = false;
+				this._upcoming_events = events || [];
+				if (!this._upcoming_events.length) return;
+				// Refresh the open panel so the section appears
+				if (this.$panel.hasClass("active")) {
+					if (this._current_txt) {
+						this._render(this._current_txt);
+					} else {
+						this._show_home();
+					}
+				}
+			})
+			.catch(() => {
+				this._upcoming_events_loading = false;
+				this._upcoming_events = [];
+			});
+	}
+
+	_render_upcoming_into($sidebar, with_spacer) {
+		const events = this._upcoming_events || [];
+		if (!events.length) return false;
+
+		$sidebar.append(
+			`<div class="search-section-header${
+				with_spacer ? " sidebar-section-spacer" : ""
+			}">${__("Upcoming appointments")}</div>`
+		);
+		events.slice(0, 5).forEach((ev) => {
+			const route = ev.route;
+			const $item = $(
+				`<div class="search-sidebar-item">
+					<a href="#">
+						<span class="sidebar-item-label">${frappe.utils.xss_sanitise(ev.title || __("Untitled event"))}</span>
+						<span class="sidebar-item-type">${this._format_event_when(ev)}</span>
+					</a>
+				</div>`
+			);
+			$item.find("a").on("click", (e) => {
+				e.preventDefault();
+				this._close();
+				window.location.assign(route);
+			});
+			$sidebar.append($item);
+		});
+		return true;
+	}
+
 	// Legacy compat
 	deduplicate(options) {
 		return this._deduplicate(options);
@@ -1437,3 +1595,5 @@ frappe.search.AwesomeBar.custom_providers = [];
 // Internal counter for discarding stale resolve_document responses
 frappe.search.AwesomeBar._resolve_request_id = 0;
 frappe.search.AwesomeBar._amount_search_id = 0;
+frappe.search.AwesomeBar._drive_search_id = 0;
+frappe.search.AwesomeBar._calendar_search_id = 0;
