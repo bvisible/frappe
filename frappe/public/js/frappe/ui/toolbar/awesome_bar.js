@@ -1530,13 +1530,21 @@ frappe.search.AwesomeBar = class AwesomeBar {
 	// ── Upcoming appointments (Suite calendar) for the panel ──
 	_load_upcoming_events() {
 		if (this._upcoming_events_loading) return;
-		if (this._upcoming_events !== undefined) return;
+		// Client memo with a short TTL — an empty answer must not stick for the
+		// whole page lifetime (the user may create an appointment meanwhile)
+		if (
+			this._upcoming_events !== undefined &&
+			Date.now() - (this._upcoming_events_ts || 0) < 60000
+		) {
+			return;
+		}
 		this._upcoming_events_loading = true;
 
 		frappe
 			.xcall("neoffice_theme.api.get_upcoming_events", {})
 			.then((events) => {
 				this._upcoming_events_loading = false;
+				this._upcoming_events_ts = Date.now();
 				this._upcoming_events = events || [];
 				if (!this._upcoming_events.length) return;
 				// Refresh the open panel so the section appears
@@ -1550,6 +1558,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			})
 			.catch(() => {
 				this._upcoming_events_loading = false;
+				this._upcoming_events_ts = Date.now();
 				this._upcoming_events = [];
 			});
 	}
