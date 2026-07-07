@@ -105,6 +105,14 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		$("body").append(this.$panel);
 	}
 
+	// The panel is positioned against the input: a hidden input (e.g. the
+	// cockpit search overlay after it closed) yields a 0×0 rect, which would
+	// pin the panel to the top-left corner. Never show the panel in that case.
+	_input_visible() {
+		const rect = this.$input.get(0).getBoundingClientRect();
+		return rect.width > 0 && rect.height > 0;
+	}
+
 	_position_panel() {
 		const rect = this.$input.get(0).getBoundingClientRect();
 		const vw = window.innerWidth;
@@ -207,6 +215,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 	// ── Show home state (recent searches + recently visited) ──
 	_show_home() {
+		if (!this._input_visible()) return;
 		this._position_panel();
 		this.$panel.empty();
 		this._all_items = [];
@@ -507,12 +516,15 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			if (search_id !== this._search_id) return;
 			this._search_pending = false;
 			this.global_results = results || [];
+			// Panel closed or query changed while the request was in flight
+			if (!this.$panel.hasClass("active") || this._current_txt !== txt) return;
 			this._render(this._current_txt);
 		});
 	}
 
 	// ── Main render ────────────────────────────────────────
 	_render(txt) {
+		if (!this._input_visible()) return;
 		this._position_panel();
 		this.$panel.empty();
 		this._all_items = [];
@@ -1060,6 +1072,14 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 	// ── Close panel ────────────────────────────────────────
 	_close() {
+		// Invalidate every in-flight async search: a late response must not
+		// reopen the panel after navigation (the input may be hidden by then,
+		// so the panel would reposition against a 0×0 rect at top-left).
+		this._search_id++;
+		this._search_pending = false;
+		this._current_txt = "";
+		frappe.search.AwesomeBar._resolve_request_id++;
+		frappe.search.AwesomeBar._amount_search_id++;
 		this.$panel.removeClass("active");
 		setTimeout(() => {
 			if (!this.$panel.hasClass("active")) {
@@ -1335,6 +1355,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			(results) => {
 				if (request_id !== frappe.search.AwesomeBar._resolve_request_id) return;
 				if (!results || !results.length) return;
+				// Panel closed or query changed while the request was in flight
+				if (!me.$panel.hasClass("active") || me._current_txt !== txt) return;
 
 				results.forEach((r) => {
 					const display_name =
@@ -1373,6 +1395,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			(results) => {
 				if (search_id !== frappe.search.AwesomeBar._amount_search_id) return;
 				if (!results || !results.length) return;
+				// Panel closed or query changed while the request was in flight
+				if (!me.$panel.hasClass("active") || me._current_txt !== txt) return;
 
 				// Group by doctype
 				const grouped = {};
