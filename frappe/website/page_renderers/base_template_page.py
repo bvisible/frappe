@@ -55,7 +55,16 @@ class BaseTemplatePage(BaseRenderer):
 
 		# to be able to inspect the context dict
 		# Use the macro "inspect" from macros.html
-		self.context.canonical = frappe.utils.get_url(frappe.utils.escape_html(self.path))
+		#//// Neoffice multi-site: canonical follows the resolved Website Profile's
+		#//// domain and the requested path (a per-profile home canonicalizes to "/",
+		#//// not to its internal route).
+		profile = getattr(frappe.local, "website_profile_doc", None)
+		if profile and profile.get("primary_domain"):
+			request = getattr(frappe.local, "request", None)
+			request_path = (request.path if request is not None else "/" + self.path) or "/"
+			self.context.canonical = f"https://{profile['primary_domain']}{frappe.utils.escape_html(request_path)}"
+		else:
+			self.context.canonical = frappe.utils.get_url(frappe.utils.escape_html(self.path))
 
 		if "url_prefix" not in self.context:
 			self.context.url_prefix = ""
