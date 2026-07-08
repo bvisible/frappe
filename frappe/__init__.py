@@ -769,8 +769,13 @@ def sendmail(
 		user = ""
 
 	from frappe.defaults import get_user_default, get_global_default
-	name = user + (get_user_default("Company") or get_global_default("company"))
-	sender = name + ' <'+default_outgoing +'>'
+	# NOTE: this local MUST NOT be called `name` — `name` is a sendmail kwarg
+	# (legacy alias of reference_name, see the QueueBuilder call below). Naming
+	# it `name` shadowed the kwarg and stamped every Email Queue row's
+	# reference_name with the sender display name instead of the document
+	# (fleet-wide traceability loss, found 2026-07-08).
+	sender_display = user + (get_user_default("Company") or get_global_default("company"))
+	sender = sender_display + ' <'+default_outgoing +'>'
 	#////
 
 	if recipients is None:
