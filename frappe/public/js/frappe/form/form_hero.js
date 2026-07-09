@@ -59,9 +59,23 @@ function submit_action(frm) {
 	if (!frm.perm || !frm.perm[0] || !frm.perm[0].submit) return null;
 	return { label: __("Validate"), icon: "check", run: () => frm.savesubmit() };
 }
+//// Neoffice: let an app replace what the hero's "Send" button does for its
+// doctype, without forking this file per feature. A Quotation, for instance,
+// must open the acceptance dialog (public link + editable email) rather than the
+// generic email composer. One handler per doctype; unset doctypes keep email_doc.
+//   frappe.ui.form.set_hero_send_action("Quotation", (frm) => open_dialog(frm))
+frappe.ui.form.hero_send_actions = frappe.ui.form.hero_send_actions || {};
+frappe.ui.form.set_hero_send_action = function (doctype, run) {
+	frappe.ui.form.hero_send_actions[doctype] = run;
+};
 function send_action(frm) {
 	if (frm.doc.docstatus !== 1) return null;
-	return { label: __("Send"), icon: "mail", run: () => frm.email_doc() };
+	const override = frappe.ui.form.hero_send_actions[frm.doctype];
+	return {
+		label: __("Send"),
+		icon: "mail",
+		run: () => (override ? override(frm) : frm.email_doc()),
+	};
 }
 function print_action(frm) {
 	if (frm.doc.docstatus !== 1) return null;
