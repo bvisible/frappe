@@ -399,21 +399,46 @@ def get_formatted_html(
 	logo_path = frappe.db.get_value("Company", company_name, "company_logo")
 	logo_url = get_url(logo_path)
 
-	rendered_email = frappe.get_template("templates/emails/standard.html").render(
-		{
-			"brand_logo": logo_url, #////get_brand_logo(email_account) if with_container or header else None,
-			"with_container": with_container,
-			"site_url": domain, #////get_url(),
-			"header": get_header(header),
-			"content": message,
-			"footer": get_footer(email_account, footer),
-			"title": subject,
-			"print_html": print_html,
-			"subject": subject,
-			"signature": signature, #//// added
-			"company": company_name, #//// added
-		}
-	)
+	footer_html = get_footer(email_account, footer)
+
+	#//// Neoffice: DB-driven default email wrapper (Email Design doctype, neoffice_theme).
+	#//// The active design (customer copy, else the fixture-shipped standard) replaces the
+	#//// file template; {{ email_content }} is substituted after jinja so user content is
+	#//// never template-evaluated. Any failure falls back to the file template below.
+	rendered_email = None
+	if "neoffice_theme" in frappe.get_installed_apps():
+		try:
+			from neoffice_theme.newsletter.api import render_default_email_design
+
+			rendered_email = render_default_email_design(
+				content=message,
+				subject=subject,
+				signature=signature,
+				footer=footer_html,
+				print_html=print_html,
+				company_name=company_name,
+				site_url=domain,
+			)
+		except Exception:
+			frappe.log_error("Default email design render failed", frappe.get_traceback())
+			rendered_email = None
+
+	if rendered_email is None:
+		rendered_email = frappe.get_template("templates/emails/standard.html").render(
+			{
+				"brand_logo": logo_url, #////get_brand_logo(email_account) if with_container or header else None,
+				"with_container": with_container,
+				"site_url": domain, #////get_url(),
+				"header": get_header(header),
+				"content": message,
+				"footer": footer_html,
+				"title": subject,
+				"print_html": print_html,
+				"subject": subject,
+				"signature": signature, #//// added
+				"company": company_name, #//// added
+			}
+		)
 
 	html = scrub_urls(rendered_email)
 
