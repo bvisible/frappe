@@ -62,20 +62,31 @@ function submit_action(frm) {
 //// Neoffice: let an app replace what the hero's "Send" button does for its
 // doctype, without forking this file per feature. A Quotation, for instance,
 // must open the acceptance dialog (public link + editable email) rather than the
-// generic email composer. One handler per doctype; unset doctypes keep email_doc.
-//   frappe.ui.form.set_hero_send_action("Quotation", (frm) => open_dialog(frm))
+// generic email composer, and it relabels itself once the customer was mailed.
+//
+// The provider is called on every render with the form and returns a partial
+// action — { label?, icon?, primary?, run } — merged over the default one. It
+// must DESCRIBE the action, never perform it. `primary: true` paints the button
+// as the accented call-to-action. Unset doctypes keep frm.email_doc().
+//   frappe.ui.form.set_hero_send_action("Quotation", (frm) => ({
+//       label: __("Resend"), primary: true, run: () => open_dialog(frm),
+//   }));
 frappe.ui.form.hero_send_actions = frappe.ui.form.hero_send_actions || {};
-frappe.ui.form.set_hero_send_action = function (doctype, run) {
-	frappe.ui.form.hero_send_actions[doctype] = run;
+frappe.ui.form.set_hero_send_action = function (doctype, provider) {
+	frappe.ui.form.hero_send_actions[doctype] = provider;
 };
 function send_action(frm) {
 	if (frm.doc.docstatus !== 1) return null;
-	const override = frappe.ui.form.hero_send_actions[frm.doctype];
-	return {
-		label: __("Send"),
-		icon: "mail",
-		run: () => (override ? override(frm) : frm.email_doc()),
-	};
+	const base = { label: __("Send"), icon: "mail", run: () => frm.email_doc() };
+	const provider = frappe.ui.form.hero_send_actions[frm.doctype];
+	if (!provider) return base;
+	let custom = null;
+	try {
+		custom = provider(frm);
+	} catch (e) {
+		console.error("hero send action provider failed", e); // eslint-disable-line no-console
+	}
+	return custom ? Object.assign({}, base, custom) : base;
 }
 function print_action(frm) {
 	if (frm.doc.docstatus !== 1) return null;
@@ -543,7 +554,7 @@ frappe.ui.form.FormHero = class FormHero {
 								const gidx = all_actions.indexOf(a);
 								const icon = STEP_ICONS[a.icon] || a.icon_svg || "";
 								return `
-							<button class="step-cta" data-idx="${gidx}" title="${frappe.utils.escape_html(a.label)}">
+							<button class="step-cta${a.primary ? " accent" : ""}" data-idx="${gidx}" title="${frappe.utils.escape_html(a.label)}">
 								${icon}<span>${frappe.utils.escape_html(a.label)}${a.menu ? " ▾" : ""}</span>
 							</button>`;
 							})
