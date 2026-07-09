@@ -523,11 +523,14 @@ def get_sidebar_json_path(path, look_for=False):
 def cache_html(func):
 	@wraps(func)
 	def cache_html_decorator(*args, **kwargs):
+		#//// Neoffice multi-site: sub-key includes the resolved Website Profile so two
+		#//// domains sharing one site never serve each other's cached HTML.
+		cache_sub_key = f"{frappe.local.lang}:{getattr(frappe.local, 'website_profile', None) or 'default'}"
 		if can_cache():
 			html = None
 			page_cache = frappe.cache.hget("website_page", args[0].path)
-			if page_cache and frappe.local.lang in page_cache:
-				html = page_cache[frappe.local.lang]
+			if page_cache and cache_sub_key in page_cache:
+				html = page_cache[cache_sub_key]
 			if html:
 				frappe.local.response.from_cache = True
 				return html
@@ -535,7 +538,7 @@ def cache_html(func):
 		context = args[0].context
 		if can_cache(context.no_cache):
 			page_cache = frappe.cache.hget("website_page", args[0].path) or {}
-			page_cache[frappe.local.lang] = html
+			page_cache[cache_sub_key] = html
 			frappe.cache.hset("website_page", args[0].path, page_cache)
 
 		return html

@@ -122,7 +122,15 @@ def resolve_redirect(path, query_string=None):
 	if not redirects:
 		return
 
-	redirect_to = frappe.cache.hget("website_redirects", path)
+	#//// Neoffice multi-site: a Website Profile that defines its own home page owns
+	#//// its root — app-level "/" redirects (e.g. desk-first apps like suite) must
+	#//// not capture the root of secondary websites. Redirect decisions are also
+	#//// cached per profile so domains sharing one site never reuse each other's.
+	profile = getattr(frappe.local, "website_profile_doc", None)
+	skip_root_redirects = bool(profile and profile.get("home_route"))
+	cache_scope = f"{getattr(frappe.local, 'website_profile', None) or 'default'}:"
+
+	redirect_to = frappe.cache.hget("website_redirects", cache_scope + path)
 
 	if redirect_to:
 		if isinstance(redirect_to, dict):
@@ -133,6 +141,8 @@ def resolve_redirect(path, query_string=None):
 
 	for rule in redirects:
 		pattern = rule["source"].strip("/ ") + "$"
+		if skip_root_redirects and rule["source"].strip("/ ") == "":
+			continue
 		path_to_match = path
 		if query_string and rule.get("match_with_query_string"):
 			path_to_match = path + "?" + frappe.safe_decode(query_string)
@@ -147,7 +157,7 @@ def resolve_redirect(path, query_string=None):
 			frappe.flags.redirect_location = redirect_to
 			status_code = rule.get("redirect_http_status") or 301
 			frappe.cache.hset(
-				"website_redirects", path_to_match, {"path": redirect_to, "status_code": status_code}
+				"website_redirects", cache_scope + path_to_match, {"path": redirect_to, "status_code": status_code}
 			)
 			raise frappe.Redirect(status_code)
 
