@@ -602,6 +602,11 @@ frappe.ui.form.FormHero = class FormHero {
 			new frappe.ui.FileUploader({
 				doctype: this.frm.doctype,
 				docname: this.frm.docname,
+				// Stamp the upload with the target field so a single File is
+				// created with attached_to_field set. Without it the upload makes
+				// a fieldless File and the set_value + save below adds a SECOND
+				// File via the attach_files_to_document hook (image attached twice).
+				fieldname: image_field,
 				frm: this.frm,
 				folder: "Home/Attachments",
 				restrictions: { allowed_file_types: ["image/*"] },
