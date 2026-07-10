@@ -34,6 +34,30 @@ class PathResolver:
 		if request.url and can_cache() and frappe.cache.hget("website_404", request.url):
 			return self.path, NotFoundPage(self.path)
 
+		#//// Neoffice per-site maintenance: a Website Profile with maintenance_mode=1
+		#//// serves the branded /site-offline page (503) to visitors on EVERY route of
+		#//// that host — other profiles on the same instance keep serving normally, so
+		#//// one shop can be under maintenance while the main site stays up. Staff
+		#//// (System/Website Manager) keeps seeing the real site: that IS the preview.
+		#//// Placed before redirects/renderers so nothing can leak around it.
+		profile = getattr(frappe.local, "website_profile_doc", None)
+		if profile is not None and profile.get("maintenance_mode"):
+			first_segment = self.path.split("/", 1)[0]
+			if first_segment not in (
+				"app",
+				"api",
+				"assets",
+				"files",
+				"private",
+				"login",
+				"update-password",
+				"site-offline",
+				"robots.txt",
+			):
+				roles = frappe.get_roles()
+				if "System Manager" not in roles and "Website Manager" not in roles:
+					return "site-offline", TemplatePage("site-offline", 503)
+
 		try:
 			resolve_redirect(self.path, request.query_string)
 		except frappe.Redirect as e:
