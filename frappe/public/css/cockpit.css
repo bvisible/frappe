@@ -591,6 +591,29 @@ body.neoffice-cockpit .form-hero-title {
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
+/* Inline-editable title (doctypes with an editable title_field): click to
+   rename right in the hero. Hover shows a subtle affordance; editing relaxes
+   the ellipsis clamp so the full text is visible with the caret. */
+body.neoffice-cockpit .form-hero-title.is-editable {
+	cursor: text;
+	border-radius: 6px;
+	padding: 0 4px;
+	margin: 0 -4px;
+	transition: background 0.12s, box-shadow 0.12s;
+}
+body.neoffice-cockpit .form-hero-title.is-editable:hover {
+	background: rgba(20, 20, 20, 0.05);
+	box-shadow: inset 0 -2px 0 var(--gray-400, #c0c4c8);
+}
+body.neoffice-cockpit .form-hero-title.is-editing {
+	white-space: normal;
+	overflow: visible;
+	text-overflow: clip;
+	background: var(--neutral-white, #fff);
+	box-shadow: none;
+	outline: 2px solid var(--text-color, #141414);
+	outline-offset: 2px;
+}
 body.neoffice-cockpit .form-hero-sub {
 	font-size: 13px;
 	color: var(--text-muted);

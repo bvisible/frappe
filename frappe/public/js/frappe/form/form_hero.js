@@ -585,8 +585,81 @@ frappe.ui.form.FormHero = class FormHero {
 
 	render_extras() {
 		this.bind_hero_avatar();
+		this.bind_hero_title();
 		if (this.frm.doctype === "Item") this.render_item_extras();
 		else if (this.frm.doctype === "Customer") this.render_customer_extras();
+	}
+
+	// Make the hero title inline-editable when it maps to an editable
+	// `title_field` (e.g. Journal Entry's `title`, Task's `subject`). Restores
+	// the "click the title to rename" affordance the page-head lost when the
+	// cockpit hero took over the title row. No-op when the title is just the
+	// document name — renaming the name is a heavier, riskier op we don't
+	// surface from the hero.
+	bind_hero_title() {
+		const frm = this.frm;
+		const tf = frm.meta.title_field;
+		if (!tf) return;
+		const doc = frm.doc;
+		if (doc.__islocal) return;
+		// Only when the hero actually shows the title FIELD (not doc.name).
+		if (doc[tf] == null || doc[tf] === "" || doc[tf] === doc.name) return;
+		const df = frappe.meta.get_docfield(frm.doctype, tf, frm.docname);
+		if (!df || df.read_only) return;
+		if (!frm.perm || !frm.perm[0] || !frm.perm[0].write) return;
+		// Draft docs: always editable. Submitted docs: only when the title
+		// field is flagged allow_on_submit (JE's title is). Cancelled: never.
+		if (cint(doc.docstatus) === 2) return;
+		if (cint(doc.docstatus) === 1 && !df.allow_on_submit) return;
+
+		const $title = this.$wrapper.find(".form-hero-title");
+		if (!$title.length) return;
+		$title.addClass("is-editable").attr("title", __("Click to rename"));
+		$title.off("click.heroTitle").on("click.heroTitle", () => this.start_title_edit($title, tf));
+	}
+
+	start_title_edit($title, tf) {
+		if ($title.hasClass("is-editing")) return;
+		const frm = this.frm;
+		const original = frm.doc[tf] || "";
+		$title.addClass("is-editing").attr("contenteditable", "true").text(original);
+
+		// Focus and drop the caret at the end of the text.
+		const el = $title.get(0);
+		el.focus();
+		const range = document.createRange();
+		range.selectNodeContents(el);
+		range.collapse(false);
+		const sel = window.getSelection();
+		sel.removeAllRanges();
+		sel.addRange(range);
+
+		let done = false;
+		const finish = (commit) => {
+			if (done) return;
+			done = true;
+			$title.off("keydown.heroTitle blur.heroTitle");
+			$title.removeAttr("contenteditable").removeClass("is-editing");
+			const val = ($title.text() || "").trim();
+			if (commit && val && val !== original) {
+				const action = cint(frm.doc.docstatus) === 1 ? "Update" : undefined;
+				frm.set_value(tf, val).then(() => frm.save(action));
+			} else {
+				// Revert the visible text; a save/refresh would rebuild it anyway.
+				$title.text(original);
+			}
+		};
+
+		$title.on("keydown.heroTitle", (e) => {
+			if (e.key === "Enter") {
+				e.preventDefault();
+				finish(true);
+			} else if (e.key === "Escape") {
+				e.preventDefault();
+				finish(false);
+			}
+		});
+		$title.on("blur.heroTitle", () => finish(true));
 	}
 
 	// Make the hero avatar an image dropzone for any doctype that declares an
