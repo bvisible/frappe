@@ -218,7 +218,11 @@ const HERO_REGISTRY = {
 		steps: (doc, tx) => [
 			{ label: __("Draft"), when: doc.creation },
 			{ label: __("Submitted"), when: tx.submit() },
-			{ label: __("Paid"), when: tx.status("Paid") || (doc.status === "Paid" ? doc.modified : null) },
+			// "Paid" date = posting_date (date de comptabilisation), the accounting
+			// date of the invoice. tx.status("Paid") / doc.modified are technical
+			// timestamps that drift (doc.modified advances on any later edit), so
+			// a POS invoice born paid ended up showing its last-touched date.
+			{ label: __("Paid"), when: doc.posting_date || tx.status("Paid") || (doc.status === "Paid" ? doc.modified : null) },
 		],
 		rank(doc) {
 			if (doc.docstatus === 2 || doc.status === "Cancelled") return -1;
@@ -236,7 +240,11 @@ const HERO_REGISTRY = {
 		steps: (doc, tx) => [
 			{ label: __("Draft"), when: doc.creation },
 			{ label: __("Submitted"), when: tx.submit() },
-			{ label: __("Paid"), when: tx.status("Paid") || (doc.status === "Paid" ? doc.modified : null) },
+			// "Paid" date = posting_date (date de comptabilisation), the accounting
+			// date of the invoice. tx.status("Paid") / doc.modified are technical
+			// timestamps that drift (doc.modified advances on any later edit), so
+			// a POS invoice born paid ended up showing its last-touched date.
+			{ label: __("Paid"), when: doc.posting_date || tx.status("Paid") || (doc.status === "Paid" ? doc.modified : null) },
 		],
 		rank(doc) {
 			if (doc.docstatus === 2 || doc.status === "Cancelled") return -1;
