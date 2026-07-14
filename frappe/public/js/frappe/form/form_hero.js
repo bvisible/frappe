@@ -596,6 +596,45 @@ frappe.ui.form.FormHero = class FormHero {
 		this.bind_hero_title();
 		if (this.frm.doctype === "Item") this.render_item_extras();
 		else if (this.frm.doctype === "Customer") this.render_customer_extras();
+		else if (["Sales Invoice", "Purchase Invoice"].includes(this.frm.doctype))
+			this.render_invoice_paid_date();
+	}
+
+	// The "Paid" step date must be when the invoice was actually SETTLED — the
+	// posting date of the payment(s) reconciled against it — NOT the invoice's
+	// own posting_date. They diverge when an advance payment predates the
+	// invoice (e.g. paid 13 Apr, invoiced 26 Jun): posting_date would wrongly
+	// show June. The registry seeds the step with posting_date at render (right
+	// for a same-day cash/POS sale, where there is no separate payment voucher);
+	// here we async-correct it from the Payment Ledger when a settling payment
+	// exists. Best-effort: on any error (e.g. no Payment Ledger read perm) we
+	// keep the posting_date already shown.
+	render_invoice_paid_date() {
+		const frm = this.frm;
+		if (cint(frm.doc.docstatus) !== 1 || frm.doc.status !== "Paid") return;
+		const $when = this.$wrapper
+			.find(".form-hero-step")
+			.filter((i, el) => $(el).find(".lbl").text().trim() === __("Paid"))
+			.find(".when");
+		if (!$when.length) return;
+		frappe.db
+			.get_list("Payment Ledger Entry", {
+				filters: {
+					against_voucher_type: frm.doctype,
+					against_voucher_no: frm.docname,
+					voucher_type: ["!=", frm.doctype], // the payment vouchers, not the invoice's own row
+					delinked: 0,
+				},
+				fields: ["posting_date"],
+				order_by: "posting_date desc", // latest settling payment = when it became fully paid
+				limit: 1,
+			})
+			.then((rows) => {
+				if (rows && rows.length && rows[0].posting_date) {
+					$when.text(short_date(rows[0].posting_date));
+				}
+			})
+			.catch(() => {});
 	}
 
 	// Clicking the hero title opens Frappe's NATIVE "Rename" dialog — the same
