@@ -1453,7 +1453,7 @@ msgstr "Ajouter une Sous-Catégorie"
 #: frappe/public/js/frappe/views/reports/report_view.js:386
 #: frappe/public/js/print_format_builder/Field.vue:112
 msgid "Add Column"
-msgstr "Ajouter une Colonne"
+msgstr "Ajouter une colonne"
 
 #: frappe/core/doctype/communication/communication.js:127
 msgid "Add Contact"
@@ -35215,3 +35215,43 @@ msgstr "ligne #{0} supprimée"
 
 msgid "changed row #{0}"
 msgstr "ligne #{0} modifiée"
+
+#: frappe/public/js/frappe/views/reports/report_view.js
+msgid "Table and Column Settings"
+msgstr "Paramètres du tableau et colonnes"
+
+#: frappe/public/js/frappe/views/reports/report_view.js
+msgid "Push Settings to All Users"
+msgstr "Appliquer les paramètres à tous les utilisateurs"
+
+#: frappe/public/js/frappe/views/reports/report_view.js
+msgid "Delete Personal Settings"
+msgstr "Supprimer mes paramètres personnels"
+
+#: frappe/public/js/frappe/views/reports/report_view.js
+msgid "Save as Global Default"
+msgstr "Enregistrer comme valeur par défaut globale"
+
+#: frappe/public/js/frappe/views/reports/report_view.js
+msgid "Push this table to the reference"
+msgstr "Envoyer ce tableau vers la référence"
+
+#: frappe/public/js/frappe/views/reports/report_view.js
+msgid "Pull from the reference"
+msgstr "Récupérer depuis la référence"
+
+#: frappe/public/js/frappe/views/reports/report_view.js
+msgid "Push this table configuration to the central reference (NeoService)?"
+msgstr "Envoyer la configuration de ce tableau vers la référence centrale (NeoService) ?"
+
+#: frappe/public/js/frappe/views/reports/report_view.js
+msgid "Table pushed to the reference"
+msgstr "Tableau envoyé vers la référence"
+
+#: frappe/public/js/frappe/views/reports/report_view.js
+msgid "Replace this instance table defaults with the reference (NeoService)?"
+msgstr "Remplacer les tableaux par défaut de cette instance par ceux de la référence (NeoService) ?"
+
+#: frappe/public/js/frappe/views/reports/report_view.js
+msgid "Table defaults pulled from the reference"
+msgstr "Tableaux par défaut récupérés depuis la référence"
