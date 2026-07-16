@@ -380,7 +380,6 @@ def upload_file_to_s3(filename, folder, conn, bucket):
 			
 		file_size = os.path.getsize(filename)
 		file_size_mb = file_size / (1024 * 1024)
-		file_size_gb = file_size / (1024 * 1024 * 1024)
 		
 		print(f"Uploading file: {filename} (Size: {file_size_mb:.2f} MB)")
 		
@@ -481,26 +480,24 @@ acl = private
 			except Exception as e:
 				frappe.log_error("Direct REST method failed", f"Error: {str(e)}")
 		
-		# Method 3: If file is too large, compress or split
-		if file_size_gb > 1:
-			frappe.log_error("Large file skipped", f"File {filename} is too large for this S3 service. Consider splitting or compressing it.")
-			return
-		
-		# Method 4: Last attempt with minimal boto3 put_object
+		# Method 3: boto3 managed upload with automatic multipart for large objects.
+		# A single put_object fails with EntityTooLarge on big files (the multi-hundred-MB
+		# files.tar and multi-GB private-files.tar); upload_file transparently switches to
+		# multipart above the threshold and streams from disk instead of reading the whole
+		# file into memory.
 		try:
-			with open(filename, 'rb') as f:
-				file_content = f.read()
-			
-			# Simplest possible upload
-			conn.put_object(
-				Bucket=bucket,
-				Key=destpath,
-				Body=file_content
+			from boto3.s3.transfer import TransferConfig
+
+			transfer_config = TransferConfig(
+				multipart_threshold=100 * 1024 * 1024,  # switch to multipart above 100 MB
+				multipart_chunksize=100 * 1024 * 1024,  # 100 MB parts
+				use_threads=True,
 			)
+			conn.upload_file(filename, bucket, destpath, Config=transfer_config)
 			return
-			
+
 		except Exception as e:
-			frappe.log_error("Boto3 minimal failed", f"Error: {str(e)}")
+			frappe.log_error("Boto3 multipart upload failed", f"File: {filename}, Error: {str(e)}")
 
 		# If everything fails
 		frappe.log_error("All upload methods failed", f"Unable to upload {filename}. Consider using a different S3 service or contacting support.")
