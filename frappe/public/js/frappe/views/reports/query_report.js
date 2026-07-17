@@ -1022,11 +1022,15 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 		// loading screen (and flexed by the cockpit): DataTable can measure a
 		// 0px viewport and its virtual scroller then paints ZERO rows despite
 		// having data. Once the frame settles, re-measure and repaint.
+		// Pass data/columns explicitly: a bare refresh() falls back to
+		// options.data, which DataTable freezes at construction time and never
+		// updates, so it would repaint the very first render's rows underneath
+		// the current columns.
 		requestAnimationFrame(() => {
 			const sc = this.datatable && this.datatable.bodyScrollable;
 			if (sc && parseInt(sc.style.height, 10) === 0 && (this.data || []).length) {
 				this.datatable.setDimensions();
-				this.datatable.refresh();
+				this.datatable.refresh(data.slice(0, this.get_filter_values().max_rows), columns);
 			}
 		});
 	}
