@@ -34,6 +34,22 @@ frappe.dom = {
 	},
 	remove_script_and_style: function (txt) {
 		const evil_tags = ["script", "style", "noscript", "title", "meta", "base", "head"];
+		const unsafe_tags = ["link"];
+
+		// Backport of frappe/frappe#22862 (perf): skip the expensive DOMParser
+		// round-trip unless the string actually contains a tag we would strip.
+		// This runs inside every frappe.format() call, so grids invoke it
+		// thousands of times per refresh.
+		if (!this.unsafe_tags_regex) {
+			const evil_and_unsafe_tags = evil_tags.concat(unsafe_tags);
+			const regex_str = evil_and_unsafe_tags.map((t) => `<([\\s]*)${t}`).join("|");
+			this.unsafe_tags_regex = new RegExp(regex_str, "im");
+		}
+
+		if (!txt || !this.unsafe_tags_regex.test(txt)) {
+			return txt;
+		}
+
 		const parser = new DOMParser();
 		const doc = parser.parseFromString(txt, "text/html");
 		const body = doc.body;

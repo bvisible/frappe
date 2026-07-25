@@ -406,6 +406,13 @@ export default class Grid {
 		this.remove_all_rows_button.toggleClass("hidden", !show_delete_all_btn);
 	}
 
+	// Backport of frappe/frappe#22862 (perf): refresh_check() runs once per row
+	// per render, and each call re-scans the whole grid body — O(rows²).
+	debounced_refresh_remove_rows_button = frappe.utils.debounce(
+		this.refresh_remove_rows_button,
+		100
+	);
+
 	get_selected() {
 		return (this.grid_rows || [])
 			.map((row) => {
