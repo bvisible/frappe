@@ -198,6 +198,34 @@ def get_reports_in_queued_state(report_name, filters):
 	)
 
 
+#### Neoffice
+@frappe.whitelist()
+def get_prepared_report_status(docname: str) -> dict:
+	"""Status of a single Prepared Report, for the user who queued it.
+
+	Lets the client poll for completion instead of depending solely on the
+	`report_generated` realtime event: when the socket is down, the worker is
+	busy or the user navigated away and back, that event never lands and the
+	report is simply never displayed.
+
+	Deliberately does not require the "Prepared Report User" role — reading the
+	status of a job you queued yourself is not the same as browsing everyone's
+	prepared reports.
+	"""
+	row = frappe.db.get_value(
+		"Prepared Report", docname, ["status", "owner", "error_message"], as_dict=True
+	)
+	if not row:
+		return {"status": "Missing"}
+	if row.owner != frappe.session.user and not frappe.has_permission("Prepared Report", "read", docname):
+		raise frappe.PermissionError
+
+	return {"status": row.status, "error_message": row.error_message}
+
+
+#### Neoffice
+
+
 def get_completed_prepared_report(filters, user, report_name):
 	return frappe.db.get_value(
 		"Prepared Report",
