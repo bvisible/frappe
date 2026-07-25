@@ -105,6 +105,17 @@ def generate_report(prepared_report):
 
 	add_data_to_monitor(report=instance.report_name)
 
+	#### Neoffice
+	# Report scripts translate their column labels with _() at generation time, so
+	# whatever language the worker happens to be in gets frozen into the stored
+	# result file. The worker has no user language context, so it falls back to
+	# the site default and a French user gets "Debit (CHF)" / "Opening" columns
+	# where the inline run correctly shows "Débit (CHF)" / "Ouverture".
+	from frappe.translate import get_user_lang
+
+	frappe.local.lang = get_user_lang(instance.owner)
+	#### Neoffice
+
 	try:
 		report.custom_columns = []
 

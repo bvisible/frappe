@@ -949,11 +949,17 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 				const data = r.message;
 				// Rememeber the name of Prepared Report doc
 				this.prepared_report_doc_name = data.name;
-				let alert_message =
-					`<a href='/app/prepared-report/${data.name}'>` +
-					__("Report initiated, click to view status") +
-					`</a>`;
-				frappe.show_alert({ message: alert_message, indicator: "orange" }, 10);
+				//// Neoffice: when we queued it automatically the user never asked for
+				// this, and the in-page message already says it is running. The toast
+				// linking to the Prepared Report doc is developer noise — keep it only
+				// for an explicit "Rebuild".
+				if (!this.auto_background_report_running) {
+					let alert_message =
+						`<a href='/app/prepared-report/${data.name}'>` +
+						__("Report initiated, click to view status") +
+						`</a>`;
+					frappe.show_alert({ message: alert_message, indicator: "orange" }, 10);
+				}
 				this.toggle_nothing_to_show(true);
 			});
 		}
