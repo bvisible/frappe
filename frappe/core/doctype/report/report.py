@@ -16,6 +16,28 @@ from frappe.modules.export_file import export_to_files
 from frappe.utils import cint, cstr
 from frappe.utils.safe_exec import check_safe_sql_query, safe_exec
 
+#### Neoffice
+# Reports that must always render inline when opened, never silently switch to
+# "Prepared Report" mode. Upstream arms a 15s watchdog on every Script Report run
+# (see `execute_script_report`): a single slow run — cold cache, wide date range,
+# a competing background job — permanently sets `prepared_report = 1` on the
+# Report doc, for every user of that site, with no notification and nothing that
+# ever resets it. For the daily-driver accounting reports that trades a slow load
+# for a broken workflow: the user opens the Grand Livre and gets an empty screen
+# with a "Generate a New Report" button instead of their figures.
+#
+# Override per site with the `auto_prepared_report_exclude` key in
+# site_config.json: a list of report names, or `"*"` to opt the whole site out.
+DEFAULT_AUTO_PREPARED_REPORT_EXCLUDE = (
+	"General Ledger",
+	"Trial Balance",
+	"Account Sheets",
+	"Bank Reconciliation Statement",
+	"VAT Report",
+	"Gross Profit",
+)
+#### Neoffice
+
 
 class Report(Document):
 	# begin: auto-generated types
@@ -153,6 +175,21 @@ class Report(Document):
 
 		return [columns, result]
 
+	#### Neoffice
+	def is_auto_prepared_report_disabled(self) -> bool:
+		"""True when this report must never be auto-switched to Prepared Report mode."""
+		excluded = frappe.conf.get("auto_prepared_report_exclude")
+		if excluded is None:
+			excluded = DEFAULT_AUTO_PREPARED_REPORT_EXCLUDE
+		if excluded in (True, 1, "*"):
+			return True
+		if not excluded:
+			return False
+		# A Custom Report inherits the exclusion of the standard report it derives from.
+		return self.name in excluded or (self.reference_report or "") in excluded
+
+	#### Neoffice
+
 	def execute_script_report(self, filters):
 		# save the timestamp to automatically set to prepared
 		threshold = 15
@@ -160,7 +197,8 @@ class Report(Document):
 
 		start_time = datetime.datetime.now()
 		prepared_report_watcher = None
-		if not self.prepared_report:
+		#### Neoffice: honour the auto-switch opt-out (see DEFAULT_AUTO_PREPARED_REPORT_EXCLUDE)
+		if not self.prepared_report and not self.is_auto_prepared_report_disabled():
 			prepared_report_watcher = threading.Timer(
 				interval=threshold,
 				function=enable_prepared_report,
