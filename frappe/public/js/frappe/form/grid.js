@@ -177,7 +177,24 @@ export default class Grid {
 		const BACKDROP_CLASS = "grid-fullscreen-backdrop";
 		const FULLSCREEN_CLASS = "grid-fullscreen";
 
+		// Continuous flow in fullscreen: the whole table in one scroll, no
+		// "page 1 / 2" past 50 rows. Pagination stays ON in the inline grid,
+		// where it is what keeps a 500-row form responsive (it bounds every
+		// re-render to one page).
+		const set_continuous = (on) => {
+			const gp = me.grid_pagination;
+			if (!gp) return;
+			const default_length = me.meta?.grid_page_length || 50;
+			if (on) {
+				gp.page_length = Math.max((me.data || []).length, default_length);
+			} else {
+				gp.page_length = default_length;
+			}
+			gp.page_index = 1;
+		};
+
 		const close_fullscreen = () => {
+			set_continuous(false);
 			grid_field.removeClass(FULLSCREEN_CLASS);
 			$(`body > .${BACKDROP_CLASS}`).remove();
 			$(document).off("keydown.gridFullscreen");
@@ -192,6 +209,7 @@ export default class Grid {
 		};
 
 		const open_fullscreen = () => {
+			set_continuous(true);
 			grid_field.addClass(FULLSCREEN_CLASS);
 			// Force the per-column filter/search row visible, even when
 			// the row count is below Frappe's default threshold. The flag
