@@ -189,6 +189,22 @@ export default class Grid {
 				gp.page_length = Math.max((me.data || []).length, default_length);
 			} else {
 				gp.page_length = default_length;
+				// Drop the rows rendered beyond the page window. truncate_rows()
+				// only fires when the DATA shrinks, so without this the inline
+				// grid would keep every fullscreen row in the DOM and lose the
+				// very benefit pagination provides. They are rebuilt on demand
+				// when the user pages forward.
+				if (me.grid_rows && me.grid_rows.length > default_length) {
+					for (let i = default_length; i < me.grid_rows.length; i++) {
+						const gr = me.grid_rows[i];
+						if (!gr) continue;
+						if (gr.wrapper) gr.wrapper.remove();
+						if (gr.doc && me.grid_rows_by_docname) {
+							delete me.grid_rows_by_docname[gr.doc.name];
+						}
+					}
+					me.grid_rows.splice(default_length);
+				}
 			}
 			gp.page_index = 1;
 		};
