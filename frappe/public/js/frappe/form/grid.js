@@ -186,7 +186,11 @@ export default class Grid {
 			if (!gp) return;
 			const default_length = me.meta?.grid_page_length || 50;
 			if (on) {
-				gp.page_length = Math.max((me.data || []).length, default_length);
+				// A fixed length taken at open time breaks as soon as a row is
+				// added while in fullscreen (total_pages would become 2 and a
+				// single row would show). An effectively unbounded page keeps
+				// the view continuous whatever happens to the data.
+				gp.page_length = 1e6;
 			} else {
 				gp.page_length = default_length;
 				// Drop the rows rendered beyond the page window. truncate_rows()
