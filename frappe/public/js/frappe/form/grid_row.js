@@ -1351,7 +1351,6 @@ export default class GridRow {
 			});
 
 			frappe.ui.form.editable_row = this;
-			this.neo_preheat_neighbours();
 			return false;
 		} else {
 			this.row.toggleClass("editable-row", false);
@@ -1374,59 +1373,6 @@ export default class GridRow {
 				column.field_area && column.field_area.toggle(false);
 			});
 			frappe.ui.form.editable_row = null;
-		}
-	}
-
-	/**
-	 * Build the controls of the neighbouring rows while the browser is idle.
-	 *
-	 * Opening a row costs ~210ms because its 9 controls are created on the
-	 * spot (a Text Editor alone is 42ms, a Link 30ms). Users work down a
-	 * table row after row, so the next click is almost always a neighbour:
-	 * preparing them ahead of time turns that cost into ~0 at click time.
-	 * Controls are built inside the hidden field_area, so nothing shows up
-	 * until the row is actually opened.
-	 */
-	neo_preheat_neighbours(radius = 2) {
-		try {
-			const grid = this.grid;
-			if (!grid || !grid.grid_rows || !grid.is_editable()) return;
-			const idx = grid.grid_rows.indexOf(this);
-			if (idx === -1) return;
-
-			const targets = [];
-			for (let d = 1; d <= radius; d++) {
-				if (grid.grid_rows[idx - d]) targets.push(grid.grid_rows[idx - d]);
-				if (grid.grid_rows[idx + d]) targets.push(grid.grid_rows[idx + d]);
-			}
-			if (!targets.length) return;
-
-			const schedule =
-				window.requestIdleCallback ||
-				function (cb) {
-					return setTimeout(() => cb({ timeRemaining: () => 8 }), 250);
-				};
-
-			const build = (deadline) => {
-				while (targets.length) {
-					// Stop as soon as the browser needs the thread back — the
-					// remaining rows are picked up on the next idle slot.
-					if (deadline && deadline.timeRemaining && deadline.timeRemaining() < 4) {
-						schedule(build);
-						return;
-					}
-					const row = targets.shift();
-					if (!row || !row.doc || !row.columns_list) continue;
-					try {
-						row.columns_list.forEach((column) => row.make_control(column));
-					} catch (e) {
-						/* a row that cannot be prepared is simply built on click */
-					}
-				}
-			};
-			schedule(build);
-		} catch (e) {
-			/* preheating is best-effort, never break the edit flow */
 		}
 	}
 
