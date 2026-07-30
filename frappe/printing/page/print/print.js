@@ -182,6 +182,7 @@ frappe.ui.form.PrintView = class {
 				// theming is cosmetic — never block the preview on it
 			}
 			app.initializedPromise.then(() => {
+				this.hijack_viewer_print(iframe, app);
 				const drop_loader = () => {
 					clearTimeout(this._pdfjs_loader_timeout);
 					$loader.hide();
@@ -214,9 +215,92 @@ frappe.ui.form.PrintView = class {
 		}
 		const app = this.viewer_app();
 		if (app && app.pdfDocument) {
-			return app.eventBus.dispatch("print", { source: this });
+			return this.print_pdf_natively(app);
 		}
 		this.render_page("/printview?", true);
+	}
+
+	// PDF.js prints by rasterizing every page onto a canvas at `printResolution`
+	// dpi (150 by default), so text, logos and the QR bill come out of the
+	// printer visibly fuzzy. Hand the PDF bytes the viewer already holds to the
+	// browser's own PDF printer instead: vector output, no server round-trip.
+	// Falls back to the viewer's raster print if the browser refuses the frame.
+	print_pdf_natively(app) {
+		return app.pdfDocument
+			.getData()
+			.then((data) => {
+				const url = URL.createObjectURL(new Blob([data], { type: "application/pdf" }));
+				let iframe = this._native_print_frame;
+				if (iframe) {
+					URL.revokeObjectURL(iframe.getAttribute("data-blob-url"));
+				} else {
+					iframe = document.createElement("iframe");
+					// must stay rendered — a display:none frame never loads the
+					// PDF plugin — just invisible and out of the way
+					iframe.setAttribute(
+						"style",
+						"position:fixed;right:0;bottom:0;width:1px;height:1px;" +
+							"opacity:0;border:0;pointer-events:none"
+					);
+					document.body.appendChild(iframe);
+					this._native_print_frame = iframe;
+				}
+				iframe.setAttribute("data-blob-url", url);
+				return new Promise((resolve, reject) => {
+					// no load event = no PDF plugin (or it is blocked)
+					const timeout = setTimeout(() => reject(new Error("pdf frame timeout")), 10000);
+					iframe.onload = () => {
+						clearTimeout(timeout);
+						try {
+							iframe.contentWindow.focus();
+							iframe.contentWindow.print();
+							resolve();
+						} catch (e) {
+							reject(e);
+						}
+					};
+					iframe.setAttribute("src", url);
+				});
+			})
+			.catch(() => app.eventBus.dispatch("print", { source: this }));
+	}
+
+	// The viewer's own printer icon and Ctrl+P go through that same raster print
+	// service — route them to the native path too, so quality does not depend on
+	// which print control the user reaches for.
+	hijack_viewer_print(iframe, app) {
+		let doc;
+		try {
+			doc = iframe.contentWindow.document;
+		} catch (e) {
+			return; // cross-origin safety net — never expected (same origin)
+		}
+		if (doc.documentElement.dataset.neofficePrintHijacked) return;
+		doc.documentElement.dataset.neofficePrintHijacked = "1";
+
+		const take_over = (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			this.print_pdf_natively(app);
+		};
+		// capture on the document: runs before the viewer's own handlers, which
+		// sit on the buttons themselves
+		doc.addEventListener(
+			"click",
+			(e) => {
+				if (e.target.closest?.("#printButton, #secondaryPrint")) take_over(e);
+			},
+			true
+		);
+		doc.addEventListener(
+			"keydown",
+			(e) => {
+				if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key?.toLowerCase() === "p") {
+					take_over(e);
+				}
+			},
+			true
+		);
 	}
 
 	download_pdfjs() {
