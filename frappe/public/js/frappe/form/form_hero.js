@@ -444,9 +444,27 @@ frappe.ui.form.FormHero = class FormHero {
 		// key value (right side): registry override, else auto grand_total
 		let value_html = "";
 		const conf_entry = HERO_REGISTRY[this.frm.doctype] || {};
-		const vf =
+		let vf =
 			conf_entry.value_field ||
 			(meta.fields.some((f) => f.fieldname === "grand_total") ? "grand_total" : null);
+		let value_label = conf_entry.value_label || "Grand Total";
+		// When the total is snapped to the currency's smallest fraction (CHF:
+		// 0.05), the document settles on rounded_total — that is what the ledger,
+		// the outstanding amount and the payment file all use. Showing
+		// grand_total there reads as the amount to pay and is off by the rounding
+		// (98.98 displayed for a bill that is paid 99.00). Show the figure that
+		// will actually be settled, and name it for what it is so the two never
+		// look like a discrepancy. Rounding disabled → rounded_total is 0 and we
+		// fall back to grand_total, which is then the settled amount.
+		if (
+			vf === "grand_total" &&
+			!cint(doc.disable_rounded_total) &&
+			flt(doc.rounded_total) &&
+			flt(doc.rounded_total) !== flt(doc.grand_total)
+		) {
+			vf = "rounded_total";
+			value_label = "Rounded Total";
+		}
 		if (vf && doc[vf] != null) {
 			const amount = format_number(flt(doc[vf]), null, 2);
 			const currency =
@@ -457,7 +475,7 @@ frappe.ui.form.FormHero = class FormHero {
 			value_html = `
 				<div class="form-hero-value">
 					<div class="form-hero-amount">${amount}</div>
-					<div class="form-hero-currency">${frappe.utils.escape_html(currency)} · ${__(conf_entry.value_label || "Grand Total")}</div>
+					<div class="form-hero-currency">${frappe.utils.escape_html(currency)} · ${__(value_label)}</div>
 				</div>`;
 		}
 
