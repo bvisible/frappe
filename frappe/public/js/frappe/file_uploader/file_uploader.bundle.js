@@ -3,6 +3,11 @@ import FileUploaderComponent from "./FileUploader.vue";
 import { watch } from "vue";
 
 class FileUploader {
+	// Extension point for apps that add their own file source (Drive, a DAM, …).
+	// Push {label, icon, action({dialog, uploader})}; the button is rendered
+	// after the built-in ones. Kept on the class so subclasses share one list.
+	static UploadOptions = [];
+
 	constructor({
 		wrapper,
 		method,
@@ -65,6 +70,9 @@ class FileUploader {
 			allow_toggle_private,
 			allow_toggle_optimize,
 			allow_google_drive,
+			upload_options: FileUploader.UploadOptions,
+			run_upload_option: (option) =>
+				option.action({ dialog: this.dialog, uploader: this.uploader }),
 		});
 		SetVueGlobals(app);
 		this.uploader = app.mount(this.wrapper);

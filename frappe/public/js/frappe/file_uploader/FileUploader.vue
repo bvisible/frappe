@@ -163,6 +163,24 @@
 						</svg>
 						<div class="mt-1">{{ __("Google Drive") }}</div>
 					</button>
+					<!-- Sources registered by apps through FileUploader.UploadOptions.
+					     Appended last so the built-in buttons keep their order. -->
+					<button
+						v-for="option in upload_options"
+						:key="option.label"
+						class="btn btn-file-upload"
+						@click="run_upload_option(option)"
+					>
+						<svg
+							width="30"
+							height="30"
+							viewBox="0 0 30 30"
+							fill="none"
+							xmlns="http://www.w3.org/2000/svg"
+							v-html="option.icon"
+						></svg>
+						<div class="mt-1">{{ option.label }}</div>
+					</button>
 				</div>
 				<div class="mt-3 text-center" v-if="upload_notes">
 					{{ upload_notes }}
@@ -292,6 +310,16 @@ const props = defineProps({
 	},
 	allow_google_drive: {
 		default: true,
+	},
+	// Extra sources contributed by apps — see FileUploader.UploadOptions.
+	upload_options: {
+		type: Array,
+		default: () => [],
+	},
+	// Runs an entry's action with the context it needs (dialog + uploader).
+	run_upload_option: {
+		type: Function,
+		default: () => {},
 	},
 });
 
