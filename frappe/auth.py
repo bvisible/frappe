@@ -240,6 +240,12 @@ class LoginManager:
 			return
 
 		# Skip for OAuth / mobile app endpoints — these sessions must coexist with browser sessions
+		#
+		# A device signing in is not a person signing in somewhere else. These
+		# endpoints authenticate a phone or a kiosk that runs under a shared
+		# account, and evicting "the other session" evicts a human being at a
+		# desk who did nothing. `borne_auth` was missed when the bornes were
+		# added: pairing one logged the operator out of the Desk, mid-work.
 		if frappe.request and hasattr(frappe.request, "path") and frappe.request.path:
 			skip_paths = (
 				"/api/method/frappe.integrations.oauth2.authorize",
@@ -247,6 +253,7 @@ class LoginManager:
 				"/api/method/frappe.integrations.oauth2.revoke_token",
 				"/api/method/neoffice_theme.mobile.mobile_auth",
 				"/api/method/neoffice_theme.mobile.get_session_from_bearer_token",
+				"/api/method/neoffice_theme.mobile.borne_auth",
 			)
 			if frappe.request.path in skip_paths:
 				return
