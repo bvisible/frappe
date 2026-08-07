@@ -28,33 +28,60 @@ frappe.ui.Scanner = class Scanner {
 		if (!this.handler) {
 			this.handler = new Html5Qrcode(this.scan_area_id); // eslint-disable-line
 		}
-		this.handler
-			.start(
-				{ facingMode: "environment" },
-				{ fps: 10, qrbox: 250 },
-				(decodedText, decodedResult) => {
-					if (this.options.on_scan) {
-						try {
-							this.options.on_scan(decodedResult);
-						} catch (error) {
-							console.error(error);
-						}
-					}
-					if (!this.options.multiple) {
-						this.stop_scan();
-						this.hide_dialog();
-					}
-				},
-				(errorMessage) => {
-					// parse error, ignore it.
+
+		const config = { fps: 10, qrbox: 250 };
+		const on_success = (decodedText, decodedResult) => {
+			if (this.options.on_scan) {
+				try {
+					this.options.on_scan(decodedResult);
+				} catch (error) {
+					console.error(error);
 				}
-			)
+			}
+			if (!this.options.multiple) {
+				this.stop_scan();
+				this.hide_dialog();
+			}
+		};
+		const on_parse_error = () => {
+			// parse error, ignore it.
+		};
+
+		// "environment" is the rear camera. A desktop has only a front one, so
+		// the constraint is unsatisfiable there and start() rejects — which used
+		// to close the dialog on the spot, with nothing said. Ask for the rear
+		// camera first (right on a phone), then take whatever camera exists.
+		this.handler
+			.start({ facingMode: "environment" }, config, on_success, on_parse_error)
+			.catch(() => this.handler.start({ facingMode: "user" }, config, on_success, on_parse_error))
 			.catch((err) => {
 				this.is_alive = false;
-				this.hide_dialog();
+				this.show_camera_error(err);
 				console.error(err);
 			});
 		this.is_alive = true;
+	}
+
+	show_camera_error(err) {
+		// Replace the viewfinder with the reason. Closing in silence leaves the
+		// user clicking a button that seems to do nothing.
+		const denied = err && /NotAllowed|Permission/i.test(err.name || String(err));
+		const message = denied
+			? __("Camera access was refused. Allow it for this site, then try again.")
+			: __("No camera available on this device.");
+		const hint = __("A barcode reader works without this: put the cursor in the field and scan.");
+
+		if (this.$scan_area && this.$scan_area.length) {
+			this.$scan_area.html(
+				`<div class="text-muted" style="padding: 24px 8px; text-align: center; line-height: 1.6;">
+					<div>${frappe.utils.escape_html(message)}</div>
+					<div style="font-size: var(--text-sm); margin-top: 6px;">${frappe.utils.escape_html(hint)}</div>
+				</div>`
+			);
+		} else {
+			frappe.show_alert({ message: message, indicator: "orange" }, 6);
+			this.hide_dialog();
+		}
 	}
 
 	stop_scan() {

@@ -35255,3 +35255,15 @@ msgstr "Remplacer les tableaux par défaut de cette instance par ceux de la réf
 #: frappe/public/js/frappe/views/reports/report_view.js
 msgid "Table defaults pulled from the reference"
 msgstr "Tableaux par défaut récupérés depuis la référence"
+
+#: frappe/public/js/frappe/scanner/index.js
+msgid "Camera access was refused. Allow it for this site, then try again."
+msgstr "L'accès à la caméra a été refusé. Autorisez-le pour ce site, puis réessayez."
+
+#: frappe/public/js/frappe/scanner/index.js
+msgid "No camera available on this device."
+msgstr "Aucune caméra disponible sur cet appareil."
+
+#: frappe/public/js/frappe/scanner/index.js
+msgid "A barcode reader works without this: put the cursor in the field and scan."
+msgstr "Une douchette fonctionne sans caméra : placez le curseur dans le champ, puis scannez."
