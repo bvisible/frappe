@@ -213,7 +213,14 @@ frappe.router = {
 	},
 
 	set_doctype_route(route) {
-		//// Changed for re-routing list to report
+		//// Neoffice — the whole method is re-routed: opening a doctype lands on the
+		//// REPORT view, not the list. Upstream defaults to List; our users work in
+		//// columns (totals, grouping, column picking), so List was a detour everyone
+		//// clicked past. Note the consequence, and the bug it caused for months:
+		//// default_view_load is pinned to "Report" here, which silently mangles any
+		//// doctype whose own default_view is a top-level route — see the tree case
+		//// below. Marker was "//// Changed for re-routing list to report", true but
+		//// mute on the why.
 		let doctype_route = this.routes[route[0]];
 
 		return frappe.model.with_doctype(doctype_route.doctype).then(() => {
@@ -249,11 +256,26 @@ frappe.router = {
 			} else if (frappe.model.is_single(doctype_route.doctype)) {
 				route = ["Form", doctype_route.doctype, doctype_route.doctype];
 			} else if (meta.default_view && default_view_load !== "list") {
-				route = [
-					default_view_load,
-					doctype_route.doctype,
-					this.list_views_route[meta.default_view.toLowerCase()],
-				];
+				//// Neoffice — Tree is a TOP-LEVEL route (["Tree", doctype]), not a
+				//// sub-view of List like Report or Kanban. Our list→report re-routing
+				//// above pins default_view_load to "Report", so a doctype whose
+				//// default_view is "Tree" came out as ["Report", doctype, "Tree"] —
+				//// i.e. /view/report/Tree, a request for a REPORT NAMED "Tree". None
+				//// exists, so the page rendered blank with no error.
+				//// First hit with wiki v3, which brought the fleet's first
+				//// is_tree + default_view="Tree" doctype (Wiki Document): clicking
+				//// "Wiki Document" from the Training workspace showed an empty page.
+				//// get_standard_route_for_list() below already special-cases tree the
+				//// same way; this branch bypasses it, hence the duplicated check.
+				if (meta.default_view.toLowerCase() === "tree") {
+					route = ["Tree", doctype_route.doctype];
+				} else {
+					route = [
+						default_view_load,
+						doctype_route.doctype,
+						this.list_views_route[meta.default_view.toLowerCase()],
+					];
+				}
 			} else if (default_view_load === "Report") {
 				route = ["List", doctype_route.doctype, "Report"];
 			}
