@@ -167,10 +167,15 @@ frappe.request.call = function (opts) {
 				if (_server_messages.indexOf(__("Not permitted")) !== -1) {
 					return;
 				}
-			} else {
-				//// return to login
-				frappe.app.handle_session_expired();
-				/* ////
+			} else if (frappe.session.user && frappe.session.user !== "Guest") {
+				//// Neoffice — a 403 while the session is STILL VALID is a permission
+				//// problem, not an expired session. Sending it to handle_session_expired
+				//// reloaded the page on any un-whitelisted or forbidden call, which both
+				//// loses whatever the user was doing and hides the real cause: a
+				//// forgotten @frappe.whitelist() looked exactly like being logged out
+				//// (seen 2026-08-11 on nora.api.v2.memory.read_memory — the live voice
+				//// console reloaded the desk instead of saying anything). The
+				//// session-expired path above still covers the case it was written for.
 				frappe.msgprint({
 					title: __("Not permitted"),
 					indicator: "red",
@@ -178,7 +183,10 @@ frappe.request.call = function (opts) {
 						"You do not have enough permissions to access this resource. Please contact your manager to get access."
 					),
 				});
-				//// */
+				//// END Neoffice ////
+			} else {
+				//// return to login — the session really is gone (no user at all)
+				frappe.app.handle_session_expired();
 			}
 			opts.error_callback && opts.error_callback();
 		},
