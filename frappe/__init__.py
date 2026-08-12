@@ -745,8 +745,36 @@ def sendmail(
 
 	#//// NeoMail sender configuration
 	# Special case: HD Ticket uses its own email account
-	if reference_doctype == "HD Ticket" and communication:
-		ticket_email_account = db.get_value("Communication", communication, "email_account")
+	if reference_doctype == "HD Ticket":
+		ticket_email_account = None
+		if communication:
+			ticket_email_account = db.get_value("Communication", communication, "email_account")
+
+		#//// Neoffice — fallback sur le compte du TICKET quand aucune Communication
+		#//// n'est fournie. Seul reply_via_agent passe communication= ; l'accuse de
+		#//// reception et le mail de satisfaction, eux, n'en ont pas, et retombaient
+		#//// donc sur le compte sortant par defaut : un client ecrivant a
+		#//// support@neoffice.ch recevait une reponse de neoservice@neoemail.ch,
+		#//// boite qui n'est PAS relevee (enable_incoming=0) — sa reponse etait
+		#//// perdue en silence. Le ticket porte deja l'info : frappe.email.receive
+		#//// ecrit email_account (recipient_account_field) avant meme l'insert.
+		#//// Constate sur les tickets #25/#26/#27 le 2026-08-12.
+		if not ticket_email_account and (reference_name or name):
+			try:
+				ticket_email_account = db.get_value(
+					"HD Ticket", reference_name or name, "email_account"
+				)
+			except Exception:
+				# helpdesk absent / table manquante : on retombe sur le defaut
+				ticket_email_account = None
+
+		#//// Neoffice — un compte qui n'emet pas ne doit jamais devenir expediteur
+		#//// (sinon SMTP refuse et le mail est perdu au lieu de partir du defaut).
+		if ticket_email_account and not db.get_value(
+			"Email Account", ticket_email_account, "enable_outgoing"
+		):
+			ticket_email_account = None
+
 		if ticket_email_account:
 			default_outgoing = db.get_value("Email Account", ticket_email_account, "email_id")
 			reply_to = None
