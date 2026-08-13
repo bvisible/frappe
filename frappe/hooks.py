@@ -219,7 +219,15 @@ scheduler_events = {
 			"frappe.search.sqlite_search.build_index_if_not_exists",
 		],
 		# 10 minutes
-		"0/10 * * * *": [
+		"0/10 * * * *": [],
+		#//// Neoffice — relève ramenée de 10 min à 2 min (upstream: "0/10").
+		#//// Un mail de client pouvait attendre 10 minutes avant de devenir un
+		#//// ticket : inacceptable pour un support, et c'est le premier reproche
+		#//// remonté à l'usage (2026-08-13). L'attente moyenne passe de ~5 min à
+		#//// ~1 min. Sans risque d'empilement : ScheduledJobType.enqueue() ne
+		#//// ré-enfile pas tant que le job précédent est dans la file
+		#//// (is_job_in_queue), donc un pull lent ne se cumule pas.
+		"0/2 * * * *": [
 			"frappe.email.doctype.email_account.email_account.pull",
 		],
 		# Hourly but offset by 30 minutes
