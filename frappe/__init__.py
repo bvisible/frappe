@@ -783,6 +783,26 @@ def sendmail(
 	else:
 		default_outgoing = None
 
+	#//// Neoffice — respecter un sender qui EST une de nos boîtes émettrices.
+	#//// Ce bloc existe pour éviter les refus Stalwart 501 5.5.4 quand du code
+	#//// ancien passe sender=info@<domaine-client> : une adresse que le système
+	#//// ne sait pas servir. Mais quand le sender correspond à un Email Account
+	#//// avec enable_outgoing=1, il a ses propres identifiants SMTP — l'écraser
+	#//// n'évite aucun refus et fait sortir le mail par le relais NeoMail/Brevo,
+	#//// avec ses en-têtes de mailing de masse.
+	#//// Concret : les alertes support partaient de neoservice@neoemail.ch via
+	#//// Brevo et finissaient dans le SPAM d'emailarray — personne ne les a vues
+	#//// (2026-08-13). Elles partent maintenant de la boîte support elle-même,
+	#//// par son SMTP direct, comme les accusés de réception qui, eux, arrivent.
+	if default_outgoing is None and sender:
+		from frappe.utils import parse_addr as _neo_parse_addr
+
+		bare_sender = _neo_parse_addr(sender)[1] or sender
+		if db.get_value("Email Account", {"email_id": bare_sender, "enable_outgoing": 1}, "name"):
+			default_outgoing = bare_sender
+			reply_to = None
+	#////
+
 	# Use the default outgoing Email Account (NeoMail)
 	if default_outgoing is None:
 		default_outgoing = db.get_value("Email Account", {"default_outgoing": 1}, "email_id")
