@@ -138,23 +138,18 @@ def resolve_redirect(path, query_string=None):
 	                                # use r as a string prefix if you use regex groups or want to escape any string literal
 	                ]
 	"""
-	#//// Neoffice website switch: an offline site (Website Profile.website_online=0,
-	#//// the fleet default) serves no public website — its root goes to the desk.
-	#//// Keyed on the key EXISTING in the profile dict so a profiles-map cached by a
-	#//// pre-switch neoffice_theme keeps the historical behavior instead of going
-	#//// dark. Placed before the redirect cache: flipping the switch acts instantly.
-	#//// A profile in maintenance is exempt: the root must reach the renderers so
-	#//// neoffice_theme's MaintenanceModePage can serve the branded 503 page. Sending
-	#//// it to the desk would bounce the visitor to /login instead — and a site with
-	#//// no website yet is exactly when maintenance is wanted.
-	profile = getattr(frappe.local, "website_profile_doc", None)
-	if (
-		profile is not None
-		and "website_online" in profile
-		and not profile.get("website_online")
-		and not profile.get("maintenance_mode")
-		and not path.strip("/ ")
-	):
+	#//// Neoffice website switch: with EVERY Website Profile switched off, this bench
+	#//// serves no public website at all — its root goes to the desk. Only that case
+	#//// redirects. An enabled profile that is merely offline does NOT come here: it
+	#//// renders neoffice_theme's branded page (SiteOfflinePage) instead, because a
+	#//// visitor must never meet a login form on a client's domain — they have no
+	#//// account for it. Rule stated by Jérémy, 2026-08-13:
+	#////   nothing ticked        → the desk
+	#////   enabled, not online   → the site's own "coming soon" / maintenance page
+	#////   enabled and online    → the real site
+	#//// The flag is set by neoffice_theme's before_request resolver, so a bench
+	#//// without profiles (vanilla) keeps frappe's stock behavior untouched.
+	if not path.strip("/ ") and getattr(frappe.local, "website_profiles_all_disabled", False):
 		frappe.flags.redirect_location = "/app"
 		raise frappe.Redirect
 
