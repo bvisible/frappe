@@ -138,20 +138,30 @@ def resolve_redirect(path, query_string=None):
 	                                # use r as a string prefix if you use regex groups or want to escape any string literal
 	                ]
 	"""
-	#//// Neoffice website switch: with EVERY Website Profile switched off, this bench
-	#//// serves no public website at all — its root goes to the desk. Only that case
-	#//// redirects. An enabled profile that is merely offline does NOT come here: it
-	#//// renders neoffice_theme's branded page (SiteOfflinePage) instead, because a
-	#//// visitor must never meet a login form on a client's domain — they have no
-	#//// account for it. Rule stated by Jérémy, 2026-08-13:
-	#////   nothing ticked        → the desk
-	#////   enabled, not online   → the site's own "coming soon" / maintenance page
-	#////   enabled and online    → the real site
-	#//// The flag is set by neoffice_theme's before_request resolver, so a bench
-	#//// without profiles (vanilla) keeps frappe's stock behavior untouched.
-	if not path.strip("/ ") and getattr(frappe.local, "website_profiles_all_disabled", False):
-		frappe.flags.redirect_location = "/app"
-		raise frappe.Redirect
+	#//// Neoffice website switch — the three states of a public site (rule stated by
+	#//// Jérémy, 2026-08-13):
+	#////   nothing ticked       → the root goes to the desk (here);
+	#////   maintenance ticked   → neoffice_theme's branded 503 page (renderer, below);
+	#////   "site online" ticked → the real site.
+	#//// Two ways to serve nothing public: an enabled profile that is offline, or a
+	#//// bench whose profiles are ALL switched off (the profile then resolves to
+	#//// nothing at all — flag set by neoffice_theme's before_request resolver).
+	#//// Keyed on the key EXISTING in the profile dict so a profiles map cached by a
+	#//// pre-switch neoffice_theme keeps the historical behavior instead of going
+	#//// dark. Placed before the redirect cache: flipping the switch acts instantly.
+	#//// A profile in maintenance is exempt — the root must reach the renderers, or
+	#//// the visitor would be bounced to /login and never see the maintenance page.
+	if not path.strip("/ "):
+		profile = getattr(frappe.local, "website_profile_doc", None)
+		offline = (
+			profile is not None
+			and "website_online" in profile
+			and not profile.get("website_online")
+			and not profile.get("maintenance_mode")
+		)
+		if offline or getattr(frappe.local, "website_profiles_all_disabled", False):
+			frappe.flags.redirect_location = "/app"
+			raise frappe.Redirect
 
 	redirects = frappe.get_hooks("website_redirects")
 	redirects += frappe.get_all(
