@@ -143,11 +143,16 @@ def resolve_redirect(path, query_string=None):
 	#//// Keyed on the key EXISTING in the profile dict so a profiles-map cached by a
 	#//// pre-switch neoffice_theme keeps the historical behavior instead of going
 	#//// dark. Placed before the redirect cache: flipping the switch acts instantly.
+	#//// A profile in maintenance is exempt: the root must reach the renderers so
+	#//// neoffice_theme's MaintenanceModePage can serve the branded 503 page. Sending
+	#//// it to the desk would bounce the visitor to /login instead — and a site with
+	#//// no website yet is exactly when maintenance is wanted.
 	profile = getattr(frappe.local, "website_profile_doc", None)
 	if (
 		profile is not None
 		and "website_online" in profile
 		and not profile.get("website_online")
+		and not profile.get("maintenance_mode")
 		and not path.strip("/ ")
 	):
 		frappe.flags.redirect_location = "/app"
