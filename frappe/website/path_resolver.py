@@ -138,30 +138,20 @@ def resolve_redirect(path, query_string=None):
 	                                # use r as a string prefix if you use regex groups or want to escape any string literal
 	                ]
 	"""
-	#//// Neoffice website switch — the three states of a public site (rule stated by
-	#//// Jérémy, 2026-08-13):
-	#////   nothing ticked       → the root goes to the desk (here);
-	#////   maintenance ticked   → neoffice_theme's branded 503 page (renderer, below);
-	#////   "site online" ticked → the real site.
-	#//// Two ways to serve nothing public: an enabled profile that is offline, or a
-	#//// bench whose profiles are ALL switched off (the profile then resolves to
-	#//// nothing at all — flag set by neoffice_theme's before_request resolver).
-	#//// Keyed on the key EXISTING in the profile dict so a profiles map cached by a
+	#//// Neoffice website switch: an offline site (Website Profile.website_online=0,
+	#//// the fleet default) serves no public website — its root goes to the desk.
+	#//// Keyed on the key EXISTING in the profile dict so a profiles-map cached by a
 	#//// pre-switch neoffice_theme keeps the historical behavior instead of going
 	#//// dark. Placed before the redirect cache: flipping the switch acts instantly.
-	#//// A profile in maintenance is exempt — the root must reach the renderers, or
-	#//// the visitor would be bounced to /login and never see the maintenance page.
-	if not path.strip("/ "):
-		profile = getattr(frappe.local, "website_profile_doc", None)
-		offline = (
-			profile is not None
-			and "website_online" in profile
-			and not profile.get("website_online")
-			and not profile.get("maintenance_mode")
-		)
-		if offline or getattr(frappe.local, "website_profiles_all_disabled", False):
-			frappe.flags.redirect_location = "/app"
-			raise frappe.Redirect
+	profile = getattr(frappe.local, "website_profile_doc", None)
+	if (
+		profile is not None
+		and "website_online" in profile
+		and not profile.get("website_online")
+		and not path.strip("/ ")
+	):
+		frappe.flags.redirect_location = "/app"
+		raise frappe.Redirect
 
 	redirects = frappe.get_hooks("website_redirects")
 	redirects += frappe.get_all(
