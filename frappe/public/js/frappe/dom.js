@@ -206,7 +206,12 @@ frappe.dom = {
 		let modal_visible = Array.from(document.querySelectorAll(".modal")).some(
 			(m) => window.getComputedStyle(m).display !== "none"
 		);
-		let dialogs_open = (frappe.ui.open_dialogs || []).length > 0;
+		// NOT `open_dialogs.length`: that array only pops its LAST entry on hide,
+		// so a dialog closed out of order (a msgprint stacked on top of it, the
+		// Quick Entry hidden while another opens) stays in it forever. Each
+		// dialog's own `display` flag is set to false by its `hide.bs.modal`
+		// handler, so it stays accurate whatever the closing order.
+		let dialogs_open = (frappe.ui.open_dialogs || []).some((d) => d && d.display);
 
 		if (!modal_visible && !dialogs_open) {
 			document.querySelectorAll(".modal-backdrop").forEach((el) => {
@@ -223,6 +228,13 @@ frappe.dom = {
 			if (document.body.style.overflow === "hidden") {
 				document.body.style.overflow = "auto";
 				removed.push("body[overflow:hidden]");
+			}
+			// Nothing is on screen, so the closed-out-of-order leftovers in
+			// open_dialogs are stale by definition. Dropping them keeps
+			// cur_dialog and the escape-key handling pointing at reality.
+			if (frappe.ui.open_dialogs && frappe.ui.open_dialogs.length) {
+				frappe.ui.open_dialogs.length = 0;
+				window.cur_dialog = null;
 			}
 		}
 
