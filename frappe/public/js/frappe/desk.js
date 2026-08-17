@@ -43,6 +43,7 @@ frappe.Application = class Application {
 		this.setup_energy_point_listeners();
 		this.setup_copy_doc_listener();
 		this.setup_broadcast_listeners();
+		this.setup_overlay_watchdog(); //// Neoffice — see setup_overlay_watchdog()
 
 		frappe.ui.keys.setup();
 
@@ -769,6 +770,38 @@ frappe.Application = class Application {
 	setup_energy_point_listeners() {
 		frappe.realtime.on("energy_point_alert", (message) => {
 			frappe.show_alert(message);
+		});
+	}
+
+	//// Neoffice — added (no upstream equivalent). A dialog's backdrop, or a
+	//// `#freeze` layer, can outlive what it belongs to and then covers the page
+	//// invisibly: every click and keystroke is swallowed and the user can only
+	//// reload ("the table comes up with the forbidden cursor, refresh fixes
+	//// it"). Individual leak paths were patched one by one (erpnext Quick
+	//// Journal Entry, twice) and it kept coming back, so the cure is here
+	//// instead: whenever the page settles with nothing displayed, drop whatever
+	//// is still covering it. See frappe.dom.sweep_orphan_overlays() for why it
+	//// is safe. The delays clear Bootstrap's 300ms hide transition — sweeping
+	//// during it would fight the teardown it is meant to finish.
+	setup_overlay_watchdog() {
+		const sweep = (reason) => {
+			setTimeout(() => frappe.dom.sweep_orphan_overlays(reason), 500);
+		};
+
+		// SPA navigation: the classic leak, a dialog left behind by the page
+		// it was opened from.
+		frappe.router.on("change", () => sweep("route change"));
+
+		// Any dialog closing: if Bootstrap did not finish its own teardown,
+		// this catches it half a second later.
+		$(document).on("hidden.bs.modal", () => sweep("dialog hidden"));
+
+		// Coming back to a tab that was suspended (laptop asleep, network
+		// dropped mid-save): timers and transitions that were supposed to clean
+		// up never ran while the tab was frozen.
+		$(window).on("focus", () => sweep("window focus"));
+		document.addEventListener("visibilitychange", () => {
+			if (document.visibilityState === "visible") sweep("tab visible");
 		});
 	}
 

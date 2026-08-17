@@ -183,6 +183,66 @@ frappe.dom = {
 			var freeze = $("#freeze").removeClass("in").remove();
 		}
 	},
+	//// Neoffice — added (no upstream equivalent). Self-healing sweep for the
+	//// full-screen overlays that block every click when they outlive the thing
+	//// they belong to. Both are INVISIBLE when orphaned, so the user only sees
+	//// a dead page and a "forbidden" cursor, and only a reload fixes it:
+	////   • `.modal-backdrop` — Bootstrap tears it down on its own `hide`
+	////     transition; if a dialog is hidden mid-transition or the tab is
+	////     suspended (laptop sleep / network drop) the teardown never runs and
+	////     an `opacity:0, z-index:1040, pointer-events:auto` layer stays.
+	////   • `#freeze` — `unfreeze()` bails out when `freeze_count` is already 0,
+	////     so a `#freeze` div nobody owns can never be cleaned by frappe itself
+	////     (base CSS is `opacity:0`, only `.in` makes it visible).
+	//// Deliberately conservative: it only ever runs when NOTHING is displayed,
+	//// so it cannot strip a live dialog's backdrop (a blind purge did exactly
+	//// that once — see erpnext journal_entry.js). Call it AFTER Bootstrap's
+	//// 300ms hide transition, never during.
+	sweep_orphan_overlays: function (reason) {
+		let removed = [];
+
+		// Is any modal actually on screen? Modals are `position:fixed`, so
+		// `offsetParent` is always null — computed `display` is the reliable test.
+		let modal_visible = Array.from(document.querySelectorAll(".modal")).some(
+			(m) => window.getComputedStyle(m).display !== "none"
+		);
+		let dialogs_open = (frappe.ui.open_dialogs || []).length > 0;
+
+		if (!modal_visible && !dialogs_open) {
+			document.querySelectorAll(".modal-backdrop").forEach((el) => {
+				if (el.id === "freeze") return; // owned by freeze/unfreeze below
+				el.remove();
+				removed.push(".modal-backdrop");
+			});
+			if (document.body.classList.contains("modal-open")) {
+				document.body.classList.remove("modal-open");
+				removed.push("body.modal-open");
+			}
+			// frappe.ui.Dialog.hide_scrollbar() locks body scroll on show and
+			// restores it on hide — same leak, same cure.
+			if (document.body.style.overflow === "hidden") {
+				document.body.style.overflow = "auto";
+				removed.push("body[overflow:hidden]");
+			}
+		}
+
+		// A freeze div nobody is waiting on. `freeze_count > 0` means a real
+		// request is still in flight — leave it alone.
+		let freeze = document.getElementById("freeze");
+		if (freeze && !frappe.dom.freeze_count) {
+			freeze.remove();
+			removed.push("#freeze");
+		}
+
+		if (removed.length) {
+			console.warn(
+				"[neoffice] removed orphan click-blocking overlay(s):",
+				removed.join(", "),
+				`(${reason || "sweep"})`
+			);
+		}
+		return removed;
+	},
 	save_selection: function () {
 		// via http://stackoverflow.com/questions/5605401/insert-link-in-contenteditable-element
 		if (window.getSelection) {
