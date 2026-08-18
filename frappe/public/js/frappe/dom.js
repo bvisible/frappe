@@ -207,20 +207,28 @@ frappe.dom = {
 	//// dialog that was opening. Any dialog shown in `onload_post_render` (the
 	//// job wizards) lands inside that window, so the overlay was missing on
 	//// every new Project — nothing looked broken, the page was simply flat.
-	//// The cure is to stop judging on a single instant: a backdrop with no
-	//// modal gets ONE reprieve, and is only removed if it is still orphaned a
-	//// moment later. A dialog being born has its modal by then; a real orphan
-	//// never will.
+	//// The cure is to stop judging on a single instant: the FIRST look never
+	//// removes anything, it only books a second one 900ms later. Two
+	//// consecutive verdicts are needed before anything is torn down — a dialog
+	//// being born has its modal by the second look, a real orphan still does
+	//// not.
+	////
+	//// A first attempt marked the element instead (`data-neo-seen-orphan`) and
+	//// was worse than nothing: the mark was never cleared, so a backdrop seen
+	//// orphaned once and then saved kept it for life, and the next time it was
+	//// caught mid-birth it was removed with no reprieve — hence the reported
+	//// intermittence, sometimes fine and sometimes flat. Keeping the state on
+	//// the element was the mistake; the confirmation pass carries it now.
 	//// Neoffice — re-run of the sweep after the reprieve above. Single shot in
 	//// flight: a burst of route changes must not queue a dozen timers.
 	_resweep: function (reason) {
 		if (frappe.dom._resweep_timer) return;
 		frappe.dom._resweep_timer = setTimeout(() => {
 			frappe.dom._resweep_timer = null;
-			frappe.dom.sweep_orphan_overlays((reason || "sweep") + " (recheck)");
+			frappe.dom.sweep_orphan_overlays((reason || "sweep") + " (recheck)", true);
 		}, 900);
 	},
-	sweep_orphan_overlays: function (reason) {
+	sweep_orphan_overlays: function (reason, confirming) {
 		let removed = [];
 
 		// Is any modal actually on screen? Modals are `position:fixed`, so
@@ -236,25 +244,19 @@ frappe.dom = {
 		let dialogs_open = (frappe.ui.open_dialogs || []).some((d) => d && d.display);
 
 		if (!modal_visible && !dialogs_open) {
+			//// Neoffice — the FIRST look never removes anything, it only books
+			//// a second one. Bootstrap creates the backdrop BEFORE the modal,
+			//// so "no modal on screen" is also exactly what a dialog looks
+			//// like one frame after `show()`.
+			if (!confirming) {
+				frappe.dom._resweep(reason);
+				return removed;
+			}
 			document.querySelectorAll(".modal-backdrop").forEach((el) => {
 				if (el.id === "freeze") return; // owned by freeze/unfreeze below
-				//// Neoffice — one reprieve before removal, see the note above.
-				//// A backdrop that has not been seen orphaned before may simply
-				//// belong to a modal Bootstrap has not inserted yet.
-				if (!el.dataset.neoSeenOrphan) {
-					el.dataset.neoSeenOrphan = "1";
-					frappe.dom._resweep(reason);
-					return;
-				}
 				el.remove();
 				removed.push(".modal-backdrop");
 			});
-			//// Nothing removed because everything got its reprieve: leave the
-			//// body alone too, or a dialog opening right now loses its scroll
-			//// lock and its `modal-open` class while keeping its backdrop.
-			if (!removed.length && document.querySelector(".modal-backdrop")) {
-				return removed;
-			}
 			if (document.body.classList.contains("modal-open")) {
 				document.body.classList.remove("modal-open");
 				removed.push("body.modal-open");
