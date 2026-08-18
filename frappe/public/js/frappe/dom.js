@@ -198,6 +198,28 @@ frappe.dom = {
 	//// so it cannot strip a live dialog's backdrop (a blind purge did exactly
 	//// that once — see erpnext journal_entry.js). Call it AFTER Bootstrap's
 	//// 300ms hide transition, never during.
+	////
+	//// ⚠ "Nothing is displayed" is not enough on its own, because BOOTSTRAP
+	//// CREATES THE BACKDROP BEFORE THE MODAL. For a few frames there is a
+	//// backdrop and no modal at all — which looks exactly like an orphan.
+	//// Measured on osiris: a sweep fired 500ms after a route change saw
+	//// `0 modals, open_dialogs [], 1 backdrop` and stripped the backdrop of a
+	//// dialog that was opening. Any dialog shown in `onload_post_render` (the
+	//// job wizards) lands inside that window, so the overlay was missing on
+	//// every new Project — nothing looked broken, the page was simply flat.
+	//// The cure is to stop judging on a single instant: a backdrop with no
+	//// modal gets ONE reprieve, and is only removed if it is still orphaned a
+	//// moment later. A dialog being born has its modal by then; a real orphan
+	//// never will.
+	//// Neoffice — re-run of the sweep after the reprieve above. Single shot in
+	//// flight: a burst of route changes must not queue a dozen timers.
+	_resweep: function (reason) {
+		if (frappe.dom._resweep_timer) return;
+		frappe.dom._resweep_timer = setTimeout(() => {
+			frappe.dom._resweep_timer = null;
+			frappe.dom.sweep_orphan_overlays((reason || "sweep") + " (recheck)");
+		}, 900);
+	},
 	sweep_orphan_overlays: function (reason) {
 		let removed = [];
 
@@ -216,9 +238,23 @@ frappe.dom = {
 		if (!modal_visible && !dialogs_open) {
 			document.querySelectorAll(".modal-backdrop").forEach((el) => {
 				if (el.id === "freeze") return; // owned by freeze/unfreeze below
+				//// Neoffice — one reprieve before removal, see the note above.
+				//// A backdrop that has not been seen orphaned before may simply
+				//// belong to a modal Bootstrap has not inserted yet.
+				if (!el.dataset.neoSeenOrphan) {
+					el.dataset.neoSeenOrphan = "1";
+					frappe.dom._resweep(reason);
+					return;
+				}
 				el.remove();
 				removed.push(".modal-backdrop");
 			});
+			//// Nothing removed because everything got its reprieve: leave the
+			//// body alone too, or a dialog opening right now loses its scroll
+			//// lock and its `modal-open` class while keeping its backdrop.
+			if (!removed.length && document.querySelector(".modal-backdrop")) {
+				return removed;
+			}
 			if (document.body.classList.contains("modal-open")) {
 				document.body.classList.remove("modal-open");
 				removed.push("body.modal-open");
