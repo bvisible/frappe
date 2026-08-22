@@ -1963,8 +1963,12 @@ def copy_doc(doc: "Document", ignore_no_copy: bool = True) -> "Document":
 
 	fields_to_clear = ["name", "owner", "creation", "modified", "modified_by"]
 
-	#//// added if
-	if doc.doctype == "Item":
+	#//// Neoffice — duplicating an Item must not carry over its identity or
+	#//// opening stock. Read the doctype dict-safely: copy_doc also accepts
+	#//// plain dicts (see isinstance below) and the test runner passes JSON
+	#//// test records straight in — an attribute read here broke every
+	#//// make_test_objects call on the site.
+	if (doc.get("doctype") if isinstance(doc, dict) else doc.doctype) == "Item":
 		fields_to_clear += ["item_code", "item_name", "opening_stock", "published_in_website"]
 	#////
 
