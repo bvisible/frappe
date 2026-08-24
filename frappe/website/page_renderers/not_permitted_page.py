@@ -19,6 +19,15 @@ class NotPermittedPage(TemplatePage):
 		action = f"/login?redirect-to={quote_plus(frappe.request.path)}"
 		if frappe.request.path.startswith("/app/") or frappe.request.path == "/app":
 			action = "/login"
+		#//// Neoffice — a 403 with a LIVE session must offer a real login.
+		#//// Upstream's button points at /login, but /login redirects any
+		#//// signed-in user straight back — so a Website User who hit /app
+		#//// (no desk access) was caught in a loop: Not Permitted → Login →
+		#//// redirected → Not Permitted, with no way to switch account.
+		#//// ?relogin=1 (handled in www/login.py) clears the session first,
+		#//// then shows the form.
+		if frappe.session.user != "Guest":
+			action += ("&" if "?" in action else "?") + "relogin=1"
 		frappe.local.message_title = _("Not Permitted")
 		frappe.local.response["context"] = dict(
 			indicator_color="red", primary_action=action, primary_label=_("Login"), fullpage=True
