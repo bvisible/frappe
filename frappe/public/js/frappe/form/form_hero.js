@@ -325,6 +325,37 @@ const HERO_REGISTRY = {
 			return 1;
 		},
 	},
+
+	//// Neoffice — Project: the job's business pipeline, read off the fields
+	//// the form already carries (percent_complete, the neo_work lines and
+	//// their review_state, the billed total). French labels on purpose,
+	//// like Document Scan above. Every CTA is registered by the
+	//// neoffice_activity app via add_hero_step_action — the hero owns the
+	//// frame, the module owns the gestures.
+	Project: {
+		steps: (doc) => [
+			{ label: __("Chiffrage"), when: doc.creation },
+			{ label: __("En cours"), when: null },
+			{ label: __("Validation"), when: null },
+			{ label: __("Facturation"), when: null },
+		],
+		rank(doc) {
+			if (doc.status === "Cancelled") return -1;
+			if (doc.status === "Completed") return 5;
+			const lignes = doc.neo_work || [];
+			const started =
+				flt(doc.percent_complete) > 0 ||
+				lignes.some((r) => r.status && r.status !== "To plan");
+			const done = lignes.length
+				? lignes.every((r) => ["Done", "Cancelled"].includes(r.status))
+				: flt(doc.percent_complete) >= 100;
+			const pending = lignes.some((r) => r.review_state === "Pending");
+			if (done && started) return pending ? 3 : 4;
+			if (flt(doc.total_billed_amount) > 0) return 4;
+			if (started) return 2;
+			return 1;
+		},
+	},
 };
 
 const DEFAULT_PIPELINE = {
