@@ -17866,6 +17866,10 @@ msgstr ""
 "Aucun compte de messagerie associé à l&#39;utilisateur. Veuillez ajouter un "
 "compte sous Utilisateur&gt; Boîte de réception de messagerie."
 
+#: frappe/public/js/frappe/form/form_hero.js:768
+msgid "No email"
+msgstr "Aucun email"
+
 #: frappe/core/api/user_invitation.py:17
 msgid "No email addresses to invite"
 msgstr "Aucune adresse e-mail à inviter"
