@@ -332,6 +332,21 @@ const HERO_REGISTRY = {
 	//// like Document Scan above. Every CTA is registered by the
 	//// neoffice_activity app via add_hero_step_action — the hero owns the
 	//// frame, the module owns the gestures.
+	//// Neoffice — Task is the CATALOGUE ARTICLE of the activity module:
+	//// no pipeline, but its price belongs top right — firm price when it
+	//// sells one, hourly rate when it has its own. French labels like
+	//// Document Scan above.
+	Task: {
+		value(doc) {
+			if (doc.neo_pricing_mode === "Flat rate" && flt(doc.neo_flat_amount)) {
+				return { amount: doc.neo_flat_amount, label: __("Prix ferme") };
+			}
+			if (flt(doc.neo_hourly_rate)) {
+				return { amount: doc.neo_hourly_rate, label: __("de l'heure") };
+			}
+			return null;
+		},
+	},
 	Project: {
 		steps: (doc) => [
 			{ label: __("Chiffrage"), when: doc.creation },
@@ -496,6 +511,26 @@ frappe.ui.form.FormHero = class FormHero {
 			vf = "rounded_total";
 			value_label = "Rounded Total";
 		}
+		//// Neoffice — a registry entry may COMPUTE its key figure when one
+		//// field cannot say it (Task: firm price OR hourly rate, whichever
+		//// the article sells). value(doc) returns {amount, label} or null.
+		let computed = null;
+		if (typeof conf_entry.value === "function") {
+			try {
+				computed = conf_entry.value(doc);
+			} catch (e) {
+				computed = null;
+			}
+		}
+		if (computed && computed.amount != null) {
+			vf = null;
+			const currency = doc.currency || frappe.boot.sysdefaults.currency || "";
+			value_html = `
+				<div class="form-hero-value">
+					<div class="form-hero-amount">${format_number(flt(computed.amount), null, 2)}</div>
+					<div class="form-hero-currency">${frappe.utils.escape_html(currency)} · ${frappe.utils.escape_html(computed.label || "")}</div>
+				</div>`;
+		}
 		if (vf && doc[vf] != null) {
 			const amount = format_number(flt(doc[vf]), null, 2);
 			const currency =
@@ -539,7 +574,10 @@ frappe.ui.form.FormHero = class FormHero {
 			</div>`;
 
 		// stepper — only for submittable doctypes (masters have no lifecycle)
-		const conf = HERO_REGISTRY[this.frm.doctype] || (meta.is_submittable ? DEFAULT_PIPELINE : null);
+		let conf = HERO_REGISTRY[this.frm.doctype] || (meta.is_submittable ? DEFAULT_PIPELINE : null);
+		//// Neoffice — an entry may carry only a key figure (Task): without
+		//// steps there is no pipeline to draw, and .steps() must not crash.
+		if (conf && !conf.steps) conf = null;
 		if (!conf) {
 			this.$wrapper.html(top_html);
 			this.render_extras();
