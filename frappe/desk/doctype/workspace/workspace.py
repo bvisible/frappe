@@ -120,6 +120,17 @@ class Workspace(Document):
 		if disable_saving_as_public():
 			return
 
+		#//// Neoffice — skip the source-folder deletion on the reload path.
+		#//// reload_doc/migrate re-import docs via delete+insert; with upstream's
+		#//// unconditional cleanup below, every forced reload (and any migrate
+		#//// re-importing a modified workspace) deleted the workspace's own
+		#//// source folder on developer_mode sites (osiris lost
+		#//// workspace/activities twice and frappe's tools/build/users the same
+		#//// way, 23-24.08.2026). A real user deletion still cleans the folder
+		#//// exactly as upstream intends.
+		if self.flags.get("for_reload"):
+			return
+
 		if self.module and frappe.conf.developer_mode:
 			delete_folder(self.module, "Workspace", self.title)
 
