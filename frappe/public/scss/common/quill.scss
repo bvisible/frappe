@@ -126,6 +126,14 @@
 	.ql-toolbar.ql-snow {
 		background-color: var(--gray-900);
 	}
+	//// Neoffice — upstream darkens the toolbar but leaves the container on
+	//// --gray-100, a near-white slab. The .ql-editor inside is dark, so what
+	//// shows through is a pale rim: the container padding, the rounded
+	//// corners and the resize grip. Match the container to the control
+	//// surface the editor already uses.
+	.ql-container.ql-snow {
+		background-color: var(--control-bg);
+	}
 }
 
 .ql-container.ql-snow {
