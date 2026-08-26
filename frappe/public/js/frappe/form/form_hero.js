@@ -934,21 +934,26 @@ frappe.ui.form.FormHero = class FormHero {
 			});
 		}
 
-		if (!cint(doc.is_stock_item)) return;
-		const $stock = $('<div class="form-hero-stockrow"></div>').appendTo(this.$wrapper);
-
 		// A TEMPLATE holds no stock of its own — its variants do. Reading its
 		// own (always empty) Bin printed "No stock" on a parent whose children
 		// are full. The theme knows about variants; core doesn't, so it renders
 		// that row. Label kept in sync with neoffice-theme.js (NEO_STOCK_LABEL*).
+		//
+		// Tested BEFORE is_stock_item on purpose: a template created by the
+		// quick entry has is_stock_item = 0 while its variants are stock items
+		// (chemise-top on osiris: template 0, 14 variants, 161 in stock).
 		if (cint(doc.has_variants)) {
 			if (window.neo_render_template_stock_row) {
-				window.neo_render_template_stock_row(this.frm, $stock);
-			} else {
-				$stock.remove();
+				const $variant_stock = $('<div class="form-hero-stockrow"></div>').appendTo(
+					this.$wrapper
+				);
+				window.neo_render_template_stock_row(this.frm, $variant_stock);
 			}
 			return;
 		}
+
+		if (!cint(doc.is_stock_item)) return;
+		const $stock = $('<div class="form-hero-stockrow"></div>').appendTo(this.$wrapper);
 
 		frappe
 			.call({
