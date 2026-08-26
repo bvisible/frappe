@@ -915,7 +915,12 @@ frappe.ui.form.FormHero = class FormHero {
 		// may add them after this render)
 		const hide_native = () => {
 			this.frm.page.wrapper.find(".add_change_price").hide();
-			if (cint(doc.is_stock_item)) this.frm.page.wrapper.find(".add_stock").hide();
+			// has_variants too: a quick-entry template is is_stock_item = 0 yet
+			// its variants hold stock, so the hero does carry the stock CTA and
+			// the page-header original would show it a second time.
+			if (cint(doc.is_stock_item) || cint(doc.has_variants)) {
+				this.frm.page.wrapper.find(".add_stock").hide();
+			}
 		};
 		hide_native();
 		setTimeout(hide_native, 600);
