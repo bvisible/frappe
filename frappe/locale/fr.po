@@ -17870,6 +17870,14 @@ msgstr ""
 msgid "No email"
 msgstr "Aucun email"
 
+#: frappe/public/js/frappe/form/form_hero.js
+msgid "Manage stock"
+msgstr "Gérer le stock"
+
+#: frappe/public/js/frappe/form/form_hero.js
+msgid "Variant of"
+msgstr "Variante de"
+
 #: frappe/core/api/user_invitation.py:17
 msgid "No email addresses to invite"
 msgstr "Aucune adresse e-mail à inviter"

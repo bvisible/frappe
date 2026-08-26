@@ -920,8 +920,36 @@ frappe.ui.form.FormHero = class FormHero {
 		hide_native();
 		setTimeout(hide_native, 600);
 
+		// A variant should never be a dead end: name its template, one click away.
+		if (doc.variant_of) {
+			const $parent_row = $('<div class="form-hero-stockrow"></div>').appendTo(this.$wrapper);
+			$parent_row.html(`
+				<span class="stock-label">${__("Variant of")}</span>
+				<span class="stock-chip hero-variant-of" style="cursor:pointer;">
+					<span class="w">${frappe.utils.escape_html(doc.variant_of)}</span>
+				</span>
+			`);
+			$parent_row.find(".hero-variant-of").on("click", () => {
+				frappe.set_route("Form", "Item", doc.variant_of);
+			});
+		}
+
 		if (!cint(doc.is_stock_item)) return;
 		const $stock = $('<div class="form-hero-stockrow"></div>').appendTo(this.$wrapper);
+
+		// A TEMPLATE holds no stock of its own — its variants do. Reading its
+		// own (always empty) Bin printed "No stock" on a parent whose children
+		// are full. The theme knows about variants; core doesn't, so it renders
+		// that row. Label kept in sync with neoffice-theme.js (NEO_STOCK_LABEL*).
+		if (cint(doc.has_variants)) {
+			if (window.neo_render_template_stock_row) {
+				window.neo_render_template_stock_row(this.frm, $stock);
+			} else {
+				$stock.remove();
+			}
+			return;
+		}
+
 		frappe
 			.call({
 				method: "frappe.client.get_list",
@@ -947,10 +975,12 @@ frappe.ui.form.FormHero = class FormHero {
 				if (!bins.length) {
 					chips = `<span class="stock-chip empty">${__("No stock")}</span>`;
 				}
+				// "Manage stock", not "Add stock": the dialog behind it also
+				// removes, and corrects a counted total.
 				$stock.html(`
 					<span class="stock-label">${__("Stock")}</span>
 					${chips}
-					<button class="step-cta hero-add-stock">${STEP_ICONS.plus || ""}<span>${__("Add stock")}</span></button>
+					<button class="step-cta hero-add-stock">${STEP_ICONS.plus || ""}<span>${__("Manage stock")}</span></button>
 				`);
 				$stock.find(".hero-add-stock").on("click", (e) => {
 					e.preventDefault();

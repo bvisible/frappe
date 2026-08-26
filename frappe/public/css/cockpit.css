@@ -1379,6 +1379,26 @@ body.neoffice-cockpit .form-hero .step-cta.accent:hover {
 	color: #10141a;
 }
 
+/* Solid variant of the hero pill: INK, the design system's primary action
+   (clay is the accent, never the button). Second variant of the component
+   after .accent, so it belongs here with it — the mirror in neoffice_theme
+   only tags the pill (data-neo-primary) and lets the component paint it.
+   The --nw-primary-* tokens already flip in dark mode (ink → paper), so one
+   rule covers both themes. */
+body.neoffice-cockpit .form-hero .step-cta.primary,
+body.neoffice-cockpit .form-hero .step-cta[data-neo-primary="1"] {
+	background: var(--nw-primary-solid, #141414);
+	border-color: var(--nw-primary-solid, #141414);
+	color: var(--nw-primary-on, #ffffff);
+	font-weight: 600;
+}
+body.neoffice-cockpit .form-hero .step-cta.primary:hover,
+body.neoffice-cockpit .form-hero .step-cta[data-neo-primary="1"]:hover {
+	background: var(--nw-primary-solid-hover, #2a2a2a);
+	border-color: var(--nw-primary-solid-hover, #2a2a2a);
+	color: var(--nw-primary-on, #ffffff);
+}
+
 /* ===================== Filter pill (list / report views) =====================
    The stock list sidebar (.layout-side-section) is lifted out of the column
    flow into a floating glass pill at the top-right of the content area, so the
