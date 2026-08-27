@@ -99,7 +99,18 @@ export default class LinksWidget extends Widget {
 				opts.doctype = item.dependencies;
 			}
 
-			const route = frappe.utils.generate_route(opts);
+			//// Neoffice — a card link may now be a plain URL, like a shortcut
+			//// already could. Upstream `link_type` only knew DocType / Page /
+			//// Report, so an application living outside Frappe — Construction
+			//// points at OCE — could only be reached through shortcuts, never
+			//// from the grouped link cards where the rest of a module lives.
+			////
+			//// The url is used AS IS, bypassing `generate_route`: that helper
+			//// ends on `return `/app/${route}`` unconditionally, which turned
+			//// https://example.org/oce into /app/https://example.org/oce.
+			//// Caught by actually clicking the thing rather than trusting it.
+			const is_url_link = (item.link_type || "").toLowerCase() == "url";
+			const route = is_url_link ? item.url || "#" : frappe.utils.generate_route(opts);
 			item.link_title = item.label ? item.label : item.name;
 
 			const $link = $(`

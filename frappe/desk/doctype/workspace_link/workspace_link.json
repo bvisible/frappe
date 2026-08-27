@@ -13,6 +13,7 @@
   "link_details_section",
   "link_type",
   "link_to",
+  "url",
   "report_ref_doctype",
   "column_break_7",
   "dependencies",
@@ -63,7 +64,7 @@
    "in_list_view": 1,
    "label": "Link Type",
    "mandatory_depends_on": "eval:doc.type==\"Link\"",
-   "options": "DocType\nPage\nReport",
+   "options": "DocType\nPage\nReport\nURL",
    "read_only_depends_on": "eval:doc.type!=\"Link\""
   },
   {
@@ -71,9 +72,18 @@
    "fieldtype": "Dynamic Link",
    "in_list_view": 1,
    "label": "Link To",
-   "mandatory_depends_on": "eval:doc.type==\"Link\"",
+   "mandatory_depends_on": "eval:doc.type == \"Link\" && doc.link_type != \"URL\"",
    "options": "link_type",
-   "read_only_depends_on": "eval:doc.type!=\"Link\""
+   "read_only_depends_on": "eval:doc.type!=\"Link\"",
+   "depends_on": "eval:doc.link_type != \"URL\""
+  },
+  {
+   "fieldname": "url",
+   "fieldtype": "Data",
+   "label": "URL",
+   "options": "URL",
+   "depends_on": "eval:doc.link_type == \"URL\"",
+   "mandatory_depends_on": "eval:doc.link_type == \"URL\""
   },
   {
    "fieldname": "column_break_7",
