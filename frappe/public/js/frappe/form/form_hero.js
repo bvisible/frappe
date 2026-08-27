@@ -258,6 +258,76 @@ const HERO_REGISTRY = {
 			return [];
 		},
 	},
+	// The buying side had no entry at all: an order and a receipt both fell back
+	// to the generic "Draft → Submitted", which says nothing about where the
+	// goods (or the invoice) actually are. per_received / per_billed are the
+	// figures erpnext itself uses to decide a purchase document's status.
+	"Purchase Order": {
+		steps: (doc, tx) => [
+			{ label: __("Draft"), when: doc.creation },
+			{ label: __("Ordered"), when: tx.submit() },
+			{ label: __("Received"), when: flt(doc.per_received) >= 100 ? doc.modified : null },
+			{ label: __("Billed"), when: flt(doc.per_billed) >= 100 ? doc.modified : null },
+		],
+		rank(doc) {
+			if (doc.docstatus === 2 || doc.status === "Closed") return -1;
+			if (doc.docstatus === 0) return 1;
+			if (flt(doc.per_billed) >= 100) return 5;
+			if (flt(doc.per_received) >= 100) return 4;
+			return 3;
+		},
+		actions(rank, frm) {
+			if (rank === 1) return [submit_action(frm)];
+			if (rank === 3)
+				return [
+					make_action(
+						frm,
+						__("Receive"),
+						"erpnext.buying.doctype.purchase_order.purchase_order.make_purchase_receipt",
+						"Purchase Receipt"
+					),
+					print_action(frm),
+				];
+			if (rank === 4)
+				return [
+					make_action(
+						frm,
+						__("Create invoice"),
+						"erpnext.buying.doctype.purchase_order.purchase_order.make_purchase_invoice",
+						"Purchase Invoice"
+					),
+					print_action(frm),
+				];
+			return [print_action(frm)];
+		},
+	},
+	"Purchase Receipt": {
+		steps: (doc, tx) => [
+			{ label: __("Draft"), when: doc.creation },
+			{ label: __("Received"), when: tx.submit() },
+			{ label: __("Billed"), when: flt(doc.per_billed) >= 100 ? doc.modified : null },
+		],
+		rank(doc) {
+			if (doc.docstatus === 2) return -1;
+			if (doc.docstatus === 0) return 1;
+			if (flt(doc.per_billed) >= 100) return 4;
+			return 2;
+		},
+		actions(rank, frm) {
+			if (rank === 1) return [submit_action(frm)];
+			if (rank === 2)
+				return [
+					make_action(
+						frm,
+						__("Create invoice"),
+						"erpnext.stock.doctype.purchase_receipt.purchase_receipt.make_purchase_invoice",
+						"Purchase Invoice"
+					),
+					print_action(frm),
+				];
+			return [print_action(frm)];
+		},
+	},
 	"Payment Entry": {
 		value_field: "paid_amount",
 		value_label: "Paid Amount",
