@@ -1310,6 +1310,14 @@ body.neoffice-cockpit .form-hero-prices .price-line.muted .pv {
 body.neoffice-cockpit .form-hero-prices .step-cta {
 	margin-top: 5px;
 }
+/* Secondary figure inside a price line (the amount behind a margin %, the
+   revenue behind a quantity): present, never competing with the number. */
+body.neoffice-cockpit .form-hero-prices .neo-hero-stat-sub {
+	font-family: Karla, -apple-system, sans-serif;
+	font-size: 11px;
+	color: var(--text-muted);
+	margin-left: 5px;
+}
 body.neoffice-cockpit .form-hero-stockrow {
 	display: flex;
 	align-items: center;
