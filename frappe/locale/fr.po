@@ -35279,3 +35279,11 @@ msgstr "Aucune caméra disponible sur cet appareil."
 #: frappe/public/js/frappe/scanner/index.js
 msgid "A barcode reader works without this: put the cursor in the field and scan."
 msgstr "Une douchette fonctionne sans caméra : placez le curseur dans le champ, puis scannez."
+
+#: frappe/public/js/frappe/form/form_hero.js
+msgid "Ordered"
+msgstr "Commandé"
+
+#: frappe/public/js/frappe/form/form_hero.js
+msgid "Receive"
+msgstr "Réceptionner"
