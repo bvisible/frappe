@@ -399,6 +399,23 @@ def get_desktop_page(page):
 	"""
 	try:
 		workspace = Workspace(loads(page))
+		#//// Neoffice — upstream builds and returns the page without ever asking
+		#//// `is_permitted()`. Only `__init__` guards, and only on the MODULE, so
+		#//// a workspace carrying no module is reachable by URL by anyone with a
+		#//// desk account — `is_hidden` merely removes it from the sidebar.
+		#////
+		#//// That is how the twelve Construction workspaces stayed openable at
+		#//// /app/construction-* on customer sites (measured 2026-08-27). Their
+		#//// shortcuts are of type URL, so `is_item_allowed()` has nothing to
+		#//// filter either and the whole page renders.
+		#////
+		#//// This costs nothing where nobody set roles: `is_permitted()` returns
+		#//// True when the roles table is empty, which is the case for 49 of our
+		#//// 49 public workspaces today. It only bites once we deliberately put a
+		#//// role on a workspace — which is how we gate the applications sold
+		#//// separately (see neoffice_theme/app_visibility.py).
+		if not workspace.is_permitted():
+			raise frappe.PermissionError
 		workspace.build_workspace()
 		return {
 			"charts": workspace.charts,
