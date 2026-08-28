@@ -131,22 +131,26 @@ class Workspace(Document):
 		if self.flags.get("for_reload"):
 			return
 
-		#//// Neoffice — never destroy the source during a migrate / install /
-		#//// uninstall. This mirrors what upstream already does one level up for
-		#//// DocTypes: delete_doc() skips delete_controllers() when in_migrate,
-		#//// in_install, in_uninstall or for_reload. Workspace.after_delete had
-		#//// no such guard, so ANY automated deletion during a migrate (our
-		#//// after_migrate cleanup, an app hook) deleted the workspace JSON that
-		#//// belongs to the app and is tracked in git. Fitness died that way on
-		#//// 24 and 28.08.2026: a normally self-healing incident (re-migrate
-		#//// re-imports the file) became a loss of the SOURCE, so the next
-		#//// migrate had nothing left to reload. A developer deleting a
-		#//// workspace by hand still cleans the folder, exactly as upstream
-		#//// intends. Drop this if upstream adds the same guard.
-		if frappe.flags.in_migrate or frappe.flags.in_install or frappe.flags.in_uninstall:
-			return
-
 		if self.module and frappe.conf.developer_mode:
+			#//// Neoffice — say WHO is destroying an app's workspace source.
+			#//// Reaching this line means a workspace shipped as a file by an
+			#//// installed app is about to lose that file. It cannot happen
+			#//// during a migrate/install/patch/test (disable_saving_as_public()
+			#//// above already returns), nor on a customer instance (no
+			#//// developer_mode) — so in practice this is a hand deletion, or a
+			#//// script running outside the migrate context. Fitness lost its
+			#//// source twice that way (24 and 28.08.2026) and both times the
+			#//// culprit had to be reconstructed from timestamps. The trace makes
+			#//// the third time a one-line answer. Diagnostic only: upstream
+			#//// behaviour below is untouched.
+			import traceback
+
+			frappe.log_error(
+				f"Workspace source folder deleted: {self.name}",
+				f"Module: {self.module}\nTitle: {self.title}\n"
+				f"User: {frappe.session.user if frappe.session else '?'}\n\n"
+				+ "".join(traceback.format_stack(limit=25)),
+			)
 			delete_folder(self.module, "Workspace", self.title)
 
 	@staticmethod
