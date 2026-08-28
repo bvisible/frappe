@@ -264,6 +264,33 @@ class LoginManager:
 		):
 			return
 
+		#//// Neoffice — a PORTAL account may be signed in on more than one device.
+		#////
+		#//// Same reasoning as the mobile/kiosk exemption above, one step further:
+		#//// a club member reads their training journal on their phone and books a
+		#//// class from the laptop, and evicting one from the other makes the app
+		#//// look broken. What it exposes is bounded — a Website User with no desk
+		#//// access reaches their own portal data and nothing else, so a second
+		#//// session cannot reach the ERP.
+		#////
+		#//// Staff keep the one-session rule untouched: that is what the setting is
+		#//// for, and a desk session left open on a phone is a different risk
+		#//// entirely.
+		#////
+		#//// Reported 2026-08-28: the gym PWA signed itself out whenever the same
+		#//// demo account was opened anywhere else — which is also what two people
+		#//// sharing a demo account during a trial would hit.
+		#//// Both conditions, deliberately: `user_type` states the intent and
+		#//// `has_desk_access()` reads the roles actually granted. Either one alone
+		#//// has already been wrong here (see neoffice_gym.api.session._sans_desk).
+		user = frappe.session.user
+		if frappe.db.get_value("User", user, "user_type") == "Website User":
+			try:
+				if not frappe.get_doc("User", user).has_desk_access():
+					return
+			except Exception:
+				pass
+
 		clear_sessions(frappe.session.user, keep_current=True)
 
 	def authenticate(self, user: str | None = None, pwd: str | None = None):
