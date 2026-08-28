@@ -131,6 +131,21 @@ class Workspace(Document):
 		if self.flags.get("for_reload"):
 			return
 
+		#//// Neoffice — never destroy the source during a migrate / install /
+		#//// uninstall. This mirrors what upstream already does one level up for
+		#//// DocTypes: delete_doc() skips delete_controllers() when in_migrate,
+		#//// in_install, in_uninstall or for_reload. Workspace.after_delete had
+		#//// no such guard, so ANY automated deletion during a migrate (our
+		#//// after_migrate cleanup, an app hook) deleted the workspace JSON that
+		#//// belongs to the app and is tracked in git. Fitness died that way on
+		#//// 24 and 28.08.2026: a normally self-healing incident (re-migrate
+		#//// re-imports the file) became a loss of the SOURCE, so the next
+		#//// migrate had nothing left to reload. A developer deleting a
+		#//// workspace by hand still cleans the folder, exactly as upstream
+		#//// intends. Drop this if upstream adds the same guard.
+		if frappe.flags.in_migrate or frappe.flags.in_install or frappe.flags.in_uninstall:
+			return
+
 		if self.module and frappe.conf.developer_mode:
 			delete_folder(self.module, "Workspace", self.title)
 
