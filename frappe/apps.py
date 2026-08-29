@@ -40,8 +40,44 @@ def get_apps_from_customization(allowed_workspaces):
 		order_by="sort_order asc, app_title asc"
 	)
 
+	#//// Neoffice — this list is what the app switcher shows, and it obeyed
+	#//// neither of our two rules. Measured 29.08.2026 over real HTTP with a
+	#//// throwaway account per job: a cashier whose profile grants two
+	#//// applications was served all ten, and so was a portal customer. The
+	#//// per-user whitelist (User Visible App) and the entitlement gate on the
+	#//// applications sold separately (Construction, Fitness) only ran on the
+	#//// desk bootinfo, never here. Administrator is never filtered.
+	visible_apps = set()
+	hidden_apps = set()
+	if frappe.session.user != "Administrator":
+		try:
+			visible_apps = set(
+				frappe.get_all(
+					"User Visible App",
+					filters={"parent": frappe.session.user, "parenttype": "User"},
+					pluck="app",
+				)
+			)
+		except Exception:
+			visible_apps = set()
+		try:
+			from neoffice_theme.app_visibility import gated_customizations_to_hide
+
+			hidden_apps = gated_customizations_to_hide()
+		except Exception:
+			hidden_apps = set()
+
 	for custom in customizations:
 		app_name = custom.get("app_name")
+
+		#//// Neoffice — an application the site has not bought is never offered.
+		if app_name in hidden_apps:
+			continue
+
+		#//// Neoffice — an empty whitelist means "show everything", which is the
+		#//// behaviour every account had before profiles existed.
+		if visible_apps and app_name not in visible_apps:
+			continue
 
 		# Skip if not installed and not virtual
 		if app_name not in installed_apps and not custom.get("is_virtual"):
