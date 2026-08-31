@@ -1187,7 +1187,19 @@ def browse(
 
 	url = f"{frappe.utils.get_site_url(site)}{sid}"
 
-	if user == "Administrator":
+	#//// Neoffice — print the URL for EVERY user, not just Administrator.
+	#//// Upstream mints the session for any user (developer_mode above) but only
+	#//// echoes the link for Administrator; for anyone else the URL goes to
+	#//// click.launch() alone, which opens a browser on the SERVER — nothing on
+	#//// a headless box. So `browse --user someone@club.test` silently succeeds
+	#//// and hands you nothing.
+	#//// That makes the command useless for the one thing it is needed for here:
+	#//// our test rule requires proving every change against three identities
+	#//// (anonymous, portal user, staff), and testing as Administrator proves
+	#//// nothing since it passes everything. The session was already created —
+	#//// this only shows the link that was made.
+	#//// Worth sending upstream: the asymmetry looks accidental, not deliberate.
+	if sid:
 		click.echo(f"Login URL: {url}")
 
 	click.launch(url)
