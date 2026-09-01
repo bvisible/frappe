@@ -133,7 +133,12 @@ class File(Document):
 					if extrema[3][0] < 255:
 						extension = "png"
 				self.file_name = self.file_name + '.' + extension
-			except PIL.UnidentifiedImageError:
+			except (PIL.UnidentifiedImageError, TypeError):
+				#//// Neoffice — TypeError too: when content is still a str
+				#//// (base64 not yet decoded — decode happens later in
+				#//// save_file), io.BytesIO(str) raised here and killed every
+				#//// File.insert with text content. Not an image -> same
+				#//// fallback as an unreadable one.
 				self.file_name = base_name
 		#////
 
