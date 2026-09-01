@@ -728,7 +728,15 @@ class File(Document):
 			and self.content_type == "image/jpeg"
 			and frappe.get_system_settings("strip_exif_metadata_from_uploaded_images")
 		):
-			self._content = strip_exif_data(self._content, self.content_type)
+			#//// Neoffice — tolerate unreadable content: content_type comes from
+			#//// the file EXTENSION, so a mislabeled or truncated "jpeg" made
+			#//// PIL raise inside strip_exif_data and killed the whole upload
+			#//// with a 500. EXIF stripping is best-effort hygiene, not a
+			#//// validation step: keep the original bytes when PIL cannot read.
+			try:
+				self._content = strip_exif_data(self._content, self.content_type)
+			except Exception:
+				pass
 
 		self.file_size = self.check_max_file_size()
 		self.content_hash = get_content_hash(self._content)
