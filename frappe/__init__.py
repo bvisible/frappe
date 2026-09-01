@@ -822,8 +822,13 @@ def sendmail(
 	# it `name` shadowed the kwarg and stamped every Email Queue row's
 	# reference_name with the sender display name instead of the document
 	# (fleet-wide traceability loss, found 2026-07-08).
-	sender_display = user + (get_user_default("Company") or get_global_default("company"))
-	sender = sender_display + ' <'+default_outgoing +'>'
+	#//// Neoffice — guards: on a site with no company yet or no default outgoing
+	#//// Email Account (fresh sites, CI runners), these concatenations made EVERY
+	#//// sendmail die in TypeError. Without an outgoing account, keep the caller's
+	#//// sender instead of forging a broken one.
+	sender_display = user + (get_user_default("Company") or get_global_default("company") or "")
+	if default_outgoing:
+		sender = sender_display + ' <'+default_outgoing +'>'
 	#////
 
 	if recipients is None:
