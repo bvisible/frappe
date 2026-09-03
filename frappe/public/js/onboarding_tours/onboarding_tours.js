@@ -265,6 +265,12 @@ frappe.ui.init_onboarding_tour = () => {
 	typeof frappe.boot.user.onboarding_status == "undefined" &&
 		frappe.boot.user.onboarding_status == {};
 	let route = frappe.router.current_route;
+	//// Neoffice — added !route guard (a844aff25c, 2025-11-26 "fix: add null check for route in
+	//// init_onboarding_tour"). Upstream is `if (route?.[0] === "") return;` — optional chaining that
+	//// yields undefined for a null route, which is NOT "" so the function carries on and throws on
+	//// the plain route[0] a few lines below. frappe.router.current_route is null while the router
+	//// is still resolving, which our cockpit boot order hits. v15.120 and develop both still have
+	//// the unguarded line — a one-line fix worth sending upstream.
 	if (!route || route?.[0] === "") return;
 
 	let tour_name;

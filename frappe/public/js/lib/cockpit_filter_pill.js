@@ -1,3 +1,20 @@
+//// Neoffice — added file (no upstream equivalent in v15.120 or develop): the NeoCockpit filter
+//// pill controller. Upstream lists and query-reports keep their filter sidebar as a fixed 220px
+//// column of .layout-side-section; this turns it into a collapsible glass pill floating over the
+//// content so the datatable takes the full width. Served raw from /assets (declared in hooks.py
+//// with a ?v= cache-bust, no bench build), positioning lives in public/css/cockpit.css.
+//// Written on 2026-06-13 by, in order: 08b9dfa77b (the pill itself, collapsed chip with the
+//// active-filter count, state in localStorage, mobile FAB) · fe9272b98e (poll for .list-sidebar
+//// instead of a fixed timeout — the single delayed enhance() raced the async sidebar render on
+//// hard load and the header chip was never injected) · 0c0e42fa6d (gate on frappe.get_route(),
+//// not the body .nf-list class, which desk.js sets on the very event we listen to) · 5d1e46dfe8
+//// (pin the injected header with order:-1 — Frappe prepends its own controls after us and buried
+//// it; one-click filter reset; active glow) · 5af084e625 / 066172fa05 / 7a68794110 (the injected
+//// SVG feDisplacementMap filter behind the liquid-glass refraction, then toned down) ·
+//// a55398c766 (rehomeStrays + MutationObserver: on back-navigation Frappe re-renders the filter
+//// controls as a direct child of .layout-side-section, outside the pill).
+//// Reads Frappe internals (.list-sidebar, .filter-x-button, the sidebar DOM shape) — a change to
+//// the list sidebar markup upstream breaks it silently; it degrades to the stock sidebar.
 // NeoCockpit — list/report filter sidebar → floating glass pill.
 //
 // The stock Frappe list sidebar (.layout-side-section > .list-sidebar) eats a

@@ -15,6 +15,17 @@ import Util from "bootstrap/js/dist/util";
 window.jQuery = jQuery;
 window.$ = jQuery;
 
+//// Neoffice — added block (9999364ec6, 2025-10-28 "Refonte de l'interface utilisateur avec
+//// nouvelle sidebar et apps switcher"; block runs to the export statement below). Upstream only
+//// sets window.jQuery / window.$ and re-exports the Bootstrap classes — it relies on
+//// bootstrap/js/dist/* having registered themselves on the ONE jQuery instance esbuild resolved.
+//// That rework made apps load from symlinked benches, and esbuild then resolved two copies of
+//// jquery: the plugins attached to the copy the desk bundle does not use, so $.fn.modal,
+//// $.fn.popover, $.fn.tooltip … were undefined at runtime (every dialog and every filter popover
+//// dead). Re-registering each plugin explicitly on window.jQuery makes the binding independent
+//// of how many jQuery instances the bundler produced. No upstream equivalent (v15.120 or
+//// develop). TO REVIEW at the merge: the real fix is the esbuild dedupe/alias for jquery — drop
+//// this shim once the bundler resolves a single instance for symlinked apps.
 // Manually register Bootstrap plugins on window.jQuery to fix symlink bundling issue
 // This ensures Bootstrap plugins are available even when esbuild creates multiple jQuery instances
 const registerPlugin = (name, Plugin) => {
