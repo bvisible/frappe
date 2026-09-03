@@ -1,3 +1,7 @@
+/* //// Neoffice — TO REVIEW: the ONLY divergence from upstream v15 in this file is a MISSING
+   //// NEWLINE at end of file (bd41f1e7a5, 2025-02-26 "Update neov2", 40 files, empty message).
+   //// No rule differs. An editor accident, not an intent: restore the final newline at the
+   //// next upstream merge and this file is back to zero divergence. */
 {% include "templates/print_format/print_format_font.css" %}
 
 {% macro render_margin_text(position, content) %}

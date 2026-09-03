@@ -1,3 +1,7 @@
+{#- //// Neoffice — this file has two divergences from upstream v15: the .page-number rule
+    //// inside the <style> block below (marked in place, CSS syntax), and a MISSING NEWLINE at
+    //// end of file (bd41f1e7a5, "Update neov2"). The second one is an editor accident, not an
+    //// intent — restore the final newline at the next upstream merge. -#}
 <!DOCTYPE html>
 <html lang={{ lang }} dir={{ layout_direction }}>
 	<head>
@@ -31,6 +35,12 @@
 				margin-top: -15mm !important;
 			}
 
+			/* //// Neoffice — added rule (4c842a98fc "First change v15", tweaked by bd41f1e7a5 "Update
+			   //// neov2"): the wkhtmltopdf page counter is hidden. Neoffice print formats carry their own
+			   //// footer with the page number, so upstream's .page-number produced a second one.
+			   //// Companion: templates/print_formats/standard.html, where 4639b6e45f ("remove page number
+			   //// pdf") deleted the block that emits it. TO REVIEW: both commits have empty messages, so
+			   //// the reason above is read from the code. */
 			/*//// added */
 			.page-number{
 				display:none!important;

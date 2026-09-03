@@ -2,6 +2,11 @@
 	.print-format-gutter {
 		background-color: #d1d8dd;
 		padding: 30px 0px;
+		/* //// Neoffice — added (c2b7ad6ad8, 2025-03-16 "change logo and centre preview", 5 files):
+		   //// the print-preview gutter becomes a flex container so the sheet is centred instead of
+		   //// hugging the left edge. Upstream only sets background-color and padding here.
+		   //// The file's ONLY other divergence is a missing newline at end of file (bd41f1e7a5,
+		   //// "Update neov2") — an accident, restore it at the next upstream merge. */
 		/* //// */
 		display: flex;
 		justify-content: center;

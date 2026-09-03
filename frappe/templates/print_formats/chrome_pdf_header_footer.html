@@ -1,3 +1,14 @@
+{#- //// Neoffice — added file (no upstream equivalent in version-15, absent from v15.120.0).
+    //// Backported verbatim from frappe develop with the Chrome PDF generator: c64ffb849d
+    //// (develop 964dd6c034 "feat: Chrome PDF generator"), a81178b1f3 (develop 510669b64c "fix:
+    //// remove unwanted top padding") and e27ea8b21b (develop 4f365bfbf5 "refactor: add
+    //// backwards compatibility styles"). Byte-identical to develop at 4f365bfbf5. It is the
+    //// shell Chromium renders the header/footer into; the negative margins and the .wrapper
+    //// padding exist to reproduce the wkhtmltopdf page geometry.
+    //// Merge notes: upstream develop has moved on four commits since 4f365bfbf5 (up to
+    //// 987bd168b1, 2026-07-10 "single shared stylesheet for print format builder canvas and
+    //// print output") — at a v16 merge take upstream and drop this copy. At a v15 merge there
+    //// is nothing to conflict with. The file also has no trailing newline, like develop. -#}
 <!DOCTYPE html>
 <html lang={{ lang }} dir={{ layout_direction }}>
 	<head>

@@ -1,4 +1,22 @@
 {%- from "templates/print_formats/standard_macros.html" import add_header, render_field with context -%}
+{#- //// Neoffice ▼▼▼ — this template is REWRITTEN; the whole body below diverges from upstream
+    //// and the merge will conflict on all of it. Upstream renders one .page-break per layout
+    //// page: a header from add_header(), then every section/column/field of the document, then
+    //// a footer with the page counter.
+    ////   • fb36415234 (2026-06-18 "feat(print): reuse Oslo skin in standard.html for doctypes
+    ////     without a dedicated format") calls the neoffice_theme jinja method
+    ////     oslo_generic_skin(doc): when it returns a skin, the branded Oslo header replaces
+    ////     add_header() on page 1 and the skin CSS is injected;
+    ////   • e40e42e97f (same day, "standard.html renders the Oslo items body, replacing field
+    ////     dump") goes further: when the document has an items table the Oslo items body +
+    ////     totals REPLACE Frappe's field/table dump entirely, which is what made a document
+    ////     with no dedicated print format look like a raw field listing;
+    ////   • 4639b6e45f (2025-03-15 "remove page number pdf") deleted the
+    ////     `Page {0} of {1}` block from the footer — see the matching rule in
+    ////     pdf_header_footer.html.
+    //// Every call is guarded with `is defined`, so a bench WITHOUT neoffice_theme still gets
+    //// upstream's layout — that guard is what makes this survivable. The comment just below
+    //// is the original in-file note. ▲▲▲ ends at the last line of the file. -#}
 {#- Neoffice: global Oslo skin for doctypes WITHOUT a dedicated Oslo print
     format. oslo_generic_skin(doc) (neoffice_theme jinja method) returns a
     branded header (+ skin CSS) and, for documents with an items table, a full

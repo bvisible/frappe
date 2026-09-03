@@ -230,6 +230,12 @@ login.login_handlers = (function () {
 			if (data.message == 'Logged In') {
 				login.set_status({{ _("Success") | tojson }}, 'green');
 				document.body.innerHTML = `{% include "templates/includes/splash_screen.html" %}`;
+				//// Neoffice — upstream: `window.location.href = sanitise_redirect(get_url_arg("redirect-to"))
+				//// || data.home_page;` on one line. Split in two by e871579bc5 (2026-01-05 "fix: simplify
+				//// redirect logic for System Users on login") after an earlier attempt (62ec7bd570) broke
+				//// redirect-to whenever home_page was "/". Behaviour now matches upstream for System Users;
+				//// only the Website User branch below still differs. TO REVIEW: this hunk is a pure
+				//// refactor — it could go back to upstream's one-liner at the merge.
 				// System Users: use redirect-to if provided, otherwise use home_page
 				var redirect_to = frappe.utils.sanitise_redirect(frappe.utils.get_url_arg("redirect-to"));
 				window.location.href = redirect_to || data.home_page;
@@ -244,11 +250,19 @@ login.login_handlers = (function () {
 					localStorage.removeItem("last_visited");
 				}
 
+				//// Neoffice — added (0fc74d1ad5, 2025-12-08 "fix: ignore redirect-to=/app for Website Users
+				//// (No App response)"): a Website User signing in from a /app URL was sent back to /app,
+				//// which they have no access to — a dead end, and the previous fix only covered the
+				//// "Logged In" branch, not "No App". last_visited is cleared when it points at the desk.
+				//// This is the client half of RULE #1b: a portal user must never be pushed into /app.
 				// For Website Users, ignore redirect-to if it points to /app (they don't have access)
 				if (last_visited && (last_visited === "/app" || last_visited.startsWith("/app/"))) {
 					last_visited = null;
 				}
 
+				//// Neoffice — upstream applies data.redirect_to and last_visited as two independent ifs, so a
+				//// redirect_to could be overwritten by last_visited a line later. Ours makes them exclusive
+				//// (0fc74d1ad5).
 				if (data.redirect_to) {
 					window.location.href = frappe.utils.sanitise_redirect(data.redirect_to);
 				} else if (last_visited && last_visited != "/login") {
