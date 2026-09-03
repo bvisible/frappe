@@ -3,6 +3,11 @@ import FileUploaderComponent from "./FileUploader.vue";
 import { watch } from "vue";
 
 class FileUploader {
+	//// Neoffice - added static (ec5475a774, 2026-08-05 "fix(file uploader): give apps the UploadOptions
+	//// extension point they expect"): the array suite/drive already pushes onto. Without it the push
+	//// threw "Cannot read properties of undefined (reading 'some')" on every desk page, and the subclass
+	//// that runs just before defaults disable_file_browser to true - so the stock Library button was
+	//// hidden while its replacement was never registered. No upstream equivalent (v15 or develop).
 	// Extension point for apps that add their own file source (Drive, a DAM, …).
 	// Push {label, icon, action({dialog, uploader})}; the button is rendered
 	// after the built-in ones. Kept on the class so subclasses share one list.
@@ -70,6 +75,9 @@ class FileUploader {
 			allow_toggle_private,
 			allow_toggle_optimize,
 			allow_google_drive,
+			//// Neoffice - two props added (ec5475a774, 2026-08-05): hands the registered sources and their
+			//// runner to the Vue component, which renders one button per entry (marked in FileUploader.vue).
+			//// Read off the class, not the instance, so a subclass shares the same list.
 			upload_options: FileUploader.UploadOptions,
 			run_upload_option: (option) =>
 				option.action({ dialog: this.dialog, uploader: this.uploader }),

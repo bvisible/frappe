@@ -163,6 +163,12 @@
 						</svg>
 						<div class="mt-1">{{ __("Google Drive") }}</div>
 					</button>
+					<!-- //// Neoffice - added (ec5475a774, 2026-08-05 "fix(file uploader): give apps the UploadOptions
+					     //// extension point they expect"): suite/drive registers its Drive picker by pushing onto
+					     //// frappe.ui.FileUploader.UploadOptions, an array upstream never exposed. The registration threw
+					     //// on every desk page and the stock Library button stayed hidden with no replacement, so
+					     //// attaching a file offered only My Device / Camera / Link on the whole fleet. One button per
+					     //// registered source, appended after the built-in ones. -->
 					<!-- Sources registered by apps through FileUploader.UploadOptions.
 					     Appended last so the built-in buttons keep their order. -->
 					<button
@@ -206,6 +212,10 @@
 					@toggle_optimize="file.optimize = !file.optimize"
 					@toggle_image_cropper="toggle_image_cropper(i)"
 				/>
+			<!-- //// Neoffice - added (bd41f1e7a5, 2025-02-26 "Update neov2"; the commit carries no rationale):
+			     //// a permanent notice under the file list explaining Private vs Public visibility, which
+			     //// upstream does not show. TO REVIEW before the upstream merge - the sentence is an msgid of its
+			     //// own and names the "Neoffice user system". -->
 			<div class="public-warning form-message blue"> {{ __("Change file visibility: Private => only visible by Neoffice user system. Public => visible by anyone (can be indexed by Google)") }}</div><!-- //// -->
 
 			</div>
@@ -241,6 +251,11 @@
 
 <script setup>
 import { computed, ref, watch } from "vue";
+//// Neoffice - the import block below was re-sorted by path (bd41f1e7a5, 2025-02-26 "Update neov2";
+//// no rationale - the signature of an editor's organize-imports). Upstream order: FilePreview,
+//// FileBrowser, WebLink, GoogleDrivePicker, ImageCropper. Nothing else differs: take upstream's order
+//// at the merge. Same file, elsewhere: the final newline after </style> was dropped (whitespace only,
+//// listed in NEOFFICE_FORK_MARKERS.md because a comment cannot be placed there).
 import GoogleDrivePicker from "../../integrations/google_drive_picker";
 import FileBrowser from "./FileBrowser.vue";
 import FilePreview from "./FilePreview.vue";
@@ -646,6 +661,11 @@ function upload_file(file, i) {
 					file.failed = true;
 					file.error_message = "Size exceeds the maximum allowed file size.";
 				} 
+				//// Neoffice - added else-if (4c842a98fc, 2023-10-30 "First change v15", carried over by bd41f1e7a5;
+				//// neither commit gives a rationale): upstream sends HTTP 500 to the generic branch below, which
+				//// shows the bare status text. Ours surfaces the server's _error_message when the response body
+				//// parsed, and "File not supported." otherwise. Upstream's `} else {` was split in two by this block
+				//// (the `}` above lost its `else`).
 				//// added else if
 				else if (xhr.status === 500) {
 					file.failed = true;

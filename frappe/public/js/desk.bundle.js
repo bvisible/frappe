@@ -9,6 +9,12 @@ import "./frappe/dom.js";
 import "./frappe/ui/messages.js";
 import "./frappe/ui/keyboard.js";
 import "./frappe/ui/colors.js";
+//// Neoffice - three imports added (9999364ec6, 2025-10-28 "Refonte de l'interface utilisateur avec
+//// nouvelle sidebar et apps switcher"): upstream's desk bundle imports only ui/sidebar.js. Ours also
+//// registers the sidebar template and the apps switcher (script + template) - ui/sidebar.js renders
+//// frappe.templates["sidebar"] and instantiates frappe.ui.AppsSwitcher, and both only reach the desk
+//// through these lines. v16 merge note: upstream develop moved the sidebar to ui/sidebar/* and has no
+//// ui/apps_switcher.* at all (its switcher is ui/sidebar/sidebar_header.js).
 import "./frappe/ui/sidebar.html";
 import "./frappe/ui/sidebar.js";
 import "./frappe/ui/apps_switcher.js";
