@@ -62,6 +62,10 @@ class PrintSettings(Document):
 		print_style: DF.Link | None
 		repeat_header_footer: DF.Check
 		send_print_as_pdf: DF.Check
+		#//// Neoffice — added by the Chrome-PDF backport: 40b4e486bb, cherry-picked from frappe
+		#//// develop 8649c18125 (2026-01-10 "feat: allow use of chrome pdf generator for standard
+		#//// print format"). Absent from upstream version-15 (v15.120.0). Generated mirror of
+		#//// print_settings.json, which gains the same Check field — see NEOFFICE_FORK_MARKERS.md.
 		use_chrome_for_standard_format: DF.Check
 		with_letterhead: DF.Check
 

@@ -40,6 +40,11 @@ class PrintFormat(Document):
 		page_number: DF.Literal[
 			"Hide", "Top Left", "Top Center", "Top Right", "Bottom Left", "Bottom Center", "Bottom Right"
 		]
+		#//// Neoffice — upstream v15: DF.Literal["wkhtmltopdf"] (still true at v15.120.0). "chrome" is
+		#//// added by our backport of frappe develop's Chrome PDF generator (c64ffb849d, cherry-picked
+		#//// from develop 964dd6c034). Generated mirror of print_format.json, whose `pdf_generator`
+		#//// options diverge the same way — see NEOFFICE_FORK_MARKERS.md. Resolves itself at a v16
+		#//// merge; at a v15.120 merge keep our side.
 		pdf_generator: DF.Literal["wkhtmltopdf", "chrome"]
 		print_format_builder: DF.Check
 		print_format_builder_beta: DF.Check
