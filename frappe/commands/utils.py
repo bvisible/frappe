@@ -13,6 +13,16 @@ from frappe.commands import get_site, pass_context
 from frappe.coverage import CodeCoverage
 from frappe.exceptions import SiteNotSpecifiedError
 from frappe.utils import cint, update_progress_bar
+#//// Neoffice — added by our backport of frappe develop's Chrome PDF generator: c64ffb849d
+#//// (2025-09-25 "feat: Chrome PDF generator", cherry-picked from develop 964dd6c034), which
+#//// upstream never shipped on version-15 (still absent from v15.120.0): v15 prints through
+#//// wkhtmltopdf only. Companion files in this lot: utils/print_utils.py, utils/pdf.py,
+#//// utils/print_format.py, printing/doctype/print_format/print_format.py,
+#//// printing/doctype/print_settings/print_settings.py, templates/print_formats/
+#//// chrome_pdf_header_footer.html (+ utils/pdf_generator/* covered by the pilot lot).
+#//// TO REVIEW: this module-level import is dead — setup_chrome() below re-imports
+#//// setup_chromium inside the function (6bbb9586b9). It is verbatim from develop, so leave
+#//// it for the v16 merge to reconcile rather than diverging further.
 from frappe.utils.print_utils import setup_chromium
 
 EXTRA_ARGS_CTX = {"ignore_unknown_options": True, "allow_extra_args": True}
@@ -1168,6 +1178,12 @@ def rebuild_global_search(context, static_pages=False):
 		raise SiteNotSpecifiedError
 
 
+#//// Neoffice — added by the Chrome-PDF backport: c64ffb849d, cherry-picked from frappe
+#//// develop 964dd6c034 (2025-09-25 "feat: Chrome PDF generator"); the inner re-import comes
+#//// from 6bbb9586b9 / develop 5f99434f52 ("fix: import function/module inside inside
+#//// fucntion"). Downloads and installs the headless Chromium the chrome pdf_generator needs.
+#//// Not in upstream version-15 — it is a v16 feature. Verbatim from develop, so a v16 merge
+#//// resolves to identical content; a v15.120 merge keeps it as ours.
 @click.command("setup-chrome")
 def setup_chrome():
 	from frappe.utils.print_utils import setup_chromium
@@ -1208,5 +1224,7 @@ commands = [
 	add_to_email_queue,
 	rebuild_global_search,
 	run_parallel_tests,
+	#//// Neoffice — registers the backported `bench setup-chrome` command (c64ffb849d). Upstream
+	#//// version-15 has no such command (absent from v15.120.0).
 	setup_chrome,
 ]
