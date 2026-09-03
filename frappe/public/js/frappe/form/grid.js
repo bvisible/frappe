@@ -60,15 +60,15 @@ export default class Grid {
 	}
 
 	make() {
-		//// Neoffice - the grid-field template below carries three additions and nothing else; a marker cannot
+		//// Neoffice — the grid-field template below carries three additions and nothing else; a marker cannot
 		//// live inside a template literal, hence this single block:
-		////   - the "Toggle Full Width" button beside the label, in a .d-flex wrapper (8a044787a8, 2025-11-07
-		////     "Add full-width toggle to grid and improve VAT Declaration handling") - setup_fullwidth_toggle()
+		////   — the "Toggle Full Width" button beside the label, in a .d-flex wrapper (8a044787a8, 2025-11-07
+		////     "Add full-width toggle to grid and improve VAT Declaration handling") — setup_fullwidth_toggle()
 		////     below wires it. Upstream renders a bare <label class="control-label">;
-		////   - the .grid-append-row CTA inside the table (64f4614afc, 2026-06-10 "feat(cockpit): grid
+		////   — the .grid-append-row CTA inside the table (64f4614afc, 2026-06-10 "feat(cockpit): grid
 		////     redesign"), the cockpit's in-table "+ Add Row"; it shares the footer button's handler
 		////     (setup_add_row, marked) and its visibility rules (refresh_remove_rows_button, marked);
-		////   - inline SVG icons on Add Row / Add Multiple and icon-only Download / Upload (same commit), the
+		////   — inline SVG icons on Add Row / Add Multiple and icon-only Download / Upload (same commit), the
 		////     labels surviving as title / aria-label.
 		let template = `
 			<div class="grid-field">
@@ -167,7 +167,7 @@ export default class Grid {
 
 		this.setup_allow_bulk_edit();
 		this.setup_check();
-		//// Neoffice - added call (8a044787a8, 2025-11-07): wires the Toggle Full Width button of the template
+		//// Neoffice — added call (8a044787a8, 2025-11-07): wires the Toggle Full Width button of the template
 		//// above. The method it calls is ours too, right below.
 		this.setup_fullwidth_toggle();
 		if (this.df.on_setup) {
@@ -175,13 +175,13 @@ export default class Grid {
 		}
 	}
 
-	//// Neoffice - added method, no upstream equivalent (v15 or develop): expands a child table to a
+	//// Neoffice — added method, no upstream equivalent (v15 or develop): expands a child table to a
 	//// 95vw x 95vh overlay. History, because the shape matters at the merge: 8a044787a8 (2025-11-07)
 	//// shipped an inline "full width" toggle, 56c29f4324 (2026-05-08) made it a modal dialog and
-	//// 5a4bfb7b7c the same day dropped the DOM transplant it needed - moving the grid-field detached the
+	//// 5a4bfb7b7c the same day dropped the DOM transplant it needed — moving the grid-field detached the
 	//// listeners bound to the form column, breaking Add Row and the sub-dialogs. Since then the
 	//// grid-field never moves: only a class (position: fixed) plus a backdrop. Then dccea87d29 and
-	//// c31e75693c (force_search_row, read by grid_row.js#show_search_row - marked there) forced the
+	//// c31e75693c (force_search_row, read by grid_row.js#show_search_row — marked there) forced the
 	//// per-column search row visible, and on 2026-07-28 7bde977a72 / b793769888 / 9e59d27acf made the
 	//// overlay a continuous scroll: unbounded page length (a length frozen at open time re-paginated as
 	//// soon as a row was added) and rows beyond the page window dropped on close, since truncate_rows()
@@ -467,9 +467,9 @@ export default class Grid {
 		this.remove_all_rows_button.toggleClass("hidden", !show_delete_all_btn);
 	}
 
-	//// Neoffice - added field (0642910c2f, 2026-07-25): backport of upstream frappe#22862 into our v15.
+	//// Neoffice — added field (0642910c2f, 2026-07-25): backport of upstream frappe#22862 into our v15.
 	//// grid_row.js#refresh_check calls the debounced version instead of refresh_remove_rows_button()
-	//// (marked there), which re-scans the whole grid body on every call - O(rows^2) on a large table.
+	//// (marked there), which re-scans the whole grid body on every call — O(rows^2) on a large table.
 	//// Drop this once the fork reaches an upstream release that carries #22862.
 	// Backport of frappe/frappe#22862 (perf): refresh_check() runs once per row
 	// per render, and each call re-scans the whole grid body — O(rows²).
@@ -622,7 +622,7 @@ export default class Grid {
 
 		this.wrapper.trigger("change");
 
-		//// Neoffice - added (4c842a98fc, 2023-10-30 "First change v15"; the commit gives no rationale): after
+		//// Neoffice — added (4c842a98fc, 2023-10-30 "First change v15"; the commit gives no rationale): after
 		//// every render, tags each .data-row containing an element with data-name="Freeline" / "Subtotal"
 		//// with a matching class, for the line styling of the erpnextswiss sales documents. It runs on EVERY
 		//// grid of EVERY doctype, inside the render path. TO REVIEW at the merge.
@@ -697,7 +697,7 @@ export default class Grid {
 		this.wrapper
 			.find(".grid-add-row, .grid-add-multiple-rows, .grid-upload")
 			.toggle(this.is_editable());
-		//// Neoffice - added (e901cfb70a, 2026-06-10 "fix(cockpit): grid totals first-paint + append-row CTA
+		//// Neoffice — added (e901cfb70a, 2026-06-10 "fix(cockpit): grid totals first-paint + append-row CTA
 		//// visibility"): drives the visibility of the in-table CTA (.grid-append-row of the template above),
 		//// which upstream does not have. jQuery .toggle() was surfacing it on the legacy chrome by forcing an
 		//// inline display over the stylesheet, so the class alone decides and cannot_add_rows folds into the
@@ -985,7 +985,7 @@ export default class Grid {
 	}
 
 	setup_add_row() {
-		//// Neoffice - upstream binds only ".grid-add-row" (64f4614afc, 2026-06-10): the cockpit CTA row
+		//// Neoffice — upstream binds only ".grid-add-row" (64f4614afc, 2026-06-10): the cockpit CTA row
 		//// shares the footer button's handler, so both open a new row exactly the same way.
 		// .grid-append-row = the in-table CTA row (cockpit), same action
 		this.wrapper.find(".grid-add-row, .grid-append-row").click(() => {
@@ -1121,11 +1121,11 @@ export default class Grid {
 
 		this.visible_columns = [];
 
-		//// Neoffice - upstream hardcodes 11 as the cap on the sum of the column sizes (`if (total_colsize >
+		//// Neoffice — upstream hardcodes 11 as the cap on the sum of the column sizes (`if (total_colsize >
 		//// 11) return false;` below), which silently drops the in-list-view columns past it. 4e23539603
 		//// (2024-09-23 "last updates") first introduced limit_colsize as a VAT Declaration special case (20
 		//// instead of 11); 051206fa6b (2025-11-08 "fix: Grid fullwidth toggle with horizontal scroll")
-		//// generalised it to 999 - no column is dropped any more, and grid_row.js switches the grid to
+		//// generalised it to 999 — no column is dropped any more, and grid_row.js switches the grid to
 		//// horizontal scroll past 10 (.column-limit-reached, marked there). TO REVIEW at the merge: keeping
 		//// this means every in-list-view column renders on every child table of the fleet.
 		// No limit on column size - horizontal scroll will be enabled automatically
@@ -1167,7 +1167,7 @@ export default class Grid {
 				}
 
 				total_colsize += df.colsize;
-				//// Neoffice - 4e23539603 (2024-09-23) replaced upstream's literal 11 with limit_colsize, now 999 (see
+				//// Neoffice — 4e23539603 (2024-09-23) replaced upstream's literal 11 with limit_colsize, now 999 (see
 				//// the marker above). The redistribute loop that follows is upstream's again: 051206fa6b reverted the
 				//// three other substitutions 4e23539603 had made in it, so only its two comment lines are ours.
 				if (total_colsize > limit_colsize) return false; //// replaced 11 with limit_colsize
@@ -1228,7 +1228,7 @@ export default class Grid {
 					if (column) {
 						column.in_list_view = 1;
 						column.columns = row.columns;
-						//// Neoffice - added (051206fa6b, 2025-11-08): carries the per-column "sticky" flag of the user's
+						//// Neoffice — added (051206fa6b, 2025-11-08): carries the per-column "sticky" flag of the user's
 						//// GridView settings into visible_columns. grid_row.js pins those columns to the left while the grid
 						//// is in horizontal-scroll mode (marked there). Upstream has no sticky columns.
 						column.sticky = row.sticky || false;

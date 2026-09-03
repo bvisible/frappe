@@ -838,10 +838,10 @@ $.extend(frappe.model, {
 			let meta = frappe.get_meta(doctype);
 			let default_views = ["List", "Report", "Dashboard", "Kanban"];
 
-			//// Neoffice - upstream adds "Calendar" and "Gantt" to the default views of any doctype whose meta
+			//// Neoffice — upstream adds "Calendar" and "Gantt" to the default views of any doctype whose meta
 			//// carries is_calendar_and_gantt (4c842a98fc, 2023-10-30 "First change v15"; the commit gives no
 			//// rationale): the block below is commented out, so neither view is offered in the list-view
-			//// switcher. TO REVIEW at the merge - this hides an upstream feature for the whole fleet.
+			//// switcher. TO REVIEW at the merge — this hides an upstream feature for the whole fleet.
 			////commented
 			/*if (meta.is_calendar_and_gantt) {
 				let views = ["Calendar", "Gantt"];

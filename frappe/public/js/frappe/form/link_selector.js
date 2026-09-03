@@ -6,7 +6,7 @@ frappe.ui.form.LinkSelector = class LinkSelector {
 		/* help: Options: doctype, get_query, target */
 		$.extend(this, opts);
 
-		//// Neoffice - added (2868a5ef58, 2024-05-02 "Auto add first result"): remembers the values already
+		//// Neoffice — added (2868a5ef58, 2024-05-02 "Auto add first result"): remembers the values already
 		//// auto-clicked, so the auto-add below fires once per value. No upstream equivalent.
 		////
 		this.results_auto_add = [];
@@ -88,7 +88,7 @@ frappe.ui.form.LinkSelector = class LinkSelector {
 			$.extend(args, this.target.fieldinfo[this.fieldname].get_query(cur_frm.doc));
 		}
 		
-		//// Neoffice - the blank line above kept trailing tabs when the auto-add was written (2868a5ef58,
+		//// Neoffice — the blank line above kept trailing tabs when the auto-add was written (2868a5ef58,
 		//// 2024-05-02). Whitespace only, nothing else differs here: take upstream's line at the merge.
 		frappe.link_search(
 			this.doctype,
@@ -136,8 +136,8 @@ frappe.ui.form.LinkSelector = class LinkSelector {
 								return false;
 							});
 					}
-					//// Neoffice - added (2868a5ef58, 2024-05-02 "Auto add first result"): when the search comes back with
-					//// exactly one row, its link is clicked automatically (once per value - see results_auto_add in the
+					//// Neoffice — added (2868a5ef58, 2024-05-02 "Auto add first result"): when the search comes back with
+					//// exactly one row, its link is clicked automatically (once per value — see results_auto_add in the
 					//// constructor), so picking an item by exact code or barcode needs no second click. Upstream always
 					//// waits for the click. TO REVIEW at the merge: it fires in the results renderer of EVERY
 					//// LinkSelector dialog, not just the item picker it was written for.
@@ -224,7 +224,7 @@ frappe.ui.form.LinkSelector = class LinkSelector {
 							]);
 						}
 					},
-					//// Neoffice - upstream passes __("Set Quantity") as both the dialog title and the button label
+					//// Neoffice — upstream passes __("Set Quantity") as both the dialog title and the button label
 					//// (452930ca60, 2024-05-02 'change title and btn for dialog "Set Quantity"'): both now name the row -
 					//// __("Set Quantity for {0}", [value]). Upstream's two lines are kept commented out just below.
 					/* //// 

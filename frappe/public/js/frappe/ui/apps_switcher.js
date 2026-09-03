@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////
-//// Neoffice - added file, no upstream equivalent (v15 or develop).
+//// Neoffice — added file, no upstream equivalent (v15 or develop).
 ////
 //// The desk sidebar's app switcher, brought in by 9999364ec6 (2025-10-28 "Refonte de l'interface
 //// utilisateur avec nouvelle sidebar et apps switcher", 28 files) together with ui/sidebar.js,
@@ -8,13 +8,13 @@
 //// set_current_app() re-renders the sidebar for the app the user picks.
 //// Layered on since: App Customization sort_order and apps without workspaces (038cd157a7,
 //// 2025-11-09), workspace filtering and route fallbacks (0634af137c, 2025-11-13), the "Mobile Apps"
-//// entry calling showMobileAppsDialog() from neoffice_theme (128a47056a, 2025-11-25 - a core ->
+//// entry calling showMobileAppsDialog() from neoffice_theme (128a47056a, 2025-11-25 — a core ->
 //// neoffice_theme dependency, guarded by a typeof check), fallback to the first available app when
 //// neither erpnext nor frappe is in app_data_map (0160892c88 + 6e195111c9, 2025-12-14), null-safety
 //// on app_data[0] (a03d7f00db, 2026-03-11), the "Active Module" subtitle (e995a72fc6, 2026-04-24) and
 //// reading frappe.current_app instead of app_data[0] on load, so the header matches the module you
 //// land on (0deb4625c9, 2026-04-24).
-//// v16 merge note: upstream develop has no ui/apps_switcher.js - the app switcher became the sidebar
+//// v16 merge note: upstream develop has no ui/apps_switcher.js — the app switcher became the sidebar
 //// header menu (ui/sidebar/sidebar_header.js, "Apps" row): re-implement rather than merge.
 ////////////////////////////////////////////////////////////////////////
 frappe.ui.AppsSwitcher = class AppsSwitcher {

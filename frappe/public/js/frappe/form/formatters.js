@@ -161,7 +161,7 @@ frappe.form.formatters = {
 		}
 	},
 	Check: function (value) {
-		//// Neoffice - added guard, plus cint() on the class below (002e653a72, 2025-11-26 "fix: Check
+		//// Neoffice — added guard, plus cint() on the class below (002e653a72, 2025-11-26 "fix: Check
 		//// formatter returns empty for null/empty values in total row"): upstream always renders a checkbox,
 		//// so the totals row we append to the Report View (views/reports/report_view.js, styled by
 		//// scss/desk/frappe_datatable.scss) showed an unchecked box in every Check column. An empty value now

@@ -1,6 +1,6 @@
-//// Neoffice - added file, no upstream equivalent (v15 or develop). Net Total / Taxes / Grand Total
+//// Neoffice — added file, no upstream equivalent (v15 or develop). Net Total / Taxes / Grand Total
 //// band under the items grid of the NeoCockpit form chrome: 64f4614afc (2026-06-10 "feat(cockpit):
-//// grid redesign - airy rows, icon footer buttons, in-table Add Row CTA, totals band"), then the same
+//// grid redesign — airy rows, icon footer buttons, in-table Add Row CTA, totals band"), then the same
 //// day e901cfb70a (first paint: observe the items control wrapper, skip an identical render so the
 //// observer cannot feed itself), ad5920a2c4 (band hugging the grid card) and c663378f5f (band moved
 //// to a sibling right after .form-grid + bounded 300 ms retries, because Purchase Invoice and other

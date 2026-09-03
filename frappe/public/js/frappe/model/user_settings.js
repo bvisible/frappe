@@ -22,7 +22,7 @@ $.extend(frappe.model.user_settings, {
 		const a = JSON.stringify(old_user_settings);
 		const b = JSON.stringify(new_user_settings);
 		if (a !== b) {
-			//// Neoffice - upstream: `// update if changed` + `return this.update(doctype, new_user_settings);`
+			//// Neoffice — upstream: `// update if changed` + `return this.update(doctype, new_user_settings);`
 			//// (c3b448ae32, 2025-11-29 "fix: improve grid column settings save reliability and dropdown
 			//// positioning"): user settings are buffered in Redis and flushed hourly, so a column layout saved
 			//// from the grid dialog was lost whenever the flush did not come. GridView writes now go straight to
@@ -39,9 +39,9 @@ $.extend(frappe.model.user_settings, {
 
 		return this.update(doctype, user_settings);
 	},
-	//// Neoffice - upstream signature: update(doctype, user_settings) (c3b448ae32, 2025-11-29): the flag
+	//// Neoffice — upstream signature: update(doctype, user_settings) (c3b448ae32, 2025-11-29): the flag
 	//// is forwarded to frappe.model.utils.user_settings.save below, and the error callback added under it
-	//// tells the user when a grid layout could not be saved - upstream fails silently.
+	//// tells the user when a grid layout could not be saved — upstream fails silently.
 	update: function (doctype, user_settings, sync_immediately = false) {
 		if (frappe.session.user === "Guest") return Promise.resolve();
 		return frappe.call({

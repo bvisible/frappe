@@ -17,7 +17,7 @@ frappe.ui.form.Toolbar = class Toolbar {
 		this.page.clear_user_actions();
 		this.show_title_as_dirty();
 		this.set_primary_action();
-		//// Neoffice - two calls added to refresh() (98b48e36ff and 36d9015d6f, 2026-06-10): the promoted
+		//// Neoffice — two calls added to refresh() (98b48e36ff and 36d9015d6f, 2026-06-10): the promoted
 		//// Preview button and the cockpit hero / tab slider / grid totals refresh. Both methods are ours,
 		//// below.
 		this.setup_preview_button();
@@ -303,11 +303,11 @@ frappe.ui.form.Toolbar = class Toolbar {
 			this.page.clear_indicator();
 		}
 	}
-	//// Neoffice - two added methods, no upstream equivalent (NeoCockpit form chrome, all 2026-06-10).
-	//// refresh_hero() builds and refreshes frappe.ui.form.FormHero (36d9015d6f "form hero - identity card
+	//// Neoffice — two added methods, no upstream equivalent (NeoCockpit form chrome, all 2026-06-10).
+	//// refresh_hero() builds and refreshes frappe.ui.form.FormHero (36d9015d6f "form hero — identity card
 	//// + key value + business pipeline", turned into a dated stepper by b22d8750c8 and stripped of its
 	//// duplicate meta cluster by 2de9f7ad0c), frappe.ui.form.TabSlider (885fefba8d) and
-	//// frappe.ui.form.GridTotals (64f4614afc) - each behind its own existence check, so the desk still
+	//// frappe.ui.form.GridTotals (64f4614afc) — each behind its own existence check, so the desk still
 	//// boots when a module is missing. setup_preview_button() below comes from 98b48e36ff (compact
 	//// one-line head), then d44b8c1cbb (eye icon + "Preview / Print" label) and 2de9f7ad0c (prepended
 	//// into .standard-actions, the only anchor that survives workflow forms). The NEOFFICE PATCH note on
@@ -408,10 +408,10 @@ frappe.ui.form.Toolbar = class Toolbar {
 					},
 					true
 				);
-				//// Neoffice - upstream adds the printer action icon unconditionally (0b0e8f0f18, 2026-06-10
+				//// Neoffice — upstream adds the printer action icon unconditionally (0b0e8f0f18, 2026-06-10
 				//// "feat(cockpit): head button order + discreet Cancel + merged Preview/Print"): under the cockpit
 				//// chrome the promoted Preview / Print button already covers it, so the duplicate icon is skipped.
-				//// The legacy chrome still gets it - the block below is upstream's, only re-indented.
+				//// The legacy chrome still gets it — the block below is upstream's, only re-indented.
 				if (!document.body.classList.contains("neoffice-cockpit")) {
 					// cockpit: the promoted "Preview / Print" button covers this
 					this.print_icon = this.page.add_action_icon(
@@ -756,7 +756,7 @@ frappe.ui.form.Toolbar = class Toolbar {
 		} else if (status === "Cancel") {
 			let add_cancel_button = () => {
 				if (document.body.classList.contains("neoffice-cockpit")) {
-					//// Neoffice - added early return (0b0e8f0f18, 2026-06-10): upstream puts Cancel in the head's
+					//// Neoffice — added early return (0b0e8f0f18, 2026-06-10): upstream puts Cancel in the head's
 					//// secondary-action slot; under the cockpit it moves into the ... menu, a rare destructive act not
 					//// deserving a prominent button. Upstream's set_secondary_action call below is untouched and still
 					//// runs on the legacy chrome.

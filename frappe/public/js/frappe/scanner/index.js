@@ -29,8 +29,8 @@ frappe.ui.Scanner = class Scanner {
 			this.handler = new Html5Qrcode(this.scan_area_id); // eslint-disable-line
 		}
 
-		//// Neoffice - start_scan rewritten (167333aa9d, 2026-08-07 "fix(scanner): the dialog closed itself on
-		//// any desktop, without a word"): upstream passes { facingMode: "environment" } - the REAR camera -
+		//// Neoffice — start_scan rewritten (167333aa9d, 2026-08-07 "fix(scanner): the dialog closed itself on
+		//// any desktop, without a word"): upstream passes { facingMode: "environment" } — the REAR camera -
 		//// inline, and its .catch closed the dialog. On a desktop that constraint cannot be satisfied, so
 		//// every scanner surface of the desk (sales dialogs, POS, item code) opened a window that vanished
 		//// instantly with nothing said. The callbacks are hoisted so the same ones serve both attempts: rear
@@ -69,8 +69,8 @@ frappe.ui.Scanner = class Scanner {
 		this.is_alive = true;
 	}
 
-	//// Neoffice - added method (167333aa9d, 2026-08-07): replaces upstream's silent hide_dialog(). The
-	//// viewfinder is replaced by the reason - permission refused, or no camera at all - and by the way
+	//// Neoffice — added method (167333aa9d, 2026-08-07): replaces upstream's silent hide_dialog(). The
+	//// viewfinder is replaced by the reason — permission refused, or no camera at all — and by the way
 	//// out that needs none: a barcode reader types into the focused field. Falls back to an alert when
 	//// the scan area is not in the DOM. Strings are in frappe/locale/fr.po (same commit).
 	show_camera_error(err) {

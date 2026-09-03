@@ -70,10 +70,10 @@ frappe.get_indicator = function (doc, doctype, show_workflow_state) {
 
 	// draft if document is submittable
 	if (is_submittable && doc.docstatus == 0 && !settings.has_indicator_for_draft) {
-		//// Neoffice - upstream: "red" (6dd4d68b40, 2026-07-06 "feat(indicators): Draft=gray, Submitted=green
+		//// Neoffice — upstream: "red" (6dd4d68b40, 2026-07-06 "feat(indicators): Draft=gray, Submitted=green
 		//// for status pills"): Draft shared the error colour with Cancelled / Overdue / Failed for what is
 		//// only a work in progress. Fleet-wide, together with utils.js#guess_style (same commit). This file
-		//// also lost its final newline - whitespace only, see NEOFFICE_FORK_MARKERS.md.
+		//// also lost its final newline — whitespace only, see NEOFFICE_FORK_MARKERS.md.
 		return [__("Draft", null, doctype), "gray", "docstatus,=,0"];
 	}
 
@@ -96,7 +96,7 @@ frappe.get_indicator = function (doc, doctype, show_workflow_state) {
 
 	// if submittable
 	if (is_submittable && doc.docstatus == 1) {
-		//// Neoffice - upstream: "blue" (6dd4d68b40, 2026-07-06): submitted is a validated state, not an
+		//// Neoffice — upstream: "blue" (6dd4d68b40, 2026-07-06): submitted is a validated state, not an
 		//// informational one. Cancelled stays red.
 		return [__("Submitted", null, doctype), "green", "docstatus,=,1"];
 	}

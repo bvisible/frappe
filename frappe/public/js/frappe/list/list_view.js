@@ -31,7 +31,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 			this.process_document_refreshes.bind(this),
 			this.is_large_table ? 15000 : 2000
 		);
-		//// Neoffice - upstream: `this.count_upper_bound = 1001;` (f1656d6600, 2025-06-17 "add trad and remove
+		//// Neoffice — upstream: `this.count_upper_bound = 1001;` (f1656d6600, 2025-06-17 "add trad and remove
 		//// +1000"): upstream stops counting at 1001 rows and displays "1000+", ours counts to 100000 so the
 		//// list shows a real total. The "+" formatting this made pointless is commented out further down
 		//// (marked there). TO REVIEW at the merge: that bound exists to keep COUNT(*) cheap on large tables.
@@ -100,7 +100,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		this.menu_items = this.menu_items.concat(this.get_menu_items());
 
 		// set filters from view_user_settings or list_settings
-		//// Neoffice - upstream goes straight to `if (Array.isArray(this.view_user_settings.filters))`
+		//// Neoffice — upstream goes straight to `if (Array.isArray(this.view_user_settings.filters))`
 		//// (af1a5030ff, 2025-11-26 "fix: prioritize route_options over saved filters in ListView", then
 		//// bd15343ac9, 2025-11-29 for the URL query params): saved filters were loaded here before
 		//// before_refresh() applied route_options, so a link from a dashboard (Customer -> Sales Invoices)
@@ -570,7 +570,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 	}
 
 	before_refresh() {
-		//// Neoffice - upstream: `if (frappe.route_options && this.filter_area)` (bd15343ac9, 2025-11-29 "fix:
+		//// Neoffice — upstream: `if (frappe.route_options && this.filter_area)` (bd15343ac9, 2025-11-29 "fix:
 		//// handle URL query params in list view filter navigation"): an EMPTY route_options object passed the
 		//// truthiness test, and filters carried in window.location.search were ignored entirely. Same test as
 		//// in setup_defaults() above.
@@ -1033,7 +1033,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 				this.count_without_children =
 					count_without_children !== current_count ? count_without_children : undefined;
 
-				//// Neoffice - upstream renders "1000+" once the count reaches count_upper_bound (f1656d6600 and
+				//// Neoffice — upstream renders "1000+" once the count reaches count_upper_bound (f1656d6600 and
 				//// e71f51fc8a, 2025-06-17): with the bound raised to 100000 in the constructor (marked there) the
 				//// total is always a plain number. Upstream's branch is kept commented out just below.
 				let count_str = format_number(this.total_count, null, 0);
