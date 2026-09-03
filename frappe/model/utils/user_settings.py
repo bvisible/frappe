@@ -63,11 +63,18 @@ def sync_user_settings():
 		)
 
 
+#//// Neoffice — upstream: `def save(doctype, user_settings):`. Added parameter (c3b448ae32) —
+#//// see the marker inside the function.
 @frappe.whitelist()
 def save(doctype, user_settings, sync_immediately=False):
 	user_settings = json.loads(user_settings or "{}")
 	update_user_settings(doctype, user_settings)
 
+	#//// Neoffice — upstream only writes user settings to the cache here and lets the hourly
+	#//// sync_user_settings() job persist them. c3b448ae32 (2025-11-29 "fix: improve grid column
+	#//// settings save reliability and dropdown positioning") lets the caller demand an immediate
+	#//// DB write, because grid column layouts were lost whenever the cache was flushed or the
+	#//// worker restarted before the hourly sync. Opt-in: the default keeps upstream behaviour.
 	# Immediately sync to DB for critical settings (e.g., GridView)
 	if sync_immediately:
 		sync_user_settings_for_doctype(doctype, frappe.session.user)
@@ -75,6 +82,9 @@ def save(doctype, user_settings, sync_immediately=False):
 	return user_settings
 
 
+#//// Neoffice — added, no upstream equivalent (c3b448ae32): the single-user, single-doctype
+#//// flush used by save(..., sync_immediately=True). It is the body of upstream's
+#//// sync_user_settings() narrowed to one cache key, and commits.
 def sync_user_settings_for_doctype(doctype, user):
 	"""Sync specific user's settings for a doctype to database immediately"""
 	key = f"{doctype}::{user}"
