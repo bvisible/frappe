@@ -16,6 +16,12 @@ frappe.utils.datatable.get_translations = function () {
 			1: __("{count} row selected"),
 			default: __("{count} rows selected"),
 		},
+		//// Neoffice — added block (f1656d6600, 2025-06-17 "add trad and remove +1000"): upstream ships
+		//// only the seven frappe-datatable strings above. These extra msgids are handed to the
+		//// datatable so its own UI chrome (search box, "Show more") and the Select/Status cell values
+		//// it renders itself come out translated — the datatable does not go through frappe's __()
+		//// at render time, it looks values up in this table. The bare //// fence is the original
+		//// author's. No upstream equivalent in v15.120 or develop.
 		//// add traductions for other languages here
 		"Search...": __("Search..."),
 		"Show more": __("Show more"),

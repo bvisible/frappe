@@ -3,6 +3,9 @@
 
 import deep_equal from "fast-deep-equal";
 import cloneDeepWith from "lodash/cloneDeepWith";
+//// Neoffice — import order only: upstream has deep_equal / number_systems / cloneDeepWith,
+//// ours moved number_systems last (bd41f1e7a5, 2025-02-26 "Update neov2", a 40-file commit
+//// with no message). No behaviour change. TO REVIEW: take upstream's order at the merge.
 import number_systems from "./number_systems";
 
 frappe.provide("frappe.utils");
@@ -491,6 +494,25 @@ Object.assign(frappe.utils, {
 		var colour = "gray";
 		if (text) {
 			text = cstr(text);
+			//// Neoffice — guess_style, the status-word → colour table, rewritten (block runs to the closing
+			//// brace of this if/else chain, ~50 lines below).
+			//// Upstream v15 has four English-only branches in this order: warning (Pending, Review, Medium,
+			//// Not Approved) › danger (Open, Urgent, High, Failed, Rejected, Error) › success (Closed …
+			//// Paid, Success) › info (Submitted). A French site therefore fell through every branch and
+			//// every status pill came out grey — the fleet runs in French.
+			//// Ours (in order of application): danger › warning › yellow (partly-*) › success › info › gray,
+			//// each list carrying the EN and FR word for the same state, plus the ERPNext transaction states
+			//// upstream never had (To Deliver / To Bill / Ordered / Delivered / Invoiced / Credit Note
+			//// Issued …). Lineage: 2368c6341a (2025-11-30, first FR words) › 1e5d61ef19 (2026-03-16, full
+			//// FR+EN rewrite, the branch order and the yellow/gray branches) › 6dd4d68b40 (2026-07-06,
+			//// Draft moved out of red into gray and Submitted out of blue into green: a draft is not an
+			//// error and a submitted document is validated — same commit did docstatus 0/1 in
+			//// model/indicator.js). 9dd05d8736 (2025-12-02, Draft → blue) is superseded and leaves no line.
+			//// Matching is on the literal word, so a translation other than the one listed still falls
+			//// through — TO REVIEW: this table is a French-only stopgap for a lookup that should key on
+			//// docstatus / the Select value, not on display text.
+			//// v16 merge note: upstream develop still ships the four English branches with Submitted → blue
+			//// — expect a conflict on the whole chain; keep ours.
 			// Red/Danger statuses (English + French)
 			if (
 				has_words(["Open", "Urgent", "High", "Failed", "Rejected", "Error",
@@ -961,6 +983,13 @@ Object.assign(frappe.utils, {
 		return __(frappe.utils.to_title_case(__(route[0]), true));
 	},
 	report_column_total: function (values, column, type) {
+		//// Neoffice — report_column_total, two fixes (block runs to the end of the function).
+		//// 05fa2cfeb7 (2025-11-26): upstream reads column.column.fieldtype, which only exists on Query
+		//// Report columns; in Report View the fieldtype sits in column.column.docfield.fieldtype, so
+		//// every column looked non-numeric and no total was ever summed. Read both, docfield first.
+		//// 56eec2a31f (2025-11-26): upstream returns null for a non-numeric column and for an empty
+		//// dataset — the totals row printed the string "null" under Status / Select / Link columns.
+		//// Return "" instead. Consumer: the totals row of views/reports/report_view.js (marked there).
 		// Get fieldtype from docfield (for Report View) or directly from column (for Query Report)
 		const fieldtype = column.column.docfield?.fieldtype || column.column.fieldtype;
 
@@ -1284,6 +1313,10 @@ Object.assign(frappe.utils, {
 			}
 		}
 		frappe.utils.set_space_label_ratio(chart_args);
+		//// Neoffice — note added by fe363d6fd6 (2026-06-12 "fix(charts): destroy stranded frappe-charts
+		//// instances on re-create"): make_chart itself is upstream's, unchanged — the teardown was put
+		//// in the ManagedChart subclass in ui/chart.js (marked there) so every call site is covered,
+		//// not just this one.
 		// stale-instance cleanup lives in frappe.Chart itself (ui/chart.js
 		// ManagedChart) so every call site is covered, not just this one
 		return new frappe.Chart(wrapper, chart_args);
