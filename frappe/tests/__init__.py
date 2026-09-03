@@ -46,6 +46,30 @@ def _v16_test_case():
             def change_settings(doctype, settings_dict=None, /, commit=False, **settings):
                 return _change_settings(doctype, settings_dict, commit=commit, **settings)
 
+            #//// Neoffice — v16 also exposes set_user as a context manager callable on the class
+            #//// (`with cls.set_user(OWNER):` in setUpClass — suite/drive, 2026-09-03); v15's is a
+            #//// plain instance method. Restores the previous user on exit.
+            class _SetUser:
+                def __init__(self, user):
+                    import frappe
+
+                    self._frappe = frappe
+                    self._user = user
+                    self._previous = None
+
+                def __enter__(self):
+                    self._previous = self._frappe.session.user
+                    self._frappe.set_user(self._user)
+                    return self
+
+                def __exit__(self, *exc):
+                    self._frappe.set_user(self._previous)
+                    return False
+
+            @classmethod
+            def set_user(cls, user):
+                return cls._SetUser(user)
+
         _V16_TEST_CASE = IntegrationTestCase
     return _V16_TEST_CASE
 
