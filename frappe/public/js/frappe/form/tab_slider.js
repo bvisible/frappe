@@ -1,3 +1,10 @@
+//// Neoffice - added file, no upstream equivalent (v15 or develop). One bar gliding along the form
+//// tabs baseline instead of a static per-tab underline: 885fefba8d (2026-06-10 "feat(cockpit):
+//// sliding tab indicator - one bar gliding along the tabs baseline") and, the same day, 80865fd081 -
+//// frappe switches tabs without firing bootstrap's shown.bs.tab, so a MutationObserver on the .active
+//// class drives the bar instead of the event. Imported by form/form.js, instantiated by
+//// form/toolbar.js refresh_hero(); styles in public/css/cockpit.css. The NEOFFICE PATCH note below is
+//// the original one.
 // //// NEOFFICE PATCH — sliding tab indicator (NeoCockpit content redesign).
 //
 // One absolutely-positioned bar (.nc-tab-indicator) glides along the

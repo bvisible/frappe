@@ -2,6 +2,10 @@ frappe.ui.form.FormViewers = class FormViewers {
 	constructor({ frm, parent }) {
 		this.frm = frm;
 		this.parent = parent;
+		//// Neoffice - upstream: `this.parent.tooltip({ title: __("Currently Viewing") });` (be9665e734,
+		//// 2026-06-23 "fix(cockpit): per-avatar tooltips on realtime form viewers"): one tooltip on the whole
+		//// .form-viewers container answered "Currently Viewing" for every avatar and never said WHO was
+		//// viewing. Dropped here; replaced by a per-avatar tooltip in refresh() below.
 		// Do NOT put a single tooltip on the whole container: it shows a
 		// generic "Currently Viewing" on every avatar and hides WHO is
 		// viewing. Per-avatar tooltips (the viewer's name) are wired in
@@ -44,6 +48,8 @@ frappe.ui.form.FormViewers = class FormViewers {
 			overlap: true,
 		});
 		this.parent.empty().append(avatar_group);
+		//// Neoffice - added (be9665e734, 2026-06-23): the per-avatar tooltip that replaces the container-wide
+		//// one removed in the constructor above. No upstream equivalent.
 		// Each avatar already carries the viewer's name in its `title`; turn it
 		// into a real tooltip so hovering an avatar shows WHO is viewing,
 		// instead of one generic label on the whole group.

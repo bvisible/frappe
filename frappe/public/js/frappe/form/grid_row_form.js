@@ -80,6 +80,12 @@ export default class GridRowForm {
 			</div>`;
 
 			$(template).appendTo(this.wrapper);
+			//// Neoffice - upstream: `this.form_area = this.wrapper.find(".form-area");` (4c842a98fc, 2023-10-30
+			//// "First change v15"; the commit gives no rationale): the row's item_name is added as a CSS class on
+			//// the expanded row form, presumably to style a given article. It applies to EVERY child table of
+			//// every doctype (on rows without an item_name, addClass(undefined) is a no-op), and an item name
+			//// with a space becomes several classes. TO REVIEW at the merge; the upstream line is kept in the
+			//// trailing comment.
 			this.form_area = this.wrapper.find(".form-area").addClass(this.row.doc.item_name); //// this.form_area = this.wrapper.find(".form-area");
 			this.row.set_row_index();
 			this.set_form_events();

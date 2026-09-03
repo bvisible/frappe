@@ -1,6 +1,13 @@
 frappe.provide("frappe.ui.form");
 frappe.provide("frappe.model.docinfo");
 
+//// Neoffice - the import block below diverges twice. (1) It was re-sorted by path (bd41f1e7a5,
+//// 2025-02-26 "Update neov2"; no rationale - an editor's organize-imports). (2) Three cockpit modules
+//// were added: ./form_hero (36d9015d6f), ./tab_slider (885fefba8d) and ./grid_totals (64f4614afc),
+//// all 2026-06-10, instantiated from form/toolbar.js refresh_hero() (marked there). These are
+//// side-effect imports, so the re-order is NOT provably inert: TO REVIEW at the merge - restore
+//// upstream's order and keep only the three added lines. Same file: the final newline after
+//// `frappe.validated = 0;` was dropped (whitespace only, see NEOFFICE_FORK_MARKERS.md).
 import "./dashboard";
 import "./footer/footer";
 import "./form_tour";
@@ -87,6 +94,10 @@ frappe.ui.form.Form = class FrappeForm {
 		frappe.ui.make_app_page({
 			parent: this.wrapper,
 			single_column: is_single_column,
+			//// Neoffice - added (cc297ec402, 2025-11-03 "Move sidebar to right and add mobile toggle"): forms ask
+			//// frappe.ui.make_app_page for a right-hand side section. ui/page.js reads sidebar_position and swaps
+			//// the two flex columns (marked there); upstream v15 has no such option - the side section always
+			//// sits on the left of the Bootstrap grid.
 			sidebar_position: "Right",
 		});
 		this.page = this.wrapper.page;

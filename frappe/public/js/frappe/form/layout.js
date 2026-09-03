@@ -430,6 +430,11 @@ frappe.ui.form.Layout = class Layout {
 	}
 
 	set_tab_as_active() {
+		//// Neoffice - set_tab_as_active rewritten (b807db2347, 2025-11-04 "fix: Corrections multiples pour
+		//// sidebar et navigation tabs"; comments translated to English by cc2f59a5a6 the same day). Upstream
+		//// trusts frm.get_active_tab() alone, so editing a field on any tab but the first sent the user back
+		//// to the first tab at the next form refresh. Ours reads the DOM first (a tab already .active and
+		//// visible wins), falls back to memory, and additionally skips a remembered tab that is now hidden.
 		// First, check if a tab is already visually active in the DOM
 		let currently_active_tab = this.tabs.find((tab) => tab.is_active() && !tab.is_hidden());
 
