@@ -254,6 +254,12 @@ class CustomField(Document):
 def get_fields_label(doctype=None):
 	meta = frappe.get_meta(doctype)
 
+	#//// Neoffice — upstream refuses to build a field list for a core DocType; its exact two lines
+	#//// are kept commented out below so the merge shows what was dropped. Disabled by bdc70e06a5
+	#//// (2025-03-14 "Bug css ans fix bug view", 3 files) so the field pickers offer core doctypes
+	#//// too. TO REVIEW: that commit has an empty message, so the symptom it chased is not
+	#//// recorded; and `core_doctypes_list` is still imported at the top of this file but now used
+	#//// nowhere — the import will read as unused at the next merge.
 	#//// if doctype in core_doctypes_list:
 	#//// 	return frappe.msgprint(_("Custom Fields cannot be added to core DocTypes."))
 
