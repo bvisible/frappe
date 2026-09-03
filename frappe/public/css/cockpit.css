@@ -1,3 +1,12 @@
+/* //// Neoffice — added file (no upstream equivalent, v15 or develop). First shipped by
+   //// d0268ef91a (2026-06-10 "feat(cockpit): NeoCockpit is the default desk chrome — single
+   //// menu, no navbar") and grown by ~60 commits since (form hero, grid redesign, filter
+   //// pill, liquid glass, clay retheme, responsive ladder). Loaded through hooks.py
+   //// app_include_css with a `?v=` cache-bust that MUST be bumped on every edit (see
+   //// CLAUDE.md: hooks.py changes need `bench restart`, not just clear-cache). The banner
+   //// below states what the file styles and why. Nothing upstream sits at this path, so the
+   //// merge is a clean add — but the desk selectors it overrides (.page-head, .main-section,
+   //// .layout-side-section, .form-grid, .datatable) are upstream markup and WILL drift. */
 /* ──────────────────────────────────────────────────────────────
    //// NEOFFICE PATCH — NeoCockpit desk shell (default chrome)
 
