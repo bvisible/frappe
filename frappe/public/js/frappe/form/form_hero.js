@@ -417,9 +417,14 @@ const HERO_REGISTRY = {
 			return null;
 		},
 	},
+	//// Neoffice — a job billed visit by visit (neo_billing_mode « Per
+	//// intervention ») has no costing step: the plumber books visits, clocks
+	//// them, invoices each. Its pipeline starts at the visits and reads the
+	//// counts the neoffice_activity app hands over in __onload.neo_visits
+	//// (the visits are Activities, not on the document).
 	Project: {
 		steps: (doc) => [
-			{ label: __("Chiffrage"), when: doc.creation },
+			{ label: per_visit(doc) ? __("Visites") : __("Chiffrage"), when: doc.creation },
 			{ label: __("En cours"), when: null },
 			{ label: __("Validation"), when: null },
 			{ label: __("Facturation"), when: null },
@@ -428,6 +433,13 @@ const HERO_REGISTRY = {
 			if (doc.status === "Cancelled") return -1;
 			if (doc.status === "Completed") return 5;
 			const lignes = doc.neo_work || [];
+			if (per_visit(doc)) {
+				const v = (doc.__onload && doc.__onload.neo_visits) || {};
+				const pending = lignes.some((r) => r.review_state === "Pending");
+				if (cint(v.unbilled) || flt(doc.total_billed_amount) > 0) return pending ? 3 : 4;
+				if (cint(v.started)) return 2;
+				return 1;
+			}
 			const started =
 				flt(doc.percent_complete) > 0 ||
 				lignes.some((r) => r.status && r.status !== "To plan");
@@ -442,6 +454,9 @@ const HERO_REGISTRY = {
 		},
 	},
 };
+
+//// Neoffice — the Project pipeline has two shapes (see Project above).
+const per_visit = (doc) => doc.neo_billing_mode === "Per intervention";
 
 const DEFAULT_PIPELINE = {
 	steps: (doc, tx) => [
