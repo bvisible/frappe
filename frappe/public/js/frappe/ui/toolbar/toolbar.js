@@ -26,11 +26,16 @@ frappe.ui.toolbar.Toolbar = class {
 
 	make() {
 		this.bind_events();
+		//// Neoffice — added (9999364ec6 2025-10-28 logo click → Home; cc297ec402 2025-11-03 navbar
+		//// hamburger → global sidebar toggle).
 		this.bind_logo_click();
 		this.bind_hamburger_click();
 		$(document).trigger("toolbar_setup");
 	}
 
+	//// Neoffice — added (9999364ec6, 2025-10-28; "home" route by 0634af137c, 2025-11-13 "ensures
+	//// correct navigation to home"): the navbar logo routes to the Home workspace instead of
+	//// following the plain /app link.
 	bind_logo_click() {
 		$(".navbar-brand .app-logo").on("click", (event) => {
 			// On desktop and mobile, navigate to home
@@ -41,6 +46,8 @@ frappe.ui.toolbar.Toolbar = class {
 		});
 	}
 
+	//// Neoffice — added (cc297ec402, 2025-11-03 "Move sidebar to right and add mobile toggle"): the
+	//// navbar hamburger (navbar.html .navbar-toggle-sidebar) opens / closes frappe.app.sidebar on mobile.
 	bind_hamburger_click() {
 		$(".navbar-toggle-sidebar").on("click", (event) => {
 			event.preventDefault();
@@ -143,6 +150,15 @@ frappe.ui.toolbar.Toolbar = class {
 				$help_links.next().show();
 			}
 
+			//// Neoffice ▼▼▼ help dropdown rework (b1d77644c6, 2024-09-27 "update" — no rationale in the
+			//// commit; the unused (e) parameter of the page-change handler above is from it too). Upstream
+			//// lists the DocType's help links as plain external <a target="_blank">. Ours (fenced by the
+			//// bare //// lines): each link opens the matching Neoffice wiki page in a dialog with an "Open
+			//// in New Tab" button (82c7849f54 + 23b940312a, 2026-01-07 — absolute
+			//// https://neoservice.neoffice.me/wiki URL), a count badge on the Help menu and an "Open Full
+			//// Documentation" entry. loadFormTour / addFormTourLink / startFormTour (Form Tour restart via
+			//// neoffice_theme.events.reset_tour_for_current_user) are defined but their call is commented
+			//// out (bd41f1e7a5, 2025-02-26 "Update neov2") — dead code, TO REVIEW at the merge.
 			////
 			for (let i = 0; i < links.length; i++) {
 				(function (url, label) {
@@ -303,6 +319,7 @@ frappe.ui.toolbar.Toolbar = class {
 		}
 		////
 
+		//// Neoffice ▲▲▲ end of the help dropdown rework (the bare //// above closes it).
 		var $result_modal = frappe.get_modal("", "");
 		$result_modal.addClass("help-modal");
 
@@ -345,6 +362,8 @@ frappe.ui.toolbar.Toolbar = class {
 		}
 	}
 
+	//// Neoffice — added (9999364ec6, 2025-10-28): called by frappe.ui.Sidebar.set_default_app() to
+	//// put the neoffice_theme logo in the navbar.
 	set_app_logo(logo_url) {
 		$(".navbar-brand .app-logo").attr("src", logo_url);
 	}

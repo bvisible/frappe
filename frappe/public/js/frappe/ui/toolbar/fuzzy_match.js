@@ -153,6 +153,8 @@ function fuzzy_match_recursive(
 				if (neighbor !== neighbor.toUpperCase() && curr !== curr.toLowerCase()) {
 					out_score += CAMEL_BONUS;
 				}
+				//// Neoffice — "-" added as a separator (b6f135ea30, 2026-04-02): document names like
+				//// SINV-2025-00012 get the SEPARATOR_BONUS at each hyphen, so a typed number fragment scores them.
 				const is_neighbour_separator = neighbor == "_" || neighbor == " " || neighbor == "-";
 				if (is_neighbour_separator) {
 					out_score += SEPARATOR_BONUS;

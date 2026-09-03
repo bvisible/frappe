@@ -3,9 +3,55 @@
 frappe.provide("frappe.search");
 frappe.provide("frappe.tags");
 
+////////////////////////////////////////////////////////////////////////
+//// Neoffice ▼▼▼ Awesome Bar V2 (the whole file diverges from upstream v15.89.0)
+////
+//// Upstream v15 AwesomeBar wraps the input in an Awesomplete dropdown (flat option list, a
+//// "Search for X" entry opening the global search dialog, a help table). Rewritten by 417d4f52cf
+//// (2026-04-02 "feat(search): redesign Awesome Bar with inline rich search results") into a custom
+//// .search-mega-panel appended to <body>: global search results rendered inline and grouped by
+//// DocType, 150 ms debounce, keyboard navigation, calculator / document link / custom providers
+//// kept. Only _deduplicate, _make_search_in_current, _make_random and the frappe.search.utils
+//// navigation options survive from the upstream logic. Styles: scss/common/awesomeplete.scss and
+//// scss/desk/navbar.scss (marked). Reference: neoffice-devops MEMORY → awesome-bar-v2-reference.md.
+//// Layers added on top (all Jérémy Christillin):
+////   dba8b1fd89 2026-04-02 two-column panel (results + sidebar), frappe.search.Analytics
+////     (localStorage recent searches / clicks / DocType frequency), home state on empty focus
+////   b54cc07267 / 25562da1fa 2026-04-02 math detection, boolean-mode operators sanitised (the
+////     fulltext MATCH AGAINST crashed on + - …), loading indicator, no footer for the calculator
+////   e9da79644d 2026-04-02 limit 50 (results diversified per DocType server-side)
+////   7ba725102e / 37d3dffb79 2026-04-02 recent searches (max 4) + Recently Visited from the live
+////     frappe.route_history; a single-char input no longer clears the bar
+////   83c12fbc65 / c3e92fa0cb / c7480a80c0 / 1f08f5cdd2 2026-04-02 help context (Nora Learn +
+////     Help Resources per DocType) via neoffice_theme.api.get_help_context, cached per DocType,
+////     tips only as fallback, pre-loaded on input
+////   8822b0ef36 / 2fb7b98d18 / 529db29093 / f18854c0fb / 8622b76fa3 / e72cb6ad20 2026-04-05
+////     "View all <DocType>" action from a (translated) DocType name, document link skipped when
+////     a DocType matched, term highlighting in labels, Learn / Docs in the left column, separate
+////     help caches for the page context vs the searched DocType
+////   ba9c178956 / 2ce8e161a9 / d39cf14bf1 / 43a36fa872 / cbc010fbd0 / 0a54fbf027 / fcd1372a1e /
+////     e6c6a9c7a9 / d1b63abc5c / 69a0372263 / f131a66b4a / 1e3b368c7b 2026-04-07 partial-number
+////     lookup, responsive 900px panel, scroll fade hint, Document Scan preview dialog (z-index
+////     above the panel, no close on dialog clicks), Quick Actions dropped, search by amount
+////   a3a2b04ebd / 5158cea267 2026-06-10 NeoCockpit centered search overlay (on_close host hook,
+////     .nc-search triggers whitelisted in the outside-click close)
+////   387fcb0da1 / b73d9fe958 / 6077ad4203 / ce9d44df14 / f9980ea85c 2026-06-15 i18n msgid
+////     disambiguation, recent records of the matched DocType, prefix DocType matching
+////     (_best_doctype_match), matched DocType deduped from fulltext results, "Create <DocType>"
+////     action opening the Quick Entry
+////   6645876a0b / cfaa702efe / d3e8df1362 2026-07-07 stale async responses never reopen the
+////     panel (request-id counters + _input_visible), Suite drive files + calendar appointments
+////     (neoffice_theme.api.search_drive_files / search_calendar_events / get_upcoming_events)
+//// Server side: frappe/desk/search.py (resolve_document, search_by_amount) and
+//// frappe/utils/global_search.py carry their own markers.
+//// v16 merge note: upstream still ships the Awesomplete version (develop shares < 5% of these
+//// lines) — expect a whole-file conflict; keep ours and re-apply upstream fixes by hand.
+////////////////////////////////////////////////////////////////////////
 // ════════════════════════════════════════════════════════════
 // Search Analytics — localStorage-based user search profiling
 // ════════════════════════════════════════════════════════════
+//// Neoffice — added (dba8b1fd89, 2026-04-02): per-user localStorage search profile (recent
+//// searches / clicks / DocType frequency) feeding the home state and the "You search often" block.
 frappe.search.Analytics = class Analytics {
 	constructor() {
 		this._key = `search_profile_${frappe.session.user}`;
@@ -80,6 +126,8 @@ frappe.search.Analytics = class Analytics {
 // AwesomeBar — Main search bar class
 // ════════════════════════════════════════════════════════════
 frappe.search.AwesomeBar = class AwesomeBar {
+	//// Neoffice — setup: upstream builds the Awesomplete widget here (input.awesomplete, list,
+	//// item renderer); ours creates the mega panel (417d4f52cf) and the analytics profile (dba8b1fd89).
 	setup(element) {
 		$(".search-bar").removeClass("hidden");
 		this.$input = $(element);
@@ -105,6 +153,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		$("body").append(this.$panel);
 	}
 
+	//// Neoffice — _input_visible: 6645876a0b (2026-07-07 "stale async results must not reopen the
+	//// mega-panel after close").
 	// The panel is positioned against the input: a hidden input (e.g. the
 	// cockpit search overlay after it closed) yields a 0×0 rect, which would
 	// pin the panel to the top-left corner. Never show the panel in that case.
@@ -113,6 +163,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		return rect.width > 0 && rect.height > 0;
 	}
 
+	//// Neoffice — dba8b1fd89 (panel fixed under the input, centred), d39cf14bf1 (2026-04-07 responsive
+	//// 900 / 860 / 680px widths), b73d9fe958 (2026-06-15 18px gap under the floating input).
 	_position_panel() {
 		const rect = this.$input.get(0).getBoundingClientRect();
 		const vw = window.innerWidth;
@@ -140,6 +192,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		});
 	}
 
+	//// Neoffice — 417d4f52cf / dba8b1fd89: input (150 ms debounce), focus → home state or reopen
+	//// (b54cc07267: no empty panel on focus), keydown, outside-click close.
 	// ── Event binding ──────────────────────────────────────
 	_bind_events() {
 		const me = this;
@@ -164,6 +218,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 		this.$input.on("keydown", (e) => this._handle_keydown(e));
 
+		//// Neoffice — dba8b1fd89 (outside-click close), fcd1372a1e (2026-04-07 keep open on preview-dialog
+		//// clicks), 5158cea267 (2026-06-10 .nc-search cockpit triggers whitelisted — see the note below).
 		// Close on outside click (but not when clicking on modals/dialogs).
 		// .nc-search = the NeoCockpit trigger inputs — their mousedown OPENS the
 		// centered overlay; without the whitelist this handler would close it
@@ -181,6 +237,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		});
 	}
 
+	//// Neoffice — 417d4f52cf: replaces the upstream input handler (set_specifics / add_defaults /
+	//// build_options / add_help → awesomplete.list); single-char input hides the panel without
+	//// clearing it (7ba725102e), help pre-loaded (1f08f5cdd2), search tracked (dba8b1fd89).
 	// ── Main input handler ─────────────────────────────────
 	_handle_input(raw) {
 		const txt = raw.trim().replace(/\s\s+/g, " ");
@@ -213,6 +272,10 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this._search_global(txt);
 	}
 
+	//// Neoffice — home state on empty focus: dba8b1fd89 + 37d3dffb79 (2026-04-02), upcoming
+	//// appointments (cfaa702efe, 2026-07-07), help context with tips as fallback (c3e92fa0cb /
+	//// e72cb6ad20), "Search Tips" / "Type {0} for a password" msgids (387fcb0da1, 2026-06-15: bare
+	//// "Tips" and "Type" collided with other apps' translations at runtime).
 	// ── Show home state (recent searches + recently visited) ──
 	_show_home() {
 		if (!this._input_visible()) return;
@@ -317,6 +380,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this._check_scroll_hint();
 	}
 
+	//// Neoffice — 37d3dffb79 (2026-04-02): Recently Visited built from the live frappe.route_history
+	//// (Form / List / Workspace entries, deduplicated) instead of boot.user.recent.
 	// ── Get live route history ──────────────────────────────
 	_get_route_history() {
 		const seen = new Set();
@@ -360,6 +425,11 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		return results;
 	}
 
+	//// Neoffice — help context of the current page: 37d3dffb79 / 83c12fbc65 / c3e92fa0cb (2026-04-02),
+	//// through neoffice_theme.api.get_help_context (c7480a80c0 — frappe.client.get_list gave 403 to
+	//// non-admin users), page cache separated from the search cache (e72cb6ad20, 2026-04-05),
+	//// re-render on arrival (1f08f5cdd2). Core → neoffice_theme dependency; the call is caught, so
+	//// the panel keeps working without the app.
 	// ── Load help context for current PAGE (sidebar) ──────
 	_load_help_context() {
 		const route = frappe.get_route();
@@ -386,6 +456,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			.catch(() => {});
 	}
 
+	//// Neoffice — c3e92fa0cb (2026-04-02): Learn + Documentation blocks in the sidebar; search cache
+	//// preferred over the page cache (ba9c178956, 2026-04-07).
 	// ── Render cached help into sidebar ──────────────────────
 	_render_help_into_sidebar($sidebar) {
 		// Prefer search cache (matched DocType) over page cache
@@ -435,6 +507,11 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		}
 	}
 
+	//// Neoffice — upstream add_defaults: global-search entry + search-in-current + calculator +
+	//// random. Ours: create action (f9980ea85c), DocType action (8822b0ef36), document link unless a
+	//// DocType matched (b6f135ea30 / 529db29093), amount search (f131a66b4a), drive + calendar search
+	//// (cfaa702efe), custom_providers extension point (b6f135ea30). _make_search_in_current is no
+	//// longer called (69a0372263 dropped the broken "Find X in Y" quick action).
 	// ── Local defaults (calculator, doc link, custom) ──────
 	_add_defaults(txt) {
 		this._make_create_action(txt);
@@ -463,6 +540,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		}
 	}
 
+	//// Neoffice — upstream build_options (tags shortcut, creatables / lists / pages / … options,
+	//// dedupe + sort by index), renamed by 417d4f52cf; logic unchanged.
 	// ── Navigation options ─────────────────────────────────
 	_build_nav_options(txt) {
 		if (txt.charAt(0) === "#") {
@@ -484,6 +563,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		return this._deduplicate(options).sort((a, b) => b.index - a.index);
 	}
 
+	//// Neoffice — b54cc07267 (2026-04-02), 2ce8e161a9 (2026-04-07: "00079" is a document number, math
+	//// needs an operator).
 	// ── Check if text is a math expression ─────────────────
 	_is_math_expression(txt) {
 		if (txt.charAt(0) === "(" || txt.charAt(0) === "=") return true;
@@ -493,6 +574,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		return false;
 	}
 
+	//// Neoffice — 417d4f52cf: frappe.utils.global_search.search fired on input (upstream only offered
+	//// a "Search for X" entry opening the dialog); math skipped + operators sanitised (b54cc07267),
+	//// limit 50 (e9da79644d), request id + closed / changed-query guards (25562da1fa, 6645876a0b).
 	// ── Async global search ────────────────────────────────
 	_search_global(txt) {
 		if (txt.charAt(0) === "#") return;
@@ -526,6 +610,14 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		});
 	}
 
+	//// Neoffice — _render, the panel body (417d4f52cf / dba8b1fd89). Section order: Create action
+	//// (f9980ea85c) › View all (8822b0ef36 / 2fb7b98d18) › recent records of the matched DocType
+	//// (b73d9fe958) › Go to Document, max 3 (529db29093 / 1f08f5cdd2) › amount matches (f131a66b4a) ›
+	//// appointments + files (cfaa702efe) › calculator (69a0372263) › global results grouped by DocType,
+	//// filtered on the typed words (1f08f5cdd2), matched DocType skipped (ce9d44df14) › Learn /
+	//// Documentation (f18854c0fb / 8622b76fa3 / e72cb6ad20) › Navigate › custom providers. Then the
+	//// sidebar (dba8b1fd89), the "Search for X" footer (hidden for math, 25562da1fa), the scroll hint
+	//// (43a36fa872) and the hidden-input guard (6645876a0b).
 	// ── Main render ────────────────────────────────────────
 	_render(txt) {
 		if (!this._input_visible()) return;
@@ -735,6 +827,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		}
 	}
 
+	//// Neoffice — 43a36fa872 (2026-04-07 "visible scrollbar + fade gradient hint").
 	// ── Check if main column is scrollable, show/hide fade hint ──
 	_check_scroll_hint() {
 		requestAnimationFrame(() => {
@@ -753,6 +846,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		});
 	}
 
+	//// Neoffice — dba8b1fd89 (Recently Visited + "You search often" from analytics), help context
+	//// (c3e92fa0cb / e72cb6ad20), live route history (37d3dffb79 / 7ba725102e), upcoming
+	//// appointments (cfaa702efe).
 	// ── Render sidebar ─────────────────────────────────────
 	_render_sidebar($sidebar, txt) {
 		let has_context = false;
@@ -823,6 +919,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		}
 	}
 
+	//// Neoffice — 417d4f52cf / dba8b1fd89: one section per group, items registered in _all_items for
+	//// the keyboard navigation.
 	// ── Render section into a container ─────────────────────
 	_render_section_into($container, title, items, type) {
 		if (!items.length) return;
@@ -849,6 +947,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		$container.append($section);
 	}
 
+	//// Neoffice — 417d4f52cf; file icon + preview for Document Scan (cbc010fbd0, 2026-04-07), term
+	//// highlighting in labels of global / learn / docs / goto items (529db29093, f18854c0fb).
 	// ── Render a single result item ────────────────────────
 	_render_item(item, type) {
 		let inner = "";
@@ -910,6 +1010,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		return $item;
 	}
 
+	//// Neoffice — cbc010fbd0 (2026-04-07): inline PDF / image preview of a Document Scan (source_file)
+	//// without leaving the search; z-index 1070 above the panel (0a54fbf027).
 	// ── Preview file attachment in a dialog ─────────────────
 	_preview_file(doctype, name) {
 		// Load the file URL for this document
@@ -963,6 +1065,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		});
 	}
 
+	//// Neoffice — 417d4f52cf / dba8b1fd89: the " ||| "-separated global-search content → 3 fragments
+	//// with multi-word <mark> highlighting.
 	// ── Format global search content for display ───────────
 	_format_content(content, txt) {
 		if (!content) return "";
@@ -986,6 +1090,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		return display.join(" · ");
 	}
 
+	//// Neoffice — 417d4f52cf (Awesomplete handled the keyboard upstream): Escape closes, arrows move
+	//// the selection (scrolled into view, dba8b1fd89), Enter opens the item or the global search dialog.
 	// ── Keyboard navigation ────────────────────────────────
 	_handle_keydown(e) {
 		const key = e.key;
@@ -1055,6 +1161,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		}
 	}
 
+	//// Neoffice — 417d4f52cf: upstream's awesomplete-select handler (route_options, onclick, ctrl /
+	//// meta → new tab, https routes) + analytics click tracking (dba8b1fd89).
 	// ── Select / navigate ──────────────────────────────────
 	_select_item(item, e) {
 		if (item.route_options) {
@@ -1092,6 +1200,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this._close();
 	}
 
+	//// Neoffice — 417d4f52cf / dba8b1fd89; request-id invalidation (6645876a0b, cfaa702efe), search
+	//// help cache cleared (e72cb6ad20), on_close host hook for the cockpit overlay (a3a2b04ebd).
 	// ── Close panel ────────────────────────────────────────
 	_close() {
 		// Invalidate every in-flight async search: a late response must not
@@ -1118,6 +1228,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		if (this.on_close) this.on_close();
 	}
 
+	//// Neoffice — upstream deduplicate(), renamed by 417d4f52cf and only reformatted; the public
+	//// deduplicate() at the end of the class is kept as a compat alias.
 	// ── Deduplication ──────────────────────────────────────
 	_deduplicate(options) {
 		var out = [],
@@ -1152,6 +1264,10 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		return out;
 	}
 
+	//// Neoffice — upstream make_calculator evaluated anything starting with a digit, "(" or "="; ours
+	//// only real math expressions (f131a66b4a, 2026-04-07 — a plain number is an amount search). Same
+	//// eval + msgprint otherwise. Upstream's make_global_search ("Search for X" option) is gone: the
+	//// panel footer plays that role.
 	// ── Calculator ─────────────────────────────────────────
 	_make_calculator(txt) {
 		// Only trigger for actual math expressions (must contain an operator)
@@ -1183,6 +1299,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		}
 	}
 
+	//// Neoffice — upstream make_random, renamed; default: "Calculator" added so it renders in the
+	//// Calculator section (417d4f52cf).
 	// ── Random password ────────────────────────────────────
 	_make_random(txt) {
 		if (txt.toLowerCase().includes("random")) {
@@ -1197,6 +1315,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		}
 	}
 
+	//// Neoffice — upstream make_search_in_current, renamed and reformatted (417d4f52cf); NOT called
+	//// since 69a0372263 (2026-04-07 "remove broken Quick Actions (Find X in Y)") — dead code kept for
+	//// compat. TO REVIEW at the merge: drop it or wire it back.
 	// ── Search in current list ─────────────────────────────
 	_make_search_in_current(txt) {
 		var route = frappe.get_route();
@@ -1227,6 +1348,11 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		}
 	}
 
+	//// Neoffice — DocType action block, down to _load_help_for_doctype: 8822b0ef36 (2026-04-05, EN +
+	//// translated names), 2fb7b98d18 (single "View all" first), 6077ad4203 (2026-06-15 prefix scoring,
+	//// all-words fallback, threshold 50), f9980ea85c ("Create <DocType>" → frappe.new_doc / Quick
+	//// Entry, FR + EN verbs), b73d9fe958 (recent records via frappe.client.get_list), 8622b76fa3 /
+	//// e72cb6ad20 (help for the searched DocType).
 	// ── DocType action (type "devis"/"article"/"item" → "View all") ──
 	// Best readable DocType matching `txt` (EN name + translated name).
 	// Prefixes score high regardless of name length, so typing the start of a
@@ -1365,6 +1491,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			.catch(() => {});
 	}
 
+	//// Neoffice — b6f135ea30 (2026-04-02 "Go to" entries from frappe.desk.search.resolve_document,
+	//// request-id guarded), numeric / partial ids (2ce8e161a9), stale guard (6645876a0b).
 	// ── Direct document navigation ─────────────────────────
 	_make_document_link(txt) {
 		// Trigger for document IDs: 3+ chars, no spaces, not a pure math expression
@@ -1402,6 +1530,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		);
 	}
 
+	//// Neoffice — f131a66b4a (2026-04-07): frappe.desk.search.search_by_amount (grand_total /
+	//// total_amount across invoices, orders, quotations, payments, Document Scan), dot or comma
+	//// decimals; stale guard 6645876a0b.
 	// ── Amount search (12.00 or 12,00 → find invoices/orders) ──
 	_make_amount_search(txt) {
 		if (!txt) return;
@@ -1449,6 +1580,10 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		);
 	}
 
+	//// Neoffice — cfaa702efe (2026-07-07), from here down to _render_upcoming_into: Suite drive files,
+	//// calendar events and upcoming appointments via neoffice_theme.api.search_drive_files /
+	//// search_calendar_events / get_upcoming_events (calls caught — optional app); 60 s client memo
+	//// for the appointments (d3e8df1362).
 	// ── Drive file search (Suite drive, name match) ────────
 	_make_drive_search(txt) {
 		if (!txt || txt.length < 3) return;
@@ -1598,6 +1733,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 	}
 };
 
+//// Neoffice — module-level state: custom_providers extension point (b6f135ea30 — apps register
+//// search sources, e.g. neoffice_theme awesome_bar_docs.js) and the request-id counters used to
+//// discard stale responses (b6f135ea30, f131a66b4a, cfaa702efe).
 // Extension point for custom search providers
 frappe.search.AwesomeBar.custom_providers = [];
 
@@ -1606,3 +1744,5 @@ frappe.search.AwesomeBar._resolve_request_id = 0;
 frappe.search.AwesomeBar._amount_search_id = 0;
 frappe.search.AwesomeBar._drive_search_id = 0;
 frappe.search.AwesomeBar._calendar_search_id = 0;
+//// Neoffice ▲▲▲ Awesome Bar V2 (END OF NEOFFICE BLOCK)
+////////////////////////////////////////////////////////////////////////

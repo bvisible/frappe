@@ -224,6 +224,9 @@ frappe.search.utils = {
 						});
 					}
 
+					//// Neoffice — upstream also pushes a "Report" option here (can_get_report → ["List", item,
+					//// "Report"], score 0.04); removed by f18854c0fb (2026-04-05 "remove Report from nav": the List
+					//// view already exposes the report view) after b6f135ea30 (2026-04-02) had re-ranked it.
 					// Show List only (reports are accessed via List view)
 					out.push(option("List", ["List", item], 0.05));
 				}

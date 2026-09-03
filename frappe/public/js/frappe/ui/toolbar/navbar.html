@@ -1,11 +1,16 @@
 <div class="sticky-top">
 	<header class="navbar navbar-expand" role="navigation">
 		<div class="container">
+			<!-- //// Neoffice — added (cc297ec402, 2025-11-03 "Move sidebar to right and add mobile toggle"):
+			     //// hamburger toggling the global sidebar on mobile (toolbar.js bind_hamburger_click). -->
 			<button class="btn-reset navbar-toggle-sidebar d-sm-none" aria-label="{{ __('Toggle Sidebar') }}">
 				<svg class="es-icon icon-md">
 					<use href="#es-line-align-justify"></use>
 				</svg>
 			</button>
+			<!-- //// Neoffice — upstream: href="/app" and src bound to boot.app_logo_url. Home route
+			     //// (0634af137c, 2025-11-13) and the neoffice_theme logo hard-coded (9999364ec6, 2025-10-28)
+			     //// — a core → neoffice_theme asset dependency. -->
 			<a class="navbar-brand navbar-home" href="/app/home">
 				<img
 					class="app-logo"
@@ -16,6 +21,8 @@
 			<ul class="nav navbar-nav d-none d-sm-flex" id="navbar-breadcrumbs"></ul>
 			<div class="collapse navbar-collapse justify-content-end">
 				<form class="form-inline fill-width justify-content-end" role="search" onsubmit="return false;">
+					<!-- //// Neoffice — whitespace-only re-indent of the two indicator pills below (b1d77644c6,
+					     //// 2024-09-27 "update", no rationale): take upstream at the merge. -->
 					{% if (frappe.boot.read_only) { %}
 					<span class="indicator-pill yellow no-indicator-dot" title="{%= __("Your site is undergoing maintenance or being updated.") %}">
 					{%= __("Read Only Mode") %}
@@ -88,6 +95,7 @@
 							aria-controls="toolbar-help"
 							aria-label="{{ __("Help Dropdown") }}"
 						>
+						<!-- //// Neoffice — whitespace-only re-indent (b1d77644c6, 2024-09-27): take upstream at the merge. -->
 						<span>
 								{{ __("Help") }}
 								<svg class="es-icon icon-xs"><use href="#es-line-down"></use></svg>
@@ -95,6 +103,9 @@
 						</button>
 						<div class="dropdown-menu dropdown-menu-right" id="toolbar-help" role="menu">
 							<div id="help-links"></div>
+							<!-- //// Neoffice — upstream's documentation-links block (divider + navbar_settings.help_dropdown
+							     //// items) is commented out below by b1d77644c6 (2024-09-27 "update", no rationale in the
+							     //// commit); toolbar.js builds the Help menu itself (wiki dialog + "Open Full Documentation"). -->
 							<!-- ////
 							<div class="dropdown-divider documentation-links"></div>
 							{% for item in navbar_settings.help_dropdown %}
@@ -121,6 +132,7 @@
 							data-toggle="dropdown"
 							aria-label="{{ __("User Menu") }}"
 						>
+						<!-- //// Neoffice — whitespace-only re-indent (b1d77644c6, 2024-09-27): take upstream at the merge. -->
 						{{ avatar }}
 						</button>
 						<div class="dropdown-menu dropdown-menu-right" id="toolbar-user" role="menu">
@@ -152,6 +164,7 @@
 		<div class="container flex justify-between align-center mx-auto">
 			{{ navbar_settings.announcement_widget }}
 			<div class="close-message p-0 mr-2" style="position: relative;">
+				<!-- //// Neoffice — whitespace-only re-indent (b1d77644c6, 2024-09-27): take upstream at the merge. -->
 				{{ frappe.utils.icon("close") }}
 			</div>
 		</div>
