@@ -50,6 +50,13 @@ class FormTour(Document):
 				self.module = frappe.db.get_value("DocType", dashboard_doctype, "module")
 			else:
 				self.module = "Desk"
+		#//// Neoffice — upstream: `if not self.ui_tour:` — every non-UI Form Tour re-validates each of
+		#//// its steps against the reference doctype meta on save. Ours also skips that validation
+		#//// when frappe.flags.tour_import is set, so an importer can insert Form Tours whose fields
+		#//// do not (yet) exist on the target site without the save failing. TO REVIEW: 4c842a98fc
+		#//// (2023-10-30 "First change v15", 57 files) carries no message, and NOTHING in this repo
+		#//// ever sets frappe.flags.tour_import — the writer must be a Neoffice app. If no app sets it
+		#//// any more, this clause is dead and should go back to upstream at the merge.
 		if not self.ui_tour and not frappe.flags.tour_import: #//// added  and not frappe.flags.tour_import
 			meta = frappe.get_meta(self.reference_doctype)
 			for step in self.steps:

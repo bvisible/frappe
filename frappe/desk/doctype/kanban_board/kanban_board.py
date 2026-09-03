@@ -147,6 +147,13 @@ def update_order_for_single_card(board_name, docname, from_colname, to_colname, 
 	if from_colname == to_colname:
 		from_col_order = to_col_order
 
+	#//// Neoffice — upstream: `if from_col_order:` — a truthiness test that still lets the
+	#//// `from_col_order.pop(old_index)` on the next line raise IndexError whenever old_index is
+	#//// past the end of the column (a stale client order, e.g. the card was moved or deleted in
+	#//// another tab). Ours bounds-checks the index instead, so a stale drag is dropped silently
+	#//// rather than returning a 500. TO REVIEW: 4c842a98fc (2023-10-30 "First change v15", 57
+	#//// files) records no message — the symptom above is read from the code — and an out-of-range
+	#//// index now means the card is not moved AT ALL, with no feedback to the user.
 	if old_index < len(from_col_order): #//// added if condition
 		to_col_order.insert(new_index, from_col_order.pop(old_index))
 

@@ -334,6 +334,18 @@ def get_link_title(doctype, docname):
 	return docname
 
 
+#//// Neoffice ▼▼▼ — added block, no upstream equivalent: the Awesome Bar V2 backend. From
+#//// here to the end of the file is ours.
+#////   • resolve_document (b6f135ea30, 2026-04-02 "feat(search): improve Awesome Bar with
+#////     direct document navigation and smarter results") turns a typed document number into
+#////     a direct "Go to" hit: exact match on __global_search.name, then prefix LIKE, then
+#////     (2ce8e161a9, 2026-04-07) a contains-LIKE pass restricted to transactional doctypes so
+#////     a partial number such as "00079" resolves. Results are filtered by get_can_read().
+#////   • search_by_amount (f131a66b4a, 2026-04-07 "feat(search): search by amount") finds an
+#////     invoice or order by its total; accepts "12.00" and "12,00" and skips doctypes the
+#////     user cannot read or that lack the amount column.
+#//// Upstream v15 has neither endpoint. Companions: public/js/frappe/ui/toolbar/awesome_bar.js
+#//// (lot F2), model/meta.py and utils/global_search.py (this lot).
 @frappe.whitelist()
 def resolve_document(name: str) -> list[dict]:
 	"""Resolve a document name/ID to its doctype and title.

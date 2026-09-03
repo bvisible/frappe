@@ -4,6 +4,11 @@
 """build query for doclistview and return results"""
 
 import json
+#//// Neoffice — imports added for our tail-of-file endpoints (bd41f1e7a5 "Update neov2" for
+#//// os / re / cint / make_xlsx used by export_query; e5382efca3 2025-03-18 "Fix bug export").
+#//// TO REVIEW at the merge: `import frappe` here duplicates upstream's own `import frappe` a
+#//// few lines below, and `save_file` is imported but never used — both will read as noise in
+#//// the conflict. Upstream keeps this header to the stdlib + sql_metadata.
 import os
 import frappe
 import re
@@ -109,6 +114,9 @@ def validate_args(data):
 def validate_fields(data):
 	wildcard = update_wildcard_field_param(data)
 
+	#//// Neoffice — added (6d9d979e62, 2024-09-25 "Update reportview.py"): the allow-list of
+	#//// pseudo-fields the report view may request even though no DocField backs them. Only
+	#//// `_comment_count` so far — see the marker on the `wildcard` test below.
 	allowed_special_fields = ["_comment_count"]  # Add _comment_count to allowed special fields
 
 	for field in list(data.fields or []):
@@ -122,6 +130,10 @@ def validate_fields(data):
 		meta, df = get_meta_and_docfield(fieldname, data)
 
 		if not df:
+			#//// Neoffice — upstream: `if wildcard:` alone (kept commented below). 6d9d979e62 (2024-09-25
+			#//// "Update reportview.py") also lets the pseudo-field `_comment_count` through, so the
+			#//// report view can request the comment counter that get_comment_count() fills at the end of
+			#//// this file. Without it validate_fields() rejects the column as an invalid fieldname.
 			# //// if wildcard:
 			if wildcard or fieldname in allowed_special_fields:
 				continue
@@ -563,12 +575,22 @@ def handle_duration_fieldtype_values(doctype, data, fields):
 
 def parse_field(field: str) -> tuple[str | None, str]:
 	"""Parse a field into parenttype and fieldname."""
+	#//// Neoffice — added guard (4e23539603, 2024-09-23 "last updates"): upstream lets a None
+	#//// field reach `field.split(" as ", 1)` and raise AttributeError; ours raises ValueError,
+	#//// which is what the callers already catch. See the marker below for the upstream lines the
+	#//// same commit deleted from this function.
 	#////
 	if field is None:
 		raise ValueError("Field cannot be None")
 	#////
 	key = field.split(" as ", 1)[0]
 
+	#//// Neoffice — upstream raises ValueError here when the key starts with `count(`, `sum(` or
+	#//// `avg(`, so aggregate expressions never reach the parenttype/fieldname split. Those three
+	#//// lines were REMOVED by 4e23539603 (2024-09-23 "last updates", 23 files) — aggregate fields
+	#//// now fall through to the parsing below. TO REVIEW: that commit has an empty message, so
+	#//// the reason is unrecorded; callers of parse_field() still expect ValueError as the signal
+	#//// for "not a plain field", and the guard added above only covers field=None.
 	if "." in key:
 		table, column = key.split(".", 2)[:2]
 		return table[4:-1], column.strip("`")
@@ -830,6 +852,24 @@ def get_filters_cond(doctype, filters, conditions, ignore_permissions=None, with
 		cond = ""
 	return cond
 
+#//// Neoffice ▼▼▼ — added block, no upstream equivalent: everything from here to the end of
+#//// the file is ours. Three unrelated features landed in this tail:
+#////   • 4e23539603 (2024-09-23 "last updates", 23 files, empty message):
+#////     get_distinct_values, the save/get/delete/push_user_report_settings family (stored in
+#////     the Neoffice `report_settings` field added to User and System Settings — see
+#////     NEOFFICE_FORK_MARKERS.md) and the first get_comment_count;
+#////   • bd41f1e7a5 (2025-02-26 "Update neov2", 40 files, empty message): export_query,
+#////     sanitize_title, delete_file_after_download — an xlsx export that writes into
+#////     private/files, creates a File doc and enqueues its own deletion;
+#////   • 31556fc2b7 (2025-12-02 "fix: get_comment_count reads _comments field instead of
+#////     counting Comment records"): the report-view meta column showed 0 even when e-mails
+#////     had been sent, because it only counted Comment rows and not Communications; it now
+#////     reads the `_comments` field (both kinds) in ONE query instead of one per document.
+#//// TO REVIEW before the v15.120 merge: the two bulk commits carry no message, so only the
+#//// third reason above is recorded; export_query/sanitize_title/delete_file_after_download
+#//// are indented with SPACES in a tab-indented file; and this file also lost its final
+#//// newline in the same pass (an accident — restore it).
+#//// Nothing upstream sits here, so the merge should append cleanly.
 #////
 @frappe.whitelist()
 def get_distinct_values(doctype, fieldname, limit=None):
