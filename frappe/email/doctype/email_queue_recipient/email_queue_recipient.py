@@ -19,6 +19,12 @@ class EmailQueueRecipient(Document):
 		parentfield: DF.Data
 		parenttype: DF.Data
 		recipient: DF.Data | None
+		#//// Neoffice — upstream: DF.Literal["", "Not Sent", "Sent"]. The "Error" state was added by
+		#//// 4e23539603 (2024-09-23 "last updates", 23 files) so a single failed recipient can be
+		#//// recorded without failing the whole queue row; SendMailContext.__exit__ then reports
+		#//// "Partially Sent", and the placeholder blocker in email_queue.py sets it. This is the
+		#//// generated mirror of the doctype JSON — the options list in
+		#//// email_queue_recipient.json diverges the same way (see NEOFFICE_FORK_MARKERS.md).
 		status: DF.Literal["", "Not Sent", "Sent", "Error"]
 	# end: auto-generated types
 	DOCTYPE = "Email Queue Recipient"
