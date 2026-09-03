@@ -23,6 +23,8 @@ frappe.views.ListSidebar = class ListSidebar {
 
 		this.setup_list_filter();
 		this.setup_list_group_by();
+		//// Neoffice - added call (9999364ec6, 2025-10-28): makes the sidebar sections collapsible; the method
+		//// is ours, below.
 		this.setup_collapsible();
 
 		// do not remove
@@ -40,6 +42,10 @@ frappe.views.ListSidebar = class ListSidebar {
 			});
 		}
 
+		//// Neoffice - upstream calls add_insights_banner / add_crm_banner / add_helpdesk_banner for System
+		//// Managers (9999364ec6, 2025-10-28; comment in English since cc2f59a5a6): the three upsell banners
+		//// for Frappe's own cloud products are commented out - we do not advertise them in our desk. The
+		//// three methods themselves are still upstream's, further down, and now unreachable.
 		// Marketing banners commented out
 		// if (frappe.user.has_role("System Manager")) {
 		// 	this.add_insights_banner();
@@ -168,10 +174,15 @@ frappe.views.ListSidebar = class ListSidebar {
 			wrapper: this.page.sidebar.find(".list-filters"),
 			doctype: this.doctype,
 			list_view: this.list_view,
+			//// Neoffice - added option (9999364ec6, 2025-10-28): the collapsible heading of the saved-filters
+			//// section, so ListFilter#refresh can expand or collapse it (marked in list_filter.js).
 			section_title: this.page.sidebar.find(".save-filter-section .sidebar-label"),
 		});
 	}
 
+	//// Neoffice - added method, no upstream equivalent (9999364ec6, 2025-10-28): clicking a
+	//// .sidebar-label toggles .hide on its body and flips the chevron of list_sidebar.html. Sections:
+	//// tags, saved filters, group-by.
 	setup_collapsible() {
 		// tags and save filter sections should be collapsible
 		let sections = [
@@ -240,6 +251,8 @@ frappe.views.ListSidebar = class ListSidebar {
 		});
 	}
 
+	//// Neoffice - the <li> wrapper of the loading state below became a <div> (9999364ec6, 2025-10-28):
+	//// this dropdown no longer lives inside a <ul>. Markup only; marker kept outside the template literal.
 	set_loading_state(dropdown) {
 		dropdown.html(`<div>
 			<div class="empty-state">
@@ -266,6 +279,11 @@ frappe.views.ListSidebar = class ListSidebar {
 					existing.remove();
 				}
 				if (label == "No Tags") {
+					//// Neoffice - upstream filters "No Tags" with `label = "%,%"` and `condition = "not like"`
+					//// (9999364ec6, 2025-10-28): ours filters `_user_tags is not set`. Not the same set - a SQL `not
+					//// like` never matches a NULL, so upstream's version misses the rows that were never tagged at all,
+					//// which are exactly the ones this entry is about. A behaviour change hidden in a UI commit: keep it
+					//// deliberately at the merge.
 					label = "not set";
 					condition = "is";
 				}

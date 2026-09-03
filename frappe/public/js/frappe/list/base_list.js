@@ -44,6 +44,9 @@ frappe.views.BaseList = class BaseList {
 		this.user_settings = frappe.get_user_settings(this.doctype);
 
 		this.start = 0;
+		//// Neoffice - upstream: `this.page_length = frappe.is_large_screen() ? 100 : 20;` (4e23539603,
+		//// 2024-09-23 "last updates"; no rationale in the commit): every list opens with 100 rows, small
+		//// screens included. The upstream line is kept commented out just below.
 		////this.page_length = frappe.is_large_screen() ? 100 : 20;
 		this.page_length = 100;
 		this.data = [];
@@ -419,6 +422,8 @@ frappe.views.BaseList = class BaseList {
 
 		this.$paging_area.on("click", ".btn-more", (e) => {
 			this.start += this.page_length;
+			//// Neoffice - upstream: `this.page_length = this.selected_page_count || 20;` (same change as in the
+			//// constructor, 4e23539603, carried through the merge 0b9b53c7ea): "Load more" adds 100 rows, not 20.
 			//// up 20 => 100
 			this.page_length = this.selected_page_count || 100;
 			this.refresh();
@@ -616,6 +621,11 @@ class FilterArea {
 		);
 		this.setup();
 
+		//// Neoffice - added (b807db2347, 2025-11-04 "fix: Corrections multiples pour sidebar et navigation
+		//// tabs"; comment in English since cc2f59a5a6 the same day): the list's filter area is moved into the
+		//// list sidebar so the mobile overlay carries it - upstream leaves it above the list. TO REVIEW at
+		//// the merge: this is a 500 ms setTimeout racing the sidebar's own render (scss/desk/list_sidebar.scss
+		//// hides the section until then, same commit); nothing happens at all if the sidebar took longer.
 		// Move filter-section into sidebar for mobile support
 		// Uses prependTo to place it first in the sidebar
 		setTimeout(() => {

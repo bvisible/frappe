@@ -1,3 +1,14 @@
+<!-- //// Neoffice - file rewritten (9999364ec6, 2025-10-28 "Refonte de l'interface utilisateur avec
+     //// nouvelle sidebar et apps switcher"). Upstream v15 renders this sidebar as two
+     //// <ul class="sidebar-menu"> lists of <li>; ours is a flat series of <div class="sidebar-section">
+     //// blocks, so it can be dropped into the new right-hand sidebar - list_sidebar.js, list_filter.js
+     //// and scss/desk/list_sidebar.scss follow the same change (all marked). On top of the re-tagging:
+     //// an es-line chevron in every .sidebar-label (the click target of setup_collapsible()), tags
+     //// moved into their own .tags-section, a "Saved Filters" heading, and .hide on the tags and
+     //// saved-filters bodies so both start collapsed. Upstream has not touched this file between
+     //// v15.89.0 and v15.120.0. v16 merge note: upstream develop DELETED it - the list sidebar became
+     //// list/list_sidebar_group_by.js + list_sidebar_stat.html + list_filter/*, so expect a
+     //// modify/delete conflict and resolve from this commit, not line by line. -->
 <div class="sidebar-section user-actions hide">
 </div>
 <div class="sidebar-section views-section hide">
