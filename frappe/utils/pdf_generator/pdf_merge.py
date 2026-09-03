@@ -1,3 +1,8 @@
+#//// Neoffice — added file (no upstream equivalent in version-15): backport of the frappe
+#//// develop (v16) Chrome PDF generator, unchanged from upstream. Lineage (cherry-picked with
+#//// -x): 964dd6c034 "feat: Chrome PDF generator" (ours c64ffb849d) + 5f99434f52. Why the
+#//// backport: see the browser.py header (ADR 2026-05-26). No Neoffice-specific change here;
+#//// upstream develop has since evolved this file (136 lines vs 117) — diff, do not re-add.
 class PDFTransformer:
 	def __init__(self, browser):
 		self.browser = browser

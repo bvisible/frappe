@@ -1,3 +1,10 @@
+//// Neoffice — added file (no upstream equivalent in version-15): copy of frappe develop
+//// 12050baed8 (2026-05-20 "fix(pdf): inject update_page_no.js so non-print_designer headers
+//// can clone"), brought in by 515e83888c (2026-05-27) so browser.py can inject it into the
+//// header/footer pages (repeating letterhead + page numbers on every page).
+//// Neoffice-only change: the .only-if-more-pages toggle in update_page_no() — elements with
+//// that class (our "continued on next page" footer note) are shown on every page except
+//// the last one. Everything else is verbatim upstream.
 // Injected into header/footer pages so clone_and_update is available
 // when browser.py calls header_page.evaluate("clone_and_update(...)").
 // Matches print_designer/print_designer/page/print_designer/update_page_no.js

@@ -1,3 +1,10 @@
+#//// Neoffice — added file (no upstream equivalent in version-15): backport of the frappe
+#//// develop (v16) Chrome PDF generator, unchanged from upstream. Lineage (cherry-picked
+#//// with -x): 964dd6c034 "feat: Chrome PDF generator" (ours c64ffb849d) + d870caf6c4 (#35098,
+#//// ours 153d09abb5). Why the backport: see the browser.py header (wkhtmltopdf cannot render
+#//// the Oslo print formats; ADR 2026-05-26). No Neoffice-specific change in this file.
+#//// v16 note: upstream moved this module to frappe/utils/chromium/cdp_connection.py
+#//// (182e127732 "refactor: extract generic headless-Chromium stack", 2026-06-18).
 import asyncio
 
 import websockets

@@ -1,3 +1,9 @@
+#//// Neoffice — added file (no upstream equivalent in version-15): backport of the frappe
+#//// develop (v16) Chrome PDF generator, unchanged from upstream. Lineage (cherry-picked with
+#//// -x): 964dd6c034 "feat: Chrome PDF generator" (ours c64ffb849d) + d834727728, 5f99434f52,
+#//// cb8ac9b14f, 0c3cef5237 (secure local resource access). Why the backport: see the
+#//// browser.py header (ADR 2026-05-26). No Neoffice-specific change in this file.
+#//// v16 note: upstream moved this module to frappe/utils/chromium/page.py (182e127732).
 import base64
 import time
 import urllib
