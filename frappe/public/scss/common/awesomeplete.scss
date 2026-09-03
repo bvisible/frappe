@@ -1,3 +1,5 @@
+//// Neoffice — comment reworded by dba8b1fd89 (2026-04-02, Awesome Bar V2); upstream L1 reads
+//// "// REDESIGN-TODO: Review". The .awesomplete rules below are upstream's, unchanged.
 // Legacy Awesomplete styles (kept for backward compat)
 .awesomplete {
 	[hidden] {
@@ -72,6 +74,28 @@
 	}
 }
 
+////////////////////////////////////////////////////////////////////////
+//// Neoffice ▼▼▼ Awesome Bar V2 — search mega panel (everything below, to end of file)
+////
+//// Upstream v15.89.0 ends here (Awesomplete dropdown styles only). The block styles
+//// the custom .search-mega-panel that replaces the Awesomplete dropdown in our
+//// awesome_bar.js rewrite: inline results grouped by DocType, two floating zones with
+//// a gradient halo, sidebar with recent visits / Nora Learn / help resources.
+//// Reference: neoffice-devops MEMORY → awesome-bar-v2-reference.md.
+//// Commits (Jérémy Christillin):
+////   417d4f52cf 2026-04-02 feat(search): redesign Awesome Bar with inline rich search results
+////   dba8b1fd89 2026-04-02 feat(search): two-column mega panel with analytics and animations
+////   8822b0ef36 2026-04-05 feat(search): DocType action ("View all <DocType>") in any language
+////   529db29093 2026-04-05 fix(search): highlight terms in labels (mark style)
+////   d39cf14bf1 2026-04-07 feat(search): wider responsive layout (900px), mobile single column
+////   43a36fa872 / 599cca5304 2026-04-07 feat(search): visible scrollbar + bottom fade hint
+////   cbc010fbd0 2026-04-07 feat(search): file preview icon for Document Scan
+////   e6c6a9c7a9 2026-04-07 feat(search): floating two-zone design with gradient halo
+////   d1b63abc5c 2026-04-07 fix(search): halo via ::before/::after (survives empty), gray sidebar
+////   59dfb489ab 2026-06-15 fix(awesome-bar): dark-mode bottom fade mask was hardcoded white
+////   f20923d35f 2026-06-15 fix(awesome-bar): DS — ink primary "View all" bar + flush top padding
+////   bb746ec87b 2026-06-15 fix(awesome-bar): force ink fill on the auto-selected "View all" bar
+////////////////////////////////////////////////////////////////////////
 // ════════════════════════════════════════════════════════════
 // Search Mega Panel — Floating two-zone layout with gradient halo
 // ════════════════════════════════════════════════════════════
@@ -564,3 +588,5 @@
 .search-results-panel {
 	display: none !important;
 }
+//// Neoffice ▲▲▲ Awesome Bar V2 — search mega panel (END OF NEOFFICE BLOCK)
+////////////////////////////////////////////////////////////////////////

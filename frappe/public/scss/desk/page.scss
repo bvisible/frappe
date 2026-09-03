@@ -25,6 +25,8 @@
 		}
 	}
 
+	//// Neoffice — added (cc297ec402, 2025-11-03 "Move sidebar to right and add mobile toggle"):
+	//// the navbar hamburger that toggles the right-hand sidebar is hidden on Workspaces.
 	// Hide sidebar toggle button in Workspaces
 	body[data-route^="Workspaces"] & .sidebar-toggle-btn {
 		display: none;
@@ -89,6 +91,9 @@
 	}
 }
 
+//// Neoffice — added (cc297ec402, 2025-11-03 "Move sidebar to right and add mobile toggle"):
+//// .layout-main becomes a flex row so the side section can sit on the RIGHT of the main
+//// section for forms and lists (upstream stacks it on the left via the Bootstrap grid).
 .layout-main {
 	display: flex;
 	flex-direction: row;
@@ -96,6 +101,7 @@
 
 .layout-main-section-wrapper {
 	min-width: 0;
+	//// Neoffice — added with the flex row above (cc297ec402): the main wrapper takes the space.
 	flex: 1;
 }
 
@@ -111,6 +117,9 @@
 	position: sticky;
 	top: var(--navbar-height);
 	background: var(--bg-color);
+	//// Neoffice — upstream has margin-bottom: 5px here; dropped by the sidebar + apps-switcher
+	//// UI rework (9999364ec6, 2025-10-28 "Refonte de l'interface utilisateur avec nouvelle
+	//// sidebar et apps switcher"; the commit gives no finer rationale).
 	transition: 0.5s top;
 
 	.page-head-content {

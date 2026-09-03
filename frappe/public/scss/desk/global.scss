@@ -527,6 +527,9 @@ kbd {
 	.freeze-message-container {
 		inset: 0;
 		padding: 3rem;
+		//// Neoffice — upstream: solid background-color: var(--bg-light-gray) box. Soft white/pink
+		//// radial halo behind the loader/message instead (070284fd76, 2026-06-09 "Style freeze
+		//// backdrop: transparent background + soft radial halo") so frappe.dom.freeze is not obtrusive.
 		background: radial-gradient(circle, rgba(253, 249, 250, 0.9) 30%, rgba(255, 255, 255, 0) 100%);
 		background-color: transparent;
 		color: var(--text-on-light-gray);
@@ -538,6 +541,8 @@ kbd {
 }
 
 #freeze.in {
+	//// Neoffice — upstream: opacity: 0.8 (dark veil). Fully transparent backdrop (070284fd76,
+	//// 2026-06-09 "Style freeze backdrop: transparent background + soft radial halo").
 	background-color: transparent;
 	opacity: 1;
 }

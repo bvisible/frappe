@@ -2,6 +2,10 @@
 	height: $navbar-height;
 	background: var(--navbar-bg);
 	padding: 0;
+	//// Neoffice — upstream draws border-bottom: 1px solid var(--border-color) on .navbar; dropped
+	//// by the sidebar + apps-switcher UI rework (9999364ec6, 2025-10-28). position: relative is
+	//// from cc297ec402 (2025-11-03 "Move sidebar to right and add mobile toggle"); the NEOFFICE
+	//// note below is from f87f9c914b (2026-06-10, NeoCockpit rail UX: legacy concave corner gone).
 	position: relative;
 
 	// NEOFFICE: the ::before concave-corner (radial-gradient) was removed with
@@ -12,6 +16,8 @@
 		margin-right: 0;
 	}
 
+	//// Neoffice — added (cc297ec402, 2025-11-03 "Move sidebar to right and add mobile toggle"):
+	//// hamburger button in the navbar that toggles the sidebar on mobile devices.
 	.navbar-toggle-sidebar {
 		display: flex;
 		align-items: center;
@@ -61,6 +67,9 @@
 	flex: 1;
 	max-width: 300px;
 	margin: 0 var(--margin-md);
+	//// Neoffice — Awesome Bar V2 (c7480a80c0 + 1fb523a025, 2026-04-02 "feat(search): immersive
+	//// search bar animation" / "load Nora Learn + Help Resources in sidebar, animate search
+	//// bar"): the search container grows from 300px to 520px on focus, with easing.
 	transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
 		flex 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -80,11 +89,18 @@
 		display: flex;
 		align-items: center;
 		height: 100%;
+		//// Neoffice — Awesome Bar V2 (b4a1e60857 "fix search icon overlap…", c7480a80c0, 2026-04-02):
+		//// the icon sits above the input, ignores pointer events and animates out on focus.
 		z-index: 1;
 		pointer-events: none;
 		transition: opacity 0.2s, transform 0.2s;
 	}
 
+	//// Neoffice — Awesome Bar V2 (b4a1e60857, c7480a80c0, 1fb523a025, 709a6b2799 — 2026-04-02):
+	//// upstream only styles the Awesomplete widget; V2 renders a plain input#navbar-search that
+	//// grows 28→38px / text-lg on focus, loses its icon (padding-left 36→14px) and keeps a small
+	//// border-radius. The .awesomplete rules that follow are upstream's, kept for the legacy
+	//// dropdown (see the "Legacy" note below).
 	// Direct input styles
 	input#navbar-search {
 		width: 100%;

@@ -5,6 +5,11 @@ $disabled-input-height: 22px;
 [data-theme="light"] {
 	--brand-color: var(--primary);
 
+	//// Neoffice — added (051206fa6b, 2025-11-08 "fix: Grid fullwidth toggle with horizontal
+	//// scroll"): an 18px checkbox token in the light-theme root, read by element/checkbox.scss,
+	//// element/radio.scss, list.scss and web_form.scss. TO REVIEW before the upstream merge:
+	//// upstream declares --checkbox-size: 14px further down in this SAME block (which closes
+	//// around L159), so the later 14px currently wins and this line is inert.
 	// Checkbox
 	--checkbox-size: 18px;
 

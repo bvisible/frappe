@@ -1,3 +1,16 @@
+////////////////////////////////////////////////////////////////////////
+//// Neoffice ▼▼▼ list_sidebar.scss (NEW FILE in version-15 — no upstream v15 equivalent)
+////
+//// Backport of frappe develop (v16) frappe/public/scss/desk/list_sidebar.scss as of
+//// 6bf7d45e6e (2025-09-02 "refactor: Sidebar"; 104 of our 121 lines verbatim), brought in
+//// by 9999364ec6 (2025-10-28 "Refonte de l'interface utilisateur avec nouvelle sidebar et
+//// apps switcher") with the collapsible-sections list_sidebar.js, and pulled into the desk
+//// bundle by index.scss. Local deltas on top of upstream: the ul / li list reset,
+//// .layout-side-section max-width: 250px (cc2f59a5a6, 2025-11-04), and the mobile/tablet
+//// rule hiding .filter-section before list.js moves it into the overlay sidebar
+//// (b807db2347 2025-11-04, 039a849260 2025-12-01 "hide filter-section flash on tablet").
+//// v16 merge note: upstream has not touched this file since 2025-07 — should merge cleanly.
+////////////////////////////////////////////////////////////////////////
 .list-sidebar {
 	padding-top: var(--padding-sm);
 

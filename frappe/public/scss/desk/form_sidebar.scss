@@ -1,3 +1,16 @@
+////////////////////////////////////////////////////////////////////////
+//// Neoffice ▼▼▼ form_sidebar.scss (NEW FILE in version-15 — no upstream v15 equivalent)
+////
+//// Backport of frappe develop (v16) frappe/public/scss/desk/form_sidebar.scss as of
+//// 6bf7d45e6e (2025-09-02 "refactor: Sidebar"; ~95% identical), brought in by 9999364ec6
+//// (2025-10-28 "Refonte de l'interface utilisateur avec nouvelle sidebar et apps switcher")
+//// together with the simplified form_sidebar.js, and pulled into the desk bundle by
+//// index.scss. Local deltas on top of upstream: cc297ec402 (2025-11-03 sidebar moved to the
+//// right + mobile toggle), 1e2d7b5809 (2025-12-01 padding: 0 on .layout-side-section on
+//// mobile), 322196d195 (2025-12-01 same for tablets).
+//// v16 merge note: upstream redesigned this file afterwards (eddd5b00b6, 2025-12-15 "feat:
+//// init form sidebar redesign", develop tip ~850 lines) — expect an add/add conflict.
+////////////////////////////////////////////////////////////////////////
 // form sidebar
 .form-sidebar {
 	padding-top: var(--padding-sm);

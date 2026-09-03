@@ -6,6 +6,8 @@
 	border: 1px solid var(--table-border-color);
 	border-radius: var(--border-radius-md);
 	color: var(--text-color);
+	//// Neoffice — added (051206fa6b, 2025-11-08 "fix: Grid fullwidth toggle with horizontal
+	//// scroll"): minimum grid height + themed background for the full-width / scroll modes.
 	min-height: 150px;
 	background-color: var(--subtle-accent);
 	&:focus-visible {
@@ -27,6 +29,8 @@
 	border-top-left-radius: var(--border-radius-md);
 	border-top-right-radius: var(--border-radius-md);
 
+	//// Neoffice — added (051206fa6b, 2025-11-08 "fix: Grid fullwidth toggle with horizontal
+	//// scroll"): heading data rows stay transparent whatever the custom theme sets.
 	// Override custom theme background colors to ensure consistency
 	.grid-row .data-row {
 		background-color: transparent !important;
@@ -61,6 +65,9 @@
 		}
 	}
 
+	//// Neoffice — added (051206fa6b, 2025-11-08 "fix: Grid fullwidth toggle with horizontal
+	//// scroll"), this rule and the .grid-body block that follows: explicit backgrounds on the
+	//// heading / body static cells (header and cells must stay visible in fullwidth mode).
 	// Background colors for heading row elements
 	.grid-static-col,
 	.row-check,
@@ -224,6 +231,9 @@
 }
 
 .grid-row > .row {
+	//// Neoffice — added (54f769a5a0 + 95b0366b48, 2026-02-08 "fix: Constrain row-check and
+	//// row-index columns to fixed width in child tables" / "Use smaller fixed widths for
+	//// row-check (28px) and row-index (36px)"): upstream lets these two columns flex.
 	// Compact checkbox column
 	> .row-check {
 		flex: 0 0 28px;
@@ -636,6 +646,10 @@
 }
 
 @media (min-width: map-get($grid-breakpoints, "md")) {
+	//// Neoffice — upstream selector is .form-grid-container. Scoped to grids that have NOT
+	//// reached the column limit (051206fa6b, 2025-11-08 "fix: Grid fullwidth toggle with
+	//// horizontal scroll"; later touched by e8ac0f8bee, 5a4bfb7b7c): the unset overflow-x
+	//// must not apply to the horizontal-scroll mode defined in the block below.
 	.form-grid-container:not(.column-limit-reached) {
 		overflow-x: unset !important;
 
@@ -652,6 +666,28 @@
 	}
 }
 
+////////////////////////////////////////////////////////////////////////
+//// Neoffice ▼▼▼ child-table grid: horizontal scroll, fixed columns, compact item
+//// table and fullscreen zoom (everything below, to end of file)
+////
+//// Upstream v15.89.0 ends here. The block is our child-table (Table field) rework:
+////   051206fa6b 2025-11-08 fix: Grid fullwidth toggle with horizontal scroll — .column-limit-
+////     reached scroll mode (set by grid.js past 10 columns), per-colsize minimum widths,
+////     sticky row-check / row-index; the parent overflow-x: clip was clipping the negative
+////     margins applied by the fullwidth toggle.
+////   e8ac0f8bee / e6f682e9cc / 842c1649aa 2025-11-29 — always-visible 12px webkit scrollbar
+////     (overlay scrollbars made it 2px and invisible on Chrome/Safari/Edge).
+////   5a9b92b0a7 / 95b0366b48 2026-02-08 — flex-start + flex-grow columns (no gaps), 28/36px
+////     row-check / row-index in scroll mode.
+////   d4d611bae2 2026-05-08 feat(grid): compact item-table layout — 44px action column,
+////     2-line description, 4px row padding (sections 1-3 below).
+////   fc8d45c62f 2026-05-08 fix(grid): borderless cell inputs, focus ring only (v15 no longer
+////     sets .editable-row, so upstream's border: 0 rules never applied).
+////   8d6e20c940 2026-05-08 feat(grid): proportional col widths (section 4).
+////   56c29f4324 / 5a4bfb7b7c 2026-05-08 feat(grid): fullscreen zoom via a position: fixed
+////     overlay + backdrop (section 5); dccea87d29 / 915d99a5ae / c3ede6e167 2026-05-08 —
+////     no description clamp, rows grow vertically, row-check / row-index stretch too.
+////////////////////////////////////////////////////////////////////////
 // ========================================
 // UNLIMITED COLUMNS WITH HORIZONTAL SCROLL
 // ========================================
@@ -1085,3 +1121,5 @@
 .grid-heading-row.force-with-filter .filter-row .search {
 	display: block !important;
 }
+//// Neoffice ▲▲▲ child-table grid rework (END OF NEOFFICE BLOCK)
+////////////////////////////////////////////////////////////////////////

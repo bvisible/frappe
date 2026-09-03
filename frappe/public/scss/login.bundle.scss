@@ -205,6 +205,9 @@ body {
 	text-align: center;
 	font-size: var(--text-xl);
 	font-weight: 600;
+	//// Neoffice — added (bdc70e06a5, 2025-03-14 "Bug css ans fix bug view"; the commit carries
+	//// no rationale): stacks the login card head (logo + title) as a column. TO REVIEW before
+	//// the upstream merge.
 	display: flex;
 	flex-direction: column;
 	

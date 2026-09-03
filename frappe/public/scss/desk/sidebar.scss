@@ -1,4 +1,18 @@
 // clean-this-file
+////////////////////////////////////////////////////////////////////////
+//// Neoffice ▼▼▼ desk sidebar rewrite (the whole file diverges from upstream v15.89.0)
+////
+//// Rewritten by 9999364ec6 (2025-10-28 "Refonte de l'interface utilisateur avec nouvelle
+//// sidebar et apps switcher", 28 files): new global sidebar (frappe/ui/sidebar.js) with the
+//// apps switcher (frappe/ui/apps_switcher.js, boot.app_data). About 60% of the rewritten
+//// lines are verbatim from frappe develop (v16) sidebar.scss at 6bf7d45e6e (2025-09-02
+//// "refactor: Sidebar") — an adapted backport, not a from-scratch design. Later commits are
+//// marked inline: cc297ec402 (2025-11-03 sidebar to the right + mobile toggle), 4a7a95c48b
+//// (2025-12-15 xs breakpoint), a2d9d31c6e (2026-04-02), aa4938f2f0 / e995a72fc6 / 3767414d40
+//// (2026-04-24 "All Modules" section, "Active Module" subtitle, fade-in).
+//// v16 merge note: upstream redesigned this file again afterwards (develop tip is only 27%
+//// similar) — expect a full-file conflict; resolve from the commits above, not line by line.
+////////////////////////////////////////////////////////////////////////
 :root {
 	--sidebar-hover-color: #f3f3f3;
 	--sidebar-active-color: rgba(255, 255, 255, 1);
@@ -101,6 +115,8 @@ body {
 		flex-wrap: nowrap;
 
 		gap: 2px;
+		//// Neoffice — cc297ec402 (2025-11-03 "Move sidebar to right and add mobile toggle"):
+		//// .body-sidebar-top scrolls vertically (overflow-y / overflow-x).
 		overflow-y: auto;
 		overflow-x: hidden;
 		position: static;
@@ -149,6 +165,11 @@ body {
 		}
 	}
 
+	//// Neoffice — block below (down to .app-title-subtitle) added on 2026-04-24: aa4938f2f0
+	//// "feat(sidebar): add 'All Modules' section mirroring the app-switcher dropdown" (section
+	//// headings Navigation / All Modules, module logos), e995a72fc6 "hide modules-section when
+	//// collapsed + add 'Active Module' subtitle" (two-line app-switcher header) and 3767414d40
+	//// "left-align app-title header + smooth fade-in" (text-align: left on name + subtitle).
 	// Section heading above workspace/module groups. Hidden when the sidebar
 	// is collapsed; revealed by the body-sidebar-expanded mixin.
 	.standard-sidebar-label {
@@ -231,6 +252,8 @@ body {
 		}
 
 		.item-anchor {
+			//// Neoffice — a2d9d31c6e (2026-04-02 "fix: sidebar item-anchor line-height clipping text in
+			//// hover mode").
 			line-height: normal;
 			display: flex;
 			overflow: hidden;
@@ -305,6 +328,7 @@ body {
 		}
 		.body-sidebar-top {
 			width: 100%;
+			//// Neoffice — cc297ec402 (2025-11-03): the expanded sidebar top scrolls vertically.
 			overflow-y: auto;
 		}
 		.sidebar-item-container {
@@ -314,6 +338,8 @@ body {
 			display: flex;
 			align-items: center;
 		}
+		//// Neoffice — expanded-state counterparts of the 2026-04-24 additions: section labels
+		//// (aa4938f2f0) and the modules section (e995a72fc6) are only shown when expanded.
 		.standard-sidebar-label {
 			display: block;
 		}
@@ -348,6 +374,9 @@ body {
 	@include body-sidebar-expanded();
 }
 
+//// Neoffice — 3767414d40 (2026-04-24 "feat(sidebar): left-align app-title header + smooth
+//// fade-in for expanded content"): keyframes + animation below, consumed by the
+//// hover-expanded state defined in neoffice_theme.
 // Smoothly reveal the textual elements that only appear when the sidebar
 // widens (expanded click-state or hover-expand overlay): section headings,
 // the modules section, workspace labels and the app-switcher subtitle.
@@ -370,6 +399,8 @@ body {
 	animation: sidebar-content-appear 260ms ease-out 80ms both;
 }
 
+//// Neoffice — 4a7a95c48b (2025-12-15 "fix: hide sidebar at xs breakpoint (575.98px) instead
+//// of sm"): the rewrite used the sm breakpoint here.
 @include media-breakpoint-down(xs) {
 	// body sidebar hidden in mobile view
 	.body-sidebar-container {
@@ -489,6 +520,9 @@ body {
 }
 
 .active-sidebar {
+	//// Neoffice — cc297ec402 (2025-11-03). TO REVIEW before the upstream merge: the variable
+	//// name is misspelled and --color-backgounrd is defined nowhere (nor --color-background),
+	//// so this declaration resolves to nothing; .active-sidebar only gets the shadow + radius.
 	background: var(--color-backgounrd);
 	box-shadow: var(--shadow-sm);
 	border-radius: 8px;

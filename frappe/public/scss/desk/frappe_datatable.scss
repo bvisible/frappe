@@ -194,6 +194,9 @@ table td.dt-cell {
 	}
 }
 
+//// Neoffice — added block (83653f1599, 2025-11-26 "style: add CSS for totals row styling in
+//// Report View"): our report_view.js appends a totals row flagged .dt-row--totals as the
+//// last data row of the DataTable; upstream v15 has no such row. Block runs to end of file.
 // Totals row styling - displayed as last data row in Report View
 .dt-row--totals {
 	background-color: var(--dt-light-bg) !important;
