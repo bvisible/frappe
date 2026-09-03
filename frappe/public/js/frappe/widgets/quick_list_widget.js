@@ -249,6 +249,12 @@ export default class QuickListWidget extends Widget {
 
 		let filters = frappe.utils.get_filter_from_json(this.quick_list_filter);
 		let route = frappe.utils.generate_route({ type: "doctype", name: this.document_type });
+		//// Neoffice — added (4c842a98fc, 2023-10-30 "First change v15", a 57-file commit with no
+		//// message): upstream sends the "View List" button of a Quick List widget to the doctype route
+		//// computed just above. For ToDo the useful view is the kanban (that is where the ToDo board
+		//// lives — see kanban_board.bundle.js), so the route is overridden. Hard-coded doctype, bare
+		//// //// fences from the original author. TO REVIEW at the merge: this is a per-site preference,
+		//// it belongs in the widget config, not in the framework. No upstream equivalent.
 		//// added if
 		if(this.document_type  == "ToDo"){
 			route = "/app/todo/view/kanban/ToDo";

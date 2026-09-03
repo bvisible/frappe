@@ -40,6 +40,10 @@ export default class ChartWidget extends Widget {
 	}
 
 	setup_container() {
+		//// Neoffice — added (93c0674c6d, 2026-06-10 "fix(charts): defer first dashboard-chart draw
+		//// until the wrapper has layout"): upstream setup_container goes straight to this.body.empty().
+		//// The deferred first draw installed below in render() holds a ResizeObserver on the previous
+		//// chart wrapper; emptying the body without disconnecting it left it firing on a detached node.
 		// a refresh rebuilds the body: drop any pending first-draw observer
 		// targeting the previous chart wrapper
 		if (this._layout_observer) {
@@ -534,6 +538,20 @@ export default class ChartWidget extends Widget {
 
 	async render() {
 		let setup_dashboard_chart = () => {
+			//// Neoffice — setup_dashboard_chart rewritten (block runs to the end of the callback, ~35 lines).
+			//// Upstream: build the args, then `if (!this.dashboard_chart) make_chart(...) else update(...)`.
+			//// Two problems, two commits:
+			////   93c0674c6d 2026-06-10 — workspace blocks are built detached (EditorJS appends them after
+			////     render()) and frappe-charts measures its container at construct time, so the first draw
+			////     ran on a zero-width host and turned every SVG coordinate into NaN (~130 console errors
+			////     per workspace load, broken first paint). The draw now waits for real layout through a
+			////     one-shot ResizeObserver, and the args are read at draw time, not before.
+			////   fe363d6fd6 2026-06-12 — a re-render (period filter, data refresh) left the previous
+			////     frappe-charts instance alive with its own ResizeObserver drawing into a detached SVG
+			////     ("removeChild … not a child of this node", scrolling froze). destroy() first. The same
+			////     commit put the general guard in frappe.Chart / ui/chart.js ManagedChart, which covers
+			////     every call site; this one is the explicit belt-and-braces on the widget's own instance.
+			//// No upstream equivalent: v15.120 and develop both still have the two-line if/else.
 			if (this.dashboard_chart) {
 				this.dashboard_chart.update(this.data);
 				return;
