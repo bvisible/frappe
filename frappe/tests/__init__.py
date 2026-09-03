@@ -28,8 +28,29 @@ global_test_dependencies = ["User"]
 #//// classes exist natively (UnitTestCase there is a lighter, DB-less base; mapping it to
 #//// the integration base is a superset, fine for collection and execution). Lazy, so no
 #//// import-time cycle with frappe.tests.utils.
+_V16_TEST_CASE = None
+
+
+def _v16_test_case():
+    """FrappeTestCase plus the v16 conveniences fleet forks call on `self`."""
+    global _V16_TEST_CASE
+    if _V16_TEST_CASE is None:
+        from frappe.tests.utils import FrappeTestCase
+        from frappe.tests.utils import change_settings as _change_settings
+
+        class IntegrationTestCase(FrappeTestCase):
+            #//// Neoffice — v16's IntegrationTestCase exposes change_settings as a METHOD
+            #//// (`with self.change_settings("Wiki Settings", {...}):` — wiki, 2026-09-03); v15 ships
+            #//// the same context manager as a module-level function. Same signature, delegated.
+            @staticmethod
+            def change_settings(doctype, settings_dict=None, /, commit=False, **settings):
+                return _change_settings(doctype, settings_dict, commit=commit, **settings)
+
+        _V16_TEST_CASE = IntegrationTestCase
+    return _V16_TEST_CASE
+
+
 def __getattr__(name):
     if name in ("IntegrationTestCase", "UnitTestCase"):
-        from frappe.tests.utils import FrappeTestCase
-        return FrappeTestCase
+        return _v16_test_case()
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
