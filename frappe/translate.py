@@ -7,6 +7,10 @@ frappe.translate
 Translation tools for frappe
 """
 
+#//// Neoffice — TO REVIEW: the ONLY divergence from upstream v15 in this whole file is a
+#//// MISSING NEWLINE at end of file (bd41f1e7a5, 2025-02-26 "Update neov2", 40 files, empty
+#//// message). Not one line of code differs. An editor accident, not an intent: restore the
+#//// final newline at the next upstream merge and this file goes back to zero divergence.
 import functools
 import io
 import itertools

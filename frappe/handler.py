@@ -168,6 +168,9 @@ def uploadfile():
 
 @frappe.whitelist(allow_guest=True)
 def upload_file():
+	#//// Neoffice — added imports for the filename normalisation below (4c842a98fc). They are
+	#//// deliberately function-local. TO REVIEW: `unidecode` is a third-party package — check it
+	#//// is declared in pyproject.toml before the v15.120 merge, upstream does not require it.
 	import re #//// added import
 	from unidecode import unidecode #//// added import
 	user = None
@@ -210,6 +213,12 @@ def upload_file():
 	if "file" in files:
 		file = files["file"]
 		content = file.stream.read()
+		#//// Neoffice — upstream: `filename = file.filename` — the browser-supplied name is used as
+		#//// is. Ours transliterates it to ASCII and collapses runs of spaces/dashes into a single
+		#//// dash, so an uploaded "Facture été – client.pdf" becomes a plain, URL-safe name.
+		#//// TO REVIEW: 4c842a98fc (2023-10-30 "First change v15", 57 files) carries no message, so
+		#//// the symptom is unrecorded; and this adds a hard dependency on `unidecode` (see the
+		#//// import marker above) inside an endpoint that is allow_guest.
 		filename = unidecode(file.filename) #//// filename = file.filename
 		filename = re.sub(r'[-\s]+', '-', filename).strip('-_') #////
 
