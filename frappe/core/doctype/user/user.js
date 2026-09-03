@@ -297,6 +297,13 @@ frappe.ui.form.on("User", {
 			frm.set_df_property("enabled", "read_only", 0);
 		}
 
+		//// Neoffice — upstream: `if (frm.doc.name !== "Administrator")` — the email field is frozen
+		//// on the Administrator RECORD, for everyone. Ours tests the SESSION instead, and also exempts
+		//// a session whose full name is "admin": those two accounts can edit any user's email, every
+		//// other user has the field frozen on every record. TO REVIEW: 4c842a98fc (2023-10-30 "First
+		//// change v15", 57 files) carries no commit message, so the intent is not recorded — the
+		//// description above is read from the code. And a full-name match is not a permission: any
+		//// user renamed "admin" gets the same exemption.
 		if (frappe.session.user !== "Administrator" && frappe.session.user_fullname !== "admin") { //// added && frappe.session.user_fullname !== "admin"
 			frm.toggle_enable("email", frm.is_new());
 		}
