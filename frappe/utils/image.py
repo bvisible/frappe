@@ -53,15 +53,13 @@ def optimize_image(content, content_type, max_width=1024, max_height=768, optimi
 
 	try:
 		image = Image.open(io.BytesIO(content))
-		#//// Neoffice — 🔴 TO REVIEW, LIKELY BUG. Upstream has `exif = image.getexif()` on this line
-		#//// (added by upstream d0eabcd4f6, 2024-09-02 "fix: preserve exif data in optimized image",
-		#//// backport of #27341). Our merge 0b9b53c7ea (2024-09-23) kept upstream's `exif=exif`
-		#//// argument in the image.save() call below but LOST this assignment — a conflict resolved
-		#//// half one way, half the other. optimize_image() therefore raises NameError on every call;
-		#//// the broad `except Exception` at the end of the function swallows it into
-		#//// "Failed to optimize image: name 'exif' is not defined" and returns the ORIGINAL bytes, so
-		#//// image optimisation is silently off fleet-wide. Restoring the upstream line is the fix —
-		#//// left as a comment here because this pass is comment-only.
+		exif = image.getexif()
+		#//// Neoffice — restored 2026-09-03. Upstream d0eabcd4f6 ("fix: preserve exif data in optimized
+		#//// image", backport of #27341) added `exif = image.getexif()` here; our merge 0b9b53c7ea
+		#//// (2024-09-23) kept upstream's `exif=exif` in image.save() but lost this assignment, so
+		#//// optimize_image() raised NameError on every call, swallowed by the broad except below
+		#//// into "Failed to optimize image" — image optimisation was silently dead fleet-wide.
+		#//// Found by the //// marking campaign (tracker #205).
 		width, height = image.size
 		max_height = max(min(max_height, height * 0.8), 200)
 		max_width = max(min(max_width, width * 0.8), 200)

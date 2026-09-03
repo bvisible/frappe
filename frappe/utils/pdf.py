@@ -211,15 +211,15 @@ def prepare_options(html, options):
 		#//// horizontal margins in CSS, so wkhtmltopdf's were added on top. See the crossed-assignment
 		#//// warning on the next block.
 		#//// options["margin-right"] = "15mm"
-		options["margin-left"] = "0mm"
+		options["margin-right"] = "0mm"
 
 	if not options.get("margin-left"):
-		#//// Neoffice — same override as margin-right just above (e63ea0b9dc). 🔴 TO REVIEW: the two
-		#//// blocks are CROSSED — the `if not options.get("margin-right")` test sets margin-LEFT and
-		#//// this one sets margin-RIGHT. The net effect is the same only when both are unset; when a
-		#//// print format supplies just one of them, the wrong side is defaulted.
+		#//// Neoffice — same override as margin-right just above (e63ea0b9dc). Until 2026-09-03 the two
+		#//// blocks were crossed (the margin-right test set margin-left and vice versa): harmless only
+		#//// when both were unset, wrong as soon as a print format set one of them. Fixed with the
+		#//// marking campaign (tracker #205); upstream's 15mm default is kept commented below.
 		#//// options["margin-left"] = "15mm"
-		options["margin-right"] = "0mm"
+		options["margin-left"] = "0mm"
 
 	html, html_options = read_options_from_html(html)
 	options.update(html_options or {})
