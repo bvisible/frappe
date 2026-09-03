@@ -280,6 +280,11 @@ $.extend(frappe.model, {
 
 	copy_doc: function (doc, from_amend, parent_doc, parentfield) {
 		let no_copy_list = ["name", "amended_from", "amendment_date", "cancel_reason"];
+		//// Neoffice - added (4c842a98fc, 2023-10-30 "First change v15"; the commit gives no rationale):
+		//// duplicating an Item also clears item_code, item_name and opening_stock, so the copy cannot be
+		//// saved over the original by accident. TO REVIEW at the merge - frappe.model.copy_doc is a framework
+		//// chokepoint: EVERY caller copying an Item (the Duplicate action, amend, any app doing a client-side
+		//// copy) gets those three fields emptied, and nothing at the call site says so.
 		//// added if
 		if (doc.doctype == "Item"){
 			no_copy_list.push(...["item_code", "item_name", "opening_stock"]);
