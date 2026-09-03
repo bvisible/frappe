@@ -151,6 +151,10 @@ def validate_fields(data):
 
 
 
+#//// Neoffice — cosmetic: upstream leaves TWO blank lines between validate_fields() and this
+#//// def; ours has three. The extra one came in with the `_comment_count` allow-list
+#//// (6d9d979e62, 2024-09-25 "Update reportview.py") and means nothing — recorded only so
+#//// `grep -rn "////"` covers every hunk of this file. Take upstream's spacing at the merge.
 def validate_filters(data, filters):
 	if isinstance(filters, list):
 		# filters as list
