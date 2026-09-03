@@ -136,6 +136,14 @@ class UserPermissions:
 				elif p.get("write"):
 					self.can_write.append(dt)
 				elif p.get("read"):
+					#//// Neoffice — upstream routes a read-only DocType (`read_only` = "User Cannot Search") into
+					#//// all_read + no_list_view_link for EVERY user, Administrator included, so it disappears
+					#//// from search and from list-view links. 40233f8cb8 (2023-11-13 " Check if user is
+					#//// 'Administrator' to bypass read_only restriction") exempts Administrator, which keeps
+					#//// read-only doctypes reachable for support and configuration work. Every other user keeps
+					#//// upstream behaviour. TO REVIEW: the commit body is empty, so the reason above is read from
+					#//// the code; and the test is on the SESSION user, not on a role, so it cannot be granted to
+					#//// anyone else.
 					#//// Check if user is 'Administrator' to bypass read_only restriction
 					if frappe.session.user == "Administrator":
 						self.can_read.append(dt)
@@ -164,6 +172,10 @@ class UserPermissions:
 						getattr(self, "can_" + key).append(dt)
 
 				if not dtp.get("istable"):
+					#//// Neoffice — same Administrator bypass as above, applied to can_search (40233f8cb8).
+					#//// Upstream: `if not dtp.get("issingle") and not dtp.get("read_only"): self.can_search…`.
+					#//// Note the bypass also drops the `issingle` test for Administrator, so single doctypes
+					#//// become searchable for that account only.
 					#//// Check if user is 'Administrator' to bypass read_only restriction
 					if frappe.session.user == "Administrator":
 						self.can_search.append(dt)
@@ -216,6 +228,14 @@ class UserPermissions:
 		return self.can_read
 
 	def load_user(self):
+		#//// Neoffice — added field in the boot payload (562afee20c, 2024-01-17 "Add view_interface in
+		#//// frappe.boot.user"): the desk reads frappe.boot.user.view_interface to decide which
+		#//// interface to open. Upstream does not select it.
+		#//// 🔴 TO REVIEW: `view_interface` is NOT a field of the shipped User doctype (it is not in
+		#//// core/doctype/user/user.json) — it must be a Custom Field installed by a Neoffice app.
+		#//// This get_value() names the column unconditionally, so on any site where that Custom Field
+		#//// is missing — a vanilla bench, CI, a site mid-migration — loading the boot info raises.
+		#//// Guard it with a meta/column check.
 		#//// add view_interface
 		d = frappe.db.get_value(
 			"User",

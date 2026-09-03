@@ -237,12 +237,23 @@ def download_pdf(
 	letterhead=None,
 	pdf_generator: Literal["wkhtmltopdf", "chrome"] | None = None,
 ):
+	#//// Neoffice — added by the Chrome-PDF backport (c64ffb849d, cherry-picked from frappe
+	#//// develop 964dd6c034): download_pdf() pins wkhtmltopdf when the caller names no generator,
+	#//// so an existing link keeps its old output while the chrome generator is opt-in.
 	if pdf_generator is None:
 		pdf_generator = "wkhtmltopdf"
 
 	doc = doc or frappe.get_doc(doctype, name)
 	validate_print_permission(doc)
 
+	#//// Neoffice — added, no upstream equivalent: the "Oslo VAT Declaration" print format is
+	#//// rendered in landscape. Upstream download_pdf() has no per-format option hook at all, so
+	#//// the orientation is hard-coded here and threaded into frappe.get_print() as the
+	#//// pdf_options argument marked further down (4e23539603, 2024-09-23 "last updates", 23
+	#//// files; the pdf_options plumbing is 64c992795d).
+	#//// TO REVIEW: the commit carries no message; a print-format NAME is hard-coded into the
+	#//// framework, so renaming the format silently loses the landscape orientation. This belongs
+	#//// in erpnextswiss / neoffice_theme, or on the Print Format doctype.
 	#//// added block
 	pdf_options = {}
 	if format and format == "Oslo VAT Declaration":

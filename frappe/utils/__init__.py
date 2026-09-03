@@ -4,6 +4,10 @@
 import functools
 import hashlib
 import io
+#//// Neoffice — `import json` (here) and `import re` (below) added by 7446c62c35 (2023-11-15
+#//// "updates for v15 / restrict domains", 17 files). Upstream relies on the star-import of
+#//// frappe.utils.data further down for both. Harmless but redundant: fold back into upstream
+#//// at the merge unless the star-import is removed first.
 import json
 import os
 import re
@@ -22,12 +26,25 @@ from collections.abc import (
 )
 from email.header import decode_header, make_header
 from email.utils import formataddr, parseaddr
+#//// Neoffice — upstream: `from typing import TypedDict` only, and no urllib import here.
+#//// 7446c62c35 added Any / Literal / quote / urlparse. TO REVIEW: the four names were already
+#//// reachable through `from frappe.utils.data import *` below, which is where upstream gets
+#//// them — these lines are redundant, not load-bearing.
 from typing import Any, Literal, TypedDict
 from urllib.parse import quote, urlparse
 
+#//// Neoffice — added (7446c62c35). TO REVIEW: `ConnectionError` is not referenced anywhere in
+#//// this module, and importing it here SHADOWS the Python builtin of the same name for the
+#//// whole module and for every `from frappe.utils import *` consumer. Remove at the merge.
 from redis.exceptions import ConnectionError
 from werkzeug.test import Client
 
+#//// Neoffice — added (7446c62c35, 2023-11-15 "updates for v15 / restrict domains"). 🔴 TO
+#//// REVIEW: upstream deliberately does NOT import frappe at the top of frappe.utils —
+#//// frappe/__init__.py imports frappe.utils very early, so a module-level `import frappe`
+#//// here is a circular import that only works by accident of ordering. The functions in this
+#//// file that use `frappe.` already rely on the name being resolvable at CALL time. Drop this
+#//// line at the next upstream merge unless something proves it is needed.
 import frappe
 
 # utility functions like cint, int, flt, etc.
@@ -173,6 +190,13 @@ def validate_email_address(email_str, throw=False):
 	"""Validates the email string"""
 	email = email_str = (email_str or "").strip()
 
+	#//// Neoffice — added helper, no upstream equivalent (7446c62c35, 2023-11-15 "updates for v15
+	#//// / restrict domains", 17 files): an address that contains a space but no angle brackets —
+	#//// i.e. a bare `Jane Doe jane@example.com` pasted into a recipient field — is wrapped in
+	#//// <> before parsing, so parseaddr() sees a display-name form and the address validates
+	#//// instead of being rejected. Upstream validates the raw string.
+	#//// TO REVIEW: the commit has an empty message, so the symptom above is read from the code;
+	#//// this makes the fork ACCEPT addresses upstream refuses, which is a widening, not a fix.
 	#//// added function to check if email is valid
 	def add_brackets_if_missing(e):
 		if " " in e and "<" not in e and ">" not in e:
@@ -180,6 +204,8 @@ def validate_email_address(email_str, throw=False):
 		return e
 
 	def _check(e):
+		#//// Neoffice — the call site of the helper above (7446c62c35): every candidate address is
+		#//// bracketed before validation.
 		#//// added function to check if email is valid
 		e = add_brackets_if_missing(e)
 		_valid = True

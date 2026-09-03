@@ -691,6 +691,12 @@ jobs:
           python-version: '3.10'
 
       - name: Setup Node
+        #//// Neoffice — upstream: `uses: actions/setup-node@v3` in the CI workflow template written
+        #//// into a newly scaffolded app. Bumped to v4 by 4c842a98fc (2023-10-30 "First change v15",
+        #//// 57 files) because v3 runs on a Node 16 action runtime that GitHub has since retired.
+        #//// TO REVIEW: this is a one-token divergence in a TEMPLATE STRING, not in running code; it
+        #//// only affects apps scaffolded by `bench new-app`. Take upstream at the merge as soon as it
+        #//// bumps the same line.
         uses: actions/setup-node@v4
         with:
           node-version: 18

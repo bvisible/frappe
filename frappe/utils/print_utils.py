@@ -1,3 +1,7 @@
+#//// Neoffice — imports added by our backport of frappe develop's Chrome PDF generator
+#//// (c64ffb849d / develop 964dd6c034, 2025-09-25). Upstream version-15 opens this file with
+#//// `from typing import Literal` and `import frappe` only — everything else here is ours
+#//// until upstream ships the chrome generator on v15 (it has not, as of v15.120.0).
 import os
 import re
 from typing import Literal
@@ -6,6 +10,9 @@ import click
 
 import frappe
 
+#//// Neoffice — added with the Chromium setup helpers at the end of this file (c64ffb849d,
+#//// cherry-picked from frappe develop 964dd6c034). Per-platform path to the downloaded
+#//// headless shell. Absent from upstream version-15.
 EXECUTABLE_PATHS = {
 	"linux": ["chrome-linux", "headless_shell"],
 	"darwin": ["chrome-mac", "headless_shell"],
@@ -94,6 +101,11 @@ def get_print(
 			)
 			# if hook returns a value, assume it was the correct pdf_generator and return it
 			if pdf:
+				#//// Neoffice — added by the Chrome-PDF backport: aa2c9b2775, cherry-picked from frappe
+				#//// develop 255a3e94fa (2026-04-13 "fix(print_utils): fix pdf rendering via chrome by
+				#//// considering bytes"). The chrome generator hook returns raw bytes where wkhtmltopdf
+				#//// returns a PdfWriter, so the bytes are re-read into the caller's writer instead of being
+				#//// returned as-is and breaking a multi-document merge.
 				if output and isinstance(pdf, bytes):
 					from io import BytesIO
 
@@ -111,6 +123,23 @@ def get_print(
 	return get_pdf(html, options=pdf_options, output=output)
 
 
+#//// Neoffice ▼▼▼ — added block, no upstream version-15 equivalent: everything from here to
+#//// the end of the file comes from our backport of frappe develop's Chrome PDF generator.
+#//// Upstream version-15 (v15.89.0 AND v15.120.0) contains get_print() and nothing else.
+#////   • c64ffb849d (develop 964dd6c034 "feat: Chrome PDF generator"): attach_print,
+#////     setup_chromium, find_or_download_chromium_executable, download_chromium,
+#////     get_chromium_download_url, make_chromium_executable, calculate_platform,
+#////     get_linux_distribution_info, parse_float_and_unit, convert_uom;
+#////   • 6bbb9586b9 (develop 5f99434f52): the inner imports;
+#////   • 45b9c5f3e7 (develop 19ccfcc453 "ensure `bench setup-chrome` respects site config path
+#////     for chromium"): the chromium_path escape hatch;
+#////   • 40b4e486bb (develop 8649c18125): the standard-format toggle.
+#//// 🔴 TO REVIEW: attach_print() here is DEAD AND BROKEN. In develop it replaces
+#//// frappe.attach_print; in our tree frappe/__init__.py still defines attach_print and that
+#//// is the one every caller uses, so this copy is called from nowhere — and it references
+#//// cint() and cstr() which this module never imports, so it would raise NameError if it ever
+#//// were. Delete it, or import the two helpers. The rest of the block is verbatim develop, so
+#//// a v16 merge resolves it; a v15.120 merge keeps our side. ▲▲▲ to end of file.
 def attach_print(
 	doctype,
 	name,
