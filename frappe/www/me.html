@@ -3,6 +3,13 @@
 {% block title %}
 {{ _("My Account") }}
 {% endblock %}
+{#- //// Neoffice — added block, no upstream equivalent (f24eb0fcdb, 2026-06-25 "fix(portal):
+    //// render /me (My Account) as a clean portal page"): upstream renders My Account in the
+    //// default narrow 800px centered card, which looked nothing like the rest of the portal
+    //// (/sav, /mon-serveur and the standard portal lists fill the content column). The rule is
+    //// inline here rather than in a stylesheet precisely so deploying it needs no asset
+    //// rebuild. Companion: www/me.py, which sets no_breadcrumbs to drop the Webshop
+    //// "Home / Shop / Me" trail. -#}
 {% block style %}
 <style>
 	/* Fill the portal content column (like /sav, /mon-serveur and the standard

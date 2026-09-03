@@ -5,6 +5,12 @@ import frappe
 from frappe import _
 
 
+#//// Neoffice — upstream: `from frappe.apps import get_apps` at the top of this file, and
+#//// `all_apps = get_apps()` here. 0634af137c (2025-11-13 "Enhance workspace and app
+#//// customization logic") dropped the import and routes the page through the local
+#//// get_app_data() below, so /apps shows the same, App-Customization-aware list as the desk
+#//// app switcher. frappe.apps.get_apps() still exists and is still used elsewhere.
+#//// Companion: www/apps.html, which reads the renamed keys.
 def get_context():
 	# Use the same logic as boot.py for app data generation
 	all_apps = get_app_data()
@@ -18,11 +24,21 @@ def get_context():
 		raise frappe.Redirect
 
 	for app in all_apps:
+		#//// Neoffice — upstream: `app.get("name")`. Key renamed with the payload change above
+		#//// (0634af137c).
 		app["is_default"] = True if app.get("app_name") == default_app else False
 
 	return {"apps": all_apps}
 
 
+#//// Neoffice — added, no upstream equivalent (0634af137c, 2025-11-13 "Enhance workspace and
+#//// app customization logic", 9 files): builds the app list the way boot.py does, honouring
+#//// the Neoffice `App Customization` doctype when it exists and has rows, and filtering the
+#//// result down to apps that are actually installed — plus the "virtual" apps that App
+#//// Customization declares and that have no python package behind them. Upstream's
+#//// frappe.apps.get_apps() knows none of this.
+#//// TO REVIEW: table_exists("App Customization") is checked twice per call, and a workspace
+#//// permission scan (get_workspace_sidebar_items) now runs on every /apps hit.
 def get_app_data():
 	"""Get app data using the same logic as boot.py with App Customization support"""
 	from frappe.boot import generate_app_data_from_customization, generate_app_data_default

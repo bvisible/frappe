@@ -51,6 +51,10 @@
 }
 
 .app-logo {
+	/* //// Neoffice — upstream: 60x60. The app-switcher logo is 100x100 since d84cbaedbd
+	   //// (2025-04-04 "update", 4 files, empty message), which also replaced the Frappe logo
+	   //// assets — the Neoffice marks need the room. TO REVIEW: reason read from the code, the
+	   //// commit says nothing. */
 	width: 100px;
 	height: 100px;
 	object-fit: cover;

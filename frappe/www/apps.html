@@ -12,6 +12,11 @@ endblock -%} {%- block footer -%} {%- endblock -%} {% block content %}
 		<div class="apps" style="grid-template-columns: repeat({{ appsCount }}, 1fr);">
 			{% for app in apps %}
 			<a class="app-icon" style="cursor: pointer;">
+				{#- //// Neoffice — upstream reads app.name / app.route / app.logo / app.title, the shape
+				    //// returned by frappe.apps.get_apps(). 0634af137c (2025-11-13 "Enhance workspace and app
+				    //// customization logic", 9 files) makes this page consume the boot.py app payload instead
+				    //// (app_name / app_route / app_logo_url / app_title) so the App Customization doctype
+				    //// drives the switcher — see the marker in www/apps.py, which is the other half. -#}
 				<div class="app-logo app-name-cls" app-name="{{ app.app_name }}" app-route="{{ app.app_route }}">
 					<img src="{{ app.app_logo_url }}" />
 					<div
@@ -35,6 +40,7 @@ endblock -%} {%- block footer -%} {%- endblock -%} {% block content %}
 						</svg>
 					</div>
 				</div>
+				{#- //// Neoffice — upstream: `app.title`. Same key rename as above (0634af137c). -#}
 				<div class="app-title">{{ app.app_title }}</div>
 			</a>
 			{% endfor %}

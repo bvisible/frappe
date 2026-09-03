@@ -1,3 +1,9 @@
+{#- //// Neoffice — TO REVIEW: the ONLY divergence from upstream v15 in this file is a MISSING
+    //// NEWLINE at end of file (5d5ae8cec8, 2025-03-06 "Remove old login page", 5 files). Not
+    //// one line of markup differs. An editor accident, not an intent: restore the final
+    //// newline at the next upstream merge and this file is back to zero divergence.
+    //// (The login BEHAVIOUR that Neoffice changed lives in
+    //// templates/includes/login/login.js, which this file includes.) -#}
 {% extends "templates/web.html" %}
 
 {% macro email_login_body() -%}

@@ -7,12 +7,23 @@
 <script>
 	window.is_404 = true;
 </script>
+{#- //// Neoffice — added (bd41f1e7a5, 2025-02-26 "Update neov2"): the stock 404 PNG is
+    //// replaced by a Lottie animation (see the commented-out <img> below).
+    //// 🔴 TO REVIEW: the player is loaded from unpkg.com — a third-party CDN request on an
+    //// error page, which also fires for logged-out visitors, and it means the 404 page does
+    //// not render offline or behind a restrictive CSP. The same script tag is in www/app.html.
+    //// Vendor it under /assets/frappe/js/lib/ instead. -#}
 <!-- //// add lotie animation -->
 <script src="https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.mjs" type="module"></script>
 <dotlottie-player src="/assets/frappe/lottie/animation-404.json" background="transparent" speed="1" style="max-width: 500px;margin: -15px auto 0 auto;" loop autoplay></dotlottie-player>
 <!-- //// end -->
 
 <div class="error-page">
+	{#- //// Neoffice — upstream renders the 404 illustration here
+	    //// (`<img class="img-404" src="/assets/frappe/images/ui-states/404.png" />`); ours keeps it
+	    //// commented out because the Lottie animation above replaces it (bd41f1e7a5, 2025-02-26
+	    //// "Update neov2", 40 files, empty message). This file has a third divergence: it also
+	    //// lost its final newline in the same pass — an accident, restore it at the merge. -#}
 	<!--<img class="img-404" src="/assets/frappe/images/ui-states/404.png" />-->
 	<div>
 		<h2 class="mb-1 mt-4">

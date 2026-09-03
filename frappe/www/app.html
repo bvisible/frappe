@@ -17,6 +17,13 @@
 		<meta name="apple-mobile-web-app-status-bar-style" content="white">
 		<meta name="mobile-web-app-capable" content="yes">
 		<title>{{ app_name }}</title>
+		{#- //// Neoffice — added (4c842a98fc "First change v15" for animate.min.css, f661ff2616
+		    //// 2025-03-28 "Add lottie and change sidebar" for the player, bd41f1e7a5 "Update neov2"):
+		    //// the desk shell pulls in animate.css and the dotLottie player so desk pages can use
+		    //// them without a bundle rebuild. Upstream loads neither.
+		    //// 🔴 TO REVIEW: the player comes from unpkg.com — a third-party CDN request on EVERY desk
+		    //// page load, blocking module evaluation, and it breaks an offline or CSP-restricted
+		    //// install. Same tag in www/404.html. Vendor it under /assets/frappe/js/lib/. -#}
 		<!-- //// -->
 		<link rel="stylesheet" href="/assets/frappe/css/animate.min.css"/>
 		<script

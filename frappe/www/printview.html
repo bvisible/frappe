@@ -14,6 +14,10 @@
 </head>
 <body>
 	<div class="action-banner print-hide">
+		{#- //// Neoffice — upstream offers a browser "Print" link here; ours keeps it commented out
+		    //// (4c842a98fc, 2023-10-30 "First change v15", 57 files) so the only route to paper is the
+		    //// PDF, which is the one Neoffice print formats are laid out for. TO REVIEW: the commit
+		    //// carries no message — reason read from the code. -#}
 		<!--////
 		<a class="p-2" onclick="window.print();">
 			{{ _("Print") }}
@@ -23,6 +27,13 @@
 			href="/api/method/frappe.utils.print_format.download_pdf?doctype={{doctype|e}}&name={{name|e}}&format={{print_format|e}}&letterhead={{letterhead|e}}&no_letterhead={{no_letterhead|e}}&_lang={{lang|e}}&key={{key|e}}">
 			{{ _('Get PDF') }}
 		</a>
+		{#- //// Neoffice — added (4c842a98fc, 2023-10-30 "First change v15", 57 files): a second,
+		    //// download-forcing PDF link (the arrow icon) next to upstream's "Get PDF", plus a screen-
+		    //// only nudge for the Swiss QR-bill block (#swissqr) so the preview lines up with the
+		    //// printed sheet. Upstream ships neither. TO REVIEW: the commit has an empty message, so
+		    //// the reason is read from the code; this second link drops the format / letterhead /
+		    //// _lang parameters that the "Get PDF" link above passes, so the two buttons can return
+		    //// DIFFERENT documents; and the inline <svg> carries a Font Awesome Pro licence comment. -#}
 		<!-- ////-->
 		<style>
 			@media screen{
