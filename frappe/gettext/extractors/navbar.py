@@ -46,6 +46,14 @@ def extract(fileobj, *args, **kwargs):
 
 def get_module(path):
 	_path = Path(path)
+	#//// Neoffice — upstream: `rel_path = _path.relative_to(get_bench_path())` on one line.
+	#//// 6d609dac51 (2026-02-19 "fix(gettext): handle symlinked apps in navbar extractor path
+	#//// resolution"): when an app is a symlink inside apps/, babel hands this extractor the
+	#//// RESOLVED path, which is outside the bench, so relative_to() raised ValueError and
+	#//// `bench generate-pot-file` died on that app. The fallback walks apps/ for the symlink that
+	#//// contains the resolved path and rebuilds the bench-relative form; if none matches the
+	#//// original ValueError is re-raised, so nothing is silently swallowed. Ours because our
+	#//// benches symlink apps under development (see RULE #1bis, PO-only translations).
 	bench_path = Path(get_bench_path())
 	try:
 		rel_path = _path.relative_to(bench_path)
