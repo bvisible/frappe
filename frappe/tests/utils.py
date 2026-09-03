@@ -391,3 +391,35 @@ def check_orpahned_doctypes():
 		frappe.throw(
 			"Following doctypes exist in DB without controller.\n {}".format("\n".join(orpahned_doctypes))
 		)
+
+
+#//// Neoffice — v16 helper backported (frappe develop, frappe/tests/utils/__init__.py). Fleet forks
+#//// written against v16 import it at module level (suite: meet/api/test_helpers.py, drive/e2e_api.py)
+#//// and neither our v15.89 fork nor upstream v15 ship it, so `bench run-tests --app suite` died at
+#//// collection and the drive e2e endpoints could not even be imported. Same semantics as upstream:
+#//// the endpoint answers only in test mode or on a dev server with allow_tests. Drop at v16.
+def whitelist_for_tests(**whitelist_kwargs):
+	"""Decorator to whitelist test endpoints.
+
+	Only allows access when running in test mode or running a development server with testing
+	enabled. Supports all parameters that @frappe.whitelist() accepts.
+	"""
+	import os
+	from functools import wraps
+
+	def decorator(fn):
+		@wraps(fn)
+		def wrapper(*args, **kwargs):
+			if not (
+				frappe.flags.in_test
+				or (getattr(frappe, "_dev_server", False) and frappe.conf.allow_tests)
+				or os.environ.get("CI")
+			):
+				frappe.throw(  # nosemgrep: frappe-missing-translate-function-python
+					'Test endpoints are only available when running in test mode or running a development server ("bench start") with the "allow_tests" site config enabled'
+				)
+			return fn(*args, **kwargs)
+
+		return frappe.whitelist(**whitelist_kwargs)(wrapper)
+
+	return decorator
