@@ -104,4 +104,8 @@ frappe.views.TranslationManager = class TranslationManager {
 				});
 			});
 	}
+//// Neoffice — the ONLY divergence in this file is below: the newline at end of file was dropped
+//// (bd41f1e7a5, 2025-02-26 "Update neov2", a 40-file commit with no message). No code change —
+//// upstream v15.120 and develop both still end with a newline. TO REVIEW: restore it at the
+//// merge, it only costs a conflict on the last line.
 };

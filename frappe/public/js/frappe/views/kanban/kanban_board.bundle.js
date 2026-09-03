@@ -402,6 +402,16 @@ frappe.provide("frappe.views");
 						var col = {
 							title: title.trim(),
 						};
+						//// Neoffice — added branch (4c842a98fc, 2023-10-30 "First change v15", a 57-file commit with no
+						//// message; the method path was corrected by 12249186f3, 2023-12-01). Upstream always does
+						//// store.dispatch("add_column", col). On the ToDo kanban a column IS an option of the ToDo
+						//// status Select field, so creating one has to add that option to the field, not just to the
+						//// board: the call goes to neoffice_custom_fields.events.add_status_options and the page is
+						//// reloaded 3 s later. Everything else falls through to upstream's dispatch in the else branch.
+						//// The bare //// lines fencing the block, and the "close else" note, are the original author's.
+						//// Core → neoffice_custom_fields dependency, and the guard matches the untranslated route
+						//// literal ["List","ToDo","Kanban","ToDo"] — TO REVIEW at the merge: this belongs in the app,
+						//// not in the framework. No upstream equivalent (v15.120 or develop).
 						//// added
 						//get route if route egale ['List', 'ToDo', 'Kanban', 'ToDo']
 						var route = frappe.get_route();
@@ -697,6 +707,10 @@ frappe.provide("frappe.views");
 					var action = $btn.data().action;
 
 					if (action === "archive") {
+						//// Neoffice — the mirror of the add branch above, for archiving a column (same commits
+						//// 4c842a98fc / 12249186f3): upstream does store.dispatch("archive_column", column); ours calls
+						//// neoffice_custom_fields.events.remove_status_option on the ToDo kanban so the Select option
+						//// disappears with the column. TO REVIEW: the console.log(column.title) left in this branch.
 						//// added
 						var route = frappe.get_route();
 						if (route[0] == "List" && route[1] == "ToDo" && route[2] == "Kanban" && route[3] == "ToDo") {

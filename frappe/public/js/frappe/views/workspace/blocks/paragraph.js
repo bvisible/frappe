@@ -179,6 +179,15 @@ export default class Paragraph extends Block {
 		this.data = data;
 	}
 
+	//// Neoffice — upstream returns { text: { br, b, i, a, span } }, an allow-list that strips every
+	//// other tag from a paragraph block on save. Replaced by { text: true } (00e69dcfa7, 2026-03-12
+	//// "fix(workspace): prevent widget loss on workspace edit"): our workspace paragraphs carry
+	//// <svg>, <div> and <style> (custom cards and the NeoCockpit blocks), and EditorJS silently
+	//// dropped them at every save — the block came back empty. v16 merge note: upstream v15.120 AND
+	//// develop both still ship the restrictive allow-list — expect a conflict; keep ours.
+	//// TO REVIEW: text: true disables sanitising entirely for paragraph blocks, so the stored HTML
+	//// is whatever an editor typed — acceptable while only Workspace Managers can edit, not if
+	//// workspace editing is ever widened.
 	static get sanitize() {
 		return {
 			text: true,

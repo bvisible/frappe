@@ -6,6 +6,34 @@ import DataTable from "frappe-datatable";
 window.DataTable = DataTable;
 frappe.provide("frappe.views");
 
+////////////////////////////////////////////////////////////////////////
+//// Neoffice — Report View rework: this file diverges heavily from upstream v15.89.0
+//// (~1070 added lines on 2800, 55 hunks). Every hunk carries its own marker below; this
+//// header is the map.
+//// Four layers, none of which exists upstream:
+////   4e23539603 2024-09-23 "last updates" (23 files, NO message) — the bulk: the Settings
+////     toolbar button (per-user column order + widths persisted through
+////     frappe.desk.reportview.{get,save}_user_report_settings, push-to-all-users, global
+////     default, push/pull to the NeoService reference), the Excel export button, the "meta"
+////     column (modified / assignees / comment count / like heart, i.e. the List view's right
+////     rail inside the datatable), sort-by-likes, an own render_count, page_length forced to
+////     100-500. Rationale has to be read off the code: the commit says nothing.
+////   2025-11-26 totals-row series — e0501e814e, 6a0cb32fb2, 8b00ad979c, 931e9229ce,
+////     e8a402e703, 75440d220e, dd8c7155b6, 374fc42e37, 42aa00fa98: totals become the LAST
+////     DATA ROW instead of the datatable footer (the footer row vanished on inline filtering),
+////     a sigma toolbar button replaces the "Show Totals" menu item, and the virtual Status
+////     column becomes a Select with indicator-pill rendering so it can be filtered.
+////   2025-03 fixes — 9ce3847ee8, e5382efca3 (export through frappe.call instead of
+////     open_url_post), 51b4366e39 (clear all active filters), 42065f26f9.
+////   cockpit era — a03d7f00db 2026-03-11 (Script Reports routed to query-report),
+////     6edddaf42a 2026-03-29 (dialog labels), 211b42bcc0 2026-06-23 (the like heart).
+//// Server side: frappe/desk/reportview.py carries the matching endpoints (marked there).
+//// Cross-app: the Settings dialog calls neoffice_custom_fields.events.* — a core →
+//// neoffice_custom_fields dependency.
+//// v16 merge note: upstream develop has none of these helpers (no btn-settings, no
+//// get_meta_html, no build_totals_row, no save_column_order_and_widths) and has itself moved
+//// on — expect a whole-file conflict; keep ours and re-apply upstream fixes by hand.
+////////////////////////////////////////////////////////////////////////
 frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	get view_name() {
 		return "Report";
@@ -17,6 +45,10 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 	setup_defaults() {
 		super.setup_defaults();
+		//// Neoffice — upstream prefixes the page title with __("Report:"); commented out and replaced
+		//// by a self-assignment (4e23539603, 2024-09-23, no message in the commit): the cockpit page
+		//// head shows the doctype name alone. The `this.page_title = this.page_title;` line below is a
+		//// no-op left behind. TO REVIEW at the merge: delete both lines rather than keep the no-op.
 		////this.page_title = __("Report:") + " " + this.page_title;
 		this.page_title = this.page_title;
 		this.view = "Report";
@@ -24,6 +56,13 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		this.link_title_doctype_fields = [];
 
 		const route = frappe.get_route();
+		//// Neoffice — upstream: `if (route.length === 4) this.report_name = route[3];`, i.e. the 4th
+		//// route segment is always a saved Report name. That is false for /app/<dt>/view/report/Report
+		//// and for the Calendar / Kanban routes that also reach this view, and the view then tried to
+		//// load a Report doc that does not exist. Rewritten by 4e23539603 (2024-09-23, no message):
+		//// Calendar and Kanban are excluded, "Report"/"List" fall back to the per-user list-view
+		//// settings (add_totals_row + chart_args), anything else is a real report name. The bare ////
+		//// lines fencing the block are the original author's.
 		////
 		if (route.length === 4 && (route[3] !== "Calendar" && route[3] !== "Kanban")) {
 			if (route[3] === "Report" || route[3] === "List") {
@@ -39,6 +78,11 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			return this.get_report_doc().then((doc) => {
 				this.report_doc = doc;
 
+				//// Neoffice — added (a03d7f00db, 2026-03-11 "fix: null-safety guards for app_data and
+				//// report_view"): a Script Report reached through this route rendered an empty Report Builder
+				//// (upstream assumes report_type == "Report Builder" here); it is now redirected to the
+				//// query-report route. Same commit made the JSON.parse below tolerate an empty json field —
+				//// upstream JSON.parse(this.report_doc.json) threw and took the whole view down.
 				// Script Reports should open via query-report, not Report View
 				if (this.report_doc.report_type !== "Report Builder") {
 					frappe.set_route("query-report", this.report_name);
@@ -57,6 +101,11 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				this.order_by = this.report_doc.json.order_by;
 				this.add_totals_row = this.report_doc.json.add_totals_row;
 				this.page_title = __(this.report_name);
+				//// Neoffice — upstream reads the saved report's page_length (default 20); pinned to 500
+				//// (4e23539603, 2024-09-23, no message). Same intent as the two `page_length: 100` overrides
+				//// further down: our users scroll a full table instead of paging. TO REVIEW at the merge: this
+				//// silently ignores what the user saved on the report, and 500 rows is a hard-coded fleet-wide
+				//// choice — it belongs in a setting.
 				////this.page_length = this.report_doc.json.page_length || 20;
 				this.page_length = 500;
 				this.order_by = this.report_doc.json.order_by || "modified desc";
@@ -156,6 +205,26 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	}
 
 	before_refresh() {
+		//// Neoffice — added block, ~355 lines down to the closing //// before `if (this.report_doc)`.
+		//// Upstream before_refresh() only re-reads route_options for a Custom Report; everything here
+		//// is ours. Four things, in order:
+		////   1. the filter section is moved into .layout-side-section and each filter-x-button also
+		////      clears the datatable's own .dt-filter inputs and the dt-filters-* localStorage key —
+		////      upstream's "clear filters" left the inline column filters set, so the list came back
+		////      filtered by something invisible (51b4366e39, 2025-03-19 "Feat remove all filtre
+		////      active");
+		////   2. the Settings toolbar button (4e23539603, 2024-09-23; labels reworded by 6edddaf42a,
+		////      2026-03-29): add column, push my column layout to all users, delete personal settings,
+		////      and for Administrator save-as-global-default plus push/pull to the NeoService reference
+		////      (neoffice_custom_fields.events.push_table_to_reference /
+		////      pull_report_view_defaults_now — a core → neoffice_custom_fields dependency);
+		////   3. the Σ totals toggle (75440d220e, 2025-11-26), which replaces upstream's "Show Totals"
+		////      menu item (removed in report_menu_items below);
+		////   4. the Excel export button (e5382efca3, 2025-03-18 "Fix bug export"): exports through
+		////      frappe.call and follows response.message.file_url instead of upstream's open_url_post
+		////      form POST, which produced an empty download behind our nginx.
+		//// All four guard on `if (!this.page.wrapper.find('.btn-x').length)` because before_refresh
+		//// runs on every refresh. The bare //// lines fencing the block are the original author's.
 		////
 		if (this.$page.find('.layout-side-section').length > 0 ) {
 			this.$filter_section.prependTo(this.$page.find('.layout-side-section'));
@@ -517,6 +586,11 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		return super.before_refresh();
 	}
 
+	//// Neoffice — added method (4e23539603, 2024-09-23, no message): the "Add Column" entry of the
+	//// Settings dialog above. Upstream only offers add-column from the datatable's own column
+	//// dropdown. Body is a trimmed copy of upstream's add-column picker (no insert_before field).
+	//// TO REVIEW: the `insert_before` branch references an undefined `datatabe_col` (sic) — dead as
+	//// long as the dialog never sets insert_before, a ReferenceError the day it does.
 	////
 	showAddColumnDialog() {
 		let columns_in_picker = [];
@@ -622,6 +696,9 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			fields: this.fields,
 			order_by: this.sort_selector.get_sql_string(),
 			add_totals_row: this.add_totals_row,
+			//// Neoffice — upstream saves the live this.page_length in the view's user settings; pinned to
+			//// 100 (4e23539603, 2024-09-23, no message). Same hard-coded choice as page_length = 500 in
+			//// setup_defaults and as the second copy of this line further down. TO REVIEW at the merge.
 			////page_length: this.page_length,
 			page_length: 100,
 			column_widths: this.get_column_widths(),
@@ -634,6 +711,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			fields: this.report_doc.json.fields,
 			order_by: this.report_doc.json.order_by,
 			add_totals_row: this.report_doc.json.add_totals_row,
+			//// Neoffice — same override as above, for a saved Report's settings (4e23539603): the report's
+			//// own page_length is ignored and 100 is written back.
 			////page_length: this.report_doc.json.page_length,
 			page_length: 100,
 			column_widths: this.report_doc.json.column_widths,
@@ -672,6 +751,10 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		} else {
 			this.data = this.data.concat(data);
 		}
+		//// Neoffice — added call + method (4e23539603, 2024-09-23, no message): rows the current user
+		//// has liked (_liked_by) are floated to the top of the page of data upstream just fetched.
+		//// Client-side only, so it reorders the CURRENT page, not the query — a liked row on page 3
+		//// stays on page 3. No upstream equivalent.
 		////
 		this.sort_data_by_likes();
 	}
@@ -690,6 +773,16 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		});
 	}
 
+	//// Neoffice — added method + render() made async (4e23539603, 2024-09-23, no message; the
+	//// commented-out `////render(force) {` below is upstream's signature). The "meta" column
+	//// renders a comment badge like the List view, but the report query does not return
+	//// _comment_count, so every render fetches it in one round-trip through
+	//// frappe.desk.reportview.get_comment_count and merges it into this.data before drawing.
+	//// The two this.style_totals_row() calls further down are from the 2025-11-26 totals series
+	//// (6a0cb32fb2 / 8b00ad979c): the totals row is a normal data row, so its CSS class has to be
+	//// re-applied after every datatable refresh.
+	//// TO REVIEW at the merge: render() became async and awaits a server call before painting —
+	//// one extra request per refresh, and callers that do not await it now race the paint.
 	async fetch_comment_counts(docnames) {
 		let comment_counts = {};
 		await frappe.call({
@@ -738,6 +831,10 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		this.style_totals_row();
 	}
 
+	//// Neoffice — added override (4e23539603, 2024-09-23, no message): a copy of
+	//// list/base_list.js render_count() plus a 200 ms `this.isLoading = false` reset. Upstream
+	//// ReportView does not override render_count at all. The copy will not follow upstream fixes
+	//// to base_list — TO REVIEW at the merge: keep only the isLoading reset and call super.
 	////
 	render_count() {
 		if (this.list_view_settings?.disable_count) {
@@ -842,6 +939,10 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			inlineFilters: true,
 			cellHeight: 35,
 			direction: frappe.utils.is_rtl() ? "rtl" : "ltr",
+			//// Neoffice — added (6a0cb32fb2, 2025-11-26 "show totals as last data row instead of footer"):
+			//// frappe-datatable's own footer total row is switched OFF because the totals are built as a
+			//// real last data row in get_data()/build_totals_row() below — the footer row disappeared as
+			//// soon as the user typed in an inline column filter.
 			showTotalRow: false, // We handle totals row manually as last data row
 			events: {
 				onRemoveColumn: (column) => {
@@ -931,6 +1032,13 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				},
 			],
 		});
+		//// Neoffice — added call + the two methods below, addResizeEvent and
+		//// save_column_order_and_widths (4e23539603, 2024-09-23, no message). Upstream keeps column
+		//// widths in the view's user settings, written only when the view is saved; ours persists the
+		//// order AND the widths server-side (frappe.desk.reportview.save_user_report_settings) on every
+		//// column resize, add, remove and reorder, so a user's table layout survives across sessions
+		//// and can be pushed to other users from the Settings dialog. setup_columns below reads it
+		//// back. The bare //// fences are the original author's.
 		////
 		this.addResizeEvent();
 
@@ -1419,6 +1527,9 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		);
 		fields = fields.concat(cdt_name_fields);
 
+		//// Neoffice — added (4e23539603, 2024-09-23, no message): when the synthetic "meta" column is
+		//// present, the query must also fetch the fields it renders (modified, _assign,
+		//// _comment_count, _liked_by) — upstream never asks for them in Report View.
 		////
 		if (this.columns.some(col => col.field === 'meta')) {
 			fields.push(
@@ -1447,6 +1558,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 		this.add_currency_column(fieldname, doctype, col_index);
 
+		//// Neoffice — added (4e23539603): persist order + widths as soon as a column is added.
 		////
 		this.save_column_order_and_widths(this.fields);
 		////
@@ -1507,6 +1619,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 		this.fields.splice(index, 1);
 
+		//// Neoffice — added (4e23539603): same persistence when a column is removed.
 		////
 		this.save_column_order_and_widths(this.fields);
 		////
@@ -1527,6 +1640,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 		this.fields = _fields;
 
+		//// Neoffice — added (4e23539603): same persistence when the columns are reordered.
 		////
 		this.save_column_order_and_widths(_fields);
 		////
@@ -1558,6 +1672,13 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		}
 
 		if (!frappe.meta.has_field(this.doctype, "status") && has_status_values) {
+			//// Neoffice — added (dd8c7155b6, 2025-11-26 "make Status column use Select filter with dynamic
+			//// options"): for a doctype with no real `status` field, upstream declares the virtual Status
+			//// column as Data, so its column filter was a free-text box that never matched the rendered
+			//// indicator label. The possible values are collected from the loaded rows through
+			//// frappe.get_indicator and the column becomes a Select (with is_virtual_status so the
+			//// fieldtype is not overwritten downstream). Collected from the LOADED page only, so a value
+			//// absent from it is missing from the dropdown — TO REVIEW.
 			// Collect all possible status values from the data
 			let statusOptions = new Set();
 			if (this.data && this.data.length) {
@@ -1667,6 +1788,19 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	setup_columns() {
 		// apply previous column width
 		let column_widths = null;
+		//// Neoffice — setup_columns rewritten (4e23539603, 2024-09-23, no message; block runs ~90 lines
+		//// to the end of the method). Upstream reads the widths from this.get_column_widths() (the
+		//// in-memory columns) and builds this.columns straight from this.fields. Ours first fetches the
+		//// user's saved layout from the server (frappe.desk.reportview.get_user_report_settings) and
+		//// rebuilds this.fields from settings.order and the widths from settings.widths, then appends
+		//// the synthetic "meta" column. Upstream's two lines are kept commented out just below.
+		//// TO REVIEW at the merge — three defects visible in the code, all from this commit:
+		////   * the frappe.call is `async: false`, a SYNCHRONOUS XHR: it blocks the main thread on every
+		////     column setup and browsers have been warning about it for years;
+		////   * `settings` is only parsed when response.message is a STRING, so an object response
+		////     silently falls back to the defaults;
+		////   * everything after the frappe.call runs inside its callback, so setup_columns returns
+		////     before this.columns exists for any caller that does not go through the same sync call.
 		////
 		let doctype = this.doctype;
 		const default_settings = {
@@ -1760,6 +1894,10 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	}		
 	
 
+	//// Neoffice — added method (4e23539603, 2024-09-23, no message): renders the synthetic "meta"
+	//// column — the List view's right rail (settings button or assignee avatars, relative modified
+	//// date, comment count, like heart, mobile indicator dot) inside a datatable cell. Adapted copy
+	//// of list/list_view.js get_meta_html; upstream Report View has no such column.
 	////
 	get_meta_html(doc) {
 		let html = "";
@@ -1815,6 +1953,13 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		return html;
 	}
 
+	//// Neoffice — added method (4e23539603, 2024-09-23, no message): the like heart for a datatable
+	//// cell. Upstream's frappe.ui.like renders into live DOM and binds handlers; a datatable cell is
+	//// an HTML STRING, so this builds the markup with an inline onclick and defines
+	//// window.toggle_like once, which calls frappe.desk.like.toggle_like and updates the DOM in
+	//// place. TO REVIEW at the merge: a global function + inline onclick with the doctype and name
+	//// interpolated into the attribute — a document name containing a quote breaks the cell; prefer
+	//// a delegated listener on the wrapper. The French comments inside are the original author's.
 	neo_get_like_html(doc) {
 		const liked_by = JSON.parse(doc._liked_by || "[]");
 		const heart_class = liked_by.includes(frappe.session.user)
@@ -1886,6 +2031,9 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		return div.innerHTML;
 	}
 	
+	//// Neoffice — added method (4e23539603, 2024-09-23, no message): character-count width estimate,
+	//// capped at 250px. Currently DEAD — the only call site is commented out in setup_columns above
+	//// (a flat 140px default is used instead). TO REVIEW at the merge: drop it or wire it back.
 	calculateColumnWidth(column) {
 		const charWidth = 10; // Approximate width of a character in pixels
 		let maxLength = column.content.length;
@@ -1939,6 +2087,11 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				if (fieldname == "docstatus" && !frappe.meta.has_field(this.doctype, "status")) {
 					docfield.label = "Status";
 					docfield.name = "status";
+					//// Neoffice — added (374fc42e37, 2025-11-26 "set Status column fieldtype to Select in
+					//// build_column"); the line it replaces, upstream's `docfield.fieldtype = "Data";`, is gone.
+					//// get_column_docfields (marked above) was not enough: build_column builds its docfield from
+					//// another source, so the Select fieldtype and its options have to be set here too. Falls back
+					//// to Data when no rows are loaded yet.
 					// Collect status options from data for Select filter
 					if (this.data && this.data.length) {
 						let statusOptions = new Set();
@@ -2044,6 +2197,13 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	build_rows(data) {
 		const out = data.map((d) => this.build_row(d));
 
+		//// Neoffice — totals rework (block runs to the end of build_totals_row below). Upstream builds
+		//// the totals row inline here and hands it to frappe-datatable as a FOOTER row. Rewritten by
+		//// the 2025-11-26 series — e0501e814e then 6a0cb32fb2 "show totals as last data row instead of
+		//// footer": the footer row vanished as soon as the user typed in an inline column filter, and
+		//// non-numeric columns printed the string "null" (fixed with utils.js report_column_total,
+		//// marked there). Totals are now an ordinary last data row flagged isTotalRow, labelled
+		//// "Totals" in the name column, empty for the meta and non-numeric columns.
 		// Add totals row as last data row if enabled
 		if (this.add_totals_row && data.length > 0) {
 			const totals_row = this.build_totals_row(data);
@@ -2101,6 +2261,17 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		});
 	}
 
+	//// Neoffice — added methods, style_totals_row / update_totals_button /
+	//// add_totals_to_filtered_rows (2025-11-26: 8b00ad979c, 931e9229ce, 75440d220e, e8a402e703).
+	//// Because the totals row is a normal data row it needs the .dt-row--totals class re-applied
+	//// after every render (the CSS lives in scss/desk/frappe_datatable.scss, marked there) — hence
+	//// style_totals_row, which finds it by the data-is-total-row="true" attribute (the value was
+	//// '1' until 931e9229ce). update_totals_button syncs the Σ toolbar button.
+	//// add_totals_to_filtered_rows is a HOOK CALLED BY OUR frappe-datatable FORK (filterRows.js):
+	//// inline filtering rebuilds the row list and would drop the totals row, so the fork calls back
+	//// here to append one recomputed over the filtered data. It hand-builds the datatable's
+	//// internal cell structure (attributes, contentAttributes, meta) — TO REVIEW at the merge: it
+	//// breaks silently if either frappe-datatable or its fork changes that shape.
 	style_totals_row() {
 		// Add special styling to the totals row after DataTable renders
 		if (!this.add_totals_row || !this.$datatable_wrapper) return;
@@ -2224,6 +2395,11 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 	build_row(d) {
 		return this.columns.map((col) => {
+			//// Neoffice — added branch (4e23539603, 2024-09-23, no message): the synthetic "meta" column has
+			//// no docfield, so it has to be answered before upstream's `col.docfield.parent !== this.doctype`
+			//// test, which is also why that test gained a `col.docfield &&` guard. The empty line added a
+			//// dozen lines below inside the child-table branch is a whitespace-only artifact of bd41f1e7a5
+			//// (2025-02-26 "Update neov2") — take upstream at the merge.
 			////
 			if (col.field === "meta") {
 				return {
@@ -2267,6 +2443,10 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 						doctype: col.docfield.parent,
 						content: status[0],
 						editable: false,
+						//// Neoffice — added (42aa00fa98, 2025-11-26 "add indicator-pill formatting to Status column"):
+						//// upstream puts the bare status text in the cell, so Report View showed "Paid" as plain text
+						//// where the List view shows a coloured pill. Renders the same .indicator-pill markup, with
+						//// data-filter so a click filters on it.
 						format: () => {
 							return `<span class="indicator-pill ${status[1]} filterable no-indicator-dot ellipsis"
 								data-filter='${status[2]}'>
@@ -2316,6 +2496,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				fields: this.fields,
 				order_by: this.sort_selector.get_sql_string(),
 				add_totals_row: this.add_totals_row,
+				//// Neoffice — the second copy of the page_length override (4e23539603): see the marker on the
+				//// first one, in get_args above.
 				////page_length: this.page_length,
 				page_length: 100,
 				column_widths: this.get_column_widths(),
@@ -2486,6 +2668,11 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		const row_totals = {};
 
 		this.columns.forEach((col, i) => {
+			//// Neoffice — rewritten (e0501e814e, 2025-11-26 "fix status display and filter behaviour"):
+			//// upstream tests is_numeric_field INSIDE the reduce and returns nothing on the non-numeric
+			//// branch — the accumulator became undefined and the totals row printed a value under Status.
+			//// The type test is hoisted out (non-numeric columns get "") and the reduce always returns its
+			//// accumulator.
 			// Only calculate totals for numeric fields
 			if (!frappe.model.is_numeric_field(col.docfield)) {
 				row_totals[col.id] = "";
@@ -2505,6 +2692,9 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		return row_totals;
 	}
 
+	//// Neoffice — upstream's first menu entry here is "Show Totals" (toggling add_totals_row and
+	//// refreshing the datatable); REMOVED by 75440d220e (2025-11-26) in favour of the Σ toolbar
+	//// button added in before_refresh above — nothing replaces it in this list.
 	report_menu_items() {
 		let items = [
 			{
@@ -2570,6 +2760,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 							this.fields.map((f) => this.add_currency_column(f[0], f[1]));
 
+							//// Neoffice — added (4e23539603): persist order + widths after the "Pick Columns" dialog
+							//// reorders the fields, like the three call sites further up.
 							////
 							this.save_column_order_and_widths();
 							////
@@ -2616,6 +2808,10 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 								label: __("Export all matching rows?"),
 							},
 						];
+					//// Neoffice — DUPLICATE of the `else if` immediately above it, condition and body identical, so
+					//// this branch can never be reached: dead code. Introduced by the conflict resolution of the
+					//// upstream merge 0b9b53c7ea (2024-09-23) — the block was kept twice. Upstream v15.89.0 and
+					//// v15.120 have exactly one. TO REVIEW at the merge: delete this copy.
 					} else if (
 						this.total_count > (this.count_without_children || args.page_length)
 					) {
@@ -2676,6 +2872,11 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 								delete args.page_length;
 							}
 
+							//// Neoffice — export path rewritten (e5382efca3, 2025-03-18 "Fix bug export"). Upstream's
+							//// foreground branch is `open_url_post(frappe.request.url, args)`, a synthesised form POST whose
+							//// response our nginx returned as an empty download. It now goes through frappe.call and follows
+							//// response.message.file_url. The background branch is upstream's. Same fix as the Excel export
+							//// button in before_refresh. The bare //// fences are the original author's.
 							////
 							args.export_in_background = data.export_in_background;
 							if (data.export_in_background) {
@@ -2805,4 +3006,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 		return super.parse_filters_from_route_options();
 	}
+//// Neoffice — the newline at end of file was dropped below (4e23539603, 2024-09-23). Whitespace
+//// only; upstream v15.120 and develop both still end with one. TO REVIEW: restore it.
 };
