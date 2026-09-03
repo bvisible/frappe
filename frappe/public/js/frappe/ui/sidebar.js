@@ -1,3 +1,31 @@
+////////////////////////////////////////////////////////////////////////
+//// Neoffice ▼▼▼ desk sidebar rewrite (the whole file diverges from upstream v15.89.0)
+////
+//// Upstream v15 frappe.ui.Sidebar is a 70-line generic list helper (wrapper / css_class,
+//// add_item, remove_item, get_section; the leading frappe.provide("frappe.ui") was dropped too).
+//// This file is the v16-style workspace sidebar: an ADAPTED BACKPORT of frappe develop
+//// frappe/public/js/frappe/ui/sidebar/sidebar.js at 6bf7d45e6e (2025-09-02 "refactor: Sidebar" —
+//// 25 of our 33 methods and ~50% of the lines are verbatim from it), brought in by 9999364ec6
+//// (2025-10-28 "Refonte de l'interface utilisateur avec nouvelle sidebar et apps switcher", 28
+//// files) together with sidebar.html, apps_switcher.js and scss/desk/sidebar.scss (all marked).
+//// It renders frappe.boot.sidebar_pages as a collapsible workspace tree (sidebar.html template,
+//// Sortable ordering saved through workspace_settings.set_sequence) and builds the data maps
+//// workspace.js consumes (frappe.workspaces / workspace_list / workspace_map).
+//// Methods with no develop counterpart: setup_route_listener, expand_parent_item, is_nested_item,
+//// get_sidebar_item, close_children_item (9999364ec6); get_app_from_current_route (84b6f7a10b);
+//// build_modules_section / append_module_item (aa4938f2f0). Neoffice-only layers, marked inline:
+////   - set_default_app / frappe.current_app + apps switcher + neoffice_theme logo (9999364ec6),
+////     app resolved from the route via boot.workspace_to_app_map (84b6f7a10b, 2025-11-09),
+////     copy-before-sort (5cabef2b72) and app_data_map null guard (a03d7f00db, 2026-03-11);
+////   - is_route_in_sidebar matches item-name as well as the translated title (fb2a5ef11e,
+////     2025-11-08 "Support virtual apps with translated workspace names");
+////   - "Navigation" / "All Modules" sections mirroring the app switcher (aa4938f2f0, 2026-04-24);
+////   - headless mode for the NeoCockpit chrome — data layer without DOM (d0268ef91a, 2026-06-10,
+////     the NEOFFICE PATCH notes below).
+//// v16 merge note: upstream deleted ui/sidebar.js and now ships ui/sidebar/sidebar.js +
+//// sidebar_item.js + sidebar_manager.js (develop tip shares only ~18% of these lines) — expect a
+//// modify/delete conflict on this path; resolve from the commits above, not line by line.
+////////////////////////////////////////////////////////////////////////
 frappe.ui.Sidebar = class Sidebar {
 	// //// NEOFFICE PATCH — headless mode for the NeoCockpit chrome.
 	// WHY: workspace.js consumes this class as its DATA source (setup_pages,
@@ -85,6 +113,9 @@ frappe.ui.Sidebar = class Sidebar {
 		this.has_create_access = this.sidebar_pages.has_create_access;
 	}
 
+	//// Neoffice — added (84b6f7a10b, 2025-11-09 "Optimize app detection and workspace mapping"):
+	//// resolves the app owning the current workspace route — fast path through
+	//// boot.workspace_to_app_map, fallback through frappe.workspace_map / boot.module_app.
 	get_app_from_current_route() {
 		const route = frappe.get_route();
 		if (!route || route.length === 0) return null;
@@ -118,6 +149,10 @@ frappe.ui.Sidebar = class Sidebar {
 		return null;
 	}
 
+	//// Neoffice — set_default_app: develop picks the app with the most workspaces; ours prefers the
+	//// app of the current route (84b6f7a10b), sorts a COPY of boot.app_data so the App Customization
+	//// sort_order is not mutated and guards an empty app_data (5cabef2b72, 2026-03-11), and puts the
+	//// neoffice_theme logo in the navbar (9999364ec6) — a core → neoffice_theme asset dependency.
 	set_default_app() {
 		// Check if we're on a workspace route - use that app
 		const route_app = this.get_app_from_current_route();
@@ -195,6 +230,9 @@ frappe.ui.Sidebar = class Sidebar {
 		$(".item-anchor").each(function () {
 			const title = $(this).attr("title");
 
+			//// Neoffice — fb2a5ef11e (2025-11-08 "Support virtual apps with translated workspace names"):
+			//// develop only compares the anchor title; the active item is also matched on the container's
+			//// item-name so a translated title still highlights its workspace.
 			// Quick check with title first (most common case)
 			if (title == active_module) {
 				match = true;
@@ -263,6 +301,9 @@ frappe.ui.Sidebar = class Sidebar {
 			this.wrapper.find(".standard-sidebar-section").remove();
 		}
 
+		//// Neoffice — make_sidebar keeps only the root pages of the current app (boot.app_data_map, built
+		//// by apps_switcher.create_app_data_map — 9999364ec6 / 84b6f7a10b); develop lists every public
+		//// page. Null-guarded by a03d7f00db (2026-03-11).
 		let app_entry = (frappe.boot.app_data_map || {})[frappe.current_app || "frappe"];
 		let app_workspaces = app_entry ? app_entry.workspaces || [] : [];
 
@@ -274,6 +315,7 @@ frappe.ui.Sidebar = class Sidebar {
 		}
 
 		this.build_sidebar_section("All", parent_pages);
+		//// Neoffice — aa4938f2f0 (2026-04-24): "All Modules" section under the workspace tree.
 		this.build_modules_section();
 
 		// Scroll sidebar to selected page if it is not in viewport.
@@ -287,6 +329,8 @@ frappe.ui.Sidebar = class Sidebar {
 	}
 
 	build_sidebar_section(title, root_pages) {
+		//// Neoffice — aa4938f2f0 (2026-04-24): "Navigation" heading above the workspace tree; develop
+		//// renders the section without a label.
 		// Render a section heading for the main navigation section ("All").
 		// Additional sections (e.g. "Modules") render their own heading.
 		const heading_text = title === "All" ? __("Navigation") : "";
@@ -321,6 +365,10 @@ frappe.ui.Sidebar = class Sidebar {
 		}
 	}
 
+	//// Neoffice — added (aa4938f2f0, 2026-04-24 "feat(sidebar): add 'All Modules' section mirroring
+	//// the app-switcher dropdown"), build_modules_section + append_module_item: one entry per
+	//// boot.app_data app (App Customization sort_order), the active app highlighted, click routed
+	//// through apps_switcher.set_current_app. No develop equivalent.
 	build_modules_section() {
 		// Render a mirror of the top app-switcher dropdown as a sidebar section
 		// so users can jump between modules directly, with the active one highlighted.

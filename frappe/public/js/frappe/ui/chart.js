@@ -2,6 +2,12 @@ import { Chart } from "frappe-charts/dist/frappe-charts.esm";
 
 frappe.provide("frappe.ui");
 
+//// Neoffice — upstream: `frappe.Chart = Chart;` (the raw frappe-charts class). Replaced by the
+//// ManagedChart subclass below (fe363d6fd6, 2026-06-12 "fix(charts): destroy stranded frappe-charts
+//// instances on re-create"): a second chart on the same wrapper left the previous instance's
+//// ResizeObserver alive, drawing into a detached SVG — endless "removeChild … not a child of this
+//// node" errors that froze scrolling on workspaces. Same commit: utils.js make_chart and
+//// widgets/chart_widget.js. No upstream equivalent (v15 or develop).
 // Re-creating a chart on a wrapper that already hosts one strands the
 // previous instance: frappe-charts keeps an internal ResizeObserver per
 // instance, and a stranded one keeps calling draw() against a SVG that is

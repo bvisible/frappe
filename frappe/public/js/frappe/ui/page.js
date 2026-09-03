@@ -46,6 +46,8 @@ frappe.ui.Page = class Page {
 	}
 
 	setup_scroll_handler() {
+		//// Neoffice — added (00a173124b, 2026-06-12 "fix(cockpit): kill the hide-on-scroll page-head
+		//// dance"): early return under the NeoCockpit chrome (body.neoffice-cockpit) — see the note below.
 		// Neoffice cockpit: this legacy hide-on-scroll dance mutates the
 		// sticky .page-head (class toggle + inline top) every 500ms WHILE a
 		// trackpad gesture is latched — recompositing a sticky element
@@ -55,6 +57,10 @@ frappe.ui.Page = class Page {
 		// the cockpit !important), so there is nothing to animate — skip.
 		if (document.body.classList.contains("neoffice-cockpit")) return;
 		let last_scroll = 0;
+		//// Neoffice — upstream listens on $(window) and reads document.documentElement.scrollTop; with the
+		//// v16-style layout the scrolling element is .main-section, so the handler reads e.target.scrollTop
+		//// (9999364ec6, 2025-10-28 sidebar + apps-switcher rework — same lines as frappe develop page.js at
+		//// 6bf7d45e6e, 2025-09-02 "refactor: Sidebar"; develop has since changed this handler again).
 		$(".main-section").scroll(
 			frappe.utils.throttle((e) => {
 				let main_section = e.target;
@@ -103,6 +109,12 @@ frappe.ui.Page = class Page {
 				</div>'
 			);
 		} else {
+			//// Neoffice — upstream markup: <div class="row layout-main"> / .col-lg-2 .layout-side-section /
+			//// .col .layout-main-section-wrapper (Bootstrap grid). Replaced by the flex .layout-main
+			//// .layout-two-column template below + the sidebar_position === "Right" swap that follows it
+			//// (cc297ec402, 2025-11-03 "Move sidebar to right and add mobile toggle") — verbatim from frappe
+			//// develop (v16) page.js; sidebar_position comes from frappe.make_page (views/factory.js, same
+			//// commit) and page.scss lays the flex row out (marked there).
 			this.add_view(
 				"main",
 				`
@@ -160,6 +172,8 @@ frappe.ui.Page = class Page {
 		this.inner_toolbar = this.custom_actions;
 		this.icon_group = this.page_actions.find(".page-icon-group");
 
+		//// Neoffice — added (f22856d195, 2026-06-10): starts the cockpit head overflow manager (see the
+		//// NEOFFICE PATCH block at setup_actions_overflow below).
 		this.setup_actions_overflow();
 
 		if (this.make_page) {
@@ -217,6 +231,12 @@ frappe.ui.Page = class Page {
 				trigger: "hover",
 			});
 			sidebar_toggle.click(() => {
+				//// Neoffice — sidebar toggle rework, 2025-12-01 (322196d195, 1d3d2142d8, 903060daff, 18c533ab42,
+				//// 4cea88af71, f28ac55bc3). Upstream: `if (frappe.utils.is_xs() || frappe.utils.is_sm())` then
+				//// `sidebar_wrapper.toggle()`. Ours: the overlay sidebar below 992px (tablet + phone), and on
+				//// desktop the list's own toggle_side_bar() (persists the choice and re-fits the DataTable) with
+				//// the Ctrl+K logic (localStorage.show_sidebar + .no-list-sidebar on body and wrapper) as fallback
+				//// for pages without a list — a plain jQuery toggle() left the table at its old width.
 				if (window.innerWidth < 992) {
 					this.setup_overlay_sidebar();
 				} else {
@@ -780,6 +800,11 @@ frappe.ui.Page = class Page {
 		// Add actions as menu item in Mobile View
 		let menu_item_label = group ? `${group} > ${label}` : label;
 		let menu_item = this.add_menu_item(menu_item_label, _action, false, false, false);
+		//// Neoffice — upstream: `menu_item.parent().addClass("hidden-xl");`. Rewritten by f22856d195 +
+		//// 10ed2baef8 (2026-06-10, cockpit head overflow): the mobile duplicate <li> is tagged with
+		//// data-overflow-key so redistribute_custom_actions() can reveal it when the toolbar button is
+		//// evicted from the one-line head; closest("li") because add_menu_item returns the inner <span>
+		//// on re-adds (see the note below).
 		// add_menu_item returns the <a> on first add but the inner <span>
 		// when the item already exists — closest() lands on the <li> in
 		// both cases (.parent() used to mis-tag the <a> on re-adds)
@@ -916,6 +941,8 @@ frappe.ui.Page = class Page {
 
 	add_button(label, click, opts) {
 		if (!opts) opts = {};
+		//// Neoffice — data-label added (10ed2baef8, 2026-06-10): the key the cockpit overflow manager uses
+		//// to match this button with its ⋯-menu duplicate (data-overflow-key below).
 		let button = $(`<button data-label="${encodeURIComponent(label)}"
 			class="btn ${opts.btn_class || "btn-default"} ${opts.btn_size || "btn-sm"} ellipsis">
 				${opts.icon ? frappe.utils.icon(opts.icon) : ""}
@@ -923,6 +950,8 @@ frappe.ui.Page = class Page {
 		</button>`);
 		// Add actions as menu item in Mobile View (similar to "add_custom_button" in forms.js)
 		let menu_item = this.add_menu_item(label, click, false);
+		//// Neoffice — upstream: `menu_item.parent().addClass("hidden-xl");` — same closest("li") +
+		//// data-overflow-key tagging as in add_inner_button above (f22856d195 + 10ed2baef8, 2026-06-10).
 		menu_item
 			.closest("li")
 			.addClass("hidden-xl")
