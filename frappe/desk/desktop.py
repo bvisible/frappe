@@ -540,12 +540,17 @@ def get_workspace_sidebar_items(current_workspace=None):
 
 	# NEW: Get sort_order for ALL workspaces from App Customization
 	# This will be used to sort workspaces regardless of app context
-	all_workspace_sort_orders = frappe.get_all(
-		"App Customization Workspace",
-		filters={"hidden": 0},
-		fields=["workspace_name", "sort_order", "parent"],
-		order_by="sort_order asc, idx asc"
-	)
+	#//// Neoffice — App Customization Workspace belongs to neoffice_theme: on a bare bench (CI of the
+	#//// product forks) the table does not exist and every page render died on ProgrammingError
+	#//// (#198). Same guard as boot.py; the sort order simply stays empty there.
+	all_workspace_sort_orders = []
+	if frappe.db.table_exists("App Customization Workspace"):
+		all_workspace_sort_orders = frappe.get_all(
+			"App Customization Workspace",
+			filters={"hidden": 0},
+			fields=["workspace_name", "sort_order", "parent"],
+			order_by="sort_order asc, idx asc"
+		)
 	workspace_sort_order = {w['workspace_name']: w['sort_order'] for w in all_workspace_sort_orders}
 
 	# Determine which app's workspaces to show
