@@ -895,7 +895,16 @@ def sendmail(
 	)
 
 	# build email queue and send the email if send_now is True.
-	return builder.process(send_now=True)#//// changed from now to True
+	#//// Neoffice — upstream: `builder.process(send_now=now)`. We force the immediate send so a
+	#//// mail leaves through the NeoMail API without waiting for the queue flush — EXCEPT under
+	#//// test. Sending commits: SendMailContext.__enter__/__exit__ call update_status(...,
+	#//// commit=True), which ends the transaction the running test sits in, so every document
+	#//// created before a sendmail survived that test's rollback and poisoned the next one
+	#//// (hrms suite: DuplicateEntryError "Technical Round", "Basic Training Event"). Under test
+	#//// we fall back to upstream's own default — queue the mail, do not send it — which is what
+	#//// every frappe/erpnext/hrms test is written against (they read `Email Queue`, they never
+	#//// assert a delivery). Production behaviour is unchanged.
+	return builder.process(send_now=not flags.in_test)
 
 whitelisted = []
 guest_methods = []
