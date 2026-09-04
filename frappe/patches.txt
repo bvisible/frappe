@@ -242,3 +242,7 @@ frappe.patches.v14_0.fix_user_settings_collation
 execute:frappe.core.doctype.system_settings.system_settings.sync_system_settings 
 frappe.printing.doctype.print_format.patches.sets_wkhtmltopdf_as_default_for_pdf_generator_field
 frappe.patches.v16_0.social_eps_deprecation_warning
+#//// Neoffice — added entry. Companion of the todo.json revert in the same commit:
+#//// upstream's ToDo.status list is restored, and this patch carries the rows our stray
+#//// `test` option created over to `Open`. Reason in the module's header.
+frappe.patches.v15_0.neoffice_todo_status_test_to_open

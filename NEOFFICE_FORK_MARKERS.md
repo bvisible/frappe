@@ -87,7 +87,7 @@ upstream merge, an edited shipped JSON does not.
 | `frappe/printing/doctype/print_settings/print_settings.json` | **field added**: `use_chrome_for_standard_format` (+ `field_order`) | 40b4e486bb, cherry-picked from frappe develop `8649c18125` | same backport, same fate. |
 | `frappe/custom/doctype/custom_field/custom_field.json` | `is_system_generated`: `in_list_view` → `1` | 4304bba972 (2026-03-18 "feat(columns): apply child table column config to DocType JSON") | pure display property → Property Setter candidate, not a fork edit. |
 | `frappe/desk/doctype/workspace/workspace.json` | `title`, `parent_page`, `sequence_id`: `in_list_view` → `1` | 4304bba972 | idem. |
-| `frappe/desk/doctype/todo/todo.json` | `status` options `Open\nClosed\nCancelled` → `test\nClosed\nCancelled\nOpen` | 4e23539603 (2024-09-23 "last updates", empty message) | 🔴 **TO REVIEW — almost certainly an accident.** `test` is a stray option, and `Open` is no longer first, so it is no longer the implicit default. Restore upstream's list at the merge unless something on the fleet stores `test`. |
+| `frappe/desk/doctype/todo/todo.json` | **none — reverted to upstream on 2026-09-04** (was: `status` options `Open\nClosed\nCancelled` → `test\nClosed\nCancelled\nOpen`) | 4e23539603 (2024-09-23 "last updates", empty message), reverted for #205 | The accident is undone — the list is upstream's again, `Open` first. The fleet *did* store `test` (one ToDo on Osiris), so the revert ships with `frappe/patches/v15_0/neoffice_todo_status_test_to_open.py`, which carries those rows to `Open`. Nothing left to reconcile at the merge. |
 
 ### Final newline dropped (marked in place, listed here for completeness)
 
