@@ -400,6 +400,10 @@ def get_formatted_html(
 	logo_url = get_url(logo_path)
 
 	footer_html = get_footer(email_account, footer)
+	#//// Neoffice — hoisted out of the render dict below so the DB wrapper gets it too:
+	#//// the Email Design replaces standard.html entirely, and a `header=` passed to
+	#//// sendmail (every reminder of frappe/erpnext/hrms) was silently dropped.
+	header_html = get_header(header)
 
 	#//// Neoffice: DB-driven default email wrapper (Email Design doctype, neoffice_theme).
 	#//// The active design (customer copy, else the fixture-shipped standard) replaces the
@@ -418,6 +422,9 @@ def get_formatted_html(
 				print_html=print_html,
 				company_name=company_name,
 				site_url=domain,
+				#//// Neoffice — added argument: the wrapper replaces standard.html, which is
+				#//// the only place upstream renders the header.
+				header=header_html,
 			)
 		except Exception:
 			frappe.log_error("Default email design render failed", frappe.get_traceback())
@@ -429,7 +436,7 @@ def get_formatted_html(
 				"brand_logo": logo_url, #////get_brand_logo(email_account) if with_container or header else None,
 				"with_container": with_container,
 				"site_url": domain, #////get_url(),
-				"header": get_header(header),
+				"header": header_html, #//// Neoffice — computed above (upstream: get_header(header))
 				"content": message,
 				"footer": footer_html,
 				"title": subject,
