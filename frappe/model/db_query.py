@@ -933,9 +933,16 @@ from {tables}
 	def set_optional_columns(self):
 		"""Removes optional columns like `_user_tags`, `_comments` etc. if not in table"""
 		# remove from fields
+		def _names_optional_column(fld, f):
+			# the whole name only (bare, backquoted or table-qualified): a field that merely contains
+			# an optional column name, like `last_seen`, must not be dropped
+			return re.search(rf"(?:^|[`.\s]){re.escape(f)}(?:$|[`\s])", fld) is not None
+
 		to_remove = []
 		for fld in self.fields:
-			to_remove.extend(fld for f in optional_fields if f in fld and f not in self.columns)
+			to_remove.extend(
+				fld for f in optional_fields if _names_optional_column(fld, f) and f not in self.columns
+			)
 		for fld in to_remove:
 			del self.fields[self.fields.index(fld)]
 
