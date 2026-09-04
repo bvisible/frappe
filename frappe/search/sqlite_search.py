@@ -1201,6 +1201,21 @@ class SQLiteSearch(ABC):
 
 	def _print_warning_summary(self):
 		"""Print a summary of warnings collected during indexing."""
+		#//// Neoffice — this report is printed with print(); under a scheduler worker stdout is
+		#//// not a terminal and can be a closed pipe, so lms.sqlite.build_index died with
+		#//// BrokenPipeError on the hub 124 times a day (tracker #170). Off a terminal the
+		#//// report goes to the bench logger instead; the index itself is unaffected.
+		import sys
+
+		try:
+			interactive = sys.stdout is not None and sys.stdout.isatty()
+		except Exception:
+			interactive = False
+		if not interactive:
+			logger = frappe.logger("sqlite_search")
+			for doctype, warnings in getattr(self, "warnings", {}).items():
+				logger.warning("search index build: %s — %d warning(s)", doctype, len(warnings))
+			return
 		if not self.warnings:
 			return
 
