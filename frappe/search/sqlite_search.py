@@ -1212,9 +1212,15 @@ class SQLiteSearch(ABC):
 		except Exception:
 			interactive = False
 		if not interactive:
-			logger = frappe.logger("sqlite_search")
-			for doctype, warnings in getattr(self, "warnings", {}).items():
-				logger.warning("search index build: %s — %d warning(s)", doctype, len(warnings))
+			# self.warnings is a list of IndexWarning (see __init__), grouped by type like the report
+			if self.warnings:
+				logger = frappe.logger("sqlite_search")
+				counts: dict[str, int] = {}
+				for warning in self.warnings:
+					key = getattr(warning.type, "value", str(warning.type))
+					counts[key] = counts.get(key, 0) + 1
+				for key, count in counts.items():
+					logger.warning("search index build: %s — %d warning(s)", key, count)
 			return
 		if not self.warnings:
 			return
