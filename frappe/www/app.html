@@ -20,14 +20,18 @@
 		{#- //// Neoffice — added (4c842a98fc "First change v15" for animate.min.css, f661ff2616
 		    //// 2025-03-28 "Add lottie and change sidebar" for the player, bd41f1e7a5 "Update neov2"):
 		    //// the desk shell pulls in animate.css and the dotLottie player so desk pages can use
-		    //// them without a bundle rebuild. Upstream loads neither.
-		    //// 🔴 TO REVIEW: the player comes from unpkg.com — a third-party CDN request on EVERY desk
-		    //// page load, blocking module evaluation, and it breaks an offline or CSP-restricted
-		    //// install. Same tag in www/404.html. Vendor it under /assets/frappe/js/lib/. -#}
+		    //// them without a bundle rebuild — dom.js draws the freeze overlay with one. Upstream
+		    //// loads neither.
+		    //// The player used to come straight from a public npm CDN: a third-party request on EVERY
+		    //// desk page load, and an install that broke offline or behind a restrictive CSP. Vendored on
+		    //// 2026-09-04 (#205) — same package, same version 2.7.12, same code-split ESM build, so
+		    //// the browser still fetches ~124 KB eagerly and the renderer only when a player plays.
+		    //// Kept type="module": it defers like the CDN tag did, so nothing new blocks the parser.
+		    //// Same tag in www/404.html — bump both ?v= together at a re-vendor. -#}
 		<!-- //// -->
 		<link rel="stylesheet" href="/assets/frappe/css/animate.min.css"/>
 		<script
-		src="https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.mjs"
+		src="/assets/frappe/js/lib/dotlottie-player/dotlottie-player.mjs?v=2.7.12"
 		type="module"
 		></script>
 		<!-- //// -->

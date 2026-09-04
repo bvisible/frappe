@@ -51,6 +51,37 @@ every one of those commits is a `feat/chore(cockpit): re-vendor bundle v=N (frap
 see `neoffice-devops/CLAUDE.md` § "NeoCockpit — carte des consommateurs + release". Never edit it
 by hand: change `frappe-sidebar-react` and run `cockpit-release.sh`.
 
+### Vendored third-party library: added files, no upstream equivalent
+
+`frappe/public/js/lib/dotlottie-player/` — `@dotlottie/player-component@2.7.12`, the web component
+that renders the `.lottie` animations our fork added (the 404 illustration in `www/404.html`, the
+desk freeze overlay in `public/js/frappe/dom.js`, the processing overlay in `neoffice_theme`).
+
+Until 2026-09-04 the player was not vendored at all: `www/404.html` and `www/app.html` each carried
+a `<script type="module">` pointing at the publisher's CDN, which meant a third-party request on
+every desk page load and on a public error page, and an install that could not render offline or
+behind a restrictive CSP. #205 moved the bytes to our own origin, unchanged.
+
+What is vendored is the publisher's **code-split ESM build, mirrored whole**, so the browser fetches
+exactly what it fetched before — ~124 KB eagerly, a renderer only when a player actually plays:
+
+| file | role |
+|---|---|
+| `dotlottie-player.mjs` | entry point, referenced as `/assets/frappe/js/lib/dotlottie-player/dotlottie-player.mjs?v=2.7.12` |
+| `chunk-ODPU3M3Z.mjs`, `chunk-TRZ6EGBZ.mjs`, `chunk-HDDX7F4A.mjs`, `chunk-ZWH2ESXT.mjs` | imported eagerly by the entry |
+| `lottie_svg-MJGYILXD-NRTSROOT.mjs`, `lottie_canvas-CDSUBMCL-MZNYH5VV.mjs`, `lottie_html-X3TYKVQI-L6774NQS.mjs`, `lottie_light-KMJEUZFY-TNG7ODX7.mjs`, `lottie_light_canvas-B5UTTNXA-PRI6IBWW.mjs`, `lottie_light_html-SLCECTRT-SYWXEBDN.mjs`, `lottie_worker-Q23FJ6ZR-YP5OKMTN.mjs` | renderers, `import()`ed on demand — one per `renderer` value the component accepts |
+| `dotlottie-audio-75C54RUV.mjs`, `dotlottie-state-machine-manager-2E7RUGJG-NTQ25VSR.mjs` | optional features, `import()`ed on demand |
+
+Every file carries a `//// Neoffice` header, so `grep -rn "////"` finds them; the entry's header
+holds the full reason and the re-vendor recipe. Two things differ from the published bytes: those
+headers, and the trailing `//# sourceMappingURL` comments, dropped because the `.map` files are not
+vendored and each would 404. The chunk filenames are content-hashed by the publisher, so only the
+entry needs the `?v=` cache-bust — bump it in **both** templates at a re-vendor.
+
+**Added files, no upstream equivalent** in v15.120 or develop: they cannot conflict at the merge,
+they can only be lost by someone deleting the directory. If a merge ever drops them, the two
+templates 404 on the player and every Lottie animation silently stops rendering.
+
 ### Final newline dropped (marked in place, listed here for completeness)
 
 Same whitespace-only divergence as lot F1. Both files DO carry a `//// Neoffice` marker above
