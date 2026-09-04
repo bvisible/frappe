@@ -473,14 +473,18 @@ def get_workspace_sidebar_items(current_workspace=None):
 	#////
 	import json
 	# Get the path to the JSON file
-	json_path = frappe.get_app_path('neoffice_theme', 'json', 'excluded_menus.json')
+	#//// Neoffice — neoffice_theme is absent on a bare bench (CI of the product forks): guard the access
+	#//// like boot.py and apps.py do, otherwise get_apps() broke every page render there (#198).
+	excluded_menus = {}
+	if "neoffice_theme" in frappe.get_installed_apps():
+		json_path = frappe.get_app_path('neoffice_theme', 'json', 'excluded_menus.json')
 
-	# Load JSON file for excluded titles
-	try:
-		with open(json_path, 'r') as file:
-			excluded_menus = json.load(file)
-	except FileNotFoundError:
-		excluded_menus = {}
+		# Load JSON file for excluded titles
+		try:
+			with open(json_path, 'r') as file:
+				excluded_menus = json.load(file)
+		except FileNotFoundError:
+			pass
 
 	# Get the user's view interface setting
 	try:
