@@ -1212,6 +1212,9 @@ class SQLiteSearch(ABC):
 		except Exception:
 			interactive = False
 		if not interactive:
+			#//// Neoffice — self.warnings is a list of IndexWarning, not a dict keyed by doctype; the
+			#//// prior .items() guard raised on this very off-terminal branch it was meant to protect
+			#//// (scheduler, CI) (2590e5994 "fix(search): the off-terminal warnings summary groups a list, not a dict")
 			# self.warnings is a list of IndexWarning (see __init__), grouped by type like the report
 			if self.warnings:
 				logger = frappe.logger("sqlite_search")
