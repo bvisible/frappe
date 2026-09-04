@@ -230,34 +230,42 @@ class UserPermissions:
 	def load_user(self):
 		#//// Neoffice — added field in the boot payload (562afee20c, 2024-01-17 "Add view_interface in
 		#//// frappe.boot.user"): the desk reads frappe.boot.user.view_interface to decide which
-		#//// interface to open. Upstream does not select it.
-		#//// 🔴 TO REVIEW: `view_interface` is NOT a field of the shipped User doctype (it is not in
-		#//// core/doctype/user/user.json) — it must be a Custom Field installed by a Neoffice app.
-		#//// This get_value() names the column unconditionally, so on any site where that Custom Field
-		#//// is missing — a vanilla bench, CI, a site mid-migration — loading the boot info raises.
-		#//// Guard it with a meta/column check.
+		#//// interface to open. Upstream selects the list below without it.
+		#//// `view_interface` is NOT a column of the User doctype frappe ships — it is a Custom Field,
+		#//// installed from neoffice_theme's fixtures. Naming it unconditionally made this get_value()
+		#//// raise `Unknown column 'view_interface'` on every site that does not carry that fixture: a
+		#//// vanilla bench, CI, a site mid-migration. load_user() is on the boot path, so what failed
+		#//// was the whole desk, not the feature. Guarded on the meta (#205, 2026-09-04): the column is
+		#//// only asked for where it exists, and where it does not the key is still present and None,
+		#//// so a reader gets a value to fall back from instead of a missing key. The two consumers
+		#//// cope with None already — neocockpit.global.js does `user?.view_interface || "Advanced"`,
+		#//// and desk/desktop.py reads it off the User document, never off this payload.
 		#//// add view_interface
-		d = frappe.db.get_value(
-			"User",
-			self.name,
-			[
-				"creation",
-				"desk_theme",
-				"document_follow_notify",
-				"email",
-				"email_signature",
-				"first_name",
-				"language",
-				"last_name",
-				"mute_sounds",
-				"send_me_a_copy",
-				"user_type",
-				"onboarding_status",
-				"view_interface",
-				"default_workspace",
-			],
-			as_dict=True,
-		)
+		user_fields = [
+			"creation",
+			"desk_theme",
+			"document_follow_notify",
+			"email",
+			"email_signature",
+			"first_name",
+			"language",
+			"last_name",
+			"mute_sounds",
+			"send_me_a_copy",
+			"user_type",
+			"onboarding_status",
+			"default_workspace",
+		]
+		#//// Neoffice — the guard itself; see above.
+		has_view_interface = frappe.get_meta("User").has_field("view_interface")
+		if has_view_interface:
+			user_fields.append("view_interface")
+
+		d = frappe.db.get_value("User", self.name, user_fields, as_dict=True)
+
+		#//// Neoffice — see above: absent field reported as None, never as a missing key.
+		if d is not None and not has_view_interface:
+			d.view_interface = None
 
 		if not self.can_read:
 			self.build_permissions()
