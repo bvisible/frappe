@@ -262,8 +262,10 @@ class TestDBQuery(FrappeTestCase):
 			row = frappe.get_all("ToDo", fields=["name", "last_seen"], filters={"name": todo.name})[0]
 			self.assertIn("last_seen", row)
 			self.assertIsNotNone(row.last_seen)
-			# the real optional column is still dropped silently when the table has none
-			self.assertNotIn("_seen", frappe.get_all("ToDo", fields=["name", "_seen"], filters={"name": todo.name})[0])
+			# the optional column itself is still dropped silently on a table that has none
+			# (ToDo tracks seen, Country does not)
+			self.assertIn("_seen", frappe.get_all("ToDo", fields=["name", "_seen"], filters={"name": todo.name})[0])
+			self.assertNotIn("_seen", frappe.get_all("Country", fields=["name", "_seen"], limit=1)[0])
 		finally:
 			clear_custom_fields("ToDo")
 
