@@ -927,8 +927,17 @@ def whitelist(allow_guest=False, xss_safe=False, methods=None):
 	                pass
 	"""
 
+	# //// Neoffice — v16 parity: the allowed methods are stored as a TUPLE (upstream
+	# //// develop `methods = ("GET", "POST", "PUT", "DELETE", "QUERY")`, a bare string
+	# //// becomes `(methods,)`). Fork suites written for v16 assert
+	# //// `allowed_http_methods_for_whitelisted_func[fn] == ("POST",)` and failed on the
+	# //// v15 list (suite Meet, 9 asserts). Only membership is ever tested on it.
 	if not methods:
-		methods = ["GET", "POST", "PUT", "DELETE"]
+		methods = ("GET", "POST", "PUT", "DELETE")
+	elif isinstance(methods, str):
+		methods = (methods,)
+	else:
+		methods = tuple(methods)
 
 	def innerfn(fn):
 		from frappe.utils.typing_validations import validate_argument_types
