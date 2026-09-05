@@ -977,6 +977,12 @@ class SQLiteSearch(ABC):
 		self.raise_if_not_indexed()
 		document = self.prepare_document(doc)
 		if document:
+			# //// Neoffice — idempotent: search_fts has no unique key on doc_id, and
+			# //// update_doc_index re-indexes on every save of an indexed field, so a
+			# //// document edited n times sat n times in the index (duplicate hits, and
+			# //// wiki's "unpublish drops the row" test counted 2). v16 drains a queue
+			# //// instead; until then the old row goes before the new one is written.
+			self.remove_doc(doctype, docname)
 			self._index_documents([document])
 
 	def remove_doc(self, doctype, docname):
