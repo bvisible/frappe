@@ -1051,7 +1051,12 @@ def only_for(roles: list[str] | tuple[str] | str, message=False):
 	:param roles: Permitted role(s)
 	"""
 
-	if local.flags.in_test or local.session.user == "Administrator":
+	# //// Neoffice — v16 parity: upstream develop dropped the `local.flags.in_test`
+	# //// short-circuit that stood here. With it, no test could ever prove an
+	# //// only_for() guard (lms's security suite: "PermissionError not raised" x5).
+	# //// Tests run as Administrator keep passing; a test that switches user now
+	# //// meets the same refusal a request would.
+	if local.session.user == "Administrator":
 		return
 
 	if isinstance(roles, str):
