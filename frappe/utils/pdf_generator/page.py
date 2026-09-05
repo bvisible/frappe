@@ -140,7 +140,14 @@ class Page:
 
 				if url.startswith(get_host_url()):
 					path = url.replace(get_host_url(), "").split("?v", 1)[0]
-					clean_path = urllib.parse.unquote(path)
+					# //// Neoffice — strip the leading slash: `path` is "/files/x.png", and
+					# //// os.path.join(site_public_root, "/files/x.png") returns the ABSOLUTE
+					# //// "/files/x.png" (join drops the left part for an absolute right part),
+					# //// which is never under public/files -> every site-relative image was
+					# //// refused ("Attempted Unauthorized File Access", fleet #168, 15 a day
+					# //// on one shop) and dropped from the PDF. The "assets/" branch below
+					# //// could never match either.
+					clean_path = urllib.parse.unquote(path).lstrip("/")
 
 					if clean_path.startswith("assets/"):
 						final_system_path = os.path.abspath(os.path.join(bench_sites, clean_path))
