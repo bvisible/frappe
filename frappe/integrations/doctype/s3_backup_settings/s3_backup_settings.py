@@ -442,7 +442,12 @@ def upload_file_to_s3(filename, folder, conn, bucket):
 	# //// newline in the same pass. ▲▲▲ block runs to the end of the file.
 	# Get url instance and add domain and change destpath
 	domain = frappe.utils.get_url()
-	company_folder = domain.replace('https://', '') + " - " + frappe.db.get_single_value('Global Defaults', 'default_company')
+	# //// Neoffice — guarded: Global Defaults is an erpnext doctype; without erpnext the
+	# //// folder falls back to the site name instead of crashing the upload.
+	default_company = None
+	if frappe.db.exists("DocType", "Global Defaults"):
+		default_company = frappe.db.get_single_value("Global Defaults", "default_company")
+	company_folder = domain.replace("https://", "") + " - " + (default_company or frappe.local.site)
 	destpath = company_folder + "/" + os.path.join(folder, os.path.basename(filename))
 	
 	try:

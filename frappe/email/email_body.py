@@ -395,8 +395,15 @@ def get_formatted_html(
 		signature = get_signature(email_account)
 
 	domain = get_url()
-	company_name = frappe.db.get_single_value('Global Defaults', 'default_company')
-	logo_path = frappe.db.get_value("Company", company_name, "company_logo")
+	# //// Neoffice — guarded: Global Defaults and Company belong to erpnext. A bench
+	# //// without it (the CI of a frappe-only app such as insights) died here on every
+	# //// rendered e-mail with "DocType Global Defaults not found".
+	company_name = None
+	logo_path = None
+	if frappe.db.exists("DocType", "Global Defaults"):
+		company_name = frappe.db.get_single_value("Global Defaults", "default_company")
+		if company_name:
+			logo_path = frappe.db.get_value("Company", company_name, "company_logo")
 	logo_url = get_url(logo_path)
 
 	footer_html = get_footer(email_account, footer)

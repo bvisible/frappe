@@ -59,8 +59,11 @@ def get_context(context):
 	context["show_footer_on_login"] = cint(frappe.get_website_settings("show_footer_on_login"))
 	context["disable_user_pass_login"] = cint(frappe.get_system_settings("disable_user_pass_login"))
 	context["logo"] = "/files/logo-default.png"
-	# Use default company name for login page title
-	default_company = frappe.db.get_single_value("Global Defaults", "default_company")
+	# //// Neoffice — the login page is titled with the default company; guarded because
+	# //// Global Defaults is an erpnext doctype and a bench without erpnext has no such single.
+	default_company = None
+	if frappe.db.exists("DocType", "Global Defaults"):
+		default_company = frappe.db.get_single_value("Global Defaults", "default_company")
 	context["app_name"] = (
 		default_company or frappe.get_website_settings("app_name") or frappe.get_system_settings("app_name") or _("Frappe")
 	)
