@@ -252,6 +252,21 @@ class TestDBQuery(FrappeTestCase):
 			{"name": "DocField"} in DatabaseQuery("DocType").execute(filters={"name": "DocField"})
 		)
 
+	def test_optional_column_substring_is_not_dropped(self):
+		"""A field whose name merely contains an optional column name (`_seen` in `last_seen`)
+		must stay in the SELECT: only the optional column itself is dropped when absent."""
+		add_custom_field("ToDo", "last_seen", "Datetime")
+		try:
+			todo = frappe.get_doc({"doctype": "ToDo", "description": "seen"}).insert()
+			frappe.db.set_value("ToDo", todo.name, "last_seen", "2026-01-01 10:00:00")
+			row = frappe.get_all("ToDo", fields=["name", "last_seen"], filters={"name": todo.name})[0]
+			self.assertIn("last_seen", row)
+			self.assertIsNotNone(row.last_seen)
+			# the real optional column is still dropped silently when the table has none
+			self.assertNotIn("_seen", frappe.get_all("ToDo", fields=["name", "_seen"], filters={"name": todo.name})[0])
+		finally:
+			clear_custom_fields("ToDo")
+
 	def test_in_not_in_filters(self):
 		self.assertFalse(DatabaseQuery("DocType").execute(filters={"name": ["in", None]}))
 		self.assertTrue(
