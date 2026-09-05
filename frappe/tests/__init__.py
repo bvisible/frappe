@@ -39,6 +39,19 @@ def _v16_test_case():
         from frappe.tests.utils import change_settings as _change_settings
 
         class IntegrationTestCase(FrappeTestCase):
+            # //// Neoffice — v16 parity (frappe/tests/classes/unit_test_case.py setUpClass):
+            # //// the session user is Administrator when a class starts and again when it
+            # //// ends. Without it a test that fails after a bare frappe.set_user(...) leaks
+            # //// that user — deleted by the rollback — into every class that follows: suite's
+            # //// Meet tests took 16 unrelated tests down with "Could not find User".
+            @classmethod
+            def setUpClass(cls) -> None:
+                import frappe
+
+                super().setUpClass()
+                frappe.set_user("Administrator")
+                cls.addClassCleanup(frappe.set_user, "Administrator")
+
             # //// Neoffice — v16's IntegrationTestCase exposes change_settings as a METHOD
             # //// (`with self.change_settings("Wiki Settings", {...}):` — wiki, 2026-09-03); v15 ships
             # //// the same context manager as a module-level function. Same signature, delegated.
