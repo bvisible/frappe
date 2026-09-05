@@ -59,8 +59,12 @@ class RedisWrapper(redis.Redis):
 		"""
 		key = self.make_key(key, user, shared)
 
-		if not expires_in_sec:
-			frappe.local.cache[key] = val
+		# //// Neoffice — v16 parity (upstream develop sets the local copy unconditionally).
+		# //// Here a value written WITH an expiry skipped frappe.local.cache, while a
+		# //// preceding miss had cached None there: the very next get_value() served that
+		# //// None and every "cache then re-read" path hit the DB twice (suite writer's
+		# //// drive-file meta, and any expiring key read after a miss in the same request).
+		frappe.local.cache[key] = val
 
 		try:
 			if expires_in_sec:
