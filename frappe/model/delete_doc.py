@@ -117,14 +117,14 @@ def delete_doc(
 				)
 			doc = frappe.get_doc(doctype, name)
 
-			#//// Neoffice — expose the reload context on the doc. delete_doc()
-			#//// runs after_delete even when for_reload=True (the delete+insert
-			#//// path of reload_doc/migrate), and controllers like
-			#//// Workspace.after_delete use it to delete their module source
-			#//// folder in developer_mode — so a plain reload_doc(force=True)
-			#//// of a Workspace wiped the very file it had just read (lost
-			#//// workspace/activities twice, 23-24.08.2026). Controllers can now
-			#//// tell a real deletion from a reload.
+			# //// Neoffice — expose the reload context on the doc. delete_doc()
+			# //// runs after_delete even when for_reload=True (the delete+insert
+			# //// path of reload_doc/migrate), and controllers like
+			# //// Workspace.after_delete use it to delete their module source
+			# //// folder in developer_mode — so a plain reload_doc(force=True)
+			# //// of a Workspace wiped the very file it had just read (lost
+			# //// workspace/activities twice, 23-24.08.2026). Controllers can now
+			# //// tell a real deletion from a reload.
 			doc.flags.for_reload = for_reload
 
 			if not for_reload:

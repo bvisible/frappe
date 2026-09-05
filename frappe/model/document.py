@@ -176,12 +176,12 @@ class Document(BaseDocument):
 			)
 
 			if not d:
-				#//// Neoffice — added (cb81bf5bbb, 2024-09-27 "Update document.py", empty message): mutes the
-				#//// message queue before the DoesNotExistError is thrown, so a missing document raises
-				#//// without also painting an error toast. Upstream throws with messages enabled.
-				#//// TO REVIEW: frappe.flags.mute_messages is set and never restored — it stays set for the
-				#//// rest of the request, so later msgprints from unrelated code are swallowed too.
-				#//// add flags.mute_messages
+				# //// Neoffice — added (cb81bf5bbb, 2024-09-27 "Update document.py", empty message): mutes the
+				# //// message queue before the DoesNotExistError is thrown, so a missing document raises
+				# //// without also painting an error toast. Upstream throws with messages enabled.
+				# //// TO REVIEW: frappe.flags.mute_messages is set and never restored — it stays set for the
+				# //// rest of the request, so later msgprints from unrelated code are swallowed too.
+				# //// add flags.mute_messages
 				frappe.flags.mute_messages = True
 				frappe.throw(
 					_("{0} {1} not found").format(_(self.doctype), self.name),
@@ -871,14 +871,14 @@ class Document(BaseDocument):
 			return
 
 		if cstr(previous.modified) != cstr(self._original_modified):
-			#//// Neoffice — upstream always raises TimestampMismatchError here ("Document has been
-			#//// modified after you have opened it"). 14e24eef60 (2025-03-12) makes the Shopping Cart
-			#//// Quotation reload silently instead: that document is rewritten by the webshop on every
-			#//// cart change, so a customer adding two items in a row hit the mismatch and lost the cart.
-			#//// The guard is narrow — doctype Quotation AND order_type "Shopping Cart" — every other
-			#//// document keeps upstream behaviour. TO REVIEW: the commit message is only its own title,
-			#//// so the symptom above is read from the code; and a silent reload discards whatever the
-			#//// caller had in hand.
+			# //// Neoffice — upstream always raises TimestampMismatchError here ("Document has been
+			# //// modified after you have opened it"). 14e24eef60 (2025-03-12) makes the Shopping Cart
+			# //// Quotation reload silently instead: that document is rewritten by the webshop on every
+			# //// cart change, so a customer adding two items in a row hit the mismatch and lost the cart.
+			# //// The guard is narrow — doctype Quotation AND order_type "Shopping Cart" — every other
+			# //// document keeps upstream behaviour. TO REVIEW: the commit message is only its own title,
+			# //// so the symptom above is read from the code; and a silent reload discards whatever the
+			# //// caller had in hand.
 			# //// For Quotation with order_type="Shopping Cart", silently reload instead of showing error
 			if self.doctype == "Quotation" and self.get("order_type") == "Shopping Cart":
 				self.reload()

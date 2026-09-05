@@ -54,22 +54,22 @@ def optimize_image(content, content_type, max_width=1024, max_height=768, optimi
 	try:
 		image = Image.open(io.BytesIO(content))
 		exif = image.getexif()
-		#//// Neoffice — restored 2026-09-03. Upstream d0eabcd4f6 ("fix: preserve exif data in optimized
-		#//// image", backport of #27341) added `exif = image.getexif()` here; our merge 0b9b53c7ea
-		#//// (2024-09-23) kept upstream's `exif=exif` in image.save() but lost this assignment, so
-		#//// optimize_image() raised NameError on every call, swallowed by the broad except below
-		#//// into "Failed to optimize image" — image optimisation was silently dead fleet-wide.
-		#//// Found by the //// marking campaign (tracker #205).
+		# //// Neoffice — restored 2026-09-03. Upstream d0eabcd4f6 ("fix: preserve exif data in optimized
+		# //// image", backport of #27341) added `exif = image.getexif()` here; our merge 0b9b53c7ea
+		# //// (2024-09-23) kept upstream's `exif=exif` in image.save() but lost this assignment, so
+		# //// optimize_image() raised NameError on every call, swallowed by the broad except below
+		# //// into "Failed to optimize image" — image optimisation was silently dead fleet-wide.
+		# //// Found by the //// marking campaign (tracker #205).
 		width, height = image.size
 		max_height = max(min(max_height, height * 0.8), 200)
 		max_width = max(min(max_width, width * 0.8), 200)
 		image_format = content_type.split("/")[1]
-		#//// Neoffice — added (4c842a98fc "First change v15", finalised in the merge 0b9b53c7ea):
-		#//// force PNG output whenever the source image carries transparency (a palette image with a
-		#//// transparency index, or an RGBA image with a non-opaque alpha channel). Upstream keeps the
-		#//// uploaded content-type, so a transparent PNG re-encoded as JPEG came back with a black
-		#//// background.
-		#//// added
+		# //// Neoffice — added (4c842a98fc "First change v15", finalised in the merge 0b9b53c7ea):
+		# //// force PNG output whenever the source image carries transparency (a palette image with a
+		# //// transparency index, or an RGBA image with a non-opaque alpha channel). Upstream keeps the
+		# //// uploaded content-type, so a transparent PNG re-encoded as JPEG came back with a black
+		# //// background.
+		# //// added
 		if image.info.get("transparency", None) is not None:
 			image_format = "png"
 		if image.mode == "P":
@@ -81,7 +81,7 @@ def optimize_image(content, content_type, max_width=1024, max_height=768, optimi
 			extrema = image.getextrema()
 			if extrema[3][0] < 255:
 				image_format = "png"
-		#////
+		# ////
 		size = max_width, max_height
 		image.thumbnail(size, Image.Resampling.LANCZOS)
 

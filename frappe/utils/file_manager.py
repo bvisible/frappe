@@ -427,15 +427,15 @@ def is_safe_path(path: str) -> bool:
 	# ref: https://docs.python.org/3/library/os.path.html#os.path.commonpath
 	matchpath = os.path.abspath(path)
 	basedir = os.path.abspath(basedir)
-	#//// Neoffice — upstream: is_safe_path() accepts a path only if it lives under the site's own
-	#//// base directory. 4c842a98fc (2023-10-30 "First change v15", 57 files) widens it to also
-	#//// accept anything under /mnt/neoffice — the Neoffice data volume where private files and
-	#//// backups actually live on our instances (see the same path in
-	#//// integrations/doctype/s3_backup_settings/s3_backup_settings.py).
-	#//// 🔴 TO REVIEW: this is a security guard, and it is being WIDENED with a hard-coded prefix
-	#//// by a commit that carries no message. Anything under /mnt/neoffice becomes readable
-	#//// through the code paths this function protects. Prefer a site_config key over a literal,
-	#//// and re-derive the need before the v15.120 merge.
-	basedir_neoffice = "/mnt/neoffice" #//// added
+	# //// Neoffice — upstream: is_safe_path() accepts a path only if it lives under the site's own
+	# //// base directory. 4c842a98fc (2023-10-30 "First change v15", 57 files) widens it to also
+	# //// accept anything under /mnt/neoffice — the Neoffice data volume where private files and
+	# //// backups actually live on our instances (see the same path in
+	# //// integrations/doctype/s3_backup_settings/s3_backup_settings.py).
+	# //// 🔴 TO REVIEW: this is a security guard, and it is being WIDENED with a hard-coded prefix
+	# //// by a commit that carries no message. Anything under /mnt/neoffice becomes readable
+	# //// through the code paths this function protects. Prefer a site_config key over a literal,
+	# //// and re-derive the need before the v15.120 merge.
+	basedir_neoffice = "/mnt/neoffice" # //// added
 
-	return basedir == os.path.commonpath((basedir, matchpath)) or basedir_neoffice == os.path.commonpath((basedir_neoffice, matchpath)) #//// return basedir == os.path.commonpath((basedir, matchpath))
+	return basedir == os.path.commonpath((basedir, matchpath)) or basedir_neoffice == os.path.commonpath((basedir_neoffice, matchpath)) # //// return basedir == os.path.commonpath((basedir, matchpath))

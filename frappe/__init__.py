@@ -743,22 +743,22 @@ def sendmail(
 	:param email_headers: Additional headers to be added in the email, e.g. {"X-Custom-Header": "value"} or {"Custom-Header": "value"}. Automatically prepends "X-" to the header name if not present.
 	"""
 
-	#//// NeoMail sender configuration
+	# //// NeoMail sender configuration
 	# Special case: HD Ticket uses its own email account
 	if reference_doctype == "HD Ticket":
 		ticket_email_account = None
 		if communication:
 			ticket_email_account = db.get_value("Communication", communication, "email_account")
 
-		#//// Neoffice — fallback sur le compte du TICKET quand aucune Communication
-		#//// n'est fournie. Seul reply_via_agent passe communication= ; l'accuse de
-		#//// reception et le mail de satisfaction, eux, n'en ont pas, et retombaient
-		#//// donc sur le compte sortant par defaut : un client ecrivant a
-		#//// support@neoffice.ch recevait une reponse de neoservice@neoemail.ch,
-		#//// boite qui n'est PAS relevee (enable_incoming=0) — sa reponse etait
-		#//// perdue en silence. Le ticket porte deja l'info : frappe.email.receive
-		#//// ecrit email_account (recipient_account_field) avant meme l'insert.
-		#//// Constate sur les tickets #25/#26/#27 le 2026-08-12.
+		# //// Neoffice — fallback sur le compte du TICKET quand aucune Communication
+		# //// n'est fournie. Seul reply_via_agent passe communication= ; l'accuse de
+		# //// reception et le mail de satisfaction, eux, n'en ont pas, et retombaient
+		# //// donc sur le compte sortant par defaut : un client ecrivant a
+		# //// support@neoffice.ch recevait une reponse de neoservice@neoemail.ch,
+		# //// boite qui n'est PAS relevee (enable_incoming=0) — sa reponse etait
+		# //// perdue en silence. Le ticket porte deja l'info : frappe.email.receive
+		# //// ecrit email_account (recipient_account_field) avant meme l'insert.
+		# //// Constate sur les tickets #25/#26/#27 le 2026-08-12.
 		if not ticket_email_account and (reference_name or name):
 			try:
 				ticket_email_account = db.get_value(
@@ -768,8 +768,8 @@ def sendmail(
 				# helpdesk absent / table manquante : on retombe sur le defaut
 				ticket_email_account = None
 
-		#//// Neoffice — un compte qui n'emet pas ne doit jamais devenir expediteur
-		#//// (sinon SMTP refuse et le mail est perdu au lieu de partir du defaut).
+		# //// Neoffice — un compte qui n'emet pas ne doit jamais devenir expediteur
+		# //// (sinon SMTP refuse et le mail est perdu au lieu de partir du defaut).
 		if ticket_email_account and not db.get_value(
 			"Email Account", ticket_email_account, "enable_outgoing"
 		):
@@ -783,17 +783,17 @@ def sendmail(
 	else:
 		default_outgoing = None
 
-	#//// Neoffice — respecter un sender qui EST une de nos boîtes émettrices.
-	#//// Ce bloc existe pour éviter les refus Stalwart 501 5.5.4 quand du code
-	#//// ancien passe sender=info@<domaine-client> : une adresse que le système
-	#//// ne sait pas servir. Mais quand le sender correspond à un Email Account
-	#//// avec enable_outgoing=1, il a ses propres identifiants SMTP — l'écraser
-	#//// n'évite aucun refus et fait sortir le mail par le relais NeoMail/Brevo,
-	#//// avec ses en-têtes de mailing de masse.
-	#//// Concret : les alertes support partaient de neoservice@neoemail.ch via
-	#//// Brevo et finissaient dans le SPAM d'emailarray — personne ne les a vues
-	#//// (2026-08-13). Elles partent maintenant de la boîte support elle-même,
-	#//// par son SMTP direct, comme les accusés de réception qui, eux, arrivent.
+	# //// Neoffice — respecter un sender qui EST une de nos boîtes émettrices.
+	# //// Ce bloc existe pour éviter les refus Stalwart 501 5.5.4 quand du code
+	# //// ancien passe sender=info@<domaine-client> : une adresse que le système
+	# //// ne sait pas servir. Mais quand le sender correspond à un Email Account
+	# //// avec enable_outgoing=1, il a ses propres identifiants SMTP — l'écraser
+	# //// n'évite aucun refus et fait sortir le mail par le relais NeoMail/Brevo,
+	# //// avec ses en-têtes de mailing de masse.
+	# //// Concret : les alertes support partaient de neoservice@neoemail.ch via
+	# //// Brevo et finissaient dans le SPAM d'emailarray — personne ne les a vues
+	# //// (2026-08-13). Elles partent maintenant de la boîte support elle-même,
+	# //// par son SMTP direct, comme les accusés de réception qui, eux, arrivent.
 	if default_outgoing is None and sender:
 		from frappe.utils import parse_addr as _neo_parse_addr
 
@@ -801,7 +801,7 @@ def sendmail(
 		if db.get_value("Email Account", {"email_id": bare_sender, "enable_outgoing": 1}, "name"):
 			default_outgoing = bare_sender
 			reply_to = None
-	#////
+	# ////
 
 	# Use the default outgoing Email Account (NeoMail)
 	if default_outgoing is None:
@@ -822,14 +822,14 @@ def sendmail(
 	# it `name` shadowed the kwarg and stamped every Email Queue row's
 	# reference_name with the sender display name instead of the document
 	# (fleet-wide traceability loss, found 2026-07-08).
-	#//// Neoffice — guards: on a site with no company yet or no default outgoing
-	#//// Email Account (fresh sites, CI runners), these concatenations made EVERY
-	#//// sendmail die in TypeError. Without an outgoing account, keep the caller's
-	#//// sender instead of forging a broken one.
+	# //// Neoffice — guards: on a site with no company yet or no default outgoing
+	# //// Email Account (fresh sites, CI runners), these concatenations made EVERY
+	# //// sendmail die in TypeError. Without an outgoing account, keep the caller's
+	# //// sender instead of forging a broken one.
 	sender_display = user + (get_user_default("Company") or get_global_default("company") or "")
 	if default_outgoing:
 		sender = sender_display + ' <'+default_outgoing +'>'
-	#////
+	# ////
 
 	if recipients is None:
 		recipients = []
@@ -838,11 +838,11 @@ def sendmail(
 	if bcc is None:
 		bcc = []
 
-	#//// added if
+	# //// added if
 	for recipient in recipients:
 		if 'administrator@neoffice.net' in recipient:
 			recipients.remove(recipient)
-	#////
+	# ////
 
 	text_content = None
 	if template:
@@ -895,15 +895,15 @@ def sendmail(
 	)
 
 	# build email queue and send the email if send_now is True.
-	#//// Neoffice — upstream: `builder.process(send_now=now)`. We force the immediate send so a
-	#//// mail leaves through the NeoMail API without waiting for the queue flush — EXCEPT under
-	#//// test. Sending commits: SendMailContext.__enter__/__exit__ call update_status(...,
-	#//// commit=True), which ends the transaction the running test sits in, so every document
-	#//// created before a sendmail survived that test's rollback and poisoned the next one
-	#//// (hrms suite: DuplicateEntryError "Technical Round", "Basic Training Event"). Under test
-	#//// we fall back to upstream's own default — queue the mail, do not send it — which is what
-	#//// every frappe/erpnext/hrms test is written against (they read `Email Queue`, they never
-	#//// assert a delivery). Production behaviour is unchanged.
+	# //// Neoffice — upstream: `builder.process(send_now=now)`. We force the immediate send so a
+	# //// mail leaves through the NeoMail API without waiting for the queue flush — EXCEPT under
+	# //// test. Sending commits: SendMailContext.__enter__/__exit__ call update_status(...,
+	# //// commit=True), which ends the transaction the running test sits in, so every document
+	# //// created before a sendmail survived that test's rollback and poisoned the next one
+	# //// (hrms suite: DuplicateEntryError "Technical Round", "Basic Training Event"). Under test
+	# //// we fall back to upstream's own default — queue the mail, do not send it — which is what
+	# //// every frappe/erpnext/hrms test is written against (they read `Email Queue`, they never
+	# //// assert a delivery). Production behaviour is unchanged.
 	return builder.process(send_now=not flags.in_test)
 
 whitelisted = []
@@ -971,11 +971,11 @@ def is_whitelisted(method):
 		local.response["status_code"] = 403
 		throw(_("You are not permitted to access this resource."), PermissionError, title=_("Method Not Allowed"))
 
-	#//// if method not in whitelisted or (is_guest and method not in guest_methods):
-		#//// summary = _("You are not permitted to access this resource.")
-		#//// detail = _("Function {0} is not whitelisted.").format(bold(f"{method.__module__}.{method.__name__}"))
-		#//// msg = f"<details><summary>{summary}</summary>{detail}</details>"
-		#//// throw(msg, PermissionError, title=_("Method Not Allowed"))
+	# //// if method not in whitelisted or (is_guest and method not in guest_methods):
+		# //// summary = _("You are not permitted to access this resource.")
+		# //// detail = _("Function {0} is not whitelisted.").format(bold(f"{method.__module__}.{method.__name__}"))
+		# //// msg = f"<details><summary>{summary}</summary>{detail}</details>"
+		# //// throw(msg, PermissionError, title=_("Method Not Allowed"))
 
 	if is_guest and method not in xss_safe_methods:
 		# strictly sanitize form_dict
@@ -1977,15 +1977,15 @@ def copy_doc(doc: "Document", ignore_no_copy: bool = True) -> "Document":
 
 	fields_to_clear = ["name", "owner", "creation", "modified", "modified_by"]
 
-	#//// Neoffice — duplicating an Item must not carry over its identity or
-	#//// opening stock. Read the doctype dict-safely: copy_doc also accepts
-	#//// plain dicts (see isinstance below). NEVER in the test path: the test
-	#//// runner copies every JSON test record through copy_doc, and clearing
-	#//// item_code there made every erpnext Item test record die in
-	#//// "Item Code is required" (same in_test exemption as docstatus below).
+	# //// Neoffice — duplicating an Item must not carry over its identity or
+	# //// opening stock. Read the doctype dict-safely: copy_doc also accepts
+	# //// plain dicts (see isinstance below). NEVER in the test path: the test
+	# //// runner copies every JSON test record through copy_doc, and clearing
+	# //// item_code there made every erpnext Item test record die in
+	# //// "Item Code is required" (same in_test exemption as docstatus below).
 	if not local.flags.in_test and (doc.get("doctype") if isinstance(doc, dict) else doc.doctype) == "Item":
 		fields_to_clear += ["item_code", "item_name", "opening_stock", "published_in_website"]
-	#////
+	# ////
 
 	if not local.flags.in_test:
 		fields_to_clear.append("docstatus")
@@ -2661,7 +2661,7 @@ re.purge()
 
 get_lazy_doc = get_doc
 
-#//// added function
+# //// added function
 def neolog(title=None, message=None, reference_doctype=None, reference_name=None):
 	"""Neoffice debug trace.
 
@@ -2704,4 +2704,4 @@ def neolog(title=None, message=None, reference_doctype=None, reference_name=None
 	)
 	neo_error_log.insert(ignore_permissions=True)
 	db.commit()
-#////
+# ////

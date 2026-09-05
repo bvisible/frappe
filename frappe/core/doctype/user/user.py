@@ -587,11 +587,11 @@ class User(Document):
 				)
 
 		if frappe.db.exists("Notification Settings", old_name):
-			#//// Neoffice — upstream calls rename_doc without ignore_permissions. eef7fe55a7 (2025-11-25
-			#//// "fix: add ignore_permissions when renaming Notification Settings on User rename"):
-			#//// renaming a User also renames its per-user Notification Settings document, and the acting
-			#//// user does not normally hold write permission on that doctype, so the rename aborted
-			#//// half-way and left the two names out of sync.
+			# //// Neoffice — upstream calls rename_doc without ignore_permissions. eef7fe55a7 (2025-11-25
+			# //// "fix: add ignore_permissions when renaming Notification Settings on User rename"):
+			# //// renaming a User also renames its per-user Notification Settings document, and the acting
+			# //// user does not normally hold write permission on that doctype, so the rename aborted
+			# //// half-way and left the two names out of sync.
 			frappe.rename_doc("Notification Settings", old_name, new_name, force=True, show_alert=False, ignore_permissions=True)
 
 		# set email
@@ -1223,15 +1223,15 @@ def create_contact(user, ignore_links=False, ignore_mandatory=False):
 		return
 
 	contact_name = get_contact_name(user.email)
-	#//// Neoffice — upstream CREATES a Contact when the user has none (the whole `if not
-	#//// contact_name:` branch, neutralised here by wrapping it in a ''' string literal) and only
-	#//// UPDATES an existing one in the `else`. Ours never creates: it updates when a Contact
-	#//// already exists and does nothing otherwise. TO REVIEW: 4c842a98fc (2023-10-30 "First
-	#//// change v15", 57 files) and 4390b1bef4 ("Update user.py") both carry an empty message, so
-	#//// the reason is not recorded anywhere — and the disabled branch is kept as a triple-quoted
-	#//// string, i.e. dead code every upstream merge will conflict on. Decide before the v15.120
-	#//// merge: delete it, or restore upstream behaviour behind an explicit switch.
-	#//// commented
+	# //// Neoffice — upstream CREATES a Contact when the user has none (the whole `if not
+	# //// contact_name:` branch, neutralised here by wrapping it in a ''' string literal) and only
+	# //// UPDATES an existing one in the `else`. Ours never creates: it updates when a Contact
+	# //// already exists and does nothing otherwise. TO REVIEW: 4c842a98fc (2023-10-30 "First
+	# //// change v15", 57 files) and 4390b1bef4 ("Update user.py") both carry an empty message, so
+	# //// the reason is not recorded anywhere — and the disabled branch is kept as a triple-quoted
+	# //// string, i.e. dead code every upstream merge will conflict on. Decide before the v15.120
+	# //// merge: delete it, or restore upstream behaviour behind an explicit switch.
+	# //// commented
 	'''if not contact_name:
 		try:
 			contact = frappe.get_doc(
@@ -1258,9 +1258,9 @@ def create_contact(user, ignore_links=False, ignore_mandatory=False):
 			)
 		except frappe.DuplicateEntryError:
 			pass'''
-	#////
+	# ////
  
-	if contact_name: #//// adapted if replacing the else
+	if contact_name: # //// adapted if replacing the else
 		try:
 			contact = frappe.get_doc("Contact", contact_name)
 			contact.first_name = user.first_name

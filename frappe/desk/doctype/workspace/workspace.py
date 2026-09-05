@@ -120,29 +120,29 @@ class Workspace(Document):
 		if disable_saving_as_public():
 			return
 
-		#//// Neoffice — skip the source-folder deletion on the reload path.
-		#//// reload_doc/migrate re-import docs via delete+insert; with upstream's
-		#//// unconditional cleanup below, every forced reload (and any migrate
-		#//// re-importing a modified workspace) deleted the workspace's own
-		#//// source folder on developer_mode sites (osiris lost
-		#//// workspace/activities twice and frappe's tools/build/users the same
-		#//// way, 23-24.08.2026). A real user deletion still cleans the folder
-		#//// exactly as upstream intends.
+		# //// Neoffice — skip the source-folder deletion on the reload path.
+		# //// reload_doc/migrate re-import docs via delete+insert; with upstream's
+		# //// unconditional cleanup below, every forced reload (and any migrate
+		# //// re-importing a modified workspace) deleted the workspace's own
+		# //// source folder on developer_mode sites (osiris lost
+		# //// workspace/activities twice and frappe's tools/build/users the same
+		# //// way, 23-24.08.2026). A real user deletion still cleans the folder
+		# //// exactly as upstream intends.
 		if self.flags.get("for_reload"):
 			return
 
 		if self.module and frappe.conf.developer_mode:
-			#//// Neoffice — say WHO is destroying an app's workspace source.
-			#//// Reaching this line means a workspace shipped as a file by an
-			#//// installed app is about to lose that file. It cannot happen
-			#//// during a migrate/install/patch/test (disable_saving_as_public()
-			#//// above already returns), nor on a customer instance (no
-			#//// developer_mode) — so in practice this is a hand deletion, or a
-			#//// script running outside the migrate context. Fitness lost its
-			#//// source twice that way (24 and 28.08.2026) and both times the
-			#//// culprit had to be reconstructed from timestamps. The trace makes
-			#//// the third time a one-line answer. Diagnostic only: upstream
-			#//// behaviour below is untouched.
+			# //// Neoffice — say WHO is destroying an app's workspace source.
+			# //// Reaching this line means a workspace shipped as a file by an
+			# //// installed app is about to lose that file. It cannot happen
+			# //// during a migrate/install/patch/test (disable_saving_as_public()
+			# //// above already returns), nor on a customer instance (no
+			# //// developer_mode) — so in practice this is a hand deletion, or a
+			# //// script running outside the migrate context. Fitness lost its
+			# //// source twice that way (24 and 28.08.2026) and both times the
+			# //// culprit had to be reconstructed from timestamps. The trace makes
+			# //// the third time a one-line answer. Diagnostic only: upstream
+			# //// behaviour below is untouched.
 			import traceback
 
 			frappe.log_error(

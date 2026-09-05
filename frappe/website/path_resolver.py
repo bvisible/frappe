@@ -34,12 +34,12 @@ class PathResolver:
 		if request.url and can_cache() and frappe.cache.hget("website_404", request.url):
 			return self.path, NotFoundPage(self.path)
 
-		#//// Neoffice per-site maintenance: a Website Profile with maintenance_mode=1
-		#//// serves the branded /site-offline page (503) to visitors on EVERY route of
-		#//// that host — other profiles on the same instance keep serving normally, so
-		#//// one shop can be under maintenance while the main site stays up. Staff
-		#//// (System/Website Manager) keeps seeing the real site: that IS the preview.
-		#//// Placed before redirects/renderers so nothing can leak around it.
+		# //// Neoffice per-site maintenance: a Website Profile with maintenance_mode=1
+		# //// serves the branded /site-offline page (503) to visitors on EVERY route of
+		# //// that host — other profiles on the same instance keep serving normally, so
+		# //// one shop can be under maintenance while the main site stays up. Staff
+		# //// (System/Website Manager) keeps seeing the real site: that IS the preview.
+		# //// Placed before redirects/renderers so nothing can leak around it.
 		profile = getattr(frappe.local, "website_profile_doc", None)
 		if profile is not None and profile.get("maintenance_mode"):
 			first_segment = self.path.split("/", 1)[0]
@@ -138,11 +138,11 @@ def resolve_redirect(path, query_string=None):
 	                                # use r as a string prefix if you use regex groups or want to escape any string literal
 	                ]
 	"""
-	#//// Neoffice website switch: an offline site (Website Profile.website_online=0,
-	#//// the fleet default) serves no public website — its root goes to the desk.
-	#//// Keyed on the key EXISTING in the profile dict so a profiles-map cached by a
-	#//// pre-switch neoffice_theme keeps the historical behavior instead of going
-	#//// dark. Placed before the redirect cache: flipping the switch acts instantly.
+	# //// Neoffice website switch: an offline site (Website Profile.website_online=0,
+	# //// the fleet default) serves no public website — its root goes to the desk.
+	# //// Keyed on the key EXISTING in the profile dict so a profiles-map cached by a
+	# //// pre-switch neoffice_theme keeps the historical behavior instead of going
+	# //// dark. Placed before the redirect cache: flipping the switch acts instantly.
 	profile = getattr(frappe.local, "website_profile_doc", None)
 	if (
 		profile is not None
@@ -161,10 +161,10 @@ def resolve_redirect(path, query_string=None):
 	if not redirects:
 		return
 
-	#//// Neoffice multi-site: a Website Profile that defines its own home page owns
-	#//// its root — app-level "/" redirects (e.g. desk-first apps like suite) must
-	#//// not capture the root of secondary websites. Redirect decisions are also
-	#//// cached per profile so domains sharing one site never reuse each other's.
+	# //// Neoffice multi-site: a Website Profile that defines its own home page owns
+	# //// its root — app-level "/" redirects (e.g. desk-first apps like suite) must
+	# //// not capture the root of secondary websites. Redirect decisions are also
+	# //// cached per profile so domains sharing one site never reuse each other's.
 	profile = getattr(frappe.local, "website_profile_doc", None)
 	skip_root_redirects = bool(profile and profile.get("home_route"))
 	cache_scope = f"{getattr(frappe.local, 'website_profile', None) or 'default'}:"

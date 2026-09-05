@@ -16,17 +16,17 @@ from frappe.modules.export_file import export_to_files
 from frappe.utils import cint, cstr
 from frappe.utils.safe_exec import check_safe_sql_query, safe_exec
 
-#//// Neoffice — added constant, no upstream equivalent: f1494d7d5f (2026-07-25 "fix(report):
-#//// stop the 15s watchdog from silently switching accounting reports to Prepared Report
-#//// mode"). Upstream arms a threading.Timer on every Script Report run and, past 15s, sets
-#//// prepared_report=1 on the Report doc permanently, site-wide, for every user, with nothing
-#//// that resets it — one slow run (cold cache, wide date range, a competing job) is enough,
-#//// and the user then gets an empty screen with a "Generate a New Report" button instead of
-#//// their figures. Observed on osiris (General Ledger, Trial Balance, Account Sheets, Bank
-#//// Reconciliation Statement) and terrettaz-sa (Gross Profit, VAT Report). The full
-#//// rationale, including why disable_prepared_report is NOT usable as the guard, is in the
-#//// `#### Neoffice` block below. Drop this when upstream stops flipping a persistent doc
-#//// field from a timer.
+# //// Neoffice — added constant, no upstream equivalent: f1494d7d5f (2026-07-25 "fix(report):
+# //// stop the 15s watchdog from silently switching accounting reports to Prepared Report
+# //// mode"). Upstream arms a threading.Timer on every Script Report run and, past 15s, sets
+# //// prepared_report=1 on the Report doc permanently, site-wide, for every user, with nothing
+# //// that resets it — one slow run (cold cache, wide date range, a competing job) is enough,
+# //// and the user then gets an empty screen with a "Generate a New Report" button instead of
+# //// their figures. Observed on osiris (General Ledger, Trial Balance, Account Sheets, Bank
+# //// Reconciliation Statement) and terrettaz-sa (Gross Profit, VAT Report). The full
+# //// rationale, including why disable_prepared_report is NOT usable as the guard, is in the
+# //// `#### Neoffice` block below. Drop this when upstream stops flipping a persistent doc
+# //// field from a timer.
 #### Neoffice
 # Reports that must always render inline when opened, never silently switch to
 # "Prepared Report" mode. Upstream arms a 15s watchdog on every Script Report run
@@ -186,10 +186,10 @@ class Report(Document):
 
 		return [columns, result]
 
-	#//// Neoffice — added, no upstream equivalent: the opt-out predicate for the 15s watchdog
-	#//// (f1494d7d5f, 2026-07-25). Reads `auto_prepared_report_exclude` from site_config, falling
-	#//// back to the constant above, and lets a Custom Report inherit its reference report's
-	#//// exclusion. Rationale in the `#### Neoffice` block below.
+	# //// Neoffice — added, no upstream equivalent: the opt-out predicate for the 15s watchdog
+	# //// (f1494d7d5f, 2026-07-25). Reads `auto_prepared_report_exclude` from site_config, falling
+	# //// back to the constant above, and lets a Custom Report inherit its reference report's
+	# //// exclusion. Rationale in the `#### Neoffice` block below.
 	#### Neoffice
 	def is_auto_prepared_report_disabled(self) -> bool:
 		"""True when this report must never be auto-switched to Prepared Report mode."""
@@ -212,8 +212,8 @@ class Report(Document):
 
 		start_time = datetime.datetime.now()
 		prepared_report_watcher = None
-		#//// Neoffice — upstream: `if not self.prepared_report:` alone. f1494d7d5f adds the opt-out
-		#//// test (see the two markers above).
+		# //// Neoffice — upstream: `if not self.prepared_report:` alone. f1494d7d5f adds the opt-out
+		# //// test (see the two markers above).
 		#### Neoffice: honour the auto-switch opt-out (see DEFAULT_AUTO_PREPARED_REPORT_EXCLUDE)
 		if not self.prepared_report and not self.is_auto_prepared_report_disabled():
 			prepared_report_watcher = threading.Timer(

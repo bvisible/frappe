@@ -389,7 +389,7 @@ def get_formatted_html(
 ):
 	email_account = email_account or EmailAccount.find_outgoing(match_by_email=sender)
 
-	#//// added block
+	# //// added block
 	signature = None
 	if "<!-- signature-included -->" not in message:
 		signature = get_signature(email_account)
@@ -400,15 +400,15 @@ def get_formatted_html(
 	logo_url = get_url(logo_path)
 
 	footer_html = get_footer(email_account, footer)
-	#//// Neoffice — hoisted out of the render dict below so the DB wrapper gets it too:
-	#//// the Email Design replaces standard.html entirely, and a `header=` passed to
-	#//// sendmail (every reminder of frappe/erpnext/hrms) was silently dropped.
+	# //// Neoffice — hoisted out of the render dict below so the DB wrapper gets it too:
+	# //// the Email Design replaces standard.html entirely, and a `header=` passed to
+	# //// sendmail (every reminder of frappe/erpnext/hrms) was silently dropped.
 	header_html = get_header(header)
 
-	#//// Neoffice: DB-driven default email wrapper (Email Design doctype, neoffice_theme).
-	#//// The active design (customer copy, else the fixture-shipped standard) replaces the
-	#//// file template; {{ email_content }} is substituted after jinja so user content is
-	#//// never template-evaluated. Any failure falls back to the file template below.
+	# //// Neoffice: DB-driven default email wrapper (Email Design doctype, neoffice_theme).
+	# //// The active design (customer copy, else the fixture-shipped standard) replaces the
+	# //// file template; {{ email_content }} is substituted after jinja so user content is
+	# //// never template-evaluated. Any failure falls back to the file template below.
 	rendered_email = None
 	if "neoffice_theme" in frappe.get_installed_apps():
 		try:
@@ -422,8 +422,8 @@ def get_formatted_html(
 				print_html=print_html,
 				company_name=company_name,
 				site_url=domain,
-				#//// Neoffice — added argument: the wrapper replaces standard.html, which is
-				#//// the only place upstream renders the header.
+				# //// Neoffice — added argument: the wrapper replaces standard.html, which is
+				# //// the only place upstream renders the header.
 				header=header_html,
 			)
 		except Exception:
@@ -433,17 +433,17 @@ def get_formatted_html(
 	if rendered_email is None:
 		rendered_email = frappe.get_template("templates/emails/standard.html").render(
 			{
-				"brand_logo": logo_url, #////get_brand_logo(email_account) if with_container or header else None,
+				"brand_logo": logo_url, # ////get_brand_logo(email_account) if with_container or header else None,
 				"with_container": with_container,
-				"site_url": domain, #////get_url(),
-				"header": header_html, #//// Neoffice — computed above (upstream: get_header(header))
+				"site_url": domain, # ////get_url(),
+				"header": header_html, # //// Neoffice — computed above (upstream: get_header(header))
 				"content": message,
 				"footer": footer_html,
 				"title": subject,
 				"print_html": print_html,
 				"subject": subject,
-				"signature": signature, #//// added
-				"company": company_name, #//// added
+				"signature": signature, # //// added
+				"company": company_name, # //// added
 			}
 		)
 

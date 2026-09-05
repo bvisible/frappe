@@ -707,13 +707,13 @@ class InboundMail(Email):
 		return content
 
 	def is_notification(self):
-		#//// Neoffice — upstream only looks at the non-standard `isnotification` header that Frappe
-		#//// sets on its own outgoing mail, so auto-replies and out-of-office messages from any other
-		#//// system were treated as real inbound mail and threaded onto documents. 6c17f3c478
-		#//// (2026-02-03 "fix: Use RFC 3834 Auto-Submitted header instead of custom Isnotification")
-		#//// checks the standard `Auto-Submitted` header first and keeps the legacy one for mail that
-		#//// is still in flight. Companion: email/email_body.py, which now emits Auto-Submitted and
-		#//// X-Auto-Response-Suppress.
+		# //// Neoffice — upstream only looks at the non-standard `isnotification` header that Frappe
+		# //// sets on its own outgoing mail, so auto-replies and out-of-office messages from any other
+		# //// system were treated as real inbound mail and threaded onto documents. 6c17f3c478
+		# //// (2026-02-03 "fix: Use RFC 3834 Auto-Submitted header instead of custom Isnotification")
+		# //// checks the standard `Auto-Submitted` header first and keeps the legacy one for mail that
+		# //// is still in flight. Companion: email/email_body.py, which now emits Auto-Submitted and
+		# //// X-Auto-Response-Suppress.
 		# RFC 3834: Check Auto-Submitted header (standard)
 		auto_submitted = self.mail.get("Auto-Submitted") or self.mail.get("auto-submitted")
 		if auto_submitted and auto_submitted.lower() != "no":

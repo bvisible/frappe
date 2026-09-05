@@ -111,25 +111,25 @@ def clear_all_sessions(reason=None):
 		delete_session(sid, reason=reason)
 
 
-#//// Neoffice — a session may carry ITS OWN expiry, and three code paths have to
-#//// agree on it.
-#////
-#//// Upstream already stamps `session_expiry` on each session at creation and
-#//// honours it in `get_session_data_from_cache`. But the other two paths — the
-#//// `clear_expired_sessions` scheduler and `get_session_data_from_db` — filter
-#//// on `lastupdate < get_expired_threshold()`, which reads the SITE-WIDE value
-#//// only. A session stamped with a longer expiry is therefore respected while it
-#//// sits in the Redis cache, and deleted the moment the cache is cleared (a
-#//// `bench restart`, a `clear-cache`) or the nightly scheduler runs.
-#////
-#//// Found 2026-08-28: the gym journal's "stay signed in" (30 days, set by
-#//// `neoffice_gym.api.session.remember_me`) survived until the first
-#//// clear-cache. The row said 720:00:00 the whole time — the value was written,
-#//// it just was not read here.
-#////
-#//// This makes both paths read the stamped value, falling back to the site's
-#//// when there is none. Nothing changes for a session without one. Worth
-#//// proposing upstream: the intent is theirs, only two call sites were missed.
+# //// Neoffice — a session may carry ITS OWN expiry, and three code paths have to
+# //// agree on it.
+# ////
+# //// Upstream already stamps `session_expiry` on each session at creation and
+# //// honours it in `get_session_data_from_cache`. But the other two paths — the
+# //// `clear_expired_sessions` scheduler and `get_session_data_from_db` — filter
+# //// on `lastupdate < get_expired_threshold()`, which reads the SITE-WIDE value
+# //// only. A session stamped with a longer expiry is therefore respected while it
+# //// sits in the Redis cache, and deleted the moment the cache is cleared (a
+# //// `bench restart`, a `clear-cache`) or the nightly scheduler runs.
+# ////
+# //// Found 2026-08-28: the gym journal's "stay signed in" (30 days, set by
+# //// `neoffice_gym.api.session.remember_me`) survived until the first
+# //// clear-cache. The row said 720:00:00 the whole time — the value was written,
+# //// it just was not read here.
+# ////
+# //// This makes both paths read the stamped value, falling back to the site's
+# //// when there is none. Nothing changes for a session without one. Worth
+# //// proposing upstream: the intent is theirs, only two call sites were missed.
 def _stamped_expiry_in_seconds(sessiondata):
 	"""The expiry stamped on THIS session, in seconds — or None if it carries none."""
 	try:
@@ -152,11 +152,11 @@ def get_expired_sessions():
 	"""Returns list of expired sessions"""
 
 	sessions = frappe.qb.DocType("Sessions")
-	#//// Neoffice — the site-wide threshold stays as a cheap PRE-filter (it keeps
-	#//// this a single indexed scan), then each candidate is judged on its own
-	#//// stamped expiry. A session stamped SHORTER than the site default outlives
-	#//// its stamp by construction here; upstream has the same behaviour, and no
-	#//// caller sets one.
+	# //// Neoffice — the site-wide threshold stays as a cheap PRE-filter (it keeps
+	# //// this a single indexed scan), then each candidate is judged on its own
+	# //// stamped expiry. A session stamped SHORTER than the site default outlives
+	# //// its stamp by construction here; upstream has the same behaviour, and no
+	# //// caller sets one.
 	rows = (
 		frappe.qb.from_(sessions)
 		.select(sessions.sid, sessions.lastupdate, sessions.sessiondata)
@@ -415,11 +415,11 @@ class Session:
 	def get_session_data_from_db(self):
 		sessions = frappe.qb.DocType("Sessions")
 
-		#//// Neoffice — the row is fetched WITHOUT the site-wide threshold, then
-		#//// judged on the expiry stamped on the session itself (see
-		#//// `has_session_expired`). Upstream filtered in SQL on the global value,
-		#//// so a session granted a longer life was dropped here the first time it
-		#//// was read from the database rather than from the cache.
+		# //// Neoffice — the row is fetched WITHOUT the site-wide threshold, then
+		# //// judged on the expiry stamped on the session itself (see
+		# //// `has_session_expired`). Upstream filtered in SQL on the global value,
+		# //// so a session granted a longer life was dropped here the first time it
+		# //// was read from the database rather than from the cache.
 		record = (
 			frappe.qb.from_(sessions)
 			.select(sessions.user, sessions.sessiondata, sessions.lastupdate)

@@ -287,12 +287,12 @@ def check_node_executable():
 
 
 def get_node_env():
-	#//// Neoffice — upstream returns the NODE_OPTIONS dict directly. 9999364ec6 (2025-10-28
-	#//// "Refonte de l'interface utilisateur avec nouvelle sidebar et apps switcher", 28 files)
-	#//// also forwards FRAPPE_BENCH_ROOT to the node process when it is set: our benches expose
-	#//// apps as symlinks, and esbuild/utils.js could not derive the bench root from the resolved
-	#//// (real) path, so building a symlinked app looked for its assets outside the bench.
-	#//// Inert when the variable is unset, so vanilla benches are unaffected.
+	# //// Neoffice — upstream returns the NODE_OPTIONS dict directly. 9999364ec6 (2025-10-28
+	# //// "Refonte de l'interface utilisateur avec nouvelle sidebar et apps switcher", 28 files)
+	# //// also forwards FRAPPE_BENCH_ROOT to the node process when it is set: our benches expose
+	# //// apps as symlinks, and esbuild/utils.js could not derive the bench root from the resolved
+	# //// (real) path, so building a symlinked app looked for its assets outside the bench.
+	# //// Inert when the variable is unset, so vanilla benches are unaffected.
 	env = {"NODE_OPTIONS": f"--max_old_space_size={get_safe_max_old_space_size()}"}
 	# Support for symlinked apps - get FRAPPE_BENCH_ROOT from environment if set
 	if os.environ.get("FRAPPE_BENCH_ROOT"):

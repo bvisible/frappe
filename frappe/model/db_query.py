@@ -607,10 +607,10 @@ from {tables}
 	def set_optional_columns(self):
 		"""Removes optional columns like `_user_tags`, `_comments` etc. if not in table"""
 		# remove from fields
-		#//// Neoffice — upstream v15 tests `f in fld` (a substring): any field whose name merely CONTAINS
-		#//// an optional column name (`last_seen`, `first_seen`, `nora_seen`) was silently dropped from the
-		#//// SELECT and came back as None (tracker #215). develop already matches whole names only; this
-		#//// backport also keeps the backquoted/qualified forms working. Drop once the fleet is on v16.
+		# //// Neoffice — upstream v15 tests `f in fld` (a substring): any field whose name merely CONTAINS
+		# //// an optional column name (`last_seen`, `first_seen`, `nora_seen`) was silently dropped from the
+		# //// SELECT and came back as None (tracker #215). develop already matches whole names only; this
+		# //// backport also keeps the backquoted/qualified forms working. Drop once the fleet is on v16.
 		def _names_optional_column(fld, f):
 			return re.search(rf"(?:^|[`.\s]){re.escape(f)}(?:$|[`\s])", fld) is not None
 

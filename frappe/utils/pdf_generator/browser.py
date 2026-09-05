@@ -1,23 +1,23 @@
-#//// Neoffice — added file (no upstream equivalent in version-15): backport of the frappe
-#//// develop (v16) Chrome PDF generator. Upstream lineage, cherry-picked with -x: 964dd6c034
-#//// "feat: Chrome PDF generator" (ours c64ffb849d) + d834727728, 510669b64c, 5f99434f52,
-#//// 4f365bfbf5, cb8ac9b14f, 849785b668, fcb40f71c4. Why: wkhtmltopdf (Qt WebKit, unmaintained
-#//// since 2022) ignores display:flex/grid and keep-with-next in the Oslo print formats;
-#//// headless Chromium over CDP renders them (ADR 2026-05-26, Obsidian
-#//// Neoffice/Chrome-PDF-Generator/00-README). Opt-in per Print Format (pdf_generator="chrome").
-#//// Neoffice-only changes on top of upstream (re-apply at the v16 merge):
-#////   515e83888c 2026-05-27 "feat(pdf): shared on-demand Chromium + repeating header/footer":
-#////     open() resolves the DevTools URL via generator.ensure_devtools_url() and retries once
-#////     on ConnectionRefusedError/OSError (the shared systemd Chromium may have restarted);
-#////     update_page_no.js is injected into <head> before it is captured (repeating letterhead
-#////     #header-html / "continued on next page" #footer-html with page numbers); the footer
-#////     paperHeight includes margin_bottom + a 3mm buffer (a fixed-height footer wrapper
-#////     spilled onto blank pages and misaligned the footer/body merge on 3+ page documents);
-#////     clone_and_update() calls split per print_designer vs .wrapper case.
-#////   (baea6650fd + dc4aebe7ed, 2026-05-26, preferCSSPageSize opt-in, cancel each other out.)
-#//// v16 note: upstream keeps browser.py in pdf_generator/ but moved the generic Chromium
-#//// stack to frappe/utils/chromium/ (182e127732, 2026-06-18) — diff against upstream rather
-#//// than treating this file as new.
+# //// Neoffice — added file (no upstream equivalent in version-15): backport of the frappe
+# //// develop (v16) Chrome PDF generator. Upstream lineage, cherry-picked with -x: 964dd6c034
+# //// "feat: Chrome PDF generator" (ours c64ffb849d) + d834727728, 510669b64c, 5f99434f52,
+# //// 4f365bfbf5, cb8ac9b14f, 849785b668, fcb40f71c4. Why: wkhtmltopdf (Qt WebKit, unmaintained
+# //// since 2022) ignores display:flex/grid and keep-with-next in the Oslo print formats;
+# //// headless Chromium over CDP renders them (ADR 2026-05-26, Obsidian
+# //// Neoffice/Chrome-PDF-Generator/00-README). Opt-in per Print Format (pdf_generator="chrome").
+# //// Neoffice-only changes on top of upstream (re-apply at the v16 merge):
+# ////   515e83888c 2026-05-27 "feat(pdf): shared on-demand Chromium + repeating header/footer":
+# ////     open() resolves the DevTools URL via generator.ensure_devtools_url() and retries once
+# ////     on ConnectionRefusedError/OSError (the shared systemd Chromium may have restarted);
+# ////     update_page_no.js is injected into <head> before it is captured (repeating letterhead
+# ////     #header-html / "continued on next page" #footer-html with page numbers); the footer
+# ////     paperHeight includes margin_bottom + a 3mm buffer (a fixed-height footer wrapper
+# ////     spilled onto blank pages and misaligned the footer/body merge on 3+ page documents);
+# ////     clone_and_update() calls split per print_designer vs .wrapper case.
+# ////   (baea6650fd + dc4aebe7ed, 2026-05-26, preferCSSPageSize opt-in, cancel each other out.)
+# //// v16 note: upstream keeps browser.py in pdf_generator/ but moved the generic Chromium
+# //// stack to frappe/utils/chromium/ (182e127732, 2026-06-18) — diff against upstream rather
+# //// than treating this file as new.
 from typing import ClassVar
 
 from bs4 import BeautifulSoup

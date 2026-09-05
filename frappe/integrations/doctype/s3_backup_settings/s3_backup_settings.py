@@ -6,8 +6,8 @@ import os.path
 import boto3
 from botocore.exceptions import ClientError
 from rq.timeouts import JobTimeoutException
-#//// Neoffice — added with the multipart upload (c4d6f4d84f, 2026-07-16). TO REVIEW: dead at
-#//// module level — upload_file_to_s3() re-imports TransferConfig inside the function.
+# //// Neoffice — added with the multipart upload (c4d6f4d84f, 2026-07-16). TO REVIEW: dead at
+# //// module level — upload_file_to_s3() re-imports TransferConfig inside the function.
 from boto3.s3.transfer import TransferConfig
 
 import frappe
@@ -22,9 +22,9 @@ from frappe.model.document import Document
 from frappe.utils import cint
 from frappe.utils.background_jobs import enqueue
 
-#//// Neoffice — imports for the Neoffice additions below: shutil/time for the backup
-#//// relocation and pruning (68d7f3a760, 342e22a3bb), subprocess for the rclone transport in
-#//// upload_file_to_s3().
+# //// Neoffice — imports for the Neoffice additions below: shutil/time for the backup
+# //// relocation and pruning (68d7f3a760, 342e22a3bb), subprocess for the rclone transport in
+# //// upload_file_to_s3().
 import shutil
 import time
 import subprocess
@@ -114,11 +114,11 @@ def take_backups_if(freq):
 			take_backups_s3()
 
 
-#//// Neoffice — upstream: `take_backups_s3(retry_count=0)`. The three flags (68d7f3a760,
-#//// 2025-07-03 "Update s3_backup_settings.py", empty message) mark a backup taken by the
-#//// setup wizard, by hand or for a demo; they are forwarded to backup_to_s3() which renames
-#//// and files it apart from the nightly ones. This endpoint is whitelisted, so the flags are
-#//// caller-supplied strings — see how they are compared further down.
+# //// Neoffice — upstream: `take_backups_s3(retry_count=0)`. The three flags (68d7f3a760,
+# //// 2025-07-03 "Update s3_backup_settings.py", empty message) mark a backup taken by the
+# //// setup wizard, by hand or for a demo; they are forwarded to backup_to_s3() which renames
+# //// and files it apart from the nightly ones. This endpoint is whitelisted, so the flags are
+# //// caller-supplied strings — see how they are compared further down.
 @frappe.whitelist()
 def take_backups_s3(retry_count=0, wizard=False, manual=False, demo=False):
 	try:
@@ -136,29 +136,29 @@ def take_backups_s3(retry_count=0, wizard=False, manual=False, demo=False):
 			)
 		else:
 			notify()
-	#//// Neoffice — upstream: a bare `except Exception:` that calls notify() and loses the
-	#//// traceback. Ours logs it to Error Log first (68d7f3a760), because the notification mail is
-	#//// the only other trace and it does not always reach anyone.
+	# //// Neoffice — upstream: a bare `except Exception:` that calls notify() and loses the
+	# //// traceback. Ours logs it to Error Log first (68d7f3a760), because the notification mail is
+	# //// the only other trace and it does not always reach anyone.
 	except Exception as e:
 		frappe.log_error("Backup failed", f"Error: {str(e)}, Traceback: {frappe.get_traceback()}")
 		notify()
 
 
-#//// Neoffice — upstream: `def notify():` always recomputing frappe.get_traceback(). The
-#//// optional argument (68d7f3a760) lets a caller pass the message it already has.
+# //// Neoffice — upstream: `def notify():` always recomputing frappe.get_traceback(). The
+# //// optional argument (68d7f3a760) lets a caller pass the message it already has.
 def notify(error_message=None):
 	if not error_message:
 		error_message = frappe.get_traceback()
 	send_email(False, "Amazon S3", "S3 Backup Settings", "notify_email", error_message)
 
 
-#//// Neoffice — added helpers, no upstream equivalent: get_file_or_folder_age / remove_file /
-#//// delete_backups (342e22a3bb, 2025-06-26 "feat(s3_backup): add backup file cleanup
-#//// functionality"), called at the end of backup_to_s3(). They prune backups older than 3
-#//// days from /mnt/neoffice/private/backups so the data volume does not fill up between
-#//// nightly runs. TO REVIEW: the path and the retention are hard-coded here rather than read
-#//// from S3 Backup Settings. The signature change on backup_to_s3() just below
-#//// (wizard/manual/demo/force_no_files) is 68d7f3a760.
+# //// Neoffice — added helpers, no upstream equivalent: get_file_or_folder_age / remove_file /
+# //// delete_backups (342e22a3bb, 2025-06-26 "feat(s3_backup): add backup file cleanup
+# //// functionality"), called at the end of backup_to_s3(). They prune backups older than 3
+# //// days from /mnt/neoffice/private/backups so the data volume does not fill up between
+# //// nightly runs. TO REVIEW: the path and the retention are hard-coded here rather than read
+# //// from S3 Backup Settings. The signature change on backup_to_s3() just below
+# //// (wizard/manual/demo/force_no_files) is 68d7f3a760.
 def get_file_or_folder_age(path):
 	"""
 	Get the age of a file or folder in seconds since epoch
@@ -218,14 +218,14 @@ def backup_to_s3(wizard=False, manual=False, demo=False, force_no_files=False):
 
 	doc = frappe.get_single("S3 Backup Settings")
 	bucket = doc.bucket
-	#//// Neoffice — upstream: `backup_files = cint(doc.backup_files)`. The force_no_files
-	#//// parameter added to backup_to_s3() lets a caller take a database-only backup (68d7f3a760).
+	# //// Neoffice — upstream: `backup_files = cint(doc.backup_files)`. The force_no_files
+	# //// parameter added to backup_to_s3() lets a caller take a database-only backup (68d7f3a760).
 	backup_files = cint(doc.backup_files) if not force_no_files else 0
 
-	#//// Neoffice — added boto3 client options use_ssl / verify (68d7f3a760). TO REVIEW: both are
-	#//// already the boto3 defaults, and the comment blames "aws-chunked", which these two flags
-	#//// do not control — the real fix for oversized uploads is the TransferConfig in
-	#//// upload_file_to_s3() below.
+	# //// Neoffice — added boto3 client options use_ssl / verify (68d7f3a760). TO REVIEW: both are
+	# //// already the boto3 defaults, and the comment blames "aws-chunked", which these two flags
+	# //// do not control — the real fix for oversized uploads is the TransferConfig in
+	# //// upload_file_to_s3() below.
 	# Minimal configuration without options that could cause aws-chunked
 	conn = boto3.client(
 		"s3",
@@ -236,18 +236,18 @@ def backup_to_s3(wizard=False, manual=False, demo=False, force_no_files=False):
 		verify=True
 	)
 
-	#//// Neoffice — added (68d7f3a760): files_filename / private_files are pre-set to None because
-	#//// the new error paths below can leave them unassigned, where upstream's straight-line flow
-	#//// always binds them.
+	# //// Neoffice — added (68d7f3a760): files_filename / private_files are pre-set to None because
+	# //// the new error paths below can leave them unassigned, where upstream's straight-line flow
+	# //// always binds them.
 	# Initialize variables
 	files_filename = None
 	private_files = None
 	
 	if frappe.flags.create_new_backup:
-		#//// Neoffice ▼▼▼ — upstream calls new_backup(ignore_files=False, ...) bare. 68d7f3a760 wraps
-		#//// it: if the files tarball blows up, log and retry with ignore_files=True so the database
-		#//// backup still reaches S3 instead of the whole job dying. ▲▲▲ ends at the `else:` of this
-		#//// try/except.
+		# //// Neoffice ▼▼▼ — upstream calls new_backup(ignore_files=False, ...) bare. 68d7f3a760 wraps
+		# //// it: if the files tarball blows up, log and retry with ignore_files=True so the database
+		# //// backup still reaches S3 instead of the whole job dying. ▲▲▲ ends at the `else:` of this
+		# //// try/except.
 		try:
 			backup = new_backup(
 				ignore_files=False,
@@ -286,9 +286,9 @@ def backup_to_s3(wizard=False, manual=False, demo=False, force_no_files=False):
 			)
 
 			if not files_filename or not private_files:
-				#//// Neoffice — added fallback (68d7f3a760): upstream lets a failure in generate_files_backup()
-				#//// abort the whole run. Ours logs it and continues with the database only, so a broken files
-				#//// tarball never costs the DB backup. TO REVIEW: the run is still reported as a success.
+				# //// Neoffice — added fallback (68d7f3a760): upstream lets a failure in generate_files_backup()
+				# //// abort the whole run. Ours logs it and continues with the database only, so a broken files
+				# //// tarball never costs the DB backup. TO REVIEW: the run is still reported as a success.
 				try:
 					generate_files_backup()
 					db_filename, site_config, files_filename, private_files = get_latest_backup_file(
@@ -305,12 +305,12 @@ def backup_to_s3(wizard=False, manual=False, demo=False, force_no_files=False):
 		else:
 			db_filename, site_config = get_latest_backup_file()
 
-	#//// Neoffice — added (68d7f3a760): upstream goes straight from get_latest_backup_file() to
-	#//// building the folder name and uploading, so a missing dump surfaced as an obscure
-	#//// exception inside boto3. Also note the line below: upstream prefixes the folder with
-	#//// `path` (S3 Backup Settings.backup_path); ours drops it — the per-site prefix now comes
-	#//// from upload_file_to_s3() instead. The `path = doc.backup_path or ""` read was removed
-	#//// with it, so that field is no longer honoured.
+	# //// Neoffice — added (68d7f3a760): upstream goes straight from get_latest_backup_file() to
+	# //// building the folder name and uploading, so a missing dump surfaced as an obscure
+	# //// exception inside boto3. Also note the line below: upstream prefixes the folder with
+	# //// `path` (S3 Backup Settings.backup_path); ours drops it — the per-site prefix now comes
+	# //// from upload_file_to_s3() instead. The `path = doc.backup_path or ""` read was removed
+	# //// with it, so that field is no longer honoured.
 	# Check that base files exist
 	if not os.path.exists(db_filename):
 		error_msg = f"Database backup file not found: {db_filename}"
@@ -325,14 +325,14 @@ def backup_to_s3(wizard=False, manual=False, demo=False, force_no_files=False):
 	folder = os.path.basename(db_filename)[:15] + "/"
 	# for adding datetime to folder name
 
-	#//// Neoffice — added block, no upstream equivalent (68d7f3a760, 2025-07-03 "Update
-	#//// s3_backup_settings.py", empty message): a backup taken by the setup wizard, by hand or
-	#//// for a demo is renamed with a _wizard/_manual/_demo suffix and moved under
-	#//// /mnt/neoffice/private/<kind>_backup/ so it is not swept by delete_backups() with the
-	#//// nightly ones. Reached through the wizard/manual/demo flags added to take_backups_s3().
-	#//// TO REVIEW: hard-coded /mnt/neoffice paths (the Neoffice data volume — see the
-	#//// matching allowance in utils/file_manager.py), and the flags are compared against both 1
-	#//// and "1" because they arrive from an HTTP call as strings.
+	# //// Neoffice — added block, no upstream equivalent (68d7f3a760, 2025-07-03 "Update
+	# //// s3_backup_settings.py", empty message): a backup taken by the setup wizard, by hand or
+	# //// for a demo is renamed with a _wizard/_manual/_demo suffix and moved under
+	# //// /mnt/neoffice/private/<kind>_backup/ so it is not swept by delete_backups() with the
+	# //// nightly ones. Reached through the wizard/manual/demo flags added to take_backups_s3().
+	# //// TO REVIEW: hard-coded /mnt/neoffice paths (the Neoffice data volume — see the
+	# //// matching allowance in utils/file_manager.py), and the flags are compared against both 1
+	# //// and "1" because they arrive from an HTTP call as strings.
 	# Handle wizard/manual/demo backups
 	base_file_path = os.path.join(get_backups_path(), os.path.basename(db_filename)[:15])
 	if wizard == 1 or wizard == '1':
@@ -409,37 +409,37 @@ def backup_to_s3(wizard=False, manual=False, demo=False, force_no_files=False):
 	upload_file_to_s3(site_config, folder, conn, bucket)
 
 	if backup_files:
-		#//// Neoffice — upstream tests only `if private_files:` / `if files_filename:`. The existence
-		#//// check was added with the wizard/manual/demo relocation above (68d7f3a760), which can set
-		#//// either name to None when the moved tarball is missing.
+		# //// Neoffice — upstream tests only `if private_files:` / `if files_filename:`. The existence
+		# //// check was added with the wizard/manual/demo relocation above (68d7f3a760), which can set
+		# //// either name to None when the moved tarball is missing.
 		if private_files and os.path.exists(private_files):
 			upload_file_to_s3(private_files, folder, conn, bucket)
 
 		if files_filename and os.path.exists(files_filename):
 			upload_file_to_s3(files_filename, folder, conn, bucket)
 
-	#//// Neoffice — added call (342e22a3bb, 2025-06-26 "feat(s3_backup): add backup file cleanup
-	#//// functionality"): prune local backups older than 3 days once they are on S3. Upstream
-	#//// leaves local retention to bench.
+	# //// Neoffice — added call (342e22a3bb, 2025-06-26 "feat(s3_backup): add backup file cleanup
+	# //// functionality"): prune local backups older than 3 days once they are on S3. Upstream
+	# //// leaves local retention to bench.
 	delete_backups()
 
 
 def upload_file_to_s3(filename, folder, conn, bucket):
-	#//// Neoffice ▼▼▼ — upload_file_to_s3() is entirely ours; upstream is three lines
-	#//// (`destpath = os.path.join(...)`, a print, `conn.upload_file(...)`). Ours prefixes the key
-	#//// with "<domain> - <default company>/" so one bucket holds the whole fleet, then tries
-	#//// three transports in order: rclone if the binary exists, a plain signed PUT for files
-	#//// under 50 MB, and finally boto3 upload_file with a TransferConfig that switches to
-	#//// multipart above 100 MB and streams from disk (c4d6f4d84f, 2026-07-16 "fix(s3-backup):
-	#//// restore boto3 multipart upload, drop the silent >1GB skip" — the reverted 6af70ff99f /
-	#//// b3990939fd pair had brought back a `if file_size_gb > 1: return` that dropped any tarball
-	#//// over 1 GB while still reporting the backup as done; it had already cost blowbackshop both
-	#//// files.tar and private-files.tar, and neoservice its files.tar). The rest is 68d7f3a760
-	#//// (2025-07-03 "Update s3_backup_settings.py", empty message).
-	#//// TO REVIEW at the merge: every failure path here calls frappe.log_error and RETURNS, so a
-	#//// completely failed upload still lets take_backups_s3() send the "backup succeeded" mail;
-	#//// the rclone branch writes the S3 secret to a temp file; and this file also lost its final
-	#//// newline in the same pass. ▲▲▲ block runs to the end of the file.
+	# //// Neoffice ▼▼▼ — upload_file_to_s3() is entirely ours; upstream is three lines
+	# //// (`destpath = os.path.join(...)`, a print, `conn.upload_file(...)`). Ours prefixes the key
+	# //// with "<domain> - <default company>/" so one bucket holds the whole fleet, then tries
+	# //// three transports in order: rclone if the binary exists, a plain signed PUT for files
+	# //// under 50 MB, and finally boto3 upload_file with a TransferConfig that switches to
+	# //// multipart above 100 MB and streams from disk (c4d6f4d84f, 2026-07-16 "fix(s3-backup):
+	# //// restore boto3 multipart upload, drop the silent >1GB skip" — the reverted 6af70ff99f /
+	# //// b3990939fd pair had brought back a `if file_size_gb > 1: return` that dropped any tarball
+	# //// over 1 GB while still reporting the backup as done; it had already cost blowbackshop both
+	# //// files.tar and private-files.tar, and neoservice its files.tar). The rest is 68d7f3a760
+	# //// (2025-07-03 "Update s3_backup_settings.py", empty message).
+	# //// TO REVIEW at the merge: every failure path here calls frappe.log_error and RETURNS, so a
+	# //// completely failed upload still lets take_backups_s3() send the "backup succeeded" mail;
+	# //// the rclone branch writes the S3 secret to a temp file; and this file also lost its final
+	# //// newline in the same pass. ▲▲▲ block runs to the end of the file.
 	# Get url instance and add domain and change destpath
 	domain = frappe.utils.get_url()
 	company_folder = domain.replace('https://', '') + " - " + frappe.db.get_single_value('Global Defaults', 'default_company')

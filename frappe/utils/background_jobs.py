@@ -262,12 +262,12 @@ def execute_job(site, method, event, job_name, kwargs, user=None, is_async=True,
 			frappe.connect()
 		for after_job_task in frappe.get_hooks("after_job"):
 			frappe.call(after_job_task, method=method_name, kwargs=kwargs, result=retval)
-		#//// Neoffice — when the job died hard enough that frappe.local was torn
-		#//// down, the re-init above rebuilt a local WITHOUT .job: this line then
-		#//// raised AttributeError('job') inside finally, REPLACING the real
-		#//// exception in every worker.error.log (fleet signature #91). The
-		#//// callbacks belonged to the destroyed local anyway — skip them and let
-		#//// the original error surface.
+		# //// Neoffice — when the job died hard enough that frappe.local was torn
+		# //// down, the re-init above rebuilt a local WITHOUT .job: this line then
+		# //// raised AttributeError('job') inside finally, REPLACING the real
+		# //// exception in every worker.error.log (fleet signature #91). The
+		# //// callbacks belonged to the destroyed local anyway — skip them and let
+		# //// the original error surface.
 		job = getattr(frappe.local, "job", None)
 		if job is not None:
 			job.after_job.run()

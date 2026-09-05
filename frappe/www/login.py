@@ -28,12 +28,12 @@ def get_context(context):
 	redirect_to = frappe.local.request.args.get("redirect-to")
 	redirect_to = sanitize_redirect(redirect_to)
 
-	#//// Neoffice — ?relogin=1: the escape hatch for « signed in but not
-	#//// permitted » (see NotPermittedPage). /login normally bounces a live
-	#//// session away, which trapped Website Users on desk 403s in a loop.
-	#//// An explicit relogin logs the current session out and falls through
-	#//// to the form. The commit is required: a GET request rolls back at
-	#//// the end, and the deleted session would silently come back.
+	# //// Neoffice — ?relogin=1: the escape hatch for « signed in but not
+	# //// permitted » (see NotPermittedPage). /login normally bounces a live
+	# //// session away, which trapped Website Users on desk 403s in a loop.
+	# //// An explicit relogin logs the current session out and falls through
+	# //// to the form. The commit is required: a GET request rolls back at
+	# //// the end, and the deleted session would silently come back.
 	if frappe.session.user != "Guest" and frappe.local.request.args.get("relogin"):
 		frappe.local.login_manager.logout()
 		frappe.db.commit()

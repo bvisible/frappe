@@ -11,11 +11,11 @@ from urllib.parse import parse_qs, urlparse
 import cssutils
 import pdfkit
 
-#//// Neoffice — added by the Chrome-PDF backport (c64ffb849d, cherry-picked from frappe
-#//// develop 964dd6c034). Upstream version-15 does NOT have this line (checked at v15.120.0);
-#//// develop does, at the same place. It patches a pdfkit module attribute that a
-#//// PYTHONOPTIMIZE=1 build strips — the note is upstream develop's own wording. Keep until
-#//// the fleet merges v16, where it arrives from upstream.
+# //// Neoffice — added by the Chrome-PDF backport (c64ffb849d, cherry-picked from frappe
+# //// develop 964dd6c034). Upstream version-15 does NOT have this line (checked at v15.120.0);
+# //// develop does, at the same place. It patches a pdfkit module attribute that a
+# //// PYTHONOPTIMIZE=1 build strips — the note is upstream develop's own wording. Keep until
+# //// the fleet merges v16, where it arrives from upstream.
 pdfkit.source.unicode = str  # NOTE: upstream bug; PYTHONOPTIMIZE=1 optimized this away
 from bs4 import BeautifulSoup
 from packaging.version import Version
@@ -26,8 +26,8 @@ from frappe import _
 from frappe.core.doctype.file.utils import find_file_by_url
 from frappe.utils import cstr, scrub_urls
 from frappe.utils.caching import redis_cache
-#//// Neoffice — added with get_host_url() at the end of this file (7382ae6ee5, cherry-picked
-#//// from develop cb8ac9b14f).
+# //// Neoffice — added with get_host_url() at the end of this file (7382ae6ee5, cherry-picked
+# //// from develop cb8ac9b14f).
 from frappe.utils.data import get_url
 from frappe.utils.jinja_globals import bundled_asset, is_rtl
 
@@ -137,14 +137,14 @@ def get_pdf(html, options=None, output: PdfWriter | None = None):
 	return filedata
 
 
-#//// Neoffice ▼▼▼ — added by the Chrome-PDF backport: c64ffb849d, cherry-picked from frappe
-#//// develop 964dd6c034 (2025-09-25 "feat: Chrome PDF generator"); the inner imports come from
-#//// 6bbb9586b9 (develop 5f99434f52). get_chrome_pdf() is the entry point of the CDP-based
-#//// generator (utils/pdf_generator/*, covered by the pilot lot); it returns None unless the
-#//// print format asks for pdf_generator="chrome", so wkhtmltopdf stays the default.
-#//// Absent from upstream version-15 (v15.120.0) — this is a v16 feature pulled forward.
-#//// TO REVIEW: measure_time() prints its timing to stdout on EVERY chrome PDF render; it is
-#//// develop's code, kept verbatim so a v16 merge is a no-op. ▲▲▲ ends at get_chrome_pdf().
+# //// Neoffice ▼▼▼ — added by the Chrome-PDF backport: c64ffb849d, cherry-picked from frappe
+# //// develop 964dd6c034 (2025-09-25 "feat: Chrome PDF generator"); the inner imports come from
+# //// 6bbb9586b9 (develop 5f99434f52). get_chrome_pdf() is the entry point of the CDP-based
+# //// generator (utils/pdf_generator/*, covered by the pilot lot); it returns None unless the
+# //// print format asks for pdf_generator="chrome", so wkhtmltopdf stays the default.
+# //// Absent from upstream version-15 (v15.120.0) — this is a v16 feature pulled forward.
+# //// TO REVIEW: measure_time() prints its timing to stdout on EVERY chrome PDF render; it is
+# //// develop's code, kept verbatim so a v16 merge is a no-op. ▲▲▲ ends at get_chrome_pdf().
 def measure_time(func):
 	import time
 
@@ -205,20 +205,20 @@ def prepare_options(html, options):
 	)
 
 	if not options.get("margin-right"):
-		#//// Neoffice — upstream defaults the left/right page margins to 15mm (its line is kept
-		#//// commented below). Ours defaults them to 0mm (e63ea0b9dc, 2025-03-15 "Fix margin PDF", 2
-		#//// files, with templates/print_formats/standard.html): the Oslo print formats set their own
-		#//// horizontal margins in CSS, so wkhtmltopdf's were added on top. See the crossed-assignment
-		#//// warning on the next block.
-		#//// options["margin-right"] = "15mm"
+		# //// Neoffice — upstream defaults the left/right page margins to 15mm (its line is kept
+		# //// commented below). Ours defaults them to 0mm (e63ea0b9dc, 2025-03-15 "Fix margin PDF", 2
+		# //// files, with templates/print_formats/standard.html): the Oslo print formats set their own
+		# //// horizontal margins in CSS, so wkhtmltopdf's were added on top. See the crossed-assignment
+		# //// warning on the next block.
+		# //// options["margin-right"] = "15mm"
 		options["margin-right"] = "0mm"
 
 	if not options.get("margin-left"):
-		#//// Neoffice — same override as margin-right just above (e63ea0b9dc). Until 2026-09-03 the two
-		#//// blocks were crossed (the margin-right test set margin-left and vice versa): harmless only
-		#//// when both were unset, wrong as soon as a print format set one of them. Fixed with the
-		#//// marking campaign (tracker #205); upstream's 15mm default is kept commented below.
-		#//// options["margin-left"] = "15mm"
+		# //// Neoffice — same override as margin-right just above (e63ea0b9dc). Until 2026-09-03 the two
+		# //// blocks were crossed (the margin-right test set margin-left and vice versa): harmless only
+		# //// when both were unset, wrong as soon as a print format set one of them. Fixed with the
+		# //// marking campaign (tracker #205); upstream's 15mm default is kept commented below.
+		# //// options["margin-left"] = "15mm"
 		options["margin-left"] = "0mm"
 
 	html, html_options = read_options_from_html(html)
@@ -395,20 +395,20 @@ def prepare_header_footer(soup: BeautifulSoup):
 			options[html_id] = fname
 		else:
 			if html_id == "header-html":
-				#//// Neoffice — upstream reserves 15mm at the top/bottom of the page when a print format has
-				#//// no header/footer HTML (its lines are kept commented below). Ours reserves 0mm
-				#//// (d84cbaedbd, 2025-04-04 "update", 4 files): Neoffice print formats — the Oslo skin —
-				#//// draw their own margins inside the document, so wkhtmltopdf's reservation was added on
-				#//// top and pushed the content down. TO REVIEW: the commit is titled "update" with no body,
-				#//// so the reason above is read from the code and from the matching change in
-				#//// prepare_options(); this makes every print format on the site responsible for its own
-				#//// margins.
-				#//// options["margin-top"] = "15mm"
+				# //// Neoffice — upstream reserves 15mm at the top/bottom of the page when a print format has
+				# //// no header/footer HTML (its lines are kept commented below). Ours reserves 0mm
+				# //// (d84cbaedbd, 2025-04-04 "update", 4 files): Neoffice print formats — the Oslo skin —
+				# //// draw their own margins inside the document, so wkhtmltopdf's reservation was added on
+				# //// top and pushed the content down. TO REVIEW: the commit is titled "update" with no body,
+				# //// so the reason above is read from the code and from the matching change in
+				# //// prepare_options(); this makes every print format on the site responsible for its own
+				# //// margins.
+				# //// options["margin-top"] = "15mm"
 				options["margin-top"] = "0mm"
 			elif html_id == "footer-html":
-				#//// Neoffice — same override as margin-top just above: upstream 15mm, ours 0mm (d84cbaedbd,
-				#//// 2025-04-04 "update", empty message).
-				#//// options["margin-bottom"] = "15mm"
+				# //// Neoffice — same override as margin-top just above: upstream 15mm, ours 0mm (d84cbaedbd,
+				# //// 2025-04-04 "update", empty message).
+				# //// options["margin-bottom"] = "15mm"
 				options["margin-bottom"] = "0mm"
 
 	return options
@@ -495,12 +495,12 @@ def pdf_contains_js(file_content: bytes):
 	return False
 
 
-#//// Neoffice — added by the Chrome-PDF backport: 7382ae6ee5, cherry-picked from frappe
-#//// develop cb8ac9b14f (2025-11-08 "fix: Get host URL when printing outside of request").
-#//// Used by utils/pdf_generator/*: rendering a PDF from a background job has no
-#//// frappe.request, so host_url had to come from get_url() instead. Absent from upstream
-#//// version-15 (v15.120.0). The `from frappe.utils.data import get_url` import at the top of
-#//// this file comes with it.
+# //// Neoffice — added by the Chrome-PDF backport: 7382ae6ee5, cherry-picked from frappe
+# //// develop cb8ac9b14f (2025-11-08 "fix: Get host URL when printing outside of request").
+# //// Used by utils/pdf_generator/*: rendering a PDF from a background job has no
+# //// frappe.request, so host_url had to come from get_url() instead. Absent from upstream
+# //// version-15 (v15.120.0). The `from frappe.utils.data import get_url` import at the top of
+# //// this file comes with it.
 def get_host_url():
 	if frappe.request:
 		return frappe.request.host_url

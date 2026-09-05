@@ -105,12 +105,12 @@ def generate_report(prepared_report):
 
 	add_data_to_monitor(report=instance.report_name)
 
-	#//// Neoffice — upstream generates the report in whatever language the worker happens to be
-	#//// in (no user language context, so the site default). 5e65603119 (2026-07-25 "fix(report):
-	#//// keep background reports in the user's language, drop the technical toast") pins
-	#//// frappe.local.lang to the queuing user's language, because report scripts translate their
-	#//// column labels with _() at generation time and the result file freezes them. Details in
-	#//// the `#### Neoffice` block below; this line makes it visible to `grep -rn "////"`.
+	# //// Neoffice — upstream generates the report in whatever language the worker happens to be
+	# //// in (no user language context, so the site default). 5e65603119 (2026-07-25 "fix(report):
+	# //// keep background reports in the user's language, drop the technical toast") pins
+	# //// frappe.local.lang to the queuing user's language, because report scripts translate their
+	# //// column labels with _() at generation time and the result file freezes them. Details in
+	# //// the `#### Neoffice` block below; this line makes it visible to `grep -rn "////"`.
 	#### Neoffice
 	# Report scripts translate their column labels with _() at generation time, so
 	# whatever language the worker happens to be in gets frozen into the stored
@@ -215,15 +215,15 @@ def get_reports_in_queued_state(report_name, filters):
 	)
 
 
-#//// Neoffice — added, no upstream equivalent (checked against develop/v16 at the time):
-#//// ba2a0e8695 (2026-07-25 "fix(report): background reports display themselves instead of
-#//// dead-ending on a button"). Upstream only ever renders a prepared report when the
-#//// `report_generated` realtime event lands — a dead socket, a busy worker or navigating away
-#//// and back means it is never shown — and reading it back needs the "Prepared Report User"
-#//// or "System Manager" role, which accounting users do not have. This endpoint lets the
-#//// client poll the job it queued itself. Reason and scope are spelled out in the
-#//// `#### Neoffice` block below; this line exists so `grep -rn "////"` maps the divergence.
-#//// Companion: public/js/frappe/views/reports/query_report.js.
+# //// Neoffice — added, no upstream equivalent (checked against develop/v16 at the time):
+# //// ba2a0e8695 (2026-07-25 "fix(report): background reports display themselves instead of
+# //// dead-ending on a button"). Upstream only ever renders a prepared report when the
+# //// `report_generated` realtime event lands — a dead socket, a busy worker or navigating away
+# //// and back means it is never shown — and reading it back needs the "Prepared Report User"
+# //// or "System Manager" role, which accounting users do not have. This endpoint lets the
+# //// client poll the job it queued itself. Reason and scope are spelled out in the
+# //// `#### Neoffice` block below; this line exists so `grep -rn "////"` maps the divergence.
+# //// Companion: public/js/frappe/views/reports/query_report.js.
 #### Neoffice
 @frappe.whitelist()
 def get_prepared_report_status(docname: str) -> dict:

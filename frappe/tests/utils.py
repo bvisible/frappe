@@ -393,11 +393,11 @@ def check_orpahned_doctypes():
 		)
 
 
-#//// Neoffice — v16 helper backported (frappe develop, frappe/tests/utils/__init__.py). Fleet forks
-#//// written against v16 import it at module level (suite: meet/api/test_helpers.py, drive/e2e_api.py)
-#//// and neither our v15.89 fork nor upstream v15 ship it, so `bench run-tests --app suite` died at
-#//// collection and the drive e2e endpoints could not even be imported. Same semantics as upstream:
-#//// the endpoint answers only in test mode or on a dev server with allow_tests. Drop at v16.
+# //// Neoffice — v16 helper backported (frappe develop, frappe/tests/utils/__init__.py). Fleet forks
+# //// written against v16 import it at module level (suite: meet/api/test_helpers.py, drive/e2e_api.py)
+# //// and neither our v15.89 fork nor upstream v15 ship it, so `bench run-tests --app suite` died at
+# //// collection and the drive e2e endpoints could not even be imported. Same semantics as upstream:
+# //// the endpoint answers only in test mode or on a dev server with allow_tests. Drop at v16.
 def whitelist_for_tests(**whitelist_kwargs):
 	"""Decorator to whitelist test endpoints.
 

@@ -1,14 +1,14 @@
-#//// Neoffice — added file: 13ee6ad869 (2026-07-06 "feat(types): backport frappe.types.filter
-#//// from develop"), to provide FilterTuple / FilterSignature to the version-15 fork of the
-#//// `suite` app. It is byte-identical to frappe develop at 83d265a379 (2026-03-21). Nothing
-#//// in frappe itself imports it, so it is inert without suite installed.
-#//// 🔴 TO REVIEW BEFORE THE UPSTREAM MERGE — this file must be REPLACED by upstream's, not
-#//// kept: upstream version-15 shipped its own backport in v15.103.3 (after our base
-#//// v15.89.0), deliberately made Python 3.10-compatible (c2cf937a3a, 555ee22526, 8111a4d631
-#//// "make types/filter.py compatible with Python 3.10", 46962b696f). Our develop copy uses
-#//// PEP 695 syntax that only parses on Python 3.12+ — `def is_unspecified[T](...)`,
-#//// `type FilterSignature = ...`, `typing.Self`, `typing.override` — so on a 3.10/3.11 bench
-#//// importing this module is a SyntaxError. Expect an add/add conflict here: take upstream.
+# //// Neoffice — added file: 13ee6ad869 (2026-07-06 "feat(types): backport frappe.types.filter
+# //// from develop"), to provide FilterTuple / FilterSignature to the version-15 fork of the
+# //// `suite` app. It is byte-identical to frappe develop at 83d265a379 (2026-03-21). Nothing
+# //// in frappe itself imports it, so it is inert without suite installed.
+# //// 🔴 TO REVIEW BEFORE THE UPSTREAM MERGE — this file must be REPLACED by upstream's, not
+# //// kept: upstream version-15 shipped its own backport in v15.103.3 (after our base
+# //// v15.89.0), deliberately made Python 3.10-compatible (c2cf937a3a, 555ee22526, 8111a4d631
+# //// "make types/filter.py compatible with Python 3.10", 46962b696f). Our develop copy uses
+# //// PEP 695 syntax that only parses on Python 3.12+ — `def is_unspecified[T](...)`,
+# //// `type FilterSignature = ...`, `typing.Self`, `typing.override` — so on a 3.10/3.11 bench
+# //// importing this module is a SyntaxError. Expect an add/add conflict here: take upstream.
 import json
 import textwrap
 from collections import defaultdict

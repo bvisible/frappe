@@ -55,9 +55,9 @@ class BaseTemplatePage(BaseRenderer):
 
 		# to be able to inspect the context dict
 		# Use the macro "inspect" from macros.html
-		#//// Neoffice multi-site: canonical follows the resolved Website Profile's
-		#//// domain and the requested path (a per-profile home canonicalizes to "/",
-		#//// not to its internal route).
+		# //// Neoffice multi-site: canonical follows the resolved Website Profile's
+		# //// domain and the requested path (a per-profile home canonicalizes to "/",
+		# //// not to its internal route).
 		profile = getattr(frappe.local, "website_profile_doc", None)
 		if profile and profile.get("primary_domain"):
 			request = getattr(frappe.local, "request", None)

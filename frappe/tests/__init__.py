@@ -17,17 +17,17 @@ def get_system_setting(key):
 global_test_dependencies = ["User"]
 
 
-#//// Neoffice — v16 test base-class names, resolved to our v15 FrappeTestCase.
-#//// Fleet forks and apps written against frappe v16 docs do
-#//// `from frappe.tests import IntegrationTestCase` (telephony, Letters) or
-#//// `from frappe.tests import UnitTestCase` (crm, builder, helpdesk, lms) and died at
-#//// test collection ("cannot import name ..."). Upstream v15 — measured on 15.120 by
-#//// the weekly upstream-preview CI, 2026-09-03 — does NOT export them either: they are
-#//// v16 names. So this shim is not a forward-compat stopgap to drop at the v15 upgrade:
-#//// it stays for the whole v15 line and goes only when the fleet runs v16, where both
-#//// classes exist natively (UnitTestCase there is a lighter, DB-less base; mapping it to
-#//// the integration base is a superset, fine for collection and execution). Lazy, so no
-#//// import-time cycle with frappe.tests.utils.
+# //// Neoffice — v16 test base-class names, resolved to our v15 FrappeTestCase.
+# //// Fleet forks and apps written against frappe v16 docs do
+# //// `from frappe.tests import IntegrationTestCase` (telephony, Letters) or
+# //// `from frappe.tests import UnitTestCase` (crm, builder, helpdesk, lms) and died at
+# //// test collection ("cannot import name ..."). Upstream v15 — measured on 15.120 by
+# //// the weekly upstream-preview CI, 2026-09-03 — does NOT export them either: they are
+# //// v16 names. So this shim is not a forward-compat stopgap to drop at the v15 upgrade:
+# //// it stays for the whole v15 line and goes only when the fleet runs v16, where both
+# //// classes exist natively (UnitTestCase there is a lighter, DB-less base; mapping it to
+# //// the integration base is a superset, fine for collection and execution). Lazy, so no
+# //// import-time cycle with frappe.tests.utils.
 _V16_TEST_CASE = None
 
 
@@ -39,16 +39,16 @@ def _v16_test_case():
         from frappe.tests.utils import change_settings as _change_settings
 
         class IntegrationTestCase(FrappeTestCase):
-            #//// Neoffice — v16's IntegrationTestCase exposes change_settings as a METHOD
-            #//// (`with self.change_settings("Wiki Settings", {...}):` — wiki, 2026-09-03); v15 ships
-            #//// the same context manager as a module-level function. Same signature, delegated.
+            # //// Neoffice — v16's IntegrationTestCase exposes change_settings as a METHOD
+            # //// (`with self.change_settings("Wiki Settings", {...}):` — wiki, 2026-09-03); v15 ships
+            # //// the same context manager as a module-level function. Same signature, delegated.
             @staticmethod
             def change_settings(doctype, settings_dict=None, /, commit=False, **settings):
                 return _change_settings(doctype, settings_dict, commit=commit, **settings)
 
-            #//// Neoffice — v16 also exposes set_user as a context manager callable on the class
-            #//// (`with cls.set_user(OWNER):` in setUpClass — suite/drive, 2026-09-03); v15's is a
-            #//// plain instance method. Restores the previous user on exit.
+            # //// Neoffice — v16 also exposes set_user as a context manager callable on the class
+            # //// (`with cls.set_user(OWNER):` in setUpClass — suite/drive, 2026-09-03); v15's is a
+            # //// plain instance method. Restores the previous user on exit.
             class _SetUser:
                 def __init__(self, user):
                     import frappe

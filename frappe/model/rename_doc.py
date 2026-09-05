@@ -157,17 +157,17 @@ def rename_doc(
 	merge = sbool(merge)
 	meta = frappe.get_meta(doctype)
 
-	#//// Neoffice — added (4c842a98fc, 2023-10-30 "First change v15", 57 files): the Item's
-	#//// item_name is read before the rename and written back after it, so renaming an Item code
-	#//// keeps its label. Upstream does neither — erpnext's Item.before_rename overwrites
-	#//// item_name with the new code when the two used to match.
-	#//// TO REVIEW: the commit carries no message, so the symptom above is read from the code;
-	#//// this hard-codes an erpnext doctype into the framework, and the write-back is not guarded
-	#//// by `validate`, so it also runs on the no-validate path.
-	#//// added if
+	# //// Neoffice — added (4c842a98fc, 2023-10-30 "First change v15", 57 files): the Item's
+	# //// item_name is read before the rename and written back after it, so renaming an Item code
+	# //// keeps its label. Upstream does neither — erpnext's Item.before_rename overwrites
+	# //// item_name with the new code when the two used to match.
+	# //// TO REVIEW: the commit carries no message, so the symptom above is read from the code;
+	# //// this hard-codes an erpnext doctype into the framework, and the write-back is not guarded
+	# //// by `validate`, so it also runs on the no-validate path.
+	# //// added if
 	if doctype == "Item":
 		old_item_name = frappe.db.get_value(doctype, old, "item_name")
-	#////
+	# ////
 
 	if validate:
 		old_doc = doc or frappe.get_doc(doctype, old)
@@ -185,12 +185,12 @@ def rename_doc(
 			old_doc=old_doc,
 		)
 
-	#//// Neoffice — second half of the Item rename fix: writes item_name back, unconditionally,
-	#//// after run_method("before_rename") and the rename itself. See the marker above.
-	#//// added if
+	# //// Neoffice — second half of the Item rename fix: writes item_name back, unconditionally,
+	# //// after run_method("before_rename") and the rename itself. See the marker above.
+	# //// added if
 	if doctype == "Item":
 		frappe.db.set_value(doctype, old, "item_name", old_item_name)
-	#////
+	# ////
 
 	if not merge:
 		rename_parent_and_child(doctype, old, new, meta)

@@ -218,12 +218,12 @@ class Meta(Document):
 		"""Return list of fields with `in_global_search` set and `name` if set"""
 		fields = self.get("fields", {"in_global_search": 1, "fieldtype": ["not in", NO_VALUE_FIELDS]})
 
-		#//// Neoffice — upstream adds the `name` pseudo-field to the global-search fields ONLY when
-		#//// the doctype sets show_name_in_global_search. b6f135ea30 (2026-04-02 "feat(search):
-		#//// improve Awesome Bar with direct document navigation and smarter results") always adds it
-		#//// for non-child doctypes (label "ID"), because the Awesome Bar resolves a typed document
-		#//// number straight out of __global_search — see resolve_document() in desk/search.py. Also
-		#//// guards against adding it twice. Cost: every non-child doctype now indexes its name.
+		# //// Neoffice — upstream adds the `name` pseudo-field to the global-search fields ONLY when
+		# //// the doctype sets show_name_in_global_search. b6f135ea30 (2026-04-02 "feat(search):
+		# //// improve Awesome Bar with direct document navigation and smarter results") always adds it
+		# //// for non-child doctypes (label "ID"), because the Awesome Bar resolves a typed document
+		# //// number straight out of __global_search — see resolve_document() in desk/search.py. Also
+		# //// guards against adding it twice. Cost: every non-child doctype now indexes its name.
 		# Always include document name/ID in global search for non-child doctypes
 		if not getattr(self, "istable", False):
 			if not any(f.fieldname == "name" for f in fields):

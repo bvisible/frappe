@@ -495,8 +495,8 @@ def search(text, start=0, limit=20, doctype=""):
 			.select(global_search.doctype, global_search.name, global_search.content, rank.as_("rank"))
 			.where(rank)
 			.orderby("rank", order=frappe.qb.desc)
-			#//// Neoffice — upstream: `.limit(limit)`. Widened to at least 100 rows by e9da79644d so the
-			#//// per-doctype diversification below has a pool to draw from — see the block marker there.
+			# //// Neoffice — upstream: `.limit(limit)`. Widened to at least 100 rows by e9da79644d so the
+			# //// per-doctype diversification below has a pool to draw from — see the block marker there.
 			.limit(max(cint(limit), 100))
 		)
 
@@ -512,21 +512,21 @@ def search(text, start=0, limit=20, doctype=""):
 
 		results.extend(result)
 
-	#//// Neoffice ▼▼▼ — upstream sorts the fulltext hits by walking allowed_doctypes and appending
-	#//// every row of each doctype in turn (a plain 12-line loop). Three of our commits replaced
-	#//// it, all for the Awesome Bar V2:
-	#////   • b6f135ea30 (2026-04-02 "improve Awesome Bar with direct document navigation and
-	#////     smarter results"): a `name LIKE` fallback when fulltext returns nothing, so a typed
-	#////     document number still finds its document;
-	#////   • e9da79644d (2026-04-02 "diversify global search results and support item code
-	#////     lookup"): take the top N PER doctype instead of the top N overall — high-volume
-	#////     doctypes (Sales Invoice) were drowning out Customer/Contact/Item;
-	#////   • 5ca9112574 (2026-04-02 "prioritize entity doctypes over transactional") + 599cca5304
-	#////     (Document Scan) + cfaa702efe (Archived Document): a fixed ENTITY_PRIORITY order, so
-	#////     the result order stops depending on the iteration order of a Python set.
-	#//// The `.limit(max(cint(limit), 100))` above belongs to the same work (e9da79644d): the SQL
-	#//// pool has to be wider than the page size for the per-doctype quota to have anything to
-	#//// choose from. ▲▲▲ block ends at `return sorted_results`.
+	# //// Neoffice ▼▼▼ — upstream sorts the fulltext hits by walking allowed_doctypes and appending
+	# //// every row of each doctype in turn (a plain 12-line loop). Three of our commits replaced
+	# //// it, all for the Awesome Bar V2:
+	# ////   • b6f135ea30 (2026-04-02 "improve Awesome Bar with direct document navigation and
+	# ////     smarter results"): a `name LIKE` fallback when fulltext returns nothing, so a typed
+	# ////     document number still finds its document;
+	# ////   • e9da79644d (2026-04-02 "diversify global search results and support item code
+	# ////     lookup"): take the top N PER doctype instead of the top N overall — high-volume
+	# ////     doctypes (Sales Invoice) were drowning out Customer/Contact/Item;
+	# ////   • 5ca9112574 (2026-04-02 "prioritize entity doctypes over transactional") + 599cca5304
+	# ////     (Document Scan) + cfaa702efe (Archived Document): a fixed ENTITY_PRIORITY order, so
+	# ////     the result order stops depending on the iteration order of a Python set.
+	# //// The `.limit(max(cint(limit), 100))` above belongs to the same work (e9da79644d): the SQL
+	# //// pool has to be wider than the page size for the per-doctype quota to have anything to
+	# //// choose from. ▲▲▲ block ends at `return sorted_results`.
 	# Fallback: search by document name if fulltext returned nothing
 	if not results and text.strip():
 		global_search = frappe.qb.Table("__global_search")

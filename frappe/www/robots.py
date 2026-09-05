@@ -4,10 +4,10 @@ base_template_path = "www/robots.txt"
 
 
 def get_context(context):
-	#//// Neoffice multi-site: a resolved Website Profile can carry its own robots.txt
+	# //// Neoffice multi-site: a resolved Website Profile can carry its own robots.txt
 	profile = getattr(frappe.local, "website_profile_doc", None)
 
-	#//// Neoffice website switch: an offline site must not be indexed at all.
+	# //// Neoffice website switch: an offline site must not be indexed at all.
 	if profile is not None and "website_online" in profile and not profile.get("website_online"):
 		return {"robots_txt": "User-agent: *\nDisallow: /"}
 

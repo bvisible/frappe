@@ -1,21 +1,21 @@
-#//// Neoffice — added file (no upstream equivalent in version-15): backport of the frappe
-#//// develop (v16) Chrome PDF generator. Upstream lineage (cherry-picked with -x): 964dd6c034
-#//// "feat: Chrome PDF generator" (ours c64ffb849d) + 510669b64c, 19ccfcc453, 849785b668,
-#//// fcb40f71c4. Why the backport: see the browser.py header (ADR 2026-05-26).
-#//// Neoffice-only changes on top of upstream (re-apply at the v16 merge):
-#////   add5272c95 2026-05-26 — atexit handler _terminate_chromium(): upstream never closed the
-#////     per-process headless Chromium, so headless_shell processes piled up after bench
-#////     console/execute and worker restarts and ate RAM on small instances.
-#////   515e83888c 2026-05-27 — connect to ONE shared Chromium (systemd chromium-pdf.service,
-#////     site_config chromium_remote_debugging_port) instead of one Chromium per worker:
-#////     ensure_devtools_url() / _ensure_remote_service() start it on demand, check liveness
-#////     and self-heal a dead or refused DevTools URL; _touch_activity() feeds the idle stop.
-#////   4d8cefb1ae 2026-06-13 — fetch_devtools_url() is a polling helper: stay silent on
-#////     RequestException while the on-demand service cold-starts (it logged one Error Log
-#////     entry per poll); a single error only if no endpoint after the 15s window (was 8s).
-#//// v16 note: upstream extracted the Chromium process management into frappe/utils/chromium/
-#//// (182e127732, 2026-06-18) and this module no longer exists there — expect a rename/delete
-#//// conflict, not a clean merge.
+# //// Neoffice — added file (no upstream equivalent in version-15): backport of the frappe
+# //// develop (v16) Chrome PDF generator. Upstream lineage (cherry-picked with -x): 964dd6c034
+# //// "feat: Chrome PDF generator" (ours c64ffb849d) + 510669b64c, 19ccfcc453, 849785b668,
+# //// fcb40f71c4. Why the backport: see the browser.py header (ADR 2026-05-26).
+# //// Neoffice-only changes on top of upstream (re-apply at the v16 merge):
+# ////   add5272c95 2026-05-26 — atexit handler _terminate_chromium(): upstream never closed the
+# ////     per-process headless Chromium, so headless_shell processes piled up after bench
+# ////     console/execute and worker restarts and ate RAM on small instances.
+# ////   515e83888c 2026-05-27 — connect to ONE shared Chromium (systemd chromium-pdf.service,
+# ////     site_config chromium_remote_debugging_port) instead of one Chromium per worker:
+# ////     ensure_devtools_url() / _ensure_remote_service() start it on demand, check liveness
+# ////     and self-heal a dead or refused DevTools URL; _touch_activity() feeds the idle stop.
+# ////   4d8cefb1ae 2026-06-13 — fetch_devtools_url() is a polling helper: stay silent on
+# ////     RequestException while the on-demand service cold-starts (it logged one Error Log
+# ////     entry per poll); a single error only if no endpoint after the 15s window (was 8s).
+# //// v16 note: upstream extracted the Chromium process management into frappe/utils/chromium/
+# //// (182e127732, 2026-06-18) and this module no longer exists there — expect a rename/delete
+# //// conflict, not a clean merge.
 import atexit
 import os
 import platform

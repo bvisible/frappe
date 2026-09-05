@@ -399,21 +399,21 @@ def get_desktop_page(page):
 	"""
 	try:
 		workspace = Workspace(loads(page))
-		#//// Neoffice — upstream builds and returns the page without ever asking
-		#//// `is_permitted()`. Only `__init__` guards, and only on the MODULE, so
-		#//// a workspace carrying no module is reachable by URL by anyone with a
-		#//// desk account — `is_hidden` merely removes it from the sidebar.
-		#////
-		#//// That is how the twelve Construction workspaces stayed openable at
-		#//// /app/construction-* on customer sites (measured 2026-08-27). Their
-		#//// shortcuts are of type URL, so `is_item_allowed()` has nothing to
-		#//// filter either and the whole page renders.
-		#////
-		#//// This costs nothing where nobody set roles: `is_permitted()` returns
-		#//// True when the roles table is empty, which is the case for 49 of our
-		#//// 49 public workspaces today. It only bites once we deliberately put a
-		#//// role on a workspace — which is how we gate the applications sold
-		#//// separately (see neoffice_theme/app_visibility.py).
+		# //// Neoffice — upstream builds and returns the page without ever asking
+		# //// `is_permitted()`. Only `__init__` guards, and only on the MODULE, so
+		# //// a workspace carrying no module is reachable by URL by anyone with a
+		# //// desk account — `is_hidden` merely removes it from the sidebar.
+		# ////
+		# //// That is how the twelve Construction workspaces stayed openable at
+		# //// /app/construction-* on customer sites (measured 2026-08-27). Their
+		# //// shortcuts are of type URL, so `is_item_allowed()` has nothing to
+		# //// filter either and the whole page renders.
+		# ////
+		# //// This costs nothing where nobody set roles: `is_permitted()` returns
+		# //// True when the roles table is empty, which is the case for 49 of our
+		# //// 49 public workspaces today. It only bites once we deliberately put a
+		# //// role on a workspace — which is how we gate the applications sold
+		# //// separately (see neoffice_theme/app_visibility.py).
 		if not workspace.is_permitted():
 			raise frappe.PermissionError
 		workspace.build_workspace()
@@ -470,11 +470,11 @@ def get_workspace_sidebar_items(current_workspace=None):
 		"Workspace", fields=fields, filters=filters, order_by=order_by, ignore_permissions=True
 	)
 
-	#////
+	# ////
 	import json
 	# Get the path to the JSON file
-	#//// Neoffice — neoffice_theme is absent on a bare bench (CI of the product forks): guard the access
-	#//// like boot.py and apps.py do, otherwise get_apps() broke every page render there (#198).
+	# //// Neoffice — neoffice_theme is absent on a bare bench (CI of the product forks): guard the access
+	# //// like boot.py and apps.py do, otherwise get_apps() broke every page render there (#198).
 	excluded_menus = {}
 	if "neoffice_theme" in frappe.get_installed_apps():
 		json_path = frappe.get_app_path('neoffice_theme', 'json', 'excluded_menus.json')
@@ -540,9 +540,9 @@ def get_workspace_sidebar_items(current_workspace=None):
 
 	# NEW: Get sort_order for ALL workspaces from App Customization
 	# This will be used to sort workspaces regardless of app context
-	#//// Neoffice — App Customization Workspace belongs to neoffice_theme: on a bare bench (CI of the
-	#//// product forks) the table does not exist and every page render died on ProgrammingError
-	#//// (#198). Same guard as boot.py; the sort order simply stays empty there.
+	# //// Neoffice — App Customization Workspace belongs to neoffice_theme: on a bare bench (CI of the
+	# //// product forks) the table does not exist and every page render died on ProgrammingError
+	# //// (#198). Same guard as boot.py; the sort order simply stays empty there.
 	all_workspace_sort_orders = []
 	if frappe.db.table_exists("App Customization Workspace"):
 		all_workspace_sort_orders = frappe.get_all(
@@ -611,7 +611,7 @@ def get_workspace_sidebar_items(current_workspace=None):
 					page["label"] = _(page.get("name"))
 			except frappe.PermissionError:
 				pass
-	#////
+	# ////
 
 	# Sort pages by App Customization sort_order
 	# Workspaces with sort_order defined will be sorted first, then by sequence_id

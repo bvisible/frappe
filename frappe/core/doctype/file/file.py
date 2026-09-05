@@ -6,11 +6,11 @@ import mimetypes
 import os
 import re
 import shutil
-import unicodedata #//// added
+import unicodedata # //// added
 import zipfile
 from urllib.parse import quote, unquote
 
-import PIL #//// added
+import PIL # //// added
 from PIL import Image, ImageFile, ImageOps
 
 import frappe
@@ -107,7 +107,7 @@ class File(Document):
 		if self.is_folder:
 			return
 
-		#//// added if
+		# //// added if
 		if self.file_name:
 			base_name = self.file_name
 			try:
@@ -134,13 +134,13 @@ class File(Document):
 						extension = "png"
 				self.file_name = self.file_name + '.' + extension
 			except (PIL.UnidentifiedImageError, TypeError):
-				#//// Neoffice — TypeError too: when content is still a str
-				#//// (base64 not yet decoded — decode happens later in
-				#//// save_file), io.BytesIO(str) raised here and killed every
-				#//// File.insert with text content. Not an image -> same
-				#//// fallback as an unreadable one.
+				# //// Neoffice — TypeError too: when content is still a str
+				# //// (base64 not yet decoded — decode happens later in
+				# //// save_file), io.BytesIO(str) raised here and killed every
+				# //// File.insert with text content. Not an image -> same
+				# //// fallback as an unreadable one.
 				self.file_name = base_name
-		#////
+		# ////
 
 		if self.is_remote_file:
 			self.validate_remote_file()
@@ -260,7 +260,7 @@ class File(Document):
 				title=_("Invalid URL"),
 			)
 
-		#//// added code
+		# //// added code
 		self.file_url = unquote(self.file_url)
 		extension = self.file_url.split(".")[-1]
 		path = '/files/' if self.file_url.startswith('/files/') else '/private/files/'
@@ -272,7 +272,7 @@ class File(Document):
 		self.file_url = re.sub(r'[-\s]+', '-', self.file_url).strip('-_')
 		self.file_url = path + self.file_url + '.' + extension
 		self.is_private = cint(self.is_private)
-		#////
+		# ////
 
 	def handle_is_private_changed(self):
 		if self.is_remote_file:
@@ -728,11 +728,11 @@ class File(Document):
 			and self.content_type == "image/jpeg"
 			and frappe.get_system_settings("strip_exif_metadata_from_uploaded_images")
 		):
-			#//// Neoffice — tolerate unreadable content: content_type comes from
-			#//// the file EXTENSION, so a mislabeled or truncated "jpeg" made
-			#//// PIL raise inside strip_exif_data and killed the whole upload
-			#//// with a 500. EXIF stripping is best-effort hygiene, not a
-			#//// validation step: keep the original bytes when PIL cannot read.
+			# //// Neoffice — tolerate unreadable content: content_type comes from
+			# //// the file EXTENSION, so a mislabeled or truncated "jpeg" made
+			# //// PIL raise inside strip_exif_data and killed the whole upload
+			# //// with a 500. EXIF stripping is best-effort hygiene, not a
+			# //// validation step: keep the original bytes when PIL cannot read.
 			try:
 				self._content = strip_exif_data(self._content, self.content_type)
 			except Exception:

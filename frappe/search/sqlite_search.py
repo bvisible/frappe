@@ -1201,10 +1201,10 @@ class SQLiteSearch(ABC):
 
 	def _print_warning_summary(self):
 		"""Print a summary of warnings collected during indexing."""
-		#//// Neoffice — this report is printed with print(); under a scheduler worker stdout is
-		#//// not a terminal and can be a closed pipe, so lms.sqlite.build_index died with
-		#//// BrokenPipeError on the hub 124 times a day (tracker #170). Off a terminal the
-		#//// report goes to the bench logger instead; the index itself is unaffected.
+		# //// Neoffice — this report is printed with print(); under a scheduler worker stdout is
+		# //// not a terminal and can be a closed pipe, so lms.sqlite.build_index died with
+		# //// BrokenPipeError on the hub 124 times a day (tracker #170). Off a terminal the
+		# //// report goes to the bench logger instead; the index itself is unaffected.
 		import sys
 
 		try:
@@ -1212,9 +1212,9 @@ class SQLiteSearch(ABC):
 		except Exception:
 			interactive = False
 		if not interactive:
-			#//// Neoffice — self.warnings is a list of IndexWarning, not a dict keyed by doctype; the
-			#//// prior .items() guard raised on this very off-terminal branch it was meant to protect
-			#//// (scheduler, CI) (2590e5994 "fix(search): the off-terminal warnings summary groups a list, not a dict")
+			# //// Neoffice — self.warnings is a list of IndexWarning, not a dict keyed by doctype; the
+			# //// prior .items() guard raised on this very off-terminal branch it was meant to protect
+			# //// (scheduler, CI) (2590e5994 "fix(search): the off-terminal warnings summary groups a list, not a dict")
 			# self.warnings is a list of IndexWarning (see __init__), grouped by type like the report
 			if self.warnings:
 				logger = frappe.logger("sqlite_search")

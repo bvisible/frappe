@@ -1,11 +1,11 @@
 # Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
 
-#//// Neoffice — TO REVIEW: the ONLY divergence from upstream v15 in this whole file is a
-#//// MISSING NEWLINE at end of file (bd41f1e7a5, 2025-02-26 "Update neov2" — a 40-file bulk
-#//// commit with an empty message). Not one line of code differs. It is an editor accident,
-#//// not an intent: restore the final newline at the next upstream merge and this file goes
-#//// back to zero divergence.
+# //// Neoffice — TO REVIEW: the ONLY divergence from upstream v15 in this whole file is a
+# //// MISSING NEWLINE at end of file (bd41f1e7a5, 2025-02-26 "Update neov2" — a 40-file bulk
+# //// commit with an empty message). Not one line of code differs. It is an editor accident,
+# //// not an intent: restore the final newline at the next upstream merge and this file goes
+# //// back to zero divergence.
 import json
 from collections.abc import Iterable
 from typing import TYPE_CHECKING

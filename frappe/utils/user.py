@@ -136,15 +136,15 @@ class UserPermissions:
 				elif p.get("write"):
 					self.can_write.append(dt)
 				elif p.get("read"):
-					#//// Neoffice — upstream routes a read-only DocType (`read_only` = "User Cannot Search") into
-					#//// all_read + no_list_view_link for EVERY user, Administrator included, so it disappears
-					#//// from search and from list-view links. 40233f8cb8 (2023-11-13 " Check if user is
-					#//// 'Administrator' to bypass read_only restriction") exempts Administrator, which keeps
-					#//// read-only doctypes reachable for support and configuration work. Every other user keeps
-					#//// upstream behaviour. TO REVIEW: the commit body is empty, so the reason above is read from
-					#//// the code; and the test is on the SESSION user, not on a role, so it cannot be granted to
-					#//// anyone else.
-					#//// Check if user is 'Administrator' to bypass read_only restriction
+					# //// Neoffice — upstream routes a read-only DocType (`read_only` = "User Cannot Search") into
+					# //// all_read + no_list_view_link for EVERY user, Administrator included, so it disappears
+					# //// from search and from list-view links. 40233f8cb8 (2023-11-13 " Check if user is
+					# //// 'Administrator' to bypass read_only restriction") exempts Administrator, which keeps
+					# //// read-only doctypes reachable for support and configuration work. Every other user keeps
+					# //// upstream behaviour. TO REVIEW: the commit body is empty, so the reason above is read from
+					# //// the code; and the test is on the SESSION user, not on a role, so it cannot be granted to
+					# //// anyone else.
+					# //// Check if user is 'Administrator' to bypass read_only restriction
 					if frappe.session.user == "Administrator":
 						self.can_read.append(dt)
 					else:
@@ -172,11 +172,11 @@ class UserPermissions:
 						getattr(self, "can_" + key).append(dt)
 
 				if not dtp.get("istable"):
-					#//// Neoffice — same Administrator bypass as above, applied to can_search (40233f8cb8).
-					#//// Upstream: `if not dtp.get("issingle") and not dtp.get("read_only"): self.can_search…`.
-					#//// Note the bypass also drops the `issingle` test for Administrator, so single doctypes
-					#//// become searchable for that account only.
-					#//// Check if user is 'Administrator' to bypass read_only restriction
+					# //// Neoffice — same Administrator bypass as above, applied to can_search (40233f8cb8).
+					# //// Upstream: `if not dtp.get("issingle") and not dtp.get("read_only"): self.can_search…`.
+					# //// Note the bypass also drops the `issingle` test for Administrator, so single doctypes
+					# //// become searchable for that account only.
+					# //// Check if user is 'Administrator' to bypass read_only restriction
 					if frappe.session.user == "Administrator":
 						self.can_search.append(dt)
 					else:
@@ -228,19 +228,19 @@ class UserPermissions:
 		return self.can_read
 
 	def load_user(self):
-		#//// Neoffice — added field in the boot payload (562afee20c, 2024-01-17 "Add view_interface in
-		#//// frappe.boot.user"): the desk reads frappe.boot.user.view_interface to decide which
-		#//// interface to open. Upstream selects the list below without it.
-		#//// `view_interface` is NOT a column of the User doctype frappe ships — it is a Custom Field,
-		#//// installed from neoffice_theme's fixtures. Naming it unconditionally made this get_value()
-		#//// raise `Unknown column 'view_interface'` on every site that does not carry that fixture: a
-		#//// vanilla bench, CI, a site mid-migration. load_user() is on the boot path, so what failed
-		#//// was the whole desk, not the feature. Guarded on the meta (#205, 2026-09-04): the column is
-		#//// only asked for where it exists, and where it does not the key is still present and None,
-		#//// so a reader gets a value to fall back from instead of a missing key. The two consumers
-		#//// cope with None already — neocockpit.global.js does `user?.view_interface || "Advanced"`,
-		#//// and desk/desktop.py reads it off the User document, never off this payload.
-		#//// add view_interface
+		# //// Neoffice — added field in the boot payload (562afee20c, 2024-01-17 "Add view_interface in
+		# //// frappe.boot.user"): the desk reads frappe.boot.user.view_interface to decide which
+		# //// interface to open. Upstream selects the list below without it.
+		# //// `view_interface` is NOT a column of the User doctype frappe ships — it is a Custom Field,
+		# //// installed from neoffice_theme's fixtures. Naming it unconditionally made this get_value()
+		# //// raise `Unknown column 'view_interface'` on every site that does not carry that fixture: a
+		# //// vanilla bench, CI, a site mid-migration. load_user() is on the boot path, so what failed
+		# //// was the whole desk, not the feature. Guarded on the meta (#205, 2026-09-04): the column is
+		# //// only asked for where it exists, and where it does not the key is still present and None,
+		# //// so a reader gets a value to fall back from instead of a missing key. The two consumers
+		# //// cope with None already — neocockpit.global.js does `user?.view_interface || "Advanced"`,
+		# //// and desk/desktop.py reads it off the User document, never off this payload.
+		# //// add view_interface
 		user_fields = [
 			"creation",
 			"desk_theme",
@@ -256,14 +256,14 @@ class UserPermissions:
 			"onboarding_status",
 			"default_workspace",
 		]
-		#//// Neoffice — the guard itself; see above.
+		# //// Neoffice — the guard itself; see above.
 		has_view_interface = frappe.get_meta("User").has_field("view_interface")
 		if has_view_interface:
 			user_fields.append("view_interface")
 
 		d = frappe.db.get_value("User", self.name, user_fields, as_dict=True)
 
-		#//// Neoffice — see above: absent field reported as None, never as a missing key.
+		# //// Neoffice — see above: absent field reported as None, never as a missing key.
 		if d is not None and not has_view_interface:
 			d.view_interface = None
 
