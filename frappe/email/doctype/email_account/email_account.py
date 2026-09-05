@@ -164,6 +164,7 @@ class EmailAccount(Document):
 	def validate(self):
 		"""Validate Email Address and check POP3/IMAP and SMTP connections is enabled."""
 
+		# //// Neoffice — see the block marker above: fixture defaults guard (9b55eaff87)
 		self.keep_fixture_off_the_defaults()
 
 		if self.email_id:

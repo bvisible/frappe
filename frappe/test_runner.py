@@ -116,6 +116,10 @@ def main(
 		else:
 			ret = run_all_tests(app, verbose, profile, failfast=failfast, junit_xml_output=junit_xml_output)
 
+		# //// Neoffice — removed the happy-path-only scheduler re-enable here (9b55eaff87
+		# //// "fix(email): a test fixture never takes the site's default account; the
+		# //// runner restores the scheduler"): moved to the finally below so a run killed
+		# //// mid-way still restores it.
 		if frappe.db:
 			frappe.db.commit()
 
