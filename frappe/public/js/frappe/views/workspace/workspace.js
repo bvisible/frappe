@@ -157,13 +157,15 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	prepare_new_and_edit() {
-		this.$page = $(`
 		//// Neoffice — upstream markup: <div class="editor-js-container"> first, then a
 		//// <div class="workspace-footer"> holding the New and Edit buttons. Swapped by 388383af3a
 		//// (2026-03-12 "move edit/new buttons from footer to header"): in the footer they sat behind
 		//// the chat widgets and could not be clicked. The editor container now comes after this block,
 		//// the class is .workspace-header-actions (scss/desk/desktop.scss, marked there) and the New
 		//// button lost .ellipsis / gained .btn-sm to match the Edit one.
+		//// (Comment kept OUTSIDE the template literal: inside it, jQuery read the string as a
+		//// selector and threw "Syntax error, unrecognized expression" — the marker pass of 03.09.)
+		this.$page = $(`
 		<div class="workspace-header-actions">
 			<button data-label="New" class="btn btn-default btn-sm btn-new-workspace">
 				<svg class="es-icon es-line icon-xs" style="" aria-hidden="true">
