@@ -1128,6 +1128,13 @@ from {tables}
 		condition_methods = hooks.get(self.doctype, []) + hooks.get("*", [])
 		for method in condition_methods:
 			if c := frappe.call(frappe.get_attr(method), self.user, doctype=self.doctype):
+				# //// Neoffice — backport of upstream 0ae2243ad6 (v16, 2026-06-30): a
+				# //// permission_query_conditions hook may return a pypika term, not only
+				# //// a SQL string. suite's File hook does (file_permission_criterion), and
+				# //// " and ".join() below died on it: "sequence item 1: expected str
+				# //// instance, ComplexCriterion found". Drop this hunk at #138.
+				if not isinstance(c, str):
+					c = self._render_permission_criterion(c)
 				conditions.append(c)
 
 		if permission_script_name := get_server_script_map().get("permission_query", {}).get(self.doctype):
@@ -1136,6 +1143,24 @@ from {tables}
 				conditions.append(condition)
 
 		return " and ".join(conditions) if conditions else ""
+
+	# //// Neoffice — backport of upstream 0ae2243ad6 (v16), see get_permission_query_conditions.
+	def _render_permission_criterion(self, criterion) -> str:
+		"""Render a pypika permission criterion to a namespaced SQL string.
+
+		The legacy query path concatenates conditions into a single WHERE string, so any
+		embedded value must be inlined. We collect values via a parameter wrapper and inline
+		them with `frappe.db.escape` (the driver's escaping) rather than pypika's bare
+		quote-doubling, which is unsafe on MariaDB where backslash is an escape character.
+		"""
+		from frappe.query_builder.terms import NamedParameterWrapper
+
+		quote_char = "`" if frappe.db.db_type == "mariadb" else '"'
+		param_wrapper = NamedParameterWrapper()
+		sql = criterion.get_sql(with_namespace=True, quote_char=quote_char, param_wrapper=param_wrapper)
+		for key, value in param_wrapper.get_parameters().items():
+			sql = sql.replace(f"%({key})s", frappe.db.escape(value))
+		return sql
 
 	def set_order_by(self, args):
 		if self.order_by and self.order_by != "KEEP_DEFAULT_ORDERING":
