@@ -123,8 +123,48 @@ class EmailAccount(Document):
 
 		self.name = self.email_account_name
 
+	# //// Neoffice — a test fixture must never become the site's default account.
+	# //// Frappe's own tests insert `_Test Comm Account 1` / `_Test Email Account 1`
+	# //// (smtp test.example.com) with default_outgoing = 1, and
+	# //// there_must_be_only_one_default() then strips the flag from the REAL account:
+	# //// on osiris every mail was routed to a host that does not resolve for five days
+	# //// (tracker #245). The fixture is still created and still usable by the tests;
+	# //// it just keeps its hands off an existing, enabled default.
+	FIXTURE_HOST_SUFFIXES = (".example.com", ".example.org", ".example.net", ".test", ".invalid")
+
+	def is_test_fixture(self) -> bool:
+		name = (self.email_account_name or self.name or "").strip()
+		if name.startswith("_Test"):
+			return True
+		email = (self.email_id or "").strip().lower()
+		host = (self.smtp_server or "").strip().lower()
+		return any(
+			value.endswith(suffix) or value == suffix.lstrip(".")
+			for value in (email.rpartition("@")[2], host)
+			if value
+			for suffix in self.FIXTURE_HOST_SUFFIXES
+		) or email.endswith("@example.com")
+
+	def keep_fixture_off_the_defaults(self):
+		"""Drop default_incoming / default_outgoing on a fixture when a real default exists."""
+		if not self.is_test_fixture():
+			return
+		for field, enable_field in (("default_outgoing", "enable_outgoing"), ("default_incoming", "enable_incoming")):
+			if not self.get(field):
+				continue
+			real_default = frappe.get_all(
+				"Email Account",
+				filters={field: 1, enable_field: 1, "name": ("!=", self.name or "")},
+				pluck="name",
+				limit=1,
+			)
+			if real_default and not frappe.get_doc("Email Account", real_default[0]).is_test_fixture():
+				self.set(field, 0)
+
 	def validate(self):
 		"""Validate Email Address and check POP3/IMAP and SMTP connections is enabled."""
+
+		self.keep_fixture_off_the_defaults()
 
 		if self.email_id:
 			validate_email_address(self.email_id, True)
@@ -232,6 +272,10 @@ class EmailAccount(Document):
 		"""If current Email Account is default, un-default all other accounts."""
 		for field in ("default_incoming", "default_outgoing"):
 			if not self.get(field):
+				continue
+			# //// Neoffice — see keep_fixture_off_the_defaults(): a fixture never un-defaults
+			# //// a real account, whatever a raw db_set may have left on its own flag.
+			if self.is_test_fixture():
 				continue
 
 			for email_account in frappe.get_all("Email Account", filters={field: 1}):

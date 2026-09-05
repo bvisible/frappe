@@ -70,6 +70,12 @@ def main(
 	else:
 		unittest_runner = unittest.TextTestRunner
 
+	# //// Neoffice — decided BEFORE the try so the finally below can always read it:
+	# //// the runner disables the scheduler for the run, and used to re-enable it only
+	# //// on the happy path. A run killed mid-way (session limit, timeout, Ctrl-C)
+	# //// left System Settings.enable_scheduler = 0 behind — osiris, 2026-09-05: no
+	# //// e-mail flushed for eleven hours, no alert (tracker #245).
+	scheduler_disabled_by_user = True
 	try:
 		frappe.flags.print_messages = verbose
 		frappe.flags.in_test = True
@@ -110,9 +116,6 @@ def main(
 		else:
 			ret = run_all_tests(app, verbose, profile, failfast=failfast, junit_xml_output=junit_xml_output)
 
-		if not scheduler_disabled_by_user:
-			frappe.utils.scheduler.enable_scheduler()
-
 		if frappe.db:
 			frappe.db.commit()
 
@@ -121,6 +124,15 @@ def main(
 		return ret
 
 	finally:
+		# //// Neoffice — the scheduler comes back whatever happened to the run (see the
+		# //// note above the try). Committed on its own: the run's transaction may be
+		# //// dead or rolled back at this point.
+		if not scheduler_disabled_by_user and getattr(frappe, "db", None):
+			try:
+				frappe.utils.scheduler.enable_scheduler()
+				frappe.db.commit()
+			except Exception:
+				print("Could not re-enable the scheduler after the test run:", frappe.get_traceback())
 		if xmloutput_fh:
 			xmloutput_fh.flush()
 			xmloutput_fh.close()

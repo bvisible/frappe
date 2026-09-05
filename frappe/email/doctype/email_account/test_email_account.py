@@ -16,6 +16,59 @@ from frappe.email.receive import Email, InboundMail, SentEmailInInboxError
 from frappe.tests.utils import FrappeTestCase
 
 
+# //// Neoffice — added tests (no upstream equivalent): a test fixture must never take the
+# //// site's default account (tracker #245). Placed before TestEmailAccount so the file's
+# //// upstream part below stays byte-identical.
+class TestEmailAccountFixtureGuard(FrappeTestCase):
+	REAL = "_Neoffice Real Outgoing"
+	FIXTURE = "_Test Fixture Outgoing"
+
+	def setUp(self):
+		frappe.set_user("Administrator")
+		for name in (self.FIXTURE, self.REAL):
+			frappe.delete_doc_if_exists("Email Account", name)
+		self.previous_default = frappe.db.get_value("Email Account", {"default_outgoing": 1}, "name")
+		frappe.db.set_value("Email Account", {"default_outgoing": 1}, "default_outgoing", 0)
+
+	def tearDown(self):
+		for name in (self.FIXTURE, self.REAL):
+			frappe.delete_doc_if_exists("Email Account", name)
+		if self.previous_default and frappe.db.exists("Email Account", self.previous_default):
+			frappe.db.set_value("Email Account", self.previous_default, "default_outgoing", 1)
+
+	def _account(self, name, email, host, default):
+		return frappe.get_doc(
+			{
+				"doctype": "Email Account",
+				"email_account_name": name,
+				"email_id": email,
+				"smtp_server": host,
+				"enable_outgoing": 1,
+				"default_outgoing": default,
+				"awaiting_password": 1,
+				"no_smtp_authentication": 1,
+			}
+		).insert(ignore_permissions=True)
+
+	def test_fixture_does_not_steal_the_real_default(self):
+		real = self._account(self.REAL, "billing@neoffice-test.ch", "mail.neoemail.ch", 1)
+		self.assertEqual(frappe.db.get_value("Email Account", real.name, "default_outgoing"), 1)
+
+		fixture = self._account(self.FIXTURE, "test_comm@example.com", "test.example.com", 1)
+
+		self.assertTrue(fixture.is_test_fixture())
+		self.assertEqual(frappe.db.get_value("Email Account", fixture.name, "default_outgoing"), 0)
+		self.assertEqual(frappe.db.get_value("Email Account", real.name, "default_outgoing"), 1)
+
+	def test_fixture_becomes_default_when_the_site_has_none(self):
+		fixture = self._account(self.FIXTURE, "test_comm@example.com", "test.example.com", 1)
+		self.assertEqual(frappe.db.get_value("Email Account", fixture.name, "default_outgoing"), 1)
+
+	def test_real_account_is_not_a_fixture(self):
+		real = self._account(self.REAL, "billing@neoffice-test.ch", "mail.neoemail.ch", 0)
+		self.assertFalse(real.is_test_fixture())
+
+
 class TestEmailAccount(FrappeTestCase):
 	@classmethod
 	def setUpClass(cls):
