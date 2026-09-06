@@ -1419,6 +1419,35 @@ class TestArgumentTypingValidations(FrappeTestCase):
 		with self.assertRaises(FrappeTypeError):
 			test_doctypes("a")
 
+	# //// Neoffice — added tests (tracker #244). A module carrying
+	# //// `from __future__ import annotations` stores every annotation as a STRING,
+	# //// and the ForwardRef|str skip in transform_parameter_types then dropped the
+	# //// whole check: every endpoint of such a module (all of suite's API) accepted
+	# //// anything, with no error anywhere. Upstream has no equivalent test because
+	# //// upstream does not use PEP 563; these stay green there too, since resolved
+	# //// annotations behave exactly like the objects upstream already gets.
+	def test_string_annotations_are_still_validated(self):
+		from frappe.tests.pep563_annotated_module import optional_dict, simple_types
+		from frappe.utils.typing_validations import FrappeTypeError
+
+		# every annotation here is a string — the coercion must still happen
+		self.assertEqual(simple_types(1, 2, "1"), (1, 2.0, True))
+		self.assertEqual(optional_dict("a", {"a": "1.0"}), ("a", {"a": 1}))
+
+		# and the refusal must still happen: this is what silently stopped working
+		with self.assertRaises(FrappeTypeError):
+			simple_types(1, 2, "a")
+		with self.assertRaises(FrappeTypeError):
+			simple_types(1, 2, None)
+		with self.assertRaises(FrappeTypeError):
+			optional_dict("a", True)
+
+	def test_unresolvable_string_annotation_fails_open(self):
+		"""An annotation naming something that does not exist must not break the call."""
+		from frappe.tests.pep563_annotated_module import unresolvable_hint
+
+		self.assertEqual(unresolvable_hint("anything"), "anything")
+
 
 class TestChangeLog(FrappeTestCase):
 	def test_get_remote_url(self):
