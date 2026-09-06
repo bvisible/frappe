@@ -2,6 +2,7 @@ from collections.abc import Callable
 from functools import lru_cache, wraps
 from inspect import _empty, isclass, signature
 from types import EllipsisType
+# //// Neoffice — added get_type_hints to resolve PEP 563 deferred (stringified) annotations before the ForwardRef/str skip below, so whitelisted endpoints on modules using `from __future__ import annotations` get argument checking again (48b6d2dde2 "fix(typing): deferred annotations no longer skip the whole argument check")
 from typing import ForwardRef, TypeVar, Union, get_type_hints
 
 from pydantic import ConfigDict, PydanticUserError
