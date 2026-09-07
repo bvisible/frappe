@@ -72,7 +72,13 @@ jobs:
             echo "Full suite requested."
             exit 0
           fi
+          # `test_*.py` is not enough: frappe/test_runner.py matches the glob and is
+          # the RUNNER, not a suite — run-tests would choke on it. A real test module
+          # DEFINES a TestCase subclass at module level; that is the discriminator.
           MODS=$(git diff --name-only upstream/version-15...HEAD -- '**/test_*.py' \
+                 | while read -r f; do
+                     [ -f "$f" ] && grep -qE '^class [A-Za-z_]*\(.*TestCase' "$f" && echo "$f"
+                   done \
                  | sed 's#/#.#g; s#\.py$##' | sort -u | tr '\n' ' ')
           echo "mode=diff" >> "$GITHUB_OUTPUT"
           echo "modules=$MODS" >> "$GITHUB_OUTPUT"
@@ -88,8 +94,12 @@ jobs:
       - name: Init bench on THIS sha
         run: |
           pip install frappe-bench
+          # bench validates --frappe-branch with `git ls-remote`, where a SHA is
+          # neither a head nor a tag ("Invalid branch or tag"). Give the commit
+          # under test a branch name instead — exact for push, PR and dispatch alike.
+          git -C "$GITHUB_WORKSPACE" branch -f ci-under-test "${{ github.sha }}"
           bench init --skip-redis-config-generation --skip-assets \
-            --frappe-path "$GITHUB_WORKSPACE" --frappe-branch "${{ github.sha }}" \
+            --frappe-path "$GITHUB_WORKSPACE" --frappe-branch ci-under-test \
             --python "$(which python)" ~/frappe-bench
           ~/frappe-bench/env/bin/pip install --quiet "setuptools<81"
 
