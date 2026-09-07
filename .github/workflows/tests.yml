@@ -60,55 +60,58 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Which test modules do we diverge on?
+      - name: Which test CASES does this fork touch?
         id: modules
         run: |
           set -o pipefail
           git remote add upstream https://github.com/frappe/frappe.git 2>/dev/null || true
           git fetch --quiet --depth=200 upstream version-15
           if [ "${{ inputs.full_suite }}" = "true" ]; then
-            echo "mode=full" >> "$GITHUB_OUTPUT"
-            echo "modules=" >> "$GITHUB_OUTPUT"
-            echo "Full suite requested."
-            exit 0
+            { echo "mode=full"; echo "cases="; } >> "$GITHUB_OUTPUT"
+            echo "Full suite requested."; exit 0
           fi
-          # `test_*.py` is not enough: frappe/test_runner.py matches the glob and is
-          # the RUNNER, not a suite. A real test module DEFINES a TestCase subclass.
-          #
-          # And a doctype's suite runs BY DOCTYPE, not by module: `--module` does not
-          # create that doctype's test records, so TestInboundMail died on a missing
-          # `_Test Email Account 1` — an environment failure, not a defect. `--doctype`
-          # builds them.
-          #
-          # In python, not sed: title-casing with `\u` is GNU-only and silently gives
-          # "email account" elsewhere, which matches no doctype.
-          MODS=$(python3 - <<'PY'
-          import re, subprocess
+          CASES=$(python3 - <<'PY'
+          import ast, re, subprocess
+
+          BASE = "upstream/version-15"
           files = subprocess.run(
-              ["git", "diff", "--name-only", "upstream/version-15...HEAD", "--", "**/test_*.py"],
+              ["git", "diff", "--name-only", f"{BASE}...HEAD", "--", "**/test_*.py"],
               capture_output=True, text=True, check=True,
           ).stdout.split()
+
           out = []
           for f in files:
               try:
                   src = open(f, encoding="utf-8").read()
               except OSError:
                   continue
+              # frappe/test_runner.py matches the glob and is the RUNNER, not a suite.
               if not re.search(r"^class [A-Za-z_]*\(.*TestCase", src, re.M):
                   continue
-              m = re.match(r".*/doctype/([^/]+)/test_\1\.py$", f)
-              if m:
-                  out.append("doctype:" + " ".join(w.capitalize() for w in m.group(1).split("_")))
-              else:
-                  out.append("module:" + f[:-3].replace("/", "."))
+              diff = subprocess.run(
+                  ["git", "diff", "-U0", f"{BASE}...HEAD", "--", f],
+                  capture_output=True, text=True,
+              ).stdout
+              added = set()
+              for h in re.finditer(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", diff, re.M):
+                  start, count = int(h.group(1)), int(h.group(2) or 1)
+                  added.update(range(start, start + count))
+              module = f[:-3].replace("/", ".")
+              for node in ast.parse(src).body:
+                  if not isinstance(node, ast.ClassDef):
+                      continue
+                  if not any("TestCase" in ast.unparse(b) for b in node.bases):
+                      continue
+                  span = set(range(node.lineno, (node.end_lineno or node.lineno) + 1))
+                  if span & added:
+                      out.append(f"{module}::{node.name}")
           print("|".join(sorted(set(out))))
           PY
           )
-          echo "mode=diff" >> "$GITHUB_OUTPUT"
-          echo "modules=$MODS" >> "$GITHUB_OUTPUT"
-          echo "Modules where this fork diverges from upstream/version-15:"
-          for m in $MODS; do echo "  - $m"; done
-          [ -n "$MODS" ] || echo "::notice::no test module diverges — the run will only prove the bench builds"
+          { echo "mode=cases"; echo "cases=$CASES"; } >> "$GITHUB_OUTPUT"
+          echo "Test cases this fork touches:"
+          echo "$CASES" | tr '|' '\n' | sed 's/^/  - /'
+          [ -n "$CASES" ] || echo "::notice::this fork touches no TestCase — the run only proves the bench builds"
 
       - name: System deps
         run: |
@@ -140,38 +143,33 @@ jobs:
           bench --site test_site set-config allow_tests true
           bench --site test_site set-config developer_mode 1
 
-      - name: Run the tests
+      - name: Run them
         working-directory: /home/runner/frappe-bench
         run: |
-          set -o pipefail
           if [ "${{ steps.modules.outputs.mode }}" = "full" ]; then
             bench --site test_site run-tests --app frappe 2>&1 | tail -60
             exit $?
           fi
-          MODS="${{ steps.modules.outputs.modules }}"
-          if [ -z "$MODS" ]; then
-            echo "Nothing to run."; exit 0
-          fi
-          rc=0
-          summary=""
-          # ONE target per call: --module A --module B keeps only B, silently.
-          # `|| true` around the whole pipeline: one red target must never stop
-          # the others — the point is the full picture, not the first failure.
-          echo "$MODS" | tr '|' '\n' | while read -r entry; do
+          CASES="${{ steps.modules.outputs.cases }}"
+          if [ -z "$CASES" ]; then echo "Nothing to run."; exit 0; fi
+          : > /tmp/results
+          # One CASE per call, and the class is the right grain: our divergence in
+          # test_email_account.py is the class we added, not upstream's TestInboundMail
+          # — which needs an inbound-mail fixture no bare CI site has, and whose red
+          # says nothing about us. `|| true` so one red never hides the others.
+          echo "$CASES" | tr '|' '\n' | while read -r entry; do
             [ -n "$entry" ] || continue
-            kind="${entry%%:*}"; target="${entry#*:}"
-            echo "::group::$kind $target"
-            if bench --site test_site run-tests --"$kind" "$target" 2>&1 | tail -40; then
-              echo "PASS $kind $target" >> /tmp/results
+            mod="${entry%%::*}"; case_name="${entry##*::}"
+            echo "::group::$case_name ($mod)"
+            if bench --site test_site run-tests --module "$mod" --case "$case_name" 2>&1 | tail -40; then
+              echo "PASS $entry" >> /tmp/results
             else
-              echo "FAIL $kind $target" >> /tmp/results
+              echo "FAIL $entry" >> /tmp/results
             fi
             echo "::endgroup::"
           done || true
-          echo "--- résultats ---"
-          cat /tmp/results 2>/dev/null || echo "(aucun)"
-          grep -q '^FAIL ' /tmp/results 2>/dev/null && rc=1
-          exit $rc
+          echo "--- résultats ---"; cat /tmp/results
+          ! grep -q '^FAIL ' /tmp/results
 
       - name: Report to the fleet tracker (via the hub)
         if: always()
@@ -185,4 +183,4 @@ jobs:
             --data-urlencode "run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             --data-urlencode "conclusion=${{ job.status }}" \
             --data-urlencode "ref=${{ github.ref_name }}" \
-            --data-urlencode "summary=our-divergence modules: ${{ steps.modules.outputs.modules }}" || true
+            --data-urlencode "summary=cases this fork touches: ${{ steps.modules.outputs.cases }}" || true
