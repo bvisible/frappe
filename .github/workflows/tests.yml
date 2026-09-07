@@ -73,13 +73,37 @@ jobs:
             exit 0
           fi
           # `test_*.py` is not enough: frappe/test_runner.py matches the glob and is
-          # the RUNNER, not a suite — run-tests would choke on it. A real test module
-          # DEFINES a TestCase subclass at module level; that is the discriminator.
-          MODS=$(git diff --name-only upstream/version-15...HEAD -- '**/test_*.py' \
-                 | while read -r f; do
-                     [ -f "$f" ] && grep -qE '^class [A-Za-z_]*\(.*TestCase' "$f" && echo "$f"
-                   done \
-                 | sed 's#/#.#g; s#\.py$##' | sort -u | tr '\n' ' ')
+          # the RUNNER, not a suite. A real test module DEFINES a TestCase subclass.
+          #
+          # And a doctype's suite runs BY DOCTYPE, not by module: `--module` does not
+          # create that doctype's test records, so TestInboundMail died on a missing
+          # `_Test Email Account 1` — an environment failure, not a defect. `--doctype`
+          # builds them.
+          #
+          # In python, not sed: title-casing with `\u` is GNU-only and silently gives
+          # "email account" elsewhere, which matches no doctype.
+          MODS=$(python3 - <<'PY'
+          import re, subprocess
+          files = subprocess.run(
+              ["git", "diff", "--name-only", "upstream/version-15...HEAD", "--", "**/test_*.py"],
+              capture_output=True, text=True, check=True,
+          ).stdout.split()
+          out = []
+          for f in files:
+              try:
+                  src = open(f, encoding="utf-8").read()
+              except OSError:
+                  continue
+              if not re.search(r"^class [A-Za-z_]*\(.*TestCase", src, re.M):
+                  continue
+              m = re.match(r".*/doctype/([^/]+)/test_\1\.py$", f)
+              if m:
+                  out.append("doctype:" + " ".join(w.capitalize() for w in m.group(1).split("_")))
+              else:
+                  out.append("module:" + f[:-3].replace("/", "."))
+          print("|".join(sorted(set(out))))
+          PY
+          )
           echo "mode=diff" >> "$GITHUB_OUTPUT"
           echo "modules=$MODS" >> "$GITHUB_OUTPUT"
           echo "Modules where this fork diverges from upstream/version-15:"
@@ -129,12 +153,24 @@ jobs:
             echo "Nothing to run."; exit 0
           fi
           rc=0
-          for m in $MODS; do
-            echo "::group::$m"
-            # ONE module per call: --module A --module B keeps only B.
-            bench --site test_site run-tests --module "$m" 2>&1 | tail -40 || rc=1
+          summary=""
+          # ONE target per call: --module A --module B keeps only B, silently.
+          # `|| true` around the whole pipeline: one red target must never stop
+          # the others — the point is the full picture, not the first failure.
+          echo "$MODS" | tr '|' '\n' | while read -r entry; do
+            [ -n "$entry" ] || continue
+            kind="${entry%%:*}"; target="${entry#*:}"
+            echo "::group::$kind $target"
+            if bench --site test_site run-tests --"$kind" "$target" 2>&1 | tail -40; then
+              echo "PASS $kind $target" >> /tmp/results
+            else
+              echo "FAIL $kind $target" >> /tmp/results
+            fi
             echo "::endgroup::"
-          done
+          done || true
+          echo "--- résultats ---"
+          cat /tmp/results 2>/dev/null || echo "(aucun)"
+          grep -q '^FAIL ' /tmp/results 2>/dev/null && rc=1
           exit $rc
 
       - name: Report to the fleet tracker (via the hub)
