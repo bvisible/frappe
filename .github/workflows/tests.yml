@@ -1,0 +1,142 @@
+# //// Neoffice — added file (no upstream equivalent).
+#
+# The fork had NO test signal at all: upstream's `server-tests.yml` is
+# `disabled_manually` here (like Linters, Pre-commit and UI), and its last run
+# was 2026-02-16. Meanwhile 29 app repos run their suites against this fork on
+# every push — so a frappe regression that breaks an app IS caught, but nothing
+# ran frappe's own tests, including the ones we add.
+#
+# Re-enabling upstream's workflow was not the answer: it is a 4-way parallel
+# matrix over the whole suite, ~16-23 min wall each, and this branch takes ~6.7
+# real pushes a day. That is roughly 60 $/month of Actions on one repo.
+#
+# So this runs OUR DIVERGENCE ONLY: the test modules where this fork differs
+# from `upstream/version-15`, computed at run time. Today that is three modules;
+# it grows exactly when we add a test, and never when upstream does. A run is a
+# bench init plus a handful of modules.
+#
+# One module per `run-tests` call ON PURPOSE: `bench run-tests --module A
+# --module B` keeps only the LAST one — a silent way to test a fraction of what
+# you listed.
+name: Tests
+on:
+  workflow_dispatch:
+    inputs:
+      full_suite:
+        description: "Run frappe's WHOLE suite instead of our divergence (slow, ~1 h of Actions)"
+        required: false
+        type: boolean
+        default: false
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      mariadb:
+        image: mariadb:10.6
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+      redis:
+        image: redis:alpine
+        ports: ["6379:6379"]
+    steps:
+      - name: Clone the fork at the pushed sha
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Which test modules do we diverge on?
+        id: modules
+        run: |
+          set -o pipefail
+          git remote add upstream https://github.com/frappe/frappe.git 2>/dev/null || true
+          git fetch --quiet --depth=200 upstream version-15
+          if [ "${{ inputs.full_suite }}" = "true" ]; then
+            echo "mode=full" >> "$GITHUB_OUTPUT"
+            echo "modules=" >> "$GITHUB_OUTPUT"
+            echo "Full suite requested."
+            exit 0
+          fi
+          MODS=$(git diff --name-only upstream/version-15...HEAD -- '**/test_*.py' \
+                 | sed 's#/#.#g; s#\.py$##' | sort -u | tr '\n' ' ')
+          echo "mode=diff" >> "$GITHUB_OUTPUT"
+          echo "modules=$MODS" >> "$GITHUB_OUTPUT"
+          echo "Modules where this fork diverges from upstream/version-15:"
+          for m in $MODS; do echo "  - $m"; done
+          [ -n "$MODS" ] || echo "::notice::no test module diverges — the run will only prove the bench builds"
+
+      - name: System deps
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq mariadb-client libcups2-dev
+
+      - name: Init bench on THIS sha
+        run: |
+          pip install frappe-bench
+          bench init --skip-redis-config-generation --skip-assets \
+            --frappe-path "$GITHUB_WORKSPACE" --frappe-branch "${{ github.sha }}" \
+            --python "$(which python)" ~/frappe-bench
+          ~/frappe-bench/env/bin/pip install --quiet "setuptools<81"
+
+      - name: New site
+        working-directory: /home/runner/frappe-bench
+        run: |
+          mariadb --host 127.0.0.1 --port 3306 -u root -proot \
+            -e "SET GLOBAL character_set_server = 'utf8mb4'; SET GLOBAL collation_server = 'utf8mb4_unicode_ci';"
+          bench set-config -g db_host 127.0.0.1
+          bench set-config -g redis_cache redis://127.0.0.1:6379
+          bench set-config -g redis_queue redis://127.0.0.1:6379
+          bench set-config -g redis_socketio redis://127.0.0.1:6379
+          bench new-site test_site --db-root-password root --admin-password admin --no-mariadb-socket
+          bench --site test_site set-config allow_tests true
+          bench --site test_site set-config developer_mode 1
+
+      - name: Run the tests
+        working-directory: /home/runner/frappe-bench
+        run: |
+          set -o pipefail
+          if [ "${{ steps.modules.outputs.mode }}" = "full" ]; then
+            bench --site test_site run-tests --app frappe 2>&1 | tail -60
+            exit $?
+          fi
+          MODS="${{ steps.modules.outputs.modules }}"
+          if [ -z "$MODS" ]; then
+            echo "Nothing to run."; exit 0
+          fi
+          rc=0
+          for m in $MODS; do
+            echo "::group::$m"
+            # ONE module per call: --module A --module B keeps only B.
+            bench --site test_site run-tests --module "$m" 2>&1 | tail -40 || rc=1
+            echo "::endgroup::"
+          done
+          exit $rc
+
+      - name: Report to the fleet tracker (via the hub)
+        if: always()
+        run: |
+          curl -sS --max-time 20 -X POST \
+            "https://neoservice.neoffice.me/api/method/neoffice_devops.github.ci.report" \
+            --data-urlencode "secret=${{ secrets.CI_REPORT_SECRET }}" \
+            --data-urlencode "repo=${{ github.repository }}" \
+            --data-urlencode "app=frappe" \
+            --data-urlencode "sha=${{ github.sha }}" \
+            --data-urlencode "run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --data-urlencode "conclusion=${{ job.status }}" \
+            --data-urlencode "ref=${{ github.ref_name }}" \
+            --data-urlencode "summary=our-divergence modules: ${{ steps.modules.outputs.modules }}" || true
