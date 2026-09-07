@@ -20,6 +20,14 @@
 # you listed.
 name: Tests
 on:
+  # Armed on a MEASURED number, not an estimate: a run is 2.6 min, ~0.016 $, and
+  # this branch takes ~6.7 real pushes a day — about 3 $/month. Upstream's full
+  # matrix would have been ~60 $/month on this repo alone, against a 20 $/month
+  # budget for everything. That gap is the whole reason this runs the cases the
+  # fork touches instead of the suite upstream ships.
+  push:
+    branches: [version-15]
+  pull_request:
   workflow_dispatch:
     inputs:
       full_suite:
