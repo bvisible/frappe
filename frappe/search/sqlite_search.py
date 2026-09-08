@@ -20,6 +20,20 @@ from frappe.model.document import Document
 from frappe.utils import update_progress_bar
 
 
+# //// Neoffice — added helper (no upstream equivalent, tracker #170 then #247). Everything in
+# //// this module that draws on stdout — the progress bar and the warning summary — runs just as
+# //// often under an RQ worker, where stdout is a pipe to supervisor that can be closed: writing
+# //// to it raises BrokenPipeError and kills the index build. One place to ask the question, so
+# //// the next thing that prints cannot forget it.
+def _stdout_is_a_terminal() -> bool:
+	import sys
+
+	try:
+		return sys.stdout is not None and sys.stdout.isatty()
+	except Exception:  # noqa: BLE001 - a stdout that cannot even answer is not one we draw on
+		return False
+
+
 class WarningType(Enum):
 	"""Warning types for search indexing."""
 
@@ -994,9 +1008,18 @@ class SQLiteSearch(ABC):
 	# Utility Methods
 
 	def _update_progress(self, message, progress, total=100, absolute=True):
-		"""Update progress bar only if not running in a web request context or tests."""
-		if not hasattr(frappe.local, "request") and not frappe.flags.in_test:
-			update_progress_bar(message, progress, total, absolute=absolute)
+		"""Draw the progress bar only where there is a terminal to draw it on."""
+		if hasattr(frappe.local, "request") or frappe.flags.in_test:
+			return
+		# //// Neoffice — the guard above covers the web request and the tests, but NOT the RQ
+		# //// worker, where neither is true: the scheduled build wrote to supervisor's pipe and
+		# //// died on BrokenPipeError at "Setting up search tables", 0 % — the whole index build
+		# //// lost, 5 times a day on the hub (tracker #247). Same cause as the warning summary
+		# //// (#170), same question, now asked in one place. CI keeps its dots: update_progress_bar
+		# //// has its own CI branch and CI is where that output is read.
+		if not os.environ.get("CI") and not _stdout_is_a_terminal():
+			return
+		update_progress_bar(message, progress, total, absolute=absolute)
 
 	def _validate_config(self):
 		"""Validate document configuration at startup."""
@@ -1211,13 +1234,7 @@ class SQLiteSearch(ABC):
 		# //// not a terminal and can be a closed pipe, so lms.sqlite.build_index died with
 		# //// BrokenPipeError on the hub 124 times a day (tracker #170). Off a terminal the
 		# //// report goes to the bench logger instead; the index itself is unaffected.
-		import sys
-
-		try:
-			interactive = sys.stdout is not None and sys.stdout.isatty()
-		except Exception:
-			interactive = False
-		if not interactive:
+		if not _stdout_is_a_terminal():
 			# //// Neoffice — self.warnings is a list of IndexWarning, not a dict keyed by doctype; the
 			# //// prior .items() guard raised on this very off-terminal branch it was meant to protect
 			# //// (scheduler, CI) (2590e5994 "fix(search): the off-terminal warnings summary groups a list, not a dict")
