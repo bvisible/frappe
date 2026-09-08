@@ -123,75 +123,13 @@ def get_print(
 	return get_pdf(html, options=pdf_options, output=output)
 
 
-# //// Neoffice ▼▼▼ — added block, no upstream version-15 equivalent: everything from here to
-# //// the end of the file comes from our backport of frappe develop's Chrome PDF generator.
-# //// Upstream version-15 (v15.89.0 AND v15.120.0) contains get_print() and nothing else.
-# ////   • c64ffb849d (develop 964dd6c034 "feat: Chrome PDF generator"): attach_print,
-# ////     setup_chromium, find_or_download_chromium_executable, download_chromium,
-# ////     get_chromium_download_url, make_chromium_executable, calculate_platform,
-# ////     get_linux_distribution_info, parse_float_and_unit, convert_uom;
-# ////   • 6bbb9586b9 (develop 5f99434f52): the inner imports;
-# ////   • 45b9c5f3e7 (develop 19ccfcc453 "ensure `bench setup-chrome` respects site config path
-# ////     for chromium"): the chromium_path escape hatch;
-# ////   • 40b4e486bb (develop 8649c18125): the standard-format toggle.
-# //// 🔴 TO REVIEW: attach_print() here is DEAD AND BROKEN. In develop it replaces
-# //// frappe.attach_print; in our tree frappe/__init__.py still defines attach_print and that
-# //// is the one every caller uses, so this copy is called from nowhere — and it references
-# //// cint() and cstr() which this module never imports, so it would raise NameError if it ever
-# //// were. Delete it, or import the two helpers. The rest of the block is verbatim develop, so
-# //// a v16 merge resolves it; a v15.120 merge keeps our side. ▲▲▲ to end of file.
-def attach_print(
-	doctype,
-	name,
-	file_name=None,
-	print_format=None,
-	style=None,
-	html=None,
-	doc=None,
-	lang=None,
-	print_letterhead=True,
-	password=None,
-	letterhead=None,
-):
-	from frappe.translate import print_language
-	from frappe.utils import scrub_urls
-	from frappe.utils.pdf import get_pdf
-
-	print_settings = frappe.db.get_singles_dict("Print Settings")
-
-	kwargs = dict(
-		print_format=print_format,
-		style=style,
-		doc=doc,
-		no_letterhead=not print_letterhead,
-		letterhead=letterhead,
-		password=password,
-	)
-
-	frappe.local.flags.ignore_print_permissions = True
-
-	with print_language(lang or frappe.local.lang):
-		content = ""
-		if cint(print_settings.send_print_as_pdf):
-			ext = ".pdf"
-			kwargs["as_pdf"] = True
-			content = (
-				get_pdf(html, options={"password": password} if password else None)
-				if html
-				else get_print(doctype, name, **kwargs)
-			)
-		else:
-			ext = ".html"
-			content = html or scrub_urls(get_print(doctype, name, **kwargs)).encode("utf-8")
-
-	frappe.local.flags.ignore_print_permissions = False
-
-	if not file_name:
-		file_name = name
-	file_name = cstr(file_name).replace(" ", "").replace("/", "-") + ext
-
-	return {"fname": file_name, "fcontent": content}
-
+# //// Neoffice — attach_print() removed here (#205, 2026-09-08). It was a copy of
+# //// frappe.attach_print (frappe/__init__.py), dragged along by our backport of the Chrome PDF
+# //// generator; upstream version-15 has no attach_print in this module. Nothing imported it —
+# //// every caller in the fleet goes through frappe.attach_print — and it could not have worked:
+# //// it calls cint() and cstr(), which this module never imports, so any call raised NameError.
+# //// Dead code that reads like a working alternative is worse than no code: the next reader
+# //// would have imported it.
 
 def setup_chromium():
 	"""Setup Chromium at the bench level."""

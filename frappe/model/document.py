@@ -179,14 +179,21 @@ class Document(BaseDocument):
 				# //// Neoffice — added (cb81bf5bbb, 2024-09-27 "Update document.py", empty message): mutes the
 				# //// message queue before the DoesNotExistError is thrown, so a missing document raises
 				# //// without also painting an error toast. Upstream throws with messages enabled.
-				# //// TO REVIEW: frappe.flags.mute_messages is set and never restored — it stays set for the
-				# //// rest of the request, so later msgprints from unrelated code are swallowed too.
+				# //// Restored in a finally (#205, 2026-09-08): the flag used to be set and never put back,
+				# //// so it stayed on for the REST of the request — frappe.msgprint returns early on it
+				# //// (frappe/__init__.py), so every later message from unrelated code was swallowed too.
+				# //// One get_doc on a document that no longer exists (a stale link, a deleted row) made
+				# //// the rest of that request silent, which is exactly when a user needs to be told.
 				# //// add flags.mute_messages
+				muted = frappe.flags.mute_messages
 				frappe.flags.mute_messages = True
-				frappe.throw(
-					_("{0} {1} not found").format(_(self.doctype), self.name),
-					frappe.DoesNotExistError(doctype=self.doctype),
-				)
+				try:
+					frappe.throw(
+						_("{0} {1} not found").format(_(self.doctype), self.name),
+						frappe.DoesNotExistError(doctype=self.doctype),
+					)
+				finally:
+					frappe.flags.mute_messages = muted
 
 			super().__init__(d)
 		self.flags.pop("ignore_children", None)

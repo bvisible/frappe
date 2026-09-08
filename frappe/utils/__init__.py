@@ -33,10 +33,6 @@ from email.utils import formataddr, parseaddr
 from typing import Any, Literal, TypedDict
 from urllib.parse import quote, urlparse
 
-# //// Neoffice — added (7446c62c35). TO REVIEW: `ConnectionError` is not referenced anywhere in
-# //// this module, and importing it here SHADOWS the Python builtin of the same name for the
-# //// whole module and for every `from frappe.utils import *` consumer. Remove at the merge.
-from redis.exceptions import ConnectionError
 from werkzeug.test import Client
 
 # //// Neoffice — added (7446c62c35, 2023-11-15 "updates for v15 / restrict domains"). 🔴 TO
