@@ -114,12 +114,10 @@ class Page:
 			# //// When wait_for_event times out the future is CANCELLED, so .result()
 			# //// raised a bare CancelledError and the whole preview 500'd. Fail with a
 			# //// message that names the cause, and drop the listener on both paths.
-			if not self.session.wait_for_event(event):
-				self.session.remove_listener("Fetch.requestPaused", event)
-				frappe.throw(
-					frappe._("The PDF engine did not respond in time. Please try again."),
-					title=frappe._("PDF generation timed out"),
-				)
+			self.session.wait_for_event_or_throw(
+				event,
+				cleanup=lambda: self.session.remove_listener("Fetch.requestPaused", event),
+			)
 			self.session.send(
 				"Fetch.fulfillRequest",
 				{"requestId": event[1].result(), "responseCode": 200},
@@ -359,8 +357,15 @@ class Page:
 		return self.get_pdf_from_stream(result["stream"], raw)
 
 	def get_pdf_stream_id(self):
+		# //// Neoffice — same defect as intercept_and_fulfill above, and the first pass at
+		# //// #291 left it open: upstream ignored the return of wait_for_event and then
+		# //// dereferenced a future the timeout had just cancelled. Measured on osiris
+		# //// 2026-09-08: every Oslo format prints a page number, so is_header_dynamic is
+		# //// True and browser.py takes the generate_pdf() branch instead — this one is
+		# //// reached only by a header/footer WITHOUT page numbers. Latent, not hot, but
+		# //// one format without "page X / Y" is enough to arm it again.
 		# wait for task to complete
-		self.session.wait_for_event(self.wait_for_pdf)
+		self.session.wait_for_event_or_throw(self.wait_for_pdf)
 		# wait for event to complete
 		task = self.wait_for_pdf.result()
 		future = task.result()

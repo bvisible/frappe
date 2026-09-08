@@ -1,5 +1,6 @@
 # Copyright (c) 2018, Frappe Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
+import asyncio
 import io
 
 from pypdf import PdfReader
@@ -94,3 +95,53 @@ class TestPdf(FrappeTestCase):
 
 		# If image was actually retrieved then size will be  in few kbs, else bytes.
 		self.assertGreaterEqual(len(pdf), 10_000)
+
+
+# //// Neoffice — added class (no upstream equivalent). The Chrome PDF generator had NO
+# //// automated coverage at all, which is how the same defect shipped twice: a caller
+# //// waits for a CDP event, asyncio.wait_for CANCELS the future on timeout, and the
+# //// caller dereferences it anyway -> a bare CancelledError surfacing as an HTTP 500
+# //// with asyncio in the traceback and no cause (#291, terrettaz-sa.ch, 2026-09-08).
+# //// These tests need no Chromium: a future that never resolves is the whole fixture.
+class TestChromePdfEventTimeouts(FrappeTestCase):
+	def _client(self):
+		"""A CDP client that is never connected — __init__ opens no socket."""
+		from frappe.utils.pdf_generator.cdp_connection import CDPSocketClient
+
+		client = CDPSocketClient("ws://127.0.0.1:1/never-connected")
+		self.addCleanup(asyncio.set_event_loop, None)
+		self.addCleanup(client.loop.close)
+		return client
+
+	def test_wait_for_event_or_throw_reports_the_timeout_and_cleans_up(self):
+		client = self._client()
+		never_resolves = client.loop.create_future()
+		dropped = []
+
+		with self.assertRaises(frappe.ValidationError):
+			client.wait_for_event_or_throw(
+				never_resolves, timeout=0.01, cleanup=lambda: dropped.append("listener")
+			)
+
+		# asyncio.wait_for cancels the future it was waiting on — this IS the trap.
+		self.assertTrue(never_resolves.cancelled())
+		self.assertEqual(dropped, ["listener"], "cleanup must run before we raise")
+
+	def test_get_pdf_stream_id_raises_a_message_not_a_cancelled_future(self):
+		"""Regression for #291: latent path, but the same cancelled future."""
+		from frappe.utils.pdf_generator.page import Page
+
+		client = self._client()
+		client.wait_for_event = lambda event, timeout=15: False  # the timed-out path
+
+		cancelled = client.loop.create_future()
+		cancelled.cancel()  # exactly what wait_for leaves behind
+
+		page = Page.__new__(Page)  # no browser, no tab: only the wait path is under test
+		page.session = client
+		page.wait_for_pdf = cancelled
+
+		# Without the guard this raises asyncio.CancelledError, which is not an Exception
+		# subclass on 3.8+ and so escapes every handler up to the HTTP 500.
+		with self.assertRaises(frappe.ValidationError):
+			page.get_pdf_stream_id()

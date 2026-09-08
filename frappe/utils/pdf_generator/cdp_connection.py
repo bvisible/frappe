@@ -2,7 +2,8 @@
 # //// develop (v16) Chrome PDF generator, unchanged from upstream. Lineage (cherry-picked
 # //// with -x): 964dd6c034 "feat: Chrome PDF generator" (ours c64ffb849d) + d870caf6c4 (#35098,
 # //// ours 153d09abb5). Why the backport: see the browser.py header (wkhtmltopdf cannot render
-# //// the Oslo print formats; ADR 2026-05-26). No Neoffice-specific change in this file.
+# //// the Oslo print formats; ADR 2026-05-26). Neoffice changes in this file: wait_for_event()
+# //// and wait_for_event_or_throw() — see the markers on each.
 # //// v16 note: upstream moved this module to frappe/utils/chromium/cdp_connection.py
 # //// (182e127732 "refactor: extract generic headless-Chromium stack", 2026-06-18).
 import asyncio
@@ -194,6 +195,24 @@ class CDPSocketClient:
 			frappe.log_error(title="Timeout waiting for event", message=f"{frappe.get_traceback()}")
 			# //// Neoffice — see block marker above: caller branches on False, no cancelled future
 			return False
+
+	# //// Neoffice — added. wait_for_event() reports a timeout by returning False, and by
+	# //// then asyncio.wait_for has CANCELLED the future: any caller that reads the value
+	# //// afterwards gets a bare CancelledError, surfaced as an HTTP 500 with a traceback
+	# //// naming asyncio and not the real cause. Every caller that needs the value goes
+	# //// through here, so there is ONE way to wait and ONE message — a guard copied per
+	# //// call site is how the first fix left get_pdf_stream_id open (see #291).
+	# //// Remove when upstream ships the Chrome generator on v15 with its own fix.
+	def wait_for_event_or_throw(self, event, timeout=15, cleanup=None):
+		"""Wait for a CDP event; raise a user-facing error naming the timeout if it never came."""
+		if self.wait_for_event(event, timeout):
+			return
+		if cleanup:
+			cleanup()
+		frappe.throw(
+			frappe._("The PDF engine did not respond in time. Please try again."),
+			title=frappe._("PDF generation timed out"),
+		)
 
 	def remove_listener(self, method, event):
 		"""Remove a listener for a specific CDP event."""
