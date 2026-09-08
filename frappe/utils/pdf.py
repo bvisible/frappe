@@ -3,6 +3,7 @@
 import base64
 import contextlib
 import io
+import logging
 import mimetypes
 import os
 import subprocess
@@ -17,6 +18,19 @@ import pdfkit
 # //// PYTHONOPTIMIZE=1 build strips — the note is upstream develop's own wording. Keep until
 # //// the fleet merges v16, where it arrives from upstream.
 pdfkit.source.unicode = str  # NOTE: upstream bug; PYTHONOPTIMIZE=1 optimized this away
+
+# //// Neoffice — silence cssutils' parser log (added; upstream leaves it at its default).
+# //// cssutils is a CSS 2.1-era parser, so every modern declaration our Oslo print formats
+# //// use — custom properties, :has(), grid, break-before — is reported as an ERROR, and its
+# //// handler writes to the REAL stderr, i.e. straight into web.error.log. Measured on
+# //// terrettaz-sa.ch 2026-09-08: 41 MB / 474 216 lines, ~75 000 of them these complaints —
+# //// which is how a genuine traceback becomes unfindable and how the log-signatures fleet
+# //// check drowns. Parsing is untouched: get_print_format_styles only reads the rules
+# //// cssutils DID understand and never looked at the log (checked: identical properties
+# //// with and without, 6 stderr lines -> 0). cssutils.log is a module singleton, so this
+# //// also quiets the same complaints from e-mail CSS inlining — same noise, same non-value.
+# //// Drop when upstream stops using cssutils (v16 still does).
+cssutils.log.setLevel(logging.CRITICAL)
 from bs4 import BeautifulSoup
 from packaging.version import Version
 from pypdf import PdfReader, PdfWriter, errors
