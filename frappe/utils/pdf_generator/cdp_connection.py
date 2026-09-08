@@ -188,9 +188,11 @@ class CDPSocketClient:
 			event = event[1]
 		try:
 			self.loop.run_until_complete(asyncio.wait_for(event, timeout))
+			# //// Neoffice — see block marker above: return bool instead of raising
 			return True
 		except (asyncio.TimeoutError, asyncio.CancelledError):
 			frappe.log_error(title="Timeout waiting for event", message=f"{frappe.get_traceback()}")
+			# //// Neoffice — see block marker above: caller branches on False, no cancelled future
 			return False
 
 	def remove_listener(self, method, event):

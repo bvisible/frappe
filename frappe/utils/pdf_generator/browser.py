@@ -69,6 +69,7 @@ class Browser:
 			# now wait for page to load as we need DOM to generate pdf
 			self.body_page.wait_for_set_content()
 			self.body_pdf = self.body_page.generate_pdf(raw=not self.header_page and not self.footer_page)
+			# //// Neoffice — see block marker above: page reset to None for cleanup
 			if not self.debug_mode:
 				self.body_page.close()
 				self.body_page = None
@@ -83,6 +84,7 @@ class Browser:
 					self.header_page.close()
 					self.header_page = None
 
+			# //// Neoffice — see block marker above: reindented into try, page reset to None
 			if self.footer_page:
 				if not self.is_footer_dynamic:
 					self.footer_pdf = self.footer_page.get_pdf_from_stream(self.footer_page.get_pdf_stream_id())
