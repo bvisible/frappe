@@ -34,51 +34,96 @@ class Browser:
 		self.debug_mode = frappe.conf.developer_mode and bool(frappe.form_dict.get("pdf_debug"))
 		self.browserID = frappe.utils.random_string(10)
 		generator.add_browser(self.browserID)
-		# sets soup from html
-		self.set_html(html)
-		# sets wkhtmltopdf options
-		self.set_options(options)
-		# start cdp connection and create browser context ( kind of like new window / incognito mode)
-		self.open(generator)
-		# opens header and footer pages and sets content ( not waiting for it to load)
-		self.prepare_header_footer()
-		# opens body page and sets content and waits for it to finshing load
-		self.setup_body_page()
-		# prepare options as per chrome for pdf
-		self.prepare_options_for_pdf()
-		# generate header and footer pages if they are not dynamic ( first, odd, even, last)
-		self.update_header_footer_page_pd()
-		# if header and footer are not dynamic start generating pdf for them (non-blocking)
-		self.try_async_header_footer_pdf()
-		# now wait for page to load as we need DOM to generate pdf
-		self.body_page.wait_for_set_content()
-		self.body_pdf = self.body_page.generate_pdf(raw=not self.header_page and not self.footer_page)
-		if not self.debug_mode:
-			self.body_page.close()
-		self.update_header_footer_page()
-
-		if self.header_page:
-			if not self.is_header_dynamic:
-				self.header_pdf = self.header_page.get_pdf_from_stream(self.header_page.get_pdf_stream_id())
-			else:
-				self.header_pdf = self.header_page.generate_pdf()
+		# //// Neoffice — the whole render is wrapped in try/except/finally below; upstream
+		# //// ran it bare. Every step here can raise (a CDP event that never arrives, a
+		# //// wedged Chromium, a render that outlives its timeout), and when it did, the
+		# //// tabs already opened were never closed and the CDP socket was never
+		# //// disconnected. Measured on SRV-0127 (terrettaz-sa.ch, 2026-09-08): 63 orphan
+		# //// about:blank pages and 20 CLOSE-WAIT sockets to port 9222, with the gunicorn
+		# //// workers holding them grown to 415 MB against a ~215 MB baseline elsewhere in
+		# //// the fleet. That leak feeds itself — a heavier Chromium answers CDP events
+		# //// more slowly, which times out more renders, which leaks more tabs — and it
+		# //// took the instance from "slow" to HTTP 500 in one morning. The attributes are
+		# //// pre-set to None so cleanup can run even if we fail before they are assigned.
+		self.session = None
+		self.body_page = None
+		self.header_page = None
+		self.footer_page = None
+		try:
+			# sets soup from html
+			self.set_html(html)
+			# sets wkhtmltopdf options
+			self.set_options(options)
+			# start cdp connection and create browser context ( kind of like new window / incognito mode)
+			self.open(generator)
+			# opens header and footer pages and sets content ( not waiting for it to load)
+			self.prepare_header_footer()
+			# opens body page and sets content and waits for it to finshing load
+			self.setup_body_page()
+			# prepare options as per chrome for pdf
+			self.prepare_options_for_pdf()
+			# generate header and footer pages if they are not dynamic ( first, odd, even, last)
+			self.update_header_footer_page_pd()
+			# if header and footer are not dynamic start generating pdf for them (non-blocking)
+			self.try_async_header_footer_pdf()
+			# now wait for page to load as we need DOM to generate pdf
+			self.body_page.wait_for_set_content()
+			self.body_pdf = self.body_page.generate_pdf(raw=not self.header_page and not self.footer_page)
 			if not self.debug_mode:
-				self.header_page.close()
+				self.body_page.close()
+				self.body_page = None
+			self.update_header_footer_page()
 
-		if self.footer_page:
-			if not self.is_footer_dynamic:
-				self.footer_pdf = self.footer_page.get_pdf_from_stream(self.footer_page.get_pdf_stream_id())
-			else:
-				self.footer_pdf = self.footer_page.generate_pdf()
+			if self.header_page:
+				if not self.is_header_dynamic:
+					self.header_pdf = self.header_page.get_pdf_from_stream(self.header_page.get_pdf_stream_id())
+				else:
+					self.header_pdf = self.header_page.generate_pdf()
+				if not self.debug_mode:
+					self.header_page.close()
+					self.header_page = None
+
+			if self.footer_page:
+				if not self.is_footer_dynamic:
+					self.footer_pdf = self.footer_page.get_pdf_from_stream(self.footer_page.get_pdf_stream_id())
+				else:
+					self.footer_pdf = self.footer_page.generate_pdf()
+				if not self.debug_mode:
+					self.footer_page.close()
+					self.footer_page = None
+
 			if not self.debug_mode:
-				self.footer_page.close()
+				self.close()
 
-		if not self.debug_mode:
+			if self.debug_mode:
+				generator.detach_debug_browser()
+		except Exception:
+			# //// Neoffice — close whatever is still open before the exception leaves this
+			# //// frame. Debug mode keeps the tabs on purpose (that is the point of
+			# //// pdf_debug), so only the socket is released there.
+			if not self.debug_mode:
+				self._close_open_pages()
 			self.close()
+			raise
+		finally:
+			# //// Neoffice — moved into finally: upstream only reached it on the happy path,
+			# //// so a failed render left its id in the generator's browser set forever and
+			# //// the shared Chromium was considered busy by the idle reaper.
+			generator.remove_browser(self.browserID)
 
-		generator.remove_browser(self.browserID)
-		if self.debug_mode:
-			generator.detach_debug_browser()
+	def _close_open_pages(self):
+		"""//// Neoffice — added: best-effort close of the tabs this Browser opened.
+		Never raises: it runs on the failure path, where the CDP socket may already be
+		gone, and a cleanup error must not mask the original exception."""
+		for attr in ("body_page", "header_page", "footer_page"):
+			page = getattr(self, attr, None)
+			if not page:
+				continue
+			try:
+				page.close()
+			except Exception:
+				pass
+			setattr(self, attr, None)
 
 	def open(self, generator):
 		from frappe.utils.pdf_generator.cdp_connection import CDPSocketClient
@@ -470,7 +515,18 @@ class Browser:
 		self.footer_content = footer_content
 
 	def close(self):
-		self.session.disconnect()
+		# //// Neoffice — None-guard + swallow. Upstream assumed a live session, but close()
+		# //// is now also called from the failure path, where open() may never have run
+		# //// (self.session is None) or the socket is already dead. A raise here would mask
+		# //// the real exception and, worse, skip the disconnect that releases the FD —
+		# //// the CLOSE-WAIT sockets that grew the workers to 415 MB on SRV-0127.
+		if not self.session:
+			return
+		try:
+			self.session.disconnect()
+		except Exception:
+			pass
+		self.session = None
 
 
 class PageSize:

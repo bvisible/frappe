@@ -173,13 +173,25 @@ class CDPSocketClient:
 			self.listeners[method].append(event)
 		return event
 
-	def wait_for_event(self, event, timeout=3):
+	# //// Neoffice — returns a bool, and the default timeout goes 3 s -> 15 s.
+	# //// Upstream returned nothing and swallowed the TimeoutError, but asyncio.wait_for
+	# //// CANCELS the future when it expires: the caller then called .result() on that
+	# //// cancelled future and a bare CancelledError surfaced as an HTTP 500 on the print
+	# //// preview, with a traceback naming asyncio instead of the real cause. 3 s was also
+	# //// below the measured p95 of a render on a loaded 2-vCPU instance (3.58 s on
+	# //// SRV-0127 / terrettaz-sa.ch), so roughly 5 % of previews failed by construction.
+	# //// Callers now branch on the return value instead of touching a cancelled future.
+	# //// Remove when upstream ships the Chrome generator on v15 with its own fix.
+	def wait_for_event(self, event, timeout=15):
+		"""Wait for a CDP event. Returns True if it arrived, False if it timed out."""
 		if type(event) is tuple:
 			event = event[1]
 		try:
 			self.loop.run_until_complete(asyncio.wait_for(event, timeout))
-		except asyncio.TimeoutError:
+			return True
+		except (asyncio.TimeoutError, asyncio.CancelledError):
 			frappe.log_error(title="Timeout waiting for event", message=f"{frappe.get_traceback()}")
+			return False
 
 	def remove_listener(self, method, event):
 		"""Remove a listener for a specific CDP event."""

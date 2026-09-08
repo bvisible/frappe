@@ -110,7 +110,16 @@ class Page:
 		self.session.send("Fetch.enable", {"patterns": [{"urlPattern": url_pattern}]})
 
 		def intercept_and_fulfill():
-			self.session.wait_for_event(event)
+			# //// Neoffice — guard added; upstream called .result() unconditionally.
+			# //// When wait_for_event times out the future is CANCELLED, so .result()
+			# //// raised a bare CancelledError and the whole preview 500'd. Fail with a
+			# //// message that names the cause, and drop the listener on both paths.
+			if not self.session.wait_for_event(event):
+				self.session.remove_listener("Fetch.requestPaused", event)
+				frappe.throw(
+					frappe._("The PDF engine did not respond in time. Please try again."),
+					title=frappe._("PDF generation timed out"),
+				)
 			self.session.send(
 				"Fetch.fulfillRequest",
 				{"requestId": event[1].result(), "responseCode": 200},
