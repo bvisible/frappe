@@ -3,6 +3,7 @@
 import base64
 import contextlib
 import io
+# //// Neoffice — see the block marker below: needed for cssutils.log.setLevel(CRITICAL)
 import logging
 import mimetypes
 import os
