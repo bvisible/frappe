@@ -1,5 +1,6 @@
 # Copyright (c) 2018, Frappe Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
+# //// Neoffice — needed for the new Chrome-path CDP wait_for_event tests below (3a34694 "fix(pdf): one way to wait for a CDP event, and the first tests of the chrome path")
 import asyncio
 import io
 
