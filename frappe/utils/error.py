@@ -14,6 +14,12 @@ EXCLUDE_EXCEPTIONS = (
 	frappe.CSRFTokenError,  # CSRF covers OAuth too
 	frappe.SecurityException,
 	frappe.InReadOnlyMode,
+	# //// Neoffice — SessionStopped added. It is the 503 the site answers while
+	# //// maintenance_mode is on (bench migrate): a planned state, not an error. Upstream
+	# //// snapshots it like any 5xx, so every request during a migrate wrote an Error Log
+	# //// entry — nine in one second on dmis, from a scanner hitting the bare IP — and the
+	# //// fleet's signature bridge opened an issue (#299) that every update would reopen.
+	frappe.SessionStopped,
 )
 
 LDAP_BASE_EXCEPTION = "LDAPException"
