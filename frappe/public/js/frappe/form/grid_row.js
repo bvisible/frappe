@@ -469,9 +469,14 @@ export default class GridRow {
 		//// reload delay 500 ms -> 300 ms). Administrator-only footer buttons that write the column layout
 		//// straight into the child DocType's .json through neoffice_custom_fields.api.apply_columns_to_json,
 		//// optionally git-pushing it: a core -> neoffice_custom_fields dependency (the call fails on an
-		//// instance without that app), and the only French msgids in this file. TO REVIEW at the merge.
-		//// neoffice: "Appliquer au JSON" + "Appliquer et Pousser" buttons for Administrator
-		if (frappe.session.user === 'Administrator') {
+		//// instance without that app. The call is now GATED on the app being installed
+		//// (frappe.boot.versions carries every installed app's version), so the framework degrades
+		//// to upstream's dialog instead of offering a button that answers 404 — the dependency is
+		//// still there, but it can no longer be reached where it does not exist. The msgids are
+		//// English again and the French lives in locale/fr.po, where it belongs
+		//// (neoffice-maintenance#205).
+		//// neoffice: "Apply to JSON" + "Apply and Push" buttons for Administrator
+		if (frappe.session.user === 'Administrator' && frappe.boot.versions?.neoffice_custom_fields) {
 			const grid = this.grid;
 			const get_columns_config = () => {
 				this.validate_columns_width();
@@ -483,7 +488,7 @@ export default class GridRow {
 
 			const apply_to_json = (git_push) => {
 				const columns_config = get_columns_config();
-				const action_label = git_push ? __("Appliquer et Pousser") : __("Appliquer au JSON");
+				const action_label = git_push ? __("Apply and Push") : __("Apply to JSON");
 
 				frappe.call({
 					method: "neoffice_custom_fields.api.apply_columns_to_json",
@@ -494,8 +499,8 @@ export default class GridRow {
 					},
 					freeze: true,
 					freeze_message: git_push
-						? __("Mise à jour du JSON et push git...")
-						: __("Mise à jour du JSON..."),
+						? __("Updating the JSON and pushing to git...")
+						: __("Updating the JSON..."),
 					callback: (r) => {
 						if (r.message && r.message.success) {
 							let msg = __("{0} : {1} champs mis à jour dans {2}", [
@@ -527,12 +532,12 @@ export default class GridRow {
 			const $footer = this.grid_settings_dialog.$wrapper.find(".modal-footer");
 
 			const $btnJson = $(`<button class="btn btn-warning btn-sm" style="margin-right: 8px;">
-				${__("Appliquer au JSON")}
+				${__("Apply to JSON")}
 			</button>`);
 			$btnJson.on("click", () => apply_to_json(false));
 
 			const $btnPush = $(`<button class="btn btn-danger btn-sm" style="margin-right: auto;">
-				${__("Appliquer et Pousser")}
+				${__("Apply and Push")}
 			</button>`);
 			$btnPush.on("click", () => {
 				frappe.confirm(

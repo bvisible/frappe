@@ -35287,3 +35287,19 @@ msgstr "Commandé"
 #: frappe/public/js/frappe/form/form_hero.js
 msgid "Receive"
 msgstr "Réceptionner"
+
+#: frappe/public/js/frappe/form/grid_row.js
+msgid "Apply to JSON"
+msgstr "Appliquer au JSON"
+
+#: frappe/public/js/frappe/form/grid_row.js
+msgid "Apply and Push"
+msgstr "Appliquer et Pousser"
+
+#: frappe/public/js/frappe/form/grid_row.js
+msgid "Updating the JSON..."
+msgstr "Mise à jour du JSON..."
+
+#: frappe/public/js/frappe/form/grid_row.js
+msgid "Updating the JSON and pushing to git..."
+msgstr "Mise à jour du JSON et push git..."
