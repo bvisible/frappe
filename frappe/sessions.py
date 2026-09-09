@@ -169,6 +169,7 @@ def _stamped_expiry_in_seconds(sessiondata):
 	"""
 	try:
 		data = frappe.safe_eval(sessiondata or "{}")
+		# //// Neoffice — see the block marker above: flat vs nested shape
 		inner = data.get("data") if isinstance(data.get("data"), dict) else data
 		stamped = (inner or {}).get("session_expiry")
 		return get_expiry_in_seconds(stamped) if stamped else None
