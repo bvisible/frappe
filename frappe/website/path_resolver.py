@@ -153,6 +153,7 @@ def resolve_redirect(path, query_string=None):
 		and "website_online" in profile
 		and not profile.get("website_online")
 		and not path.strip("/ ")
+		# //// Neoffice — see the block marker above: lets server-side render through (6c7f080a6e)
 		and not frappe.local.flags.get("server_side_render")
 	):
 		frappe.flags.redirect_location = "/app"
