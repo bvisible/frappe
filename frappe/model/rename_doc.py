@@ -173,6 +173,7 @@ def rename_doc(
 	old_item_name = None
 	if validate and doctype == "Item":
 		old_item_name = frappe.db.get_value(doctype, old, "item_name")
+		# //// Neoffice — see the block marker above: skip when label is just the old code
 		if old_item_name == old:
 			old_item_name = None
 	# ////

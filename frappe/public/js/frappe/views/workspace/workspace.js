@@ -231,11 +231,17 @@ frappe.views.Workspace = class Workspace {
 
 	async reload_sidebar_pages() {
 		// Reload pages from server with current workspace context
+		//// Neoffice — removed a console.log("[reload_sidebar_pages] START...") debug trace (f28352c7f7
+		//// "fix(print,rename,workspace): three client names and a debug trace leave the framework"):
+		//// it ran on every workspace load in production, printing page counts to the browser console.
 		this.sidebar_pages = await this.get_pages();
 		this.all_pages = this.sidebar_pages.pages;
 		this.public_pages = this.all_pages.filter((page) => page.public);
 		this.private_pages = this.all_pages.filter((page) => !page.public);
 
+		//// Neoffice — removed a console.log("[reload_sidebar_pages] END...") debug trace (f28352c7f7
+		//// "fix(print,rename,workspace): three client names and a debug trace leave the framework"):
+		//// same reason as above, page titles printed on every load.
 		// Update frappe.workspaces cache
 		if (this.all_pages) {
 			frappe.workspaces = {};
@@ -301,6 +307,9 @@ frappe.views.Workspace = class Workspace {
 		// Get the actual jQuery sidebar element
 		const $sidebar = this.sidebar.$sidebar || this.sidebar;
 
+		//// Neoffice — removed a console.log("[make_sidebar] START...") debug trace (f28352c7f7
+		//// "fix(print,rename,workspace): three client names and a debug trace leave the framework"):
+		//// it ran on every workspace load in production, printing page counts to the browser console.
 		// Remove all existing sidebar sections before rebuilding
 		$sidebar.find(".standard-sidebar-section").remove();
 
@@ -314,6 +323,9 @@ frappe.views.Workspace = class Workspace {
 				);
 			}
 			root_pages = root_pages.uniqBy((d) => d.title);
+			//// Neoffice — removed a console.log("[make_sidebar] Building section...") debug trace
+			//// (f28352c7f7 "fix(print,rename,workspace): three client names and a debug trace leave
+			//// the framework"): it ran on every workspace load in production, printing page titles.
 			this.build_sidebar_section(category, root_pages);
 		});
 
