@@ -2808,20 +2808,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 								label: __("Export all matching rows?"),
 							},
 						];
-					//// Neoffice — DUPLICATE of the `else if` immediately above it, condition and body identical, so
-					//// this branch can never be reached: dead code. Introduced by the conflict resolution of the
-					//// upstream merge 0b9b53c7ea (2024-09-23) — the block was kept twice. Upstream v15.89.0 and
-					//// v15.120 have exactly one. TO REVIEW at the merge: delete this copy.
-					} else if (
-						this.total_count > (this.count_without_children || args.page_length)
-					) {
-						extra_fields = [
-							{
-								fieldtype: "Check",
-								fieldname: "export_all_rows",
-								label: __("Export all {0} rows?", [`<b>${this.total_count}</b>`]),
-							},
-						];
 					} else if (
 						this.total_count > (this.count_without_children || args.page_length)
 					) {
