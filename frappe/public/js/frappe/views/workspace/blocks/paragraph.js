@@ -185,9 +185,12 @@ export default class Paragraph extends Block {
 	//// <svg>, <div> and <style> (custom cards and the NeoCockpit blocks), and EditorJS silently
 	//// dropped them at every save — the block came back empty. v16 merge note: upstream v15.120 AND
 	//// develop both still ship the restrictive allow-list — expect a conflict; keep ours.
-	//// TO REVIEW: text: true disables sanitising entirely for paragraph blocks, so the stored HTML
-	//// is whatever an editor typed — acceptable while only Workspace Managers can edit, not if
-	//// workspace editing is ever widened.
+	//// text: true disables sanitising for paragraph blocks, so the stored HTML is whatever an editor
+	//// typed. Measured before keeping it (neoffice-maintenance#205, 2026-09-09): a `Desk User` does hold
+	//// `write` on Workspace, BUT Workspace.validate() refuses a PUBLIC workspace to anyone who is not a
+	//// Workspace Manager — so a non-manager only ever writes their own PRIVATE workspace, which only
+	//// they see. The exposure is on oneself. Drop this the day a non-manager can write a public
+	//// workspace, or the day a workspace's HTML is rendered to somebody else.
 	static get sanitize() {
 		return {
 			text: true,

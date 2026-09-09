@@ -1126,8 +1126,11 @@ export default class Grid {
 		//// (2024-09-23 "last updates") first introduced limit_colsize as a VAT Declaration special case (20
 		//// instead of 11); 051206fa6b (2025-11-08 "fix: Grid fullwidth toggle with horizontal scroll")
 		//// generalised it to 999 — no column is dropped any more, and grid_row.js switches the grid to
-		//// horizontal scroll past 10 (.column-limit-reached, marked there). TO REVIEW at the merge: keeping
-		//// this means every in-list-view column renders on every child table of the fleet.
+		//// horizontal scroll past 10 (.column-limit-reached, marked there).
+		//// Measured 2026-09-09 (neoffice-maintenance#205): `VAT Detail` carries 16 in-list-view columns,
+		//// `VAT Declaration Summary` 13, `Booking Extra` 11 — upstream's cap of 10 would HIDE six columns
+		//// of the Swiss VAT detail grid. The price is that every in-list-view column renders on every
+		//// child table; that is the price of showing the columns the user marked. Kept, deliberately.
 		// No limit on column size - horizontal scroll will be enabled automatically
 		let limit_colsize = 999;
 

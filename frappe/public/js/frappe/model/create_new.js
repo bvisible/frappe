@@ -282,9 +282,13 @@ $.extend(frappe.model, {
 		let no_copy_list = ["name", "amended_from", "amendment_date", "cancel_reason"];
 		//// Neoffice — added (4c842a98fc, 2023-10-30 "First change v15"; the commit gives no rationale):
 		//// duplicating an Item also clears item_code, item_name and opening_stock, so the copy cannot be
-		//// saved over the original by accident. TO REVIEW at the merge — frappe.model.copy_doc is a framework
-		//// chokepoint: EVERY caller copying an Item (the Duplicate action, amend, any app doing a client-side
-		//// copy) gets those three fields emptied, and nothing at the call site says so.
+		//// saved over the original by accident. A duplicated Item cannot carry the original's code — that IS
+		//// its `name`, and it must be unique — nor its opening stock. Kept for that reason
+		//// (neoffice-maintenance#205).
+		//// It stays a framework chokepoint though: EVERY caller copying an Item (Duplicate, amend, any app
+		//// doing a client-side copy) gets those three fields emptied and nothing at the call site says so.
+		//// The day a caller other than Duplicate needs the label, the guard moves to a flag passed by the
+		//// caller — not to the doctype, which cannot tell them apart.
 		//// added if
 		if (doc.doctype == "Item"){
 			no_copy_list.push(...["item_code", "item_name", "opening_stock"]);

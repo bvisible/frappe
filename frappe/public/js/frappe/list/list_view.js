@@ -34,7 +34,12 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		//// Neoffice — upstream: `this.count_upper_bound = 1001;` (f1656d6600, 2025-06-17 "add trad and remove
 		//// +1000"): upstream stops counting at 1001 rows and displays "1000+", ours counts to 100000 so the
 		//// list shows a real total. The "+" formatting this made pointless is commented out further down
-		//// (marked there). TO REVIEW at the merge: that bound exists to keep COUNT(*) cheap on large tables.
+		//// (marked there).
+		//// The bound exists to keep COUNT(*) cheap, so it was measured before keeping it
+		//// (neoffice-maintenance#205, on the busiest instance, `tabVersion`, 114 333 rows):
+		////     limit 1001    -> 0.49 ms       limit 100000 -> 34.5 ms warm, 2.7 s COLD
+		//// Kept: an ERP has to say 3 482 invoices, not "1000+", and 35 ms of that is invisible. Revisit if
+		//// a doctype ever passes ~500k rows, or if that cold read shows up in the slow query log.
 		////this.count_upper_bound = 1001;
 		this.count_upper_bound = 100000;
 		this._element_factory = new ElementFactory(this.doctype);

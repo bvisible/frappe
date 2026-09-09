@@ -509,8 +509,10 @@ Object.assign(frappe.utils, {
 			//// error and a submitted document is validated — same commit did docstatus 0/1 in
 			//// model/indicator.js). 9dd05d8736 (2025-12-02, Draft → blue) is superseded and leaves no line.
 			//// Matching is on the literal word, so a translation other than the one listed still falls
-			//// through — TO REVIEW: this table is a French-only stopgap for a lookup that should key on
-			//// docstatus / the Select value, not on display text.
+			//// through. Kept, deliberately (neoffice-maintenance#205): upstream's four English-only branches
+			//// leave EVERY status pill grey on a French fleet, which is worse than an imperfect table. The
+			//// clean fix — key on docstatus / the Select value instead of on displayed text — belongs to
+			//// model/indicator.js, not to a helper whose whole job is to read a word.
 			//// v16 merge note: upstream develop still ships the four English branches with Submitted → blue
 			//// — expect a conflict on the whole chain; keep ours.
 			// Red/Danger statuses (English + French)
