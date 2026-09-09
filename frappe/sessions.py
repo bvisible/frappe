@@ -54,6 +54,9 @@ def session_device():
 	return "mobile" if (frappe.form_dict.get("device") or "").lower() == "mobile" else "desktop"
 
 
+# //// Neoffice — tabSessions.device may be missing on a site updated but not yet
+# //// migrated (f4df4f24de "fix(sessions): tabSessions.device exists on every
+# //// site, and the code copes when it does not yet"); check once per process.
 def sessions_have_device_column():
 	"""Whether tabSessions carries `device` — added by our DDL and by the patch
 	neoffice_sessions_device_column; a site updated but not yet migrated has not.
@@ -393,6 +396,9 @@ class Session:
 	def insert_session_record(self):
 		Sessions = frappe.qb.DocType("Sessions")
 		now = frappe.utils.now()
+		# //// Neoffice — device column added to the insert only if the site has it yet
+		# //// (f4df4f24de "fix(sessions): tabSessions.device exists on every site, and
+		# //// the code copes when it does not yet"), so an unmigrated site can still log in.
 		columns = [Sessions.sessiondata, Sessions.user, Sessions.lastupdate, Sessions.sid, Sessions.status]
 		values = [str(self.data["data"]), self.data["user"], now, self.data["sid"], "Active"]
 		if sessions_have_device_column():
