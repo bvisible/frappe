@@ -488,6 +488,7 @@ export default class GridRow {
 
 			const apply_to_json = (git_push) => {
 				const columns_config = get_columns_config();
+				//// Neoffice — see the block marker above: msgids restored English
 				const action_label = git_push ? __("Apply and Push") : __("Apply to JSON");
 
 				frappe.call({
@@ -499,6 +500,7 @@ export default class GridRow {
 					},
 					freeze: true,
 					freeze_message: git_push
+						//// Neoffice — see the block marker above: msgids restored English
 						? __("Updating the JSON and pushing to git...")
 						: __("Updating the JSON..."),
 					callback: (r) => {
@@ -531,11 +533,13 @@ export default class GridRow {
 			// Add buttons to dialog footer
 			const $footer = this.grid_settings_dialog.$wrapper.find(".modal-footer");
 
+			//// Neoffice — see the block marker above: msgid restored English
 			const $btnJson = $(`<button class="btn btn-warning btn-sm" style="margin-right: 8px;">
 				${__("Apply to JSON")}
 			</button>`);
 			$btnJson.on("click", () => apply_to_json(false));
 
+			//// Neoffice — see the block marker above: msgid restored English
 			const $btnPush = $(`<button class="btn btn-danger btn-sm" style="margin-right: auto;">
 				${__("Apply and Push")}
 			</button>`);
