@@ -428,4 +428,11 @@ def is_safe_path(path: str) -> bool:
 	matchpath = os.path.abspath(path)
 	basedir = os.path.abspath(basedir)
 
+	# //// Neoffice — removed the hard-coded /mnt/neoffice widening that had no commit message
+	# //// (e6f13ac8dc "fix(files): is_safe_path stops accepting the whole data volume"): it let this
+	# //// guard accept any path under the whole data volume, but our instances only ever reach it
+	# //// through the site's own private/public symlinks, and os.path.abspath does not follow
+	# //// symlinks — upstream's own check already covers every real file (measured: zero File rows
+	# //// point at /mnt across the fleet). Back to upstream, save for the /api/method/ prefix
+	# //// upstream added later.
 	return basedir == os.path.commonpath((basedir, matchpath))

@@ -2808,6 +2808,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 								label: __("Export all matching rows?"),
 							},
 						];
+					//// Neoffice — see the removal marker below: duplicate else-if dropped (745560e409)
 					} else if (
 						this.total_count > (this.count_without_children || args.page_length)
 					) {
