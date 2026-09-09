@@ -257,7 +257,9 @@ CREATE TABLE "tabSessions" (
   "sessiondata" text,
   "ipaddress" varchar(16) DEFAULT NULL,
   "lastupdate" timestamp(6) DEFAULT NULL,
-  "status" varchar(20) DEFAULT NULL
+  "status" varchar(20) DEFAULT NULL,
+  -- //// Neoffice — which kind of device opened the session (frappe.sessions.session_device).
+  "device" varchar(255) DEFAULT 'desktop'
 );
 
 create index on "tabSessions" ("sid");

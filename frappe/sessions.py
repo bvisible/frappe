@@ -54,6 +54,21 @@ def session_device():
 	return "mobile" if (frappe.form_dict.get("device") or "").lower() == "mobile" else "desktop"
 
 
+def sessions_have_device_column():
+	"""Whether tabSessions carries `device` — added by our DDL and by the patch
+	neoffice_sessions_device_column; a site updated but not yet migrated has not.
+	Cached per process: the answer only changes at migrate, which restarts us."""
+	cached = frappe.local.flags.get("sessions_have_device_column") if hasattr(frappe.local, "flags") else None
+	if cached is None:
+		try:
+			cached = "device" in [c[0] for c in frappe.db.sql("select column_name from information_schema.columns where table_name = 'tabSessions' and table_schema = %s", (frappe.db.db_name,))]
+		except Exception:
+			cached = False
+		if hasattr(frappe.local, "flags"):
+			frappe.local.flags.sessions_have_device_column = cached
+	return cached
+
+
 def clear_sessions(user=None, keep_current=False, force=False):
 	"""Clear other sessions of the current user. Called at login / logout
 
@@ -90,7 +105,7 @@ def get_sessions_to_clear(user=None, keep_current=False, force=False):
 	# //// Neoffice — a phone signed into the gym journal is a device, not a person
 	# //// elsewhere: a desk login never evicts it (see session_device). The user's
 	# //// own "log out everywhere" (force) still takes every session, phone included.
-	if not force:
+	if not force and sessions_have_device_column():
 		session_id = session_id.where(session.device != "mobile")
 	if keep_current:
 		if not force:
@@ -378,23 +393,18 @@ class Session:
 	def insert_session_record(self):
 		Sessions = frappe.qb.DocType("Sessions")
 		now = frappe.utils.now()
+		columns = [Sessions.sessiondata, Sessions.user, Sessions.lastupdate, Sessions.sid, Sessions.status]
+		values = [str(self.data["data"]), self.data["user"], now, self.data["sid"], "Active"]
+		if sessions_have_device_column():
+			columns.append(Sessions.device)
+			values.append(self.data["data"].get("device") or "desktop")
 
 		(
 			frappe.qb.into(Sessions)
-			# //// Neoffice — `device` written too; upstream left the column at its default.
-			.columns(
-				Sessions.sessiondata, Sessions.user, Sessions.lastupdate, Sessions.sid, Sessions.status, Sessions.device
-			)
-			.insert(
-				(
-					str(self.data["data"]),
-					self.data["user"],
-					now,
-					self.data["sid"],
-					"Active",
-					self.data["data"].get("device") or "desktop",
-				)
-			)
+			# //// Neoffice — `device` written too, when the site has the column (our DDL,
+			# //// or the patch neoffice_sessions_device_column on older sites).
+			.columns(*columns)
+			.insert(tuple(values))
 		).run()
 		frappe.cache.hset("session", self.data.sid, self.data)
 

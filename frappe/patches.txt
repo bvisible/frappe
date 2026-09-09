@@ -246,3 +246,7 @@ frappe.patches.v16_0.social_eps_deprecation_warning
 # //// upstream's ToDo.status list is restored, and this patch carries the rows our stray
 # //// `test` option created over to `Open`. Reason in the module's header.
 frappe.patches.v15_0.neoffice_todo_status_test_to_open
+# //// Neoffice — added entry. tabSessions.device, dropped from the v15 DDL upstream,
+# //// written again by our fork (a session knows which device opened it); this adds
+# //// the column on sites created without it. Reason in the module's header.
+frappe.patches.v15_0.neoffice_sessions_device_column
