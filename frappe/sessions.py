@@ -155,10 +155,22 @@ def clear_all_sessions(reason=None):
 # //// when there is none. Nothing changes for a session without one. Worth
 # //// proposing upstream: the intent is theirs, only two call sites were missed.
 def _stamped_expiry_in_seconds(sessiondata):
-	"""The expiry stamped on THIS session, in seconds — or None if it carries none."""
+	"""The expiry stamped on THIS session, in seconds — or None if it carries none.
+
+	# //// Neoffice — `tabSessions.sessiondata` holds the INNER dict, flat
+	# //// (`insert_session_record` writes str(self.data["data"])): `session_expiry`
+	# //// sits at the top level. The first version of this helper looked for a
+	# //// nested "data" key — the shape of the in-memory session object, not of
+	# //// the column — so it found nothing, fell back to the site's 6 hours, and
+	# //// the nightly sweep kept deleting every "stay signed in" session older
+	# //// than 6 hours. Found 2026-09-09 by ageing a real session 26 hours and
+	# //// running the sweep. Both shapes are read, so nothing depends on which
+	# //// one a caller hands over.
+	"""
 	try:
 		data = frappe.safe_eval(sessiondata or "{}")
-		stamped = (data.get("data") or {}).get("session_expiry")
+		inner = data.get("data") if isinstance(data.get("data"), dict) else data
+		stamped = (inner or {}).get("session_expiry")
 		return get_expiry_in_seconds(stamped) if stamped else None
 	except Exception:
 		return None
