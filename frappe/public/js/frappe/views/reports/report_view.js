@@ -589,8 +589,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	//// Neoffice — added method (4e23539603, 2024-09-23, no message): the "Add Column" entry of the
 	//// Settings dialog above. Upstream only offers add-column from the datatable's own column
 	//// dropdown. Body is a trimmed copy of upstream's add-column picker (no insert_before field).
-	//// TO REVIEW: the `insert_before` branch references an undefined `datatabe_col` (sic) — dead as
-	//// long as the dialog never sets insert_before, a ReferenceError the day it does.
 	////
 	showAddColumnDialog() {
 		let columns_in_picker = [];
@@ -625,7 +623,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 					options: columns_in_picker,
 				}
 			],
-			primary_action: ({ column, insert_before }) => {
+			primary_action: ({ column }) => {
 				if (!columns_in_picker.map((col) => col.value).includes(column)) {
 					frappe.show_alert({
 						message: __("Invalid column"),
@@ -640,12 +638,13 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 					[column, doctype] = column.split(",");
 				}
 
-				let index = this.columns.length; // Default to adding at the end
-				if (insert_before) {
-					index = datatabe_col ? datatabe_col.colIndex - 1 : 0;
-				}
-
-				this.add_column_to_datatable(column, doctype, index);
+				//// Neoffice — the column goes at the end. This dialog offers ONE field (the column),
+				//// so the `insert_before` branch that used to sit here could never run — and it named
+				//// `datatabe_col`, a variable that exists nowhere in its scope: the day someone added
+				//// the field it would have been a ReferenceError, not an insertion
+				//// (neoffice-maintenance#205). Inserting at a position is the datatable column
+				//// dropdown's job, upstream, where `datatabe_col` IS the clicked column.
+				this.add_column_to_datatable(column, doctype, this.columns.length);
 				d.hide();
 			},
 		});
@@ -1794,13 +1793,13 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		//// user's saved layout from the server (frappe.desk.reportview.get_user_report_settings) and
 		//// rebuilds this.fields from settings.order and the widths from settings.widths, then appends
 		//// the synthetic "meta" column. Upstream's two lines are kept commented out just below.
-		//// TO REVIEW at the merge — three defects visible in the code, all from this commit:
-		////   * the frappe.call is `async: false`, a SYNCHRONOUS XHR: it blocks the main thread on every
-		////     column setup and browsers have been warning about it for years;
-		////   * `settings` is only parsed when response.message is a STRING, so an object response
-		////     silently falls back to the defaults;
-		////   * everything after the frappe.call runs inside its callback, so setup_columns returns
-		////     before this.columns exists for any caller that does not go through the same sync call.
+		//// The object-response bug is fixed below (neoffice-maintenance#205).
+		//// The `async: false` stays, on purpose and only until the merge: it is what makes
+		//// setup_columns() SYNCHRONOUS for its five callers (group_by.js x2, and three here) —
+		//// they read this.columns on the next line. Making the call async without turning all
+		//// five into awaits would hand them an empty this.columns, which is worse than a blocked
+		//// frame. It goes away with the whole method when upstream's setup_columns() is taken
+		//// back at the version bump (#138); do not half-fix it before then.
 		////
 		let doctype = this.doctype;
 		const default_settings = {
@@ -1820,6 +1819,10 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			},
 			async: false,
 			callback: (response) => {	
+				//// Neoffice — an OBJECT response is honoured too. The original only parsed
+				//// response.message when it was a string, so the day get_user_report_settings
+				//// hands back settings already decoded, every user silently gets the default
+				//// column order and widths (neoffice-maintenance#205).
 				let settings = default_settings;
 				if (response.message) {
 					if (typeof response.message === 'string') {
@@ -1828,6 +1831,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 						} catch (e) {
 							console.error("Failed to parse user report settings. Using default settings.", e);
 						}
+					} else if (typeof response.message === 'object') {
+						settings = response.message;
 					}
 				}
 	
