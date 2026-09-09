@@ -168,11 +168,24 @@ def uploadfile():
 
 @frappe.whitelist(allow_guest=True)
 def upload_file():
-	# //// Neoffice — added imports for the filename normalisation below (4c842a98fc). They are
-	# //// deliberately function-local. TO REVIEW: `unidecode` is a third-party package — check it
-	# //// is declared in pyproject.toml before the v15.120 merge, upstream does not require it.
+	# //// Neoffice — added imports for the filename normalisation below (4c842a98fc), kept
+	# //// function-local. `unidecode` is NOT declared in frappe's pyproject.toml, and upstream does
+	# //// not require it: it is only present because erpnext and erpnextswiss happen to pull it in
+	# //// (`pip show Unidecode` → Required-by: erpnext, erpnextswiss). This endpoint is reachable
+	# //// with allow_guest, so on a frappe-only bench — CI, a vanilla site, or the day erpnext drops
+	# //// the dependency — the first file upload would have raised ModuleNotFoundError (#205).
+	# //// Rather than declare a third-party package in a file that conflicts at every upstream
+	# //// merge, the import falls back to the standard library. `unicodedata` covers the accented
+	# //// Latin this was written for ("Facture été" → "Facture ete"); unidecode still wins when it
+	# //// is there, so nothing changes for a name it transliterates better.
 	import re # //// added import
-	from unidecode import unidecode # //// added import
+	try: # //// added import
+		from unidecode import unidecode # //// added import
+	except ImportError: # ////
+		import unicodedata # ////
+
+		def unidecode(text): # ////
+			return unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode("ascii") # ////
 	user = None
 	if frappe.session.user == "Guest":
 		if frappe.get_system_settings("allow_guests_to_upload_files"):
@@ -217,8 +230,7 @@ def upload_file():
 		# //// is. Ours transliterates it to ASCII and collapses runs of spaces/dashes into a single
 		# //// dash, so an uploaded "Facture été – client.pdf" becomes a plain, URL-safe name.
 		# //// TO REVIEW: 4c842a98fc (2023-10-30 "First change v15", 57 files) carries no message, so
-		# //// the symptom is unrecorded; and this adds a hard dependency on `unidecode` (see the
-		# //// import marker above) inside an endpoint that is allow_guest.
+		# //// the symptom is unrecorded. The dependency question is settled — see the import above.
 		filename = unidecode(file.filename) # //// filename = file.filename
 		filename = re.sub(r'[-\s]+', '-', filename).strip('-_') # ////
 
