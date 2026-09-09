@@ -5,6 +5,7 @@
 """Three fork defects: a stuck message flag, a shadowed builtin, a dead broken copy."""
 
 import unittest
+from unittest.mock import MagicMock, patch
 
 import frappe
 
@@ -93,3 +94,75 @@ class TestPrintUtilsHasNoDeadAttachPrint(unittest.TestCase):
 
 	def test_the_real_one_is_still_there(self):
 		self.assertTrue(callable(frappe.attach_print))
+
+
+class TestEmailQueueSurvivesADeletedCommunication(unittest.TestCase):
+	"""A queue entry whose Communication was deleted must not jam the whole queue.
+
+	`update_status` is called from `SendMailContext.__enter__`, BEFORE the mail is
+	attempted. Upstream loads the Communication unguarded, so a deleted one raises
+	there — after `update_db` has already written "Sending". `get_queue()` only
+	selects Not Sent / Partially Sent, so the entry is never looked at again while
+	the scheduler raises on it at every flush: 360 errors a day on osiris, retry
+	counts up to 362, all from Communications a test run had deleted (#245 → #81).
+	"""
+
+	def _entry(self, communication):
+		"""Only `update_status` is under test, so the Document constructor — which
+		refuses to be called without arguments — is stepped around deliberately."""
+		from frappe.email.doctype.email_queue.email_queue import EmailQueue
+
+		q = EmailQueue.__new__(EmailQueue)
+		q.name = "test-queue-entry"
+		q.communication = communication
+		return q
+
+	def test_a_deleted_communication_does_not_raise(self):
+		q = self._entry("gone-forever")
+		with (
+			patch.object(q, "update_db"),
+			patch.object(
+				frappe, "get_doc", side_effect=frappe.DoesNotExistError("Communication gone-forever not found")
+			),
+		):
+			q.update_status("Sending", commit=True)  # must return, not raise
+
+	def test_it_leaves_no_message_behind(self):
+		"""frappe.get_doc throws through frappe.throw, which queues its message even
+		when the exception is caught — a later screen would show an error for an
+		operation that succeeded."""
+		q = self._entry("gone-forever")
+		before = list(frappe.message_log)
+
+		def _throwing_get_doc(*a, **kw):
+			frappe.message_log.append({"message": "Communication gone-forever not found"})
+			raise frappe.DoesNotExistError()
+
+		with patch.object(q, "update_db"), patch.object(frappe, "get_doc", side_effect=_throwing_get_doc):
+			q.update_status("Sending")
+		self.assertEqual(list(frappe.message_log), before)
+
+	def test_the_status_is_still_written(self):
+		"""The entry's own status is the part that must always land."""
+		q = self._entry("gone-forever")
+		with (
+			patch.object(q, "update_db") as db,
+			patch.object(frappe, "get_doc", side_effect=frappe.DoesNotExistError()),
+		):
+			q.update_status("Sending", commit=True)
+		db.assert_called_once()
+		self.assertEqual(db.call_args.kwargs.get("status"), "Sending")
+
+	def test_a_live_communication_is_still_stamped(self):
+		"""The inverse control: nothing is skipped when the document is there."""
+		q = self._entry("still-here")
+		comm = MagicMock()
+		with patch.object(q, "update_db"), patch.object(frappe, "get_doc", return_value=comm):
+			q.update_status("Sent", commit=True)
+		comm.set_delivery_status.assert_called_once_with(commit=True)
+
+	def test_an_entry_without_communication_touches_nothing(self):
+		q = self._entry(None)
+		with patch.object(q, "update_db"), patch.object(frappe, "get_doc") as g:
+			q.update_status("Sent")
+		g.assert_not_called()

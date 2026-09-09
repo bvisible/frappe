@@ -139,7 +139,23 @@ class EmailQueue(Document):
 	def update_status(self, status, commit=False, **kwargs):
 		self.update_db(status=status, commit=commit, **kwargs)
 		if self.communication:
-			communication_doc = frappe.get_doc("Communication", self.communication)
+			# //// Neoffice — upstream loads the Communication unguarded, and this method is
+			# //// called from SendMailContext.__enter__ BEFORE the mail is attempted. When the
+			# //// Communication has been deleted, the entry dies here — but update_db has
+			# //// already written "Sending", and get_queue() only ever selects Not Sent /
+			# //// Partially Sent. So the entry is never looked at again while the scheduler
+			# //// raises on it at every flush: 360 errors a day on osiris, retry counts up to
+			# //// 362, from Communications a test run had deleted (#245 → #81). A queue entry's
+			# //// own status must not depend on a document that may be gone.
+			# //// The message_log is trimmed back: frappe.get_doc goes through frappe.throw,
+			# //// which leaves its message in the queue even when the exception is caught, and
+			# //// a later screen would show an error for an operation that succeeded.
+			_msg_depth = len(frappe.message_log)
+			try:
+				communication_doc = frappe.get_doc("Communication", self.communication)
+			except frappe.DoesNotExistError:
+				del frappe.message_log[_msg_depth:]
+				return
 			communication_doc.set_delivery_status(commit=commit)
 
 	@property
