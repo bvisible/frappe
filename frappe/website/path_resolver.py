@@ -143,12 +143,17 @@ def resolve_redirect(path, query_string=None):
 	# //// Keyed on the key EXISTING in the profile dict so a profiles-map cached by a
 	# //// pre-switch neoffice_theme keeps the historical behavior instead of going
 	# //// dark. Placed before the redirect cache: flipping the switch acts instantly.
+	# //// The site build's own render is let through: neoffice_theme flags the loopback
+	# //// request that names its profile (frappe.local.flags.server_side_render), and
+	# //// builder's website switch reads the same flag. Without it the visual check
+	# //// reviewed the login page as the home of both League sites (2026-09-09).
 	profile = getattr(frappe.local, "website_profile_doc", None)
 	if (
 		profile is not None
 		and "website_online" in profile
 		and not profile.get("website_online")
 		and not path.strip("/ ")
+		and not frappe.local.flags.get("server_side_render")
 	):
 		frappe.flags.redirect_location = "/app"
 		raise frappe.Redirect
