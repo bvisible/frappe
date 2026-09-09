@@ -258,6 +258,14 @@ class LoginManager:
 			if frappe.request.path in skip_paths:
 				return
 
+		# //// Neoffice — the session being opened is a DEVICE (the gym journal signs
+		# //// in with `device=mobile`, see sessions.session_device): it evicts nobody.
+		# //// The symmetric rule — a desk login never evicts a mobile session — lives
+		# //// in sessions.get_sessions_to_clear. Reported 2026-09-09: a staff member's
+		# //// phone and desk signed each other out, morning after morning.
+		if (frappe.session.data or {}).get("device") == "mobile":
+			return
+
 		if not (
 			cint(frappe.conf.get("deny_multiple_sessions"))
 			or cint(frappe.db.get_system_setting("deny_multiple_sessions"))

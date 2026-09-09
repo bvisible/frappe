@@ -35,6 +35,25 @@ def clear():
 	frappe.response["message"] = _("Cache Cleared")
 
 
+# //// Neoffice — a session knows which KIND of device opened it.
+# ////
+# //// Upstream v15 dropped the `device` login parameter but kept the column on
+# //// `tabSessions` (default "desktop"): every session reads "desktop", and nothing
+# //// can tell a phone from a desk. That matters twice — a device signing in is not
+# //// a person signing in somewhere else (get_sessions_to_clear below,
+# //// auth.LoginManager.clear_active_sessions), and the gym journal grants its
+# //// 30-day "stay signed in" to a phone (neoffice_gym.api.session.remember_me).
+# ////
+# //// Found 2026-09-09: a staff account using the journal on a phone was signed
+# //// out every morning — its own desk login evicted it (deny_multiple_sessions,
+# //// simultaneous_sessions = 1), and the phone's login evicted the desk. The
+# //// journal now signs in with `device=mobile`. Only "mobile" is honoured;
+# //// anything else is a desk, which keeps upstream's behaviour to the letter.
+def session_device():
+	"""What the sign-in request says it is: "mobile" or "desktop"."""
+	return "mobile" if (frappe.form_dict.get("device") or "").lower() == "mobile" else "desktop"
+
+
 def clear_sessions(user=None, keep_current=False, force=False):
 	"""Clear other sessions of the current user. Called at login / logout
 
@@ -68,6 +87,11 @@ def get_sessions_to_clear(user=None, keep_current=False, force=False):
 
 	session = frappe.qb.DocType("Sessions")
 	session_id = frappe.qb.from_(session).where(session.user == user)
+	# //// Neoffice — a phone signed into the gym journal is a device, not a person
+	# //// elsewhere: a desk login never evicts it (see session_device). The user's
+	# //// own "log out everywhere" (force) still takes every session, phone included.
+	if not force:
+		session_id = session_id.where(session.device != "mobile")
 	if keep_current:
 		if not force:
 			offset = max(0, offset - 1)
@@ -313,6 +337,7 @@ class Session:
 					"last_updated": frappe.utils.now(),
 					"creation": frappe.utils.now(),
 					"session_expiry": get_expiry_period(),
+					"device": session_device(),  # //// Neoffice — see session_device
 					"full_name": self.full_name,
 					"user_type": self.user_type,
 				}
@@ -343,8 +368,20 @@ class Session:
 
 		(
 			frappe.qb.into(Sessions)
-			.columns(Sessions.sessiondata, Sessions.user, Sessions.lastupdate, Sessions.sid, Sessions.status)
-			.insert((str(self.data["data"]), self.data["user"], now, self.data["sid"], "Active"))
+			# //// Neoffice — `device` written too; upstream left the column at its default.
+			.columns(
+				Sessions.sessiondata, Sessions.user, Sessions.lastupdate, Sessions.sid, Sessions.status, Sessions.device
+			)
+			.insert(
+				(
+					str(self.data["data"]),
+					self.data["user"],
+					now,
+					self.data["sid"],
+					"Active",
+					self.data["data"].get("device") or "desktop",
+				)
+			)
 		).run()
 		frappe.cache.hset("session", self.data.sid, self.data)
 
