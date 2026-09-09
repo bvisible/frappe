@@ -139,7 +139,14 @@
 				{%- endif -%}
 			</form>
 		</div>
-		{%- if not disable_signup and not disable_user_pass_login -%}
+		{#- //// Neoffice — a professional-only site (Website Profile.b2b_only) opens its accounts
+		    //// on request: neoffice_theme names the request form here and hides self-signup. -#}
+		{%- if b2b_account_request_url -%}
+		<div class="text-center sign-up-message">
+			{{ _("Don't have an account?") }}
+			<a href="{{ b2b_account_request_url }}">{{ _("Request a professional account") }}</a>
+		</div>
+		{%- elif not disable_signup and not disable_user_pass_login -%}
 		<div class="text-center sign-up-message">
 			{{ _("Don't have an account?") }}
 			<a href="#signup">{{ _("Sign up") }}</a>
@@ -155,7 +162,14 @@
 			{{ email_login_body() }}
 			</form>
 		</div>
-		{%- if not disable_signup and not disable_user_pass_login -%}
+		{#- //// Neoffice — a professional-only site (Website Profile.b2b_only) opens its accounts
+		    //// on request: neoffice_theme names the request form here and hides self-signup. -#}
+		{%- if b2b_account_request_url -%}
+		<div class="text-center sign-up-message">
+			{{ _("Don't have an account?") }}
+			<a href="{{ b2b_account_request_url }}">{{ _("Request a professional account") }}</a>
+		</div>
+		{%- elif not disable_signup and not disable_user_pass_login -%}
 		<div class="text-center sign-up-message">
 			{{ _("Don't have an account?") }}
 			<a href="#signup">{{ _("Sign up") }}</a>
