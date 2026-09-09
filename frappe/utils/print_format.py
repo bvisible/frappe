@@ -246,18 +246,20 @@ def download_pdf(
 	doc = doc or frappe.get_doc(doctype, name)
 	validate_print_permission(doc)
 
-	# //// Neoffice — added, no upstream equivalent: the "Oslo VAT Declaration" print format is
-	# //// rendered in landscape. Upstream download_pdf() has no per-format option hook at all, so
-	# //// the orientation is hard-coded here and threaded into frappe.get_print() as the
-	# //// pdf_options argument marked further down (4e23539603, 2024-09-23 "last updates", 23
-	# //// files; the pdf_options plumbing is 64c992795d).
-	# //// TO REVIEW: the commit carries no message; a print-format NAME is hard-coded into the
-	# //// framework, so renaming the format silently loses the landscape orientation. This belongs
-	# //// in erpnextswiss / neoffice_theme, or on the Print Format doctype.
+	# //// Neoffice — added hook, no upstream equivalent. Upstream download_pdf() offers no
+	# //// per-format PDF option at all, so 4e23539603 hard-coded `format == "Oslo VAT Declaration"
+	# //// -> Landscape` right here. That named ONE print format of a client, inside the framework:
+	# //// it missed "Oslo VAT Declaration Legacy" and "Oslo VAT Declaration v2 Chrome", the two
+	# //// other formats of the same document, and it died the day anyone renamed the first
+	# //// (neoffice-maintenance#205). The decision now belongs to the app that owns the doctype —
+	# //// erpnextswiss owns VAT Declaration — through the `pdf_options` hook. The pdf_options
+	# //// argument threaded into frappe.get_print() below is 64c992795d.
 	# //// added block
 	pdf_options = {}
-	if format and format == "Oslo VAT Declaration":
-		pdf_options["orientation"] = "Landscape"
+	for method in frappe.get_hooks("pdf_options"):
+		pdf_options.update(
+			frappe.call(method, doctype=doctype, name=name, print_format=format, doc=doc) or {}
+		)
 	# ////
  
 	with print_language(language):

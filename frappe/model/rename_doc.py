@@ -158,15 +158,23 @@ def rename_doc(
 	meta = frappe.get_meta(doctype)
 
 	# //// Neoffice — added (4c842a98fc, 2023-10-30 "First change v15", 57 files): the Item's
-	# //// item_name is read before the rename and written back after it, so renaming an Item code
+	# //// item_name is read before the rename and written back after it, so renaming an item code
 	# //// keeps its label. Upstream does neither — erpnext's Item.before_rename overwrites
-	# //// item_name with the new code when the two used to match.
-	# //// TO REVIEW: the commit carries no message, so the symptom above is read from the code;
-	# //// this hard-codes an erpnext doctype into the framework, and the write-back is not guarded
-	# //// by `validate`, so it also runs on the no-validate path.
+	# //// item_name with the new code when the two used to match, so a rename silently renamed the
+	# //// product too.
+	# //// It stays scoped to Item on purpose: the general rule ("a rename must not touch the title
+	# //// field") would revert every doctype whose before_rename updates its title deliberately.
+	# //// Read only when `validate` is on — before_rename is the only thing that overwrites the
+	# //// name, and it runs nowhere else (neoffice-maintenance#205).
+	# //// A label that WAS the old code is not a label — it is the code showing through, and
+	# //// erpnext is right to move it to the new one. Restoring it there froze `ART-001` as the
+	# //// name of an item renamed to `ART-002` (measured 2026-09-09, neoffice-maintenance#205).
 	# //// added if
-	if doctype == "Item":
+	old_item_name = None
+	if validate and doctype == "Item":
 		old_item_name = frappe.db.get_value(doctype, old, "item_name")
+		if old_item_name == old:
+			old_item_name = None
 	# ////
 
 	if validate:
@@ -185,11 +193,13 @@ def rename_doc(
 			old_doc=old_doc,
 		)
 
-	# //// Neoffice — second half of the Item rename fix: writes item_name back, unconditionally,
-	# //// after run_method("before_rename") and the rename itself. See the marker above.
+	# //// Neoffice — second half of the Item rename fix: put item_name back after
+	# //// run_method("before_rename") has overwritten it. Only when it ACTUALLY changed, and
+	# //// without bumping `modified` — a rename that changed no label used to write the same value
+	# //// back and stamp the document for nothing (neoffice-maintenance#205). See the marker above.
 	# //// added if
-	if doctype == "Item":
-		frappe.db.set_value(doctype, old, "item_name", old_item_name)
+	if old_item_name is not None and frappe.db.get_value(doctype, old, "item_name") != old_item_name:
+		frappe.db.set_value(doctype, old, "item_name", old_item_name, update_modified=False)
 	# ////
 
 	if not merge:

@@ -42,9 +42,10 @@ frappe.standard_pages["Workspaces"] = function () {
 ////   Later fixes: fb2a5ef11e 2025-11-08 (null current_page), a9959ef957 2026-01-31 (name !=
 ////     title), 388383af3a 2026-03-12 (Edit/New moved from the footer to a header bar),
 ////     07ee48dd37 2026-06-16 (deleting a widget from the UI).
-//// TO REVIEW at the merge: this file ships console.log/console.warn debug traces added by
-//// 0634af137c and d0268ef91a (reload_sidebar_pages, make_sidebar, build_sidebar_section,
-//// prepare_sidebar) — they run on every workspace load in production.
+//// The console.log debug traces of 0634af137c / d0268ef91a (reload_sidebar_pages, make_sidebar)
+//// were removed on 2026-09-09 (neoffice-maintenance#205): they ran on every workspace load in
+//// production, printing page titles to the browser console. The single console.warn left in
+//// build_sidebar_section stays — it reports an abnormal state, it is not a trace.
 //// v16 merge note: upstream develop rewrote this file (Manage Workspaces rail, hidden-notice
 //// blocks, role-gated access) and ALSO moved to `this.sidebar = frappe.app.sidebar` — same
 //// direction, different code. Expect a whole-file conflict; re-apply our intent, do not merge
@@ -218,8 +219,7 @@ frappe.views.Workspace = class Workspace {
 	//// the user may see. Ours passes the current workspace (this._page, else
 	//// localStorage.current_page) so the server can return only the workspaces of the app that
 	//// workspace belongs to, and reload_sidebar_pages refreshes that list plus the frappe.workspaces
-	//// cache when the context changes. TO REVIEW: the console.log traces in reload_sidebar_pages
-	//// run on every edit-mode entry in production.
+	//// cache when the context changes.
 	get_pages() {
 		// Pass current workspace to backend so it can filter workspaces by app
 		// Use localStorage.current_page as fallback if this._page is not set yet
@@ -231,22 +231,10 @@ frappe.views.Workspace = class Workspace {
 
 	async reload_sidebar_pages() {
 		// Reload pages from server with current workspace context
-		console.log("[reload_sidebar_pages] START - Before reload:", {
-			public_pages_count: this.public_pages?.length || 0,
-			all_pages_count: this.all_pages?.length || 0
-		});
-
 		this.sidebar_pages = await this.get_pages();
 		this.all_pages = this.sidebar_pages.pages;
 		this.public_pages = this.all_pages.filter((page) => page.public);
 		this.private_pages = this.all_pages.filter((page) => !page.public);
-
-		console.log("[reload_sidebar_pages] END - After reload:", {
-			public_pages_count: this.public_pages?.length || 0,
-			all_pages_count: this.all_pages?.length || 0,
-			pages_names: this.public_pages?.map(p => p.title) || [],
-			pages_with_debug: this.public_pages?.map(p => ({name: p.name, title: p.title, sort: p._debug_sort_order})) || []
-		});
 
 		// Update frappe.workspaces cache
 		if (this.all_pages) {
@@ -308,17 +296,10 @@ frappe.views.Workspace = class Workspace {
 		//// `this.sidebar.$sidebar || this.sidebar` resolution repeated in every sidebar method, and
 		//// since d0268ef91a (2026-06-10) that object can be HEADLESS under the NeoCockpit chrome (data
 		//// maps, no DOM) — hence the early return. The NEOFFICE PATCH note below is from that commit.
-		//// TO REVIEW: the console.log traces added here by 0634af137c.
-		// //// NEOFFICE PATCH — cockpit chrome: native sidebar DOM doesn't exist
+			// //// NEOFFICE PATCH — cockpit chrome: native sidebar DOM doesn't exist
 		if (!this.sidebar || this.sidebar.headless) return;
 		// Get the actual jQuery sidebar element
 		const $sidebar = this.sidebar.$sidebar || this.sidebar;
-
-		console.log("[make_sidebar] START:", {
-			public_pages_count: this.public_pages?.length || 0,
-			private_pages_count: this.private_pages?.length || 0,
-			public_pages_names: this.public_pages?.map(p => p.title).slice(0, 5) || []
-		});
 
 		// Remove all existing sidebar sections before rebuilding
 		$sidebar.find(".standard-sidebar-section").remove();
@@ -333,7 +314,6 @@ frappe.views.Workspace = class Workspace {
 				);
 			}
 			root_pages = root_pages.uniqBy((d) => d.title);
-			console.log("[make_sidebar] Building section:", category.id, "with", root_pages.length, "root pages");
 			this.build_sidebar_section(category, root_pages);
 		});
 
