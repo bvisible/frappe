@@ -6,8 +6,8 @@ import os.path
 import boto3
 from botocore.exceptions import ClientError
 from rq.timeouts import JobTimeoutException
-# //// Neoffice — added with the multipart upload (c4d6f4d84f, 2026-07-16). TO REVIEW: dead at
-# //// module level — upload_file_to_s3() re-imports TransferConfig inside the function.
+# //// Neoffice — added with the multipart upload (c4d6f4d84f, 2026-07-16); used by
+# //// upload_file_to_s3() at the end of this file.
 from boto3.s3.transfer import TransferConfig
 
 import frappe
@@ -23,11 +23,9 @@ from frappe.utils import cint
 from frappe.utils.background_jobs import enqueue
 
 # //// Neoffice — imports for the Neoffice additions below: shutil/time for the backup
-# //// relocation and pruning (68d7f3a760, 342e22a3bb), subprocess for the rclone transport in
-# //// upload_file_to_s3().
+# //// relocation and pruning (68d7f3a760, 342e22a3bb).
 import shutil
 import time
-import subprocess
 
 class S3BackupSettings(Document):
 	# begin: auto-generated types
@@ -123,8 +121,15 @@ def take_backups_if(freq):
 def take_backups_s3(retry_count=0, wizard=False, manual=False, demo=False):
 	try:
 		validate_file_size()
-		backup_to_s3(wizard, manual, demo)
-		send_email(True, "Amazon S3", "S3 Backup Settings", "notify_email")
+		# //// Neoffice — backup_to_s3() reports what it could not put on S3 (68d7f3a760 let a
+		# //// failed files tarball fall back to a database-only run, and the mail said "backup
+		# //// succeeded" all the same — neoffice-maintenance#205). A run missing a piece is not
+		# //// a clean success: the mail names what is missing instead.
+		skipped = backup_to_s3(wizard, manual, demo)
+		if skipped:
+			notify(_("Backup taken, but these were NOT uploaded: {0}").format(", ".join(skipped)))
+		else:
+			send_email(True, "Amazon S3", "S3 Backup Settings", "notify_email")
 	except JobTimeoutException:
 		if retry_count < 2:
 			args = {"retry_count": retry_count + 1}
@@ -213,8 +218,12 @@ def delete_backups():
 
 
 def backup_to_s3(wizard=False, manual=False, demo=False, force_no_files=False):
+	"""Take a backup and put it on S3. Returns the pieces that did NOT make it."""
 	from frappe.utils import get_backups_path
 	from frappe.utils.backups import new_backup
+
+	# //// Neoffice — what the caller must not call a success (neoffice-maintenance#205).
+	skipped = []
 
 	doc = frappe.get_single("S3 Backup Settings")
 	bucket = doc.bucket
@@ -222,18 +231,11 @@ def backup_to_s3(wizard=False, manual=False, demo=False, force_no_files=False):
 	# //// parameter added to backup_to_s3() lets a caller take a database-only backup (68d7f3a760).
 	backup_files = cint(doc.backup_files) if not force_no_files else 0
 
-	# //// Neoffice — added boto3 client options use_ssl / verify (68d7f3a760). TO REVIEW: both are
-	# //// already the boto3 defaults, and the comment blames "aws-chunked", which these two flags
-	# //// do not control — the real fix for oversized uploads is the TransferConfig in
-	# //// upload_file_to_s3() below.
-	# Minimal configuration without options that could cause aws-chunked
 	conn = boto3.client(
 		"s3",
 		aws_access_key_id=doc.access_key_id,
 		aws_secret_access_key=doc.get_password("secret_access_key"),
 		endpoint_url=doc.endpoint_url or "https://s3.amazonaws.com",
-		use_ssl=True,
-		verify=True
 	)
 
 	# //// Neoffice — added (68d7f3a760): files_filename / private_files are pre-set to None because
@@ -277,6 +279,7 @@ def backup_to_s3(wizard=False, manual=False, demo=False, force_no_files=False):
 				db_filename = os.path.join(get_backups_path(), os.path.basename(backup.backup_path_db))
 				site_config = os.path.join(get_backups_path(), os.path.basename(backup.backup_path_conf))
 				backup_files = 0  # Disable file upload
+				skipped.append(_("the files archives (public and private)"))
 			else:
 				raise
 	else:
@@ -301,6 +304,7 @@ def backup_to_s3(wizard=False, manual=False, demo=False, force_no_files=False):
 					files_filename = None
 					private_files = None
 					backup_files = 0
+					skipped.append(_("the files archives (public and private)"))
 
 		else:
 			db_filename, site_config = get_latest_backup_file()
@@ -398,12 +402,14 @@ def backup_to_s3(wizard=False, manual=False, demo=False, force_no_files=False):
 			else:
 				frappe.log_error("Public files backup not found", f"Missing: {old_files_filename}")
 				files_filename = None
+				skipped.append(_("the public files archive"))
 				
 			if os.path.exists(old_private_files):
 				shutil.move(old_private_files, private_files)
 			else:
 				frappe.log_error("Private files backup not found", f"Missing: {old_private_files}")
 				private_files = None
+				skipped.append(_("the private files archive"))
 
 	upload_file_to_s3(db_filename, folder, conn, bucket)
 	upload_file_to_s3(site_config, folder, conn, bucket)
@@ -423,163 +429,43 @@ def backup_to_s3(wizard=False, manual=False, demo=False, force_no_files=False):
 	# //// leaves local retention to bench.
 	delete_backups()
 
+	return skipped
+
 
 def upload_file_to_s3(filename, folder, conn, bucket):
-	# //// Neoffice ▼▼▼ — upload_file_to_s3() is entirely ours; upstream is three lines
-	# //// (`destpath = os.path.join(...)`, a print, `conn.upload_file(...)`). Ours prefixes the key
-	# //// with "<domain> - <default company>/" so one bucket holds the whole fleet, then tries
-	# //// three transports in order: rclone if the binary exists, a plain signed PUT for files
-	# //// under 50 MB, and finally boto3 upload_file with a TransferConfig that switches to
-	# //// multipart above 100 MB and streams from disk (c4d6f4d84f, 2026-07-16 "fix(s3-backup):
-	# //// restore boto3 multipart upload, drop the silent >1GB skip" — the reverted 6af70ff99f /
-	# //// b3990939fd pair had brought back a `if file_size_gb > 1: return` that dropped any tarball
-	# //// over 1 GB while still reporting the backup as done; it had already cost blowbackshop both
-	# //// files.tar and private-files.tar, and neoservice its files.tar). The rest is 68d7f3a760
-	# //// (2025-07-03 "Update s3_backup_settings.py", empty message).
-	# //// TO REVIEW at the merge: every failure path here calls frappe.log_error and RETURNS, so a
-	# //// completely failed upload still lets take_backups_s3() send the "backup succeeded" mail;
-	# //// the rclone branch writes the S3 secret to a temp file; and this file also lost its final
-	# //// newline in the same pass. ▲▲▲ block runs to the end of the file.
-	# Get url instance and add domain and change destpath
-	domain = frappe.utils.get_url()
+	# //// Neoffice ▼▼▼ — upstream is three lines (destpath, a print, conn.upload_file). Ours keeps
+	# //// two things and drops the rest (neoffice-maintenance#205, 2026-09-09):
+	# ////   • the "<domain> - <default company>/" prefix, so one bucket holds the whole fleet;
+	# ////   • boto3 upload_file with a TransferConfig — a single put_object fails with
+	# ////     EntityTooLarge on the multi-hundred-MB files.tar (c4d6f4d84f).
+	# //// What was removed, and why (68d7f3a760 had stacked three transports tried in order):
+	# ////   • the rclone branch passed --no-check-certificate, i.e. it shipped the backups with TLS
+	# ////     verification DISABLED, and wrote the S3 secret to a file on disk to do it;
+	# ////   • the "small file" branch sent the secret as HTTP Basic auth, which S3 never accepts
+	# ////     (it wants SigV4): it could only ever fail, after handing the key to the endpoint;
+	# ////   • every failure path logged and RETURNED, so a completely failed upload still let
+	# ////     take_backups_s3() send the "backup succeeded" mail. A failure now raises.
+	# //// backup_path is honoured again (upstream prefixes the key with it); it is set on every
+	# //// instance and our version had silently dropped it. ▲▲▲ block runs to the end of the file.
+	doc = frappe.get_single("S3 Backup Settings")
+
 	# //// Neoffice — guarded: Global Defaults is an erpnext doctype; without erpnext the
 	# //// folder falls back to the site name instead of crashing the upload.
 	default_company = None
 	if frappe.db.exists("DocType", "Global Defaults"):
 		default_company = frappe.db.get_single_value("Global Defaults", "default_company")
-	company_folder = domain.replace("https://", "") + " - " + (default_company or frappe.local.site)
-	destpath = company_folder + "/" + os.path.join(folder, os.path.basename(filename))
-	
-	try:
-		# Check that file exists and get its size
-		if not os.path.exists(filename):
-			frappe.log_error("File not found for upload", f"Missing: {filename}")
-			return
-			
-		file_size = os.path.getsize(filename)
-		file_size_mb = file_size / (1024 * 1024)
-		
-		print(f"Uploading file: {filename} (Size: {file_size_mb:.2f} MB)")
-		
-		# Method 1: Try with rclone if available
-		try:
-			# Check if rclone is installed
-			subprocess.run(['rclone', 'version'], capture_output=True, check=True)
-			
-			# Get S3 credentials
-			doc = frappe.get_single("S3 Backup Settings")
-			
-			# Create temporary rclone config
-			rclone_config = f"""[neoffice-s3]
-type = s3
-provider = Other
-access_key_id = {doc.access_key_id}
-secret_access_key = {doc.get_password("secret_access_key")}
-endpoint = {doc.endpoint_url or "https://s3.amazonaws.com"}
-acl = private
-"""
-			
-			# Write config to temporary file
-			import tempfile
-			with tempfile.NamedTemporaryFile(mode='w', suffix='.conf', delete=False) as f:
-				f.write(rclone_config)
-				config_file = f.name
-			
-			try:
-				# Upload with rclone
-				# Create temporary directory for destination structure
-				import tempfile
-				with tempfile.TemporaryDirectory() as temp_dir:
-					# Create complete structure with company name
-					full_dest_path = os.path.join(temp_dir, company_folder, folder.rstrip('/'))
-					os.makedirs(full_dest_path, exist_ok=True)
-					
-					# Copy file with correct name
-					dest_file = os.path.join(full_dest_path, os.path.basename(filename))
-					shutil.copy2(filename, dest_file)
-					
-					cmd = [
-						'rclone', 'copy',
-						'--config', config_file,
-						'--no-check-certificate',  # If SSL issues
-						'--s3-upload-cutoff', '5G',  # Avoid multipart for files < 5GB
-						'--s3-chunk-size', '5G',  # Large chunks to avoid aws-chunked
-						temp_dir,
-						f'neoffice-s3:{bucket}/'
-					]
-					
-					result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-					return
-			finally:
-				# Delete temporary config file
-				os.unlink(config_file)
-				
-		except (subprocess.CalledProcessError, FileNotFoundError):
-			pass
-		
-		# Method 2: For small files, use REST API directly
-		if file_size_mb < 50:  # Only for files < 50MB
-			try:
-				import requests
-				from datetime import datetime
-				import hashlib
-				import hmac
-				
-				# Prepare headers for AWS signature
-				doc = frappe.get_single("S3 Backup Settings")
-				endpoint = doc.endpoint_url or "https://s3.amazonaws.com"
-				
-				# Read file
-				with open(filename, 'rb') as f:
-					file_content = f.read()
-				
-				# Create URL
-				url = f"{endpoint}/{bucket}/{destpath}"
-				
-				# Basic headers
-				headers = {
-					'Content-Type': 'application/octet-stream',
-					'Content-Length': str(len(file_content))
-				}
-				
-				# Direct upload with requests
-				response = requests.put(
-					url,
-					data=file_content,
-					headers=headers,
-					auth=(doc.access_key_id, doc.get_password("secret_access_key"))
-				)
-				
-				if response.status_code in [200, 201]:
-					return
-				else:
-					frappe.log_error("REST upload failed", f"Status: {response.status_code}, Response: {response.text}")
-					
-			except Exception as e:
-				frappe.log_error("Direct REST method failed", f"Error: {str(e)}")
-		
-		# Method 3: boto3 managed upload with automatic multipart for large objects.
-		# A single put_object fails with EntityTooLarge on big files (the multi-hundred-MB
-		# files.tar and multi-GB private-files.tar); upload_file transparently switches to
-		# multipart above the threshold and streams from disk instead of reading the whole
-		# file into memory.
-		try:
-			from boto3.s3.transfer import TransferConfig
 
-			transfer_config = TransferConfig(
-				multipart_threshold=100 * 1024 * 1024,  # switch to multipart above 100 MB
-				multipart_chunksize=100 * 1024 * 1024,  # 100 MB parts
-				use_threads=True,
-			)
-			conn.upload_file(filename, bucket, destpath, Config=transfer_config)
-			return
+	domain = frappe.utils.get_url().replace("https://", "").replace("http://", "")
+	company_folder = f"{domain} - {default_company or frappe.local.site}"
+	destpath = os.path.join(doc.backup_path or "", company_folder, folder, os.path.basename(filename))
 
-		except Exception as e:
-			frappe.log_error("Boto3 multipart upload failed", f"File: {filename}, Error: {str(e)}")
+	if not os.path.exists(filename):
+		frappe.throw(_("Backup file missing, nothing uploaded: {0}").format(filename))
 
-		# If everything fails
-		frappe.log_error("All upload methods failed", f"Unable to upload {filename}. Consider using a different S3 service or contacting support.")
-
-	except Exception as e:
-		frappe.log_error("Upload error", f"File: {filename}, Error: {str(e)}")
-		print("Error uploading: %s" % (e))
+	transfer_config = TransferConfig(
+		multipart_threshold=100 * 1024 * 1024,  # switch to multipart above 100 MB
+		multipart_chunksize=100 * 1024 * 1024,  # 100 MB parts
+		use_threads=True,
+	)
+	print("Uploading %s (%.2f MB)" % (filename, os.path.getsize(filename) / (1024 * 1024)))
+	conn.upload_file(filename, bucket, destpath, Config=transfer_config)

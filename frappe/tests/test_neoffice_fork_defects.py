@@ -239,4 +239,154 @@ class TestBrokenIncomingAccountIsActuallyDisabled(unittest.TestCase):
 			a.handle_incoming_connect_error(description="hiccup")
 		enq.assert_not_called()
 		self.assertEqual(db.call_args.args[:2], ("no_failed", 2))
+
+
+class TestIsSafePathIsNotWidened(unittest.TestCase):
+	"""is_safe_path() is the guard File.get_full_path() asks before touching a path on disk.
+
+	The fork's very first commit widened it with a hard-coded `/mnt/neoffice` prefix, so anything
+	on the data volume — including another site's private files and the backup directory — passed
+	a check whose whole job is to keep a path inside the site. It bought nothing: our instances
+	reach that volume through the site's own `private`/`public` SYMLINKS, and os.path.abspath does
+	not follow symlinks, so the upstream check already says yes to every real file. Measured on
+	2026-09-09: zero File rows carry a /mnt file_url on osiris, dmis, guigoz or blowbackshop
+	(32 057 files). neoffice-maintenance#205.
+	"""
+
+	def test_a_path_inside_the_site_is_accepted(self):
+		from frappe.utils.file_manager import is_safe_path
+
+		self.assertTrue(is_safe_path(frappe.get_site_path("private", "files", "x.pdf")))
+
+	def test_the_data_volume_is_not_a_base_directory_of_its_own(self):
+		from frappe.utils.file_manager import is_safe_path
+
+		self.assertFalse(is_safe_path("/mnt/neoffice/backups/prod.local.sql.gz"))
+		self.assertFalse(is_safe_path("/mnt/neoffice/private/files/other-site.pdf"))
+
+	def test_a_path_outside_the_site_is_still_refused(self):
+		from frappe.utils.file_manager import is_safe_path
+
+		self.assertFalse(is_safe_path("/etc/passwd"))
+		self.assertFalse(is_safe_path(frappe.get_site_path("..", "..", "..", "etc", "passwd")))
+
+
+class TestS3UploadDoesNotReportAFailureAsSuccess(unittest.TestCase):
+	"""upload_file_to_s3() used to log-and-return on every failure path.
+
+	take_backups_s3() then sent the "backup succeeded" mail all the same: a run where not one
+	byte reached S3 was reported as a good backup. The same file also shipped the backups with
+	TLS verification disabled (`--no-check-certificate` on the rclone branch, which wrote the S3
+	secret to a file on disk) and, for files under 50 MB, handed the secret to the endpoint as
+	HTTP Basic auth — which S3 never accepts. All three are gone; one transport remains, and it
+	raises. neoffice-maintenance#205.
+	"""
+
+	def _settings(self, backup_path="osiris/"):
+		doc = MagicMock()
+		doc.backup_path = backup_path
+		return doc
+
+	def test_a_missing_backup_file_raises_instead_of_returning(self):
+		from frappe.integrations.doctype.s3_backup_settings.s3_backup_settings import upload_file_to_s3
+
+		conn = MagicMock()
+		with patch("frappe.get_single", return_value=self._settings()):
+			with self.assertRaises(frappe.ValidationError):
+				upload_file_to_s3("/nonexistent/prod.local-database.sql.gz", "folder", conn, "bucket")
+		conn.upload_file.assert_not_called()
+
+	def test_an_upload_failure_reaches_the_caller(self):
+		import os
+		import tempfile
+
+		from frappe.integrations.doctype.s3_backup_settings.s3_backup_settings import upload_file_to_s3
+
+		conn = MagicMock()
+		conn.upload_file.side_effect = OSError("connection reset")
+		with tempfile.NamedTemporaryFile(suffix=".sql.gz") as f:
+			f.write(b"x")
+			f.flush()
+			with patch("frappe.get_single", return_value=self._settings()):
+				with self.assertRaises(OSError):
+					upload_file_to_s3(f.name, "folder", conn, "bucket")
+
+	def test_the_key_carries_backup_path_again(self):
+		import tempfile
+
+		from frappe.integrations.doctype.s3_backup_settings.s3_backup_settings import upload_file_to_s3
+
+		conn = MagicMock()
+		with tempfile.NamedTemporaryFile(suffix=".sql.gz") as f:
+			f.write(b"x")
+			f.flush()
+			with patch("frappe.get_single", return_value=self._settings("osiris/")):
+				upload_file_to_s3(f.name, "folder", conn, "bucket")
+		key = conn.upload_file.call_args[0][2]
+		self.assertTrue(key.startswith("osiris/"), key)
+		self.assertIn("/folder/", key)
+		self.assertTrue(key.endswith(f.name.rsplit("/", 1)[-1]), key)
+
+	def test_no_backup_path_still_builds_a_key(self):
+		import tempfile
+
+		from frappe.integrations.doctype.s3_backup_settings.s3_backup_settings import upload_file_to_s3
+
+		conn = MagicMock()
+		with tempfile.NamedTemporaryFile(suffix=".sql.gz") as f:
+			f.write(b"x")
+			f.flush()
+			with patch("frappe.get_single", return_value=self._settings(None)):
+				upload_file_to_s3(f.name, "folder", conn, "bucket")
+		key = conn.upload_file.call_args[0][2]
+		self.assertFalse(key.startswith("/"), key)
+		self.assertIn("/folder/", key)
+
+	def test_the_module_ships_no_tls_bypass_and_no_secret_on_disk(self):
+		"""Scanned on the CODE, comments stripped — ast.unparse drops them.
+
+		Reading the raw source would match the comment above upload_file_to_s3, which names
+		each removed transport on purpose.
+		"""
+		import ast
+		import inspect
+
+		from frappe.integrations.doctype.s3_backup_settings import s3_backup_settings
+
+		code = ast.unparse(ast.parse(inspect.getsource(s3_backup_settings)))
+		for gone in ("--no-check-certificate", "rclone", "NamedTemporaryFile", "requests.put"):
+			self.assertNotIn(gone, code, f"{gone} is back in the S3 backup transport")
+
+
+class TestAPartialBackupIsNotAnnouncedAsASuccess(unittest.TestCase):
+	"""68d7f3a760 let a failed files tarball fall back to a database-only run — and the mail still
+	said "backup succeeded". take_backups_s3() now asks backup_to_s3() what did NOT reach S3 and
+	names it instead. neoffice-maintenance#205."""
+
+	def test_a_clean_run_still_sends_the_success_mail(self):
+		from frappe.integrations.doctype.s3_backup_settings import s3_backup_settings
+
+		with patch.object(s3_backup_settings, "validate_file_size"), patch.object(
+			s3_backup_settings, "backup_to_s3", return_value=[]
+		), patch.object(s3_backup_settings, "send_email") as send, patch.object(
+			s3_backup_settings, "notify"
+		) as notify:
+			s3_backup_settings.take_backups_s3()
+		send.assert_called_once()
+		self.assertIs(send.call_args[0][0], True)
+		notify.assert_not_called()
+
+	def test_a_run_missing_a_piece_does_not_send_the_success_mail(self):
+		from frappe.integrations.doctype.s3_backup_settings import s3_backup_settings
+
+		with patch.object(s3_backup_settings, "validate_file_size"), patch.object(
+			s3_backup_settings, "backup_to_s3", return_value=["the private files archive"]
+		), patch.object(s3_backup_settings, "send_email") as send, patch.object(
+			s3_backup_settings, "notify"
+		) as notify:
+			s3_backup_settings.take_backups_s3()
+		send.assert_not_called()
+		notify.assert_called_once()
+		self.assertIn("private files", notify.call_args[0][0])
+
 # //// Neoffice ▲▲▲
