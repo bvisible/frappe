@@ -623,6 +623,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 					options: columns_in_picker,
 				}
 			],
+			//// Neoffice — see the block marker below: dropped dead insert_before param
 			primary_action: ({ column }) => {
 				if (!columns_in_picker.map((col) => col.value).includes(column)) {
 					frappe.show_alert({
@@ -1831,6 +1832,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 						} catch (e) {
 							console.error("Failed to parse user report settings. Using default settings.", e);
 						}
+					//// Neoffice — see the block marker above: object response now honoured
 					} else if (typeof response.message === 'object') {
 						settings = response.message;
 					}
