@@ -81,6 +81,11 @@ class HTTPRequest:
 		frappe.local.login_manager = LoginManager()
 
 	def validate_csrf_token(self):
+		# //// Neoffice — measurement only, refuses nothing (tracker #310). The guard below
+		# //// returns early on safe methods, so it could never tell us whether a session
+		# //// cookie is riding along with a Bearer-authenticated call — which is the actual
+		# //// question for the mobile app. This records that, method included.
+		_neoffice_observe_session_cookie()
 		if (
 			not frappe.request
 			or frappe.request.method not in UNSAFE_HTTP_METHODS
@@ -129,6 +134,47 @@ def _neoffice_observe_csrf_refusal() -> None:
 			f"route: {method} {path}\n"
 			f"header X-Frappe-CSRF-Token present: {sent}\n"
 			f"user: {user}\n"
+			f"user-agent: {agent}",
+		)
+	except Exception:  # noqa: BLE001 — observing must never break a request
+		pass
+
+
+
+# //// Neoffice — added function (no upstream equivalent). Measurement for #310: does this
+# //// request carry a session cookie whose session holds a csrf_token, without the header?
+# //// Records the route and the method, never the token. Removed with the observation.
+def _neoffice_observe_session_cookie() -> None:
+	try:
+		if not frappe.request or not frappe.session:
+			return
+		cookie_sid = (frappe.request.cookies or {}).get("sid")
+		auth_header = frappe.get_request_header("Authorization") or ""
+		saved = frappe.session.data.get("csrf_token")
+		sent = frappe.get_request_header("X-Frappe-CSRF-Token") or frappe.form_dict.get("csrf_token")
+		# Two questions in one probe: does a Bearer/token call also carry a session
+		# cookie (two identities on one request), and would the guard refuse it?
+		carries_both = bool(auth_header) and bool(cookie_sid) and cookie_sid != "Guest"
+		would_refuse = bool(saved) and sent != saved
+		if not carries_both and not would_refuse:
+			return
+		method = getattr(frappe.request, "method", "?")
+		path = getattr(frappe.request, "path", "") or "?"
+		key = f"neoffice:csrf_seen:{method}:{path}"
+		if frappe.cache.get_value(key):
+			return
+		frappe.cache.set_value(key, 1, expires_in_sec=60)
+		kind = auth_header.split(" ")[0] if auth_header else "(aucun)"
+		agent = (frappe.get_request_header("User-Agent") or "")[:100]
+		unsafe = method in UNSAFE_HTTP_METHODS
+		frappe.log_error(
+			"CSRF observation: session cookie on this request",
+			f"method: {method}   would be refused: {bool(would_refuse and unsafe)}\n"
+			f"route: {path}\n"
+			f"Authorization header: {kind}\n"
+			f"cookie sid present: {bool(cookie_sid)}\n"
+			f"session holds csrf_token: {bool(saved)}\n"
+			f"user: {getattr(frappe.session, 'user', '?')}\n"
 			f"user-agent: {agent}",
 		)
 	except Exception:  # noqa: BLE001 — observing must never break a request
