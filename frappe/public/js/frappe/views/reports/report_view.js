@@ -2819,6 +2819,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 							},
 						];
 					}
+					//// Neoffice — removed a duplicate `else if` block here (745560e409 "fix(report-view): drop the export branch that could never run"): a merge-conflict resolution had kept two byte-identical `else if (this.total_count > ...)` blocks back to back, so the second one could never run; only the reachable copy above remains.
 					if (frappe.boot.lang !== "en") {
 						extra_fields.push({
 							fieldtype: "Check",

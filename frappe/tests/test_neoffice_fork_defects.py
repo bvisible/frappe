@@ -5,6 +5,9 @@
 """Three fork defects: a stuck message flag, a shadowed builtin, a dead broken copy."""
 
 import unittest
+# //// Neoffice — MagicMock and patch import for the queue/account regression tests below
+# //// (715c3b5e99 "fix(email): the counter that disables a broken account survives a restart",
+# //// 9401d48caa "fix(email): a deleted Communication no longer jams a queue entry for good").
 from unittest.mock import MagicMock, patch
 
 import frappe
@@ -96,6 +99,10 @@ class TestPrintUtilsHasNoDeadAttachPrint(unittest.TestCase):
 		self.assertTrue(callable(frappe.attach_print))
 
 
+# //// Neoffice ▼▼▼ — regression tests for two survive-a-restart fork fixes: the deleted-Communication
+# //// queue jam (9401d48caa "fix(email): a deleted Communication no longer jams a queue entry for good",
+# //// tracker #81/#245) below, and the failed-attempts counter (715c3b5e99 "fix(email): the counter that
+# //// disables a broken account survives a restart", tracker #250) further down.
 class TestEmailQueueSurvivesADeletedCommunication(unittest.TestCase):
 	"""A queue entry whose Communication was deleted must not jam the whole queue.
 
@@ -168,6 +175,7 @@ class TestEmailQueueSurvivesADeletedCommunication(unittest.TestCase):
 		g.assert_not_called()
 
 
+# //// Neoffice — see the block marker above: restart-proof counter tests (715c3b5e99).
 class TestBrokenIncomingAccountIsActuallyDisabled(unittest.TestCase):
 	"""The counter that decides it must survive a restart.
 
@@ -231,3 +239,4 @@ class TestBrokenIncomingAccountIsActuallyDisabled(unittest.TestCase):
 			a.handle_incoming_connect_error(description="hiccup")
 		enq.assert_not_called()
 		self.assertEqual(db.call_args.args[:2], ("no_failed", 2))
+# //// Neoffice ▲▲▲
