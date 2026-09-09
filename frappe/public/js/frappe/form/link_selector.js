@@ -136,13 +136,17 @@ frappe.ui.form.LinkSelector = class LinkSelector {
 								return false;
 							});
 					}
-					//// Neoffice — added (2868a5ef58, 2024-05-02 "Auto add first result"): when the search comes back with
-					//// exactly one row, its link is clicked automatically (once per value — see results_auto_add in the
-					//// constructor), so picking an item by exact code or barcode needs no second click. Upstream always
-					//// waits for the click. TO REVIEW at the merge: it fires in the results renderer of EVERY
-					//// LinkSelector dialog, not just the item picker it was written for.
+					//// Neoffice — added (2868a5ef58, 2024-05-02 "Auto add first result"): when the search comes
+					//// back with exactly one row, its link is clicked automatically (once per value — see
+					//// results_auto_add in the constructor), so picking an item by exact code or barcode needs no
+					//// second click. Upstream always waits for the click.
+					//// Scoped to the picker it was written for: only the grid's bulk-add dialog passes a
+					//// `qty_fieldname` (form/grid.js), the advanced search opened from any Link field does not
+					//// (form/controls/link.js). It used to fire in EVERY LinkSelector, so a partial search that
+					//// happened to match one record for an instant chose it for the user, in any field of the desk
+					//// (neoffice-maintenance#205).
 					//// Auto add first result
-					if (results.length === 1) {
+					if (results.length === 1 && me.qty_fieldname) {
 						var firstLink = parent.find('.row a').first();
 						if (!me.results_auto_add.includes(firstLink.attr('data-value'))) {
 							firstLink.click();
