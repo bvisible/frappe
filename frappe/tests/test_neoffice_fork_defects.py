@@ -166,3 +166,68 @@ class TestEmailQueueSurvivesADeletedCommunication(unittest.TestCase):
 		with patch.object(q, "update_db"), patch.object(frappe, "get_doc") as g:
 			q.update_status("Sent")
 		g.assert_not_called()
+
+
+class TestBrokenIncomingAccountIsActuallyDisabled(unittest.TestCase):
+	"""The counter that decides it must survive a restart.
+
+	`handle_incoming_connect_error` disables an account after six consecutive
+	failures, but upstream keeps the count in the cache Redis — configured
+	`maxmemory-policy allkeys-lru` with `save ""`. It is wiped by every bench
+	restart and every clear-cache, and can be evicted under normal load. On a
+	fleet we redeploy, six-in-a-row was never reached: `_Test Comm Account 1`
+	wrote 34 Error Log entries in 40 minutes on osiris and stayed enabled
+	forever (#250). `no_failed` — the document's own field, already incremented
+	on socket errors and reset on a successful validate — was there all along.
+	"""
+
+	def _account(self, no_failed=0):
+		from frappe.email.doctype.email_account.email_account import EmailAccount
+
+		a = EmailAccount.__new__(EmailAccount)
+		a.name = "test-account"
+		a.no_failed = no_failed
+		return a
+
+	def test_the_count_is_read_from_the_document(self):
+		self.assertEqual(self._account(no_failed=4).get_failed_attempts_count(), 4)
+
+	def test_the_count_is_written_to_the_document(self):
+		a = self._account(no_failed=2)
+		with patch.object(a, "db_set") as db:
+			a.set_failed_attempts_count(3)
+		db.assert_called_once()
+		self.assertEqual(db.call_args.args[:2], ("no_failed", 3))
+
+	def test_it_does_not_touch_the_cache(self):
+		"""A key that survives neither a restart nor an eviction cannot carry a
+		decision about six CONSECUTIVE failures."""
+		a = self._account(no_failed=1)
+		with patch.object(a, "db_set"), patch.object(frappe, "cache") as cache:
+			a.set_failed_attempts_count(2)
+			a.get_failed_attempts_count()
+		cache.set_value.assert_not_called()
+		cache.get_value.assert_not_called()
+
+	def test_an_unchanged_count_writes_nothing(self):
+		"""A successful poll resets the counter every few minutes; rewriting the
+		same zero would be one UPDATE per account per tick, for nothing."""
+		a = self._account(no_failed=0)
+		with patch.object(a, "db_set") as db:
+			a.set_failed_attempts_count(0)
+		db.assert_not_called()
+
+	def test_past_the_threshold_the_account_is_disabled(self):
+		a = self._account(no_failed=6)
+		with patch.object(frappe, "enqueue") as enq, patch.object(a, "db_set") as db:
+			a.handle_incoming_connect_error(description="imap.example.com unreachable")
+		enq.assert_called_once()
+		db.assert_not_called()
+
+	def test_below_the_threshold_it_only_counts(self):
+		"""The inverse control: a passing network hiccup must not disable anything."""
+		a = self._account(no_failed=1)
+		with patch.object(frappe, "enqueue") as enq, patch.object(a, "db_set") as db:
+			a.handle_incoming_connect_error(description="hiccup")
+		enq.assert_not_called()
+		self.assertEqual(db.call_args.args[:2], ("no_failed", 2))

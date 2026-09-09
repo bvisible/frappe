@@ -577,10 +577,24 @@ class EmailAccount(Document):
 				pass
 
 	def set_failed_attempts_count(self, value):
-		frappe.cache.set_value(f"{self.name}:email-account-failed-attempts", value)
+		# //// Neoffice — was frappe.cache.set_value(f"{self.name}:email-account-failed-attempts").
+		# //// The counter that decides whether a broken account gets disabled lived in the cache
+		# //// Redis, which is configured `maxmemory-policy allkeys-lru` with `save ""`: it is
+		# //// wiped by every bench restart and every clear-cache, and can be evicted under
+		# //// normal load without anything happening at all. The threshold of six consecutive
+		# //// failures was therefore a bet on a volatile key, and on a fleet we redeploy it was
+		# //// never reached — `_Test Comm Account 1` wrote 34 Error Log entries in 40 minutes on
+		# //// osiris and stayed enabled forever (#250, and the daily noise of #79/#80).
+		# //// `no_failed` is the document's own field, already incremented on socket errors and
+		# //// already reset on a successful validate: the durable counter existed, the decision
+		# //// simply was not reading it.
+		value = cint(value)
+		if cint(self.no_failed) != value:
+			self.db_set("no_failed", value, update_modified=False)
 
 	def get_failed_attempts_count(self):
-		return cint(frappe.cache.get_value(f"{self.name}:email-account-failed-attempts"))
+		# //// Neoffice — reads the document, not the cache. See set_failed_attempts_count.
+		return cint(self.no_failed)
 
 	def receive(self):
 		"""Called by scheduler to receive emails from this EMail account using POP3/IMAP."""
