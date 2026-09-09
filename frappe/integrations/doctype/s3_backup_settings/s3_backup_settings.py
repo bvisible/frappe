@@ -279,6 +279,9 @@ def backup_to_s3(wizard=False, manual=False, demo=False, force_no_files=False):
 				db_filename = os.path.join(get_backups_path(), os.path.basename(backup.backup_path_db))
 				site_config = os.path.join(get_backups_path(), os.path.basename(backup.backup_path_conf))
 				backup_files = 0  # Disable file upload
+				# //// Neoffice — added (9511f65d1a "fix(s3-backup): one transport, no TLS bypass, and a
+				# //// failed upload stops saying it worked"): record what could not be produced, so
+				# //// take_backups_s3() reports it instead of the caller believing the run fully succeeded.
 				skipped.append(_("the files archives (public and private)"))
 			else:
 				raise
@@ -304,6 +307,7 @@ def backup_to_s3(wizard=False, manual=False, demo=False, force_no_files=False):
 					files_filename = None
 					private_files = None
 					backup_files = 0
+					# //// Neoffice — see the block marker above: reports what's missing (9511f65d1a)
 					skipped.append(_("the files archives (public and private)"))
 
 		else:
@@ -402,6 +406,8 @@ def backup_to_s3(wizard=False, manual=False, demo=False, force_no_files=False):
 			else:
 				frappe.log_error("Public files backup not found", f"Missing: {old_files_filename}")
 				files_filename = None
+				# //// Neoffice — added (9511f65d1a "fix(s3-backup): one transport, no TLS bypass, and a
+				# //// failed upload stops saying it worked"): record it instead of silently uploading less.
 				skipped.append(_("the public files archive"))
 				
 			if os.path.exists(old_private_files):
@@ -409,6 +415,7 @@ def backup_to_s3(wizard=False, manual=False, demo=False, force_no_files=False):
 			else:
 				frappe.log_error("Private files backup not found", f"Missing: {old_private_files}")
 				private_files = None
+				# //// Neoffice — see the block marker above: reports what's missing (9511f65d1a)
 				skipped.append(_("the private files archive"))
 
 	upload_file_to_s3(db_filename, folder, conn, bucket)
@@ -455,13 +462,20 @@ def upload_file_to_s3(filename, folder, conn, bucket):
 	if frappe.db.exists("DocType", "Global Defaults"):
 		default_company = frappe.db.get_single_value("Global Defaults", "default_company")
 
+	# //// Neoffice — see the block marker above: domain/company folder prefix, backup_path honoured
+	# //// again (9511f65d1a)
 	domain = frappe.utils.get_url().replace("https://", "").replace("http://", "")
 	company_folder = f"{domain} - {default_company or frappe.local.site}"
 	destpath = os.path.join(doc.backup_path or "", company_folder, folder, os.path.basename(filename))
 
+	# //// Neoffice — added (9511f65d1a "fix(s3-backup): one transport, no TLS bypass, and a failed
+	# //// upload stops saying it worked"): upstream had no such check; a missing file now raises
+	# //// instead of failing deep inside boto3 with an obscure error.
 	if not os.path.exists(filename):
 		frappe.throw(_("Backup file missing, nothing uploaded: {0}").format(filename))
 
+	# //// Neoffice — see the block marker above: boto3 upload_file with a TransferConfig is now the
+	# //// whole function (9511f65d1a)
 	transfer_config = TransferConfig(
 		multipart_threshold=100 * 1024 * 1024,  # switch to multipart above 100 MB
 		multipart_chunksize=100 * 1024 * 1024,  # 100 MB parts
