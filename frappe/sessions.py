@@ -64,7 +64,7 @@ def sessions_have_device_column():
 	cached = frappe.local.flags.get("sessions_have_device_column") if hasattr(frappe.local, "flags") else None
 	if cached is None:
 		try:
-			cached = "device" in [c[0] for c in frappe.db.sql("select column_name from information_schema.columns where table_name = 'tabSessions' and table_schema = %s", (frappe.db.db_name,))]
+			cached = "device" in [c[0] for c in frappe.db.sql("select column_name from information_schema.columns where table_name = 'tabSessions' and table_schema = %s", (frappe.conf.db_name,))]
 		except Exception:
 			cached = False
 		if hasattr(frappe.local, "flags"):

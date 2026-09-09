@@ -8,7 +8,7 @@ import frappe
 
 
 def execute():
-	columns = [c[0] if isinstance(c, (tuple, list)) else c for c in frappe.db.sql("select column_name from information_schema.columns where table_name = 'tabSessions' and table_schema = %s", (frappe.db.db_name,) if frappe.db.db_type == "mariadb" else (frappe.db.db_name,))]
+	columns = [c[0] for c in frappe.db.sql("select column_name from information_schema.columns where table_name = 'tabSessions' and table_schema = %s", (frappe.conf.db_name,))]
 	if "device" in columns:
 		return
 	if frappe.db.db_type == "postgres":
