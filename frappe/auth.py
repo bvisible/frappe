@@ -95,10 +95,44 @@ class HTTPRequest:
 			return
 
 		frappe.flags.disable_traceback = True
-		#///frappe.throw(_("Invalid Request"), frappe.CSRFTokenError)
+		# //// Neoffice — upstream throws here. The line was commented out by the very first
+		# //// commit of this fork (4c842a98fc, 2023-10-30, "First change v15") with no reason
+		# //// recorded, so CSRF protection has not existed on the fleet since. Re-arming it
+		# //// blind would break whichever client has been relying on it — mobile, kiosks,
+		# //// webshop, NORA — and nobody knows which. So: OBSERVE first, refuse later.
+		# //// This records what the guard WOULD have refused, once per minute per route, and
+		# //// still lets the request through. Remove this block and restore the throw once
+		# //// the observation window has named the callers (tracker #310).
+		_neoffice_observe_csrf_refusal()
 
 	def set_lang(self):
 		frappe.local.lang = get_language()
+
+
+
+# //// Neoffice — added function (no upstream equivalent). Measures what re-arming the
+# //// CSRF guard would cost, without paying it: one Error Log entry per route per minute,
+# //// naming the route and the kind of caller, never the token itself. See #310.
+def _neoffice_observe_csrf_refusal() -> None:
+	try:
+		path = getattr(frappe.request, "path", "") or "?"
+		method = getattr(frappe.request, "method", "?")
+		key = f"neoffice:csrf_observed:{method}:{path}"
+		if frappe.cache.get_value(key):
+			return
+		frappe.cache.set_value(key, 1, expires_in_sec=60)
+		sent = bool(frappe.get_request_header("X-Frappe-CSRF-Token"))
+		agent = (frappe.get_request_header("User-Agent") or "")[:120]
+		user = getattr(getattr(frappe, "session", None), "user", None) or "?"
+		frappe.log_error(
+			"CSRF would refuse this request (observed, not refused)",
+			f"route: {method} {path}\n"
+			f"header X-Frappe-CSRF-Token present: {sent}\n"
+			f"user: {user}\n"
+			f"user-agent: {agent}",
+		)
+	except Exception:  # noqa: BLE001 — observing must never break a request
+		pass
 
 
 class LoginManager:
