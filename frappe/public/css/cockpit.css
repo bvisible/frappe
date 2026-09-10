@@ -637,6 +637,17 @@ body.neoffice-cockpit .form-hero-currency {
 	margin-top: 4px;
 	text-transform: uppercase;
 }
+/* //// Neoffice — a second figure under the key value (the gross margin of a
+   sales document). Deliberately quiet: it sits next to the amount, it is not
+   the amount. */
+body.neoffice-cockpit .form-hero-note {
+	margin-top: 3px;
+	font-size: 11.5px;
+	font-weight: 500;
+	color: var(--text-muted);
+	text-align: right;
+	letter-spacing: 0.01em;
+}
 /* numbered stepper: ✓/N bubble + label + date, connectors between bubbles */
 body.neoffice-cockpit .form-hero-steps {
 	display: flex;
@@ -1056,6 +1067,58 @@ body.neoffice-cockpit .grid-totals-band .tot-value {
 	font-weight: 700;
 	font-variant-numeric: tabular-nums;
 	color: var(--text-color);
+}
+/* //// Neoffice — the band can carry a second, quieter line: the COVERAGE of a
+   figure that does not speak for the whole document ("margin known on 4 of 9
+   lines"). Without it the band would print a percentage that looks like the
+   document's own. When a note is present the pairs move into their own row so
+   they keep their right alignment. */
+body.neoffice-cockpit .grid-totals-band.has-note {
+	display: block;
+	text-align: right;
+}
+body.neoffice-cockpit .grid-totals-band .grid-totals-row {
+	display: flex;
+	justify-content: flex-end;
+	align-items: baseline;
+	gap: 26px;
+}
+body.neoffice-cockpit .grid-totals-band .grid-totals-row {
+	justify-content: space-between;
+}
+body.neoffice-cockpit .grid-totals-band .grid-totals-pairs {
+	display: flex;
+	justify-content: flex-end;
+	align-items: baseline;
+	gap: 26px;
+	flex: 1;
+}
+body.neoffice-cockpit .grid-totals-band .grid-totals-actions {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+body.neoffice-cockpit .grid-totals-band .grid-totals-action {
+	border: 1px solid var(--border-color);
+	background: var(--card-bg, #fff);
+	border-radius: 8px;
+	padding: 4px 10px;
+	font-size: 11.5px;
+	font-weight: 500;
+	color: var(--text-color);
+	cursor: pointer;
+}
+body.neoffice-cockpit .grid-totals-band .grid-totals-action:hover {
+	background: var(--fg-hover-color, #f4f5f6);
+}
+body.neoffice-cockpit .grid-totals-band .grid-totals-note {
+	margin-top: 5px;
+	font-size: 11.5px;
+	color: var(--text-muted);
+}
+body.neoffice-cockpit .grid-totals-band .tot-pair.tot-muted .tot-value {
+	font-weight: 600;
+	color: var(--text-muted);
 }
 body.neoffice-cockpit .grid-totals-band .tot-serif {
 	font-family: Georgia, "Instrument Serif", serif;

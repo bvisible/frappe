@@ -75,6 +75,21 @@ frappe.ui.form.hero_send_actions = frappe.ui.form.hero_send_actions || {};
 frappe.ui.form.set_hero_send_action = function (doctype, provider) {
 	frappe.ui.form.hero_send_actions[doctype] = provider;
 };
+
+//// Neoffice: a quiet line UNDER the hero's key value, for a second figure that
+//// belongs with the amount but is not the amount — the gross margin of a sales
+//// document, today. Same contract as the registries above: the app that owns the
+//// knowledge registers a provider, frappe knows nothing about the subject.
+//// The provider is called on every render with the form and returns null or
+////   { text: "…", title?: "tooltip" }
+//// It must be synchronous. Registering "*" covers every doctype that has a key
+//// value, which is what a cross-doctype figure like a margin needs.
+//// frappe.ui.form.add_hero_value_note("*", (frm) => ({ text: "…" }));
+frappe.ui.form.hero_value_notes = frappe.ui.form.hero_value_notes || {};
+frappe.ui.form.add_hero_value_note = function (doctype, provider) {
+	(frappe.ui.form.hero_value_notes[doctype] =
+		frappe.ui.form.hero_value_notes[doctype] || []).push(provider);
+};
 function send_action(frm) {
 	if (frm.doc.docstatus !== 1) return null;
 	const base = { label: __("Send"), icon: "mail", run: () => frm.email_doc() };
@@ -614,6 +629,7 @@ frappe.ui.form.FormHero = class FormHero {
 				<div class="form-hero-value">
 					<div class="form-hero-amount">${format_number(flt(computed.amount), null, 2)}</div>
 					<div class="form-hero-currency">${frappe.utils.escape_html(currency)} · ${frappe.utils.escape_html(computed.label || "")}</div>
+					${this.hero_value_note_html()}
 				</div>`;
 		}
 		if (vf && doc[vf] != null) {
@@ -627,6 +643,7 @@ frappe.ui.form.FormHero = class FormHero {
 				<div class="form-hero-value">
 					<div class="form-hero-amount">${amount}</div>
 					<div class="form-hero-currency">${frappe.utils.escape_html(currency)} · ${__(value_label)}</div>
+					${this.hero_value_note_html()}
 				</div>`;
 		}
 
@@ -761,6 +778,35 @@ frappe.ui.form.FormHero = class FormHero {
 			});
 		}
 		this.render_extras();
+	}
+
+	//// Neoffice — collects the registered value notes (see add_hero_value_note).
+	//// A provider that throws is skipped: a second figure must never be able to
+	//// take the hero, and with it the whole form header, down.
+	hero_value_note_html() {
+		const providers = [
+			...(frappe.ui.form.hero_value_notes["*"] || []),
+			...(frappe.ui.form.hero_value_notes[this.frm.doctype] || []),
+		];
+		const notes = [];
+		providers.forEach((provider) => {
+			let note;
+			try {
+				note = provider(this.frm);
+			} catch (e) {
+				note = null;
+			}
+			if (note && note.text) notes.push(note);
+		});
+		if (!notes.length) return "";
+		return notes
+			.map(
+				(n) =>
+					`<div class="form-hero-note"${
+						n.title ? ` title="${frappe.utils.escape_html(n.title)}"` : ""
+					}>${frappe.utils.escape_html(n.text)}</div>`
+			)
+			.join("");
 	}
 
 	render_extras() {
