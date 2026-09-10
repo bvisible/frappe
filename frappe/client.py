@@ -80,7 +80,25 @@ def get_list(
 
 @frappe.whitelist()
 def get_count(doctype, filters=None, debug=False, cache=False):
-	return frappe.db.count(doctype, get_safe_filters(filters), debug, cache)
+	# //// Neoffice — backported from upstream `develop` (v16), which routes this through
+	# //// reportview instead of counting rows directly. v15 calls `frappe.db.count` with no
+	# //// permission check AT ALL -- compare with `get()` twenty lines below, which calls
+	# //// `doc.check_permission()`. Any authenticated account, portal users included, could
+	# //// therefore count the rows of ANY doctype with ANY filters: not the content, but an
+	# //// oracle that answers "how many match this" one question at a time.
+	# //// Measured on the hub 2026-09-10 with a Website User: `client.get_list`, `get`,
+	# //// `get_value`, `set_value` and `delete` all answered PermissionError on a doctype
+	# //// closed to them -- and `get_count` answered 307. Five doors locked, one left open.
+	# //// reportview.get_count goes through DatabaseQuery, so it applies both the doctype
+	# //// permission and the permission_query_conditions the row-level rules install.
+	# //// Drop this once the fleet is on a frappe that carries the fix itself.
+	from frappe.desk.reportview import get_count as reportview_get_count
+
+	frappe.form_dict.doctype = doctype
+	frappe.form_dict.filters = get_safe_filters(filters)
+	frappe.form_dict.debug = debug
+
+	return reportview_get_count()
 
 
 @frappe.whitelist()
