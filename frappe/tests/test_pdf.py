@@ -102,7 +102,7 @@ class TestPdf(FrappeTestCase):
 # //// automated coverage at all, which is how the same defect shipped twice: a caller
 # //// waits for a CDP event, asyncio.wait_for CANCELS the future on timeout, and the
 # //// caller dereferences it anyway -> a bare CancelledError surfacing as an HTTP 500
-# //// with asyncio in the traceback and no cause (#291, terrettaz-sa.ch, 2026-09-08).
+# //// with asyncio in the traceback and no cause (#291, 2026-09-08).
 # //// These tests need no Chromium: a future that never resolves is the whole fixture.
 class TestChromePdfEventTimeouts(FrappeTestCase):
 	def _client(self):

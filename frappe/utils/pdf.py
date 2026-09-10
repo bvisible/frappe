@@ -24,7 +24,7 @@ pdfkit.source.unicode = str  # NOTE: upstream bug; PYTHONOPTIMIZE=1 optimized th
 # //// cssutils is a CSS 2.1-era parser, so every modern declaration our Oslo print formats
 # //// use — custom properties, :has(), grid, break-before — is reported as an ERROR, and its
 # //// handler writes to the REAL stderr, i.e. straight into web.error.log. Measured on
-# //// terrettaz-sa.ch 2026-09-08: 41 MB / 474 216 lines, ~75 000 of them these complaints —
+# //// a client instance, 2026-09-08: 41 MB / 474 216 lines, ~75 000 of them these complaints —
 # //// which is how a genuine traceback becomes unfindable and how the log-signatures fleet
 # //// check drowns. Parsing is untouched: get_print_format_styles only reads the rules
 # //// cssutils DID understand and never looked at the log (checked: identical properties

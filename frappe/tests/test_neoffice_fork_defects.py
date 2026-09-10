@@ -249,7 +249,7 @@ class TestIsSafePathIsNotWidened(unittest.TestCase):
 	a check whose whole job is to keep a path inside the site. It bought nothing: our instances
 	reach that volume through the site's own `private`/`public` SYMLINKS, and os.path.abspath does
 	not follow symlinks, so the upstream check already says yes to every real file. Measured on
-	2026-09-09: zero File rows carry a /mnt file_url on osiris, dmis, guigoz or blowbackshop
+	2026-09-09: zero File rows carry a /mnt file_url across four instances of the fleet
 	(32 057 files). neoffice-maintenance#205.
 	"""
 

@@ -23,7 +23,7 @@ from frappe.utils.safe_exec import check_safe_sql_query, safe_exec
 # //// that resets it — one slow run (cold cache, wide date range, a competing job) is enough,
 # //// and the user then gets an empty screen with a "Generate a New Report" button instead of
 # //// their figures. Observed on osiris (General Ledger, Trial Balance, Account Sheets, Bank
-# //// Reconciliation Statement) and terrettaz-sa (Gross Profit, VAT Report). The full
+# //// Reconciliation Statement) and on a client instance (Gross Profit, VAT Report). The full
 # //// rationale, including why disable_prepared_report is NOT usable as the guard, is in the
 # //// `#### Neoffice` block below. Drop this when upstream stops flipping a persistent doc
 # //// field from a timer.

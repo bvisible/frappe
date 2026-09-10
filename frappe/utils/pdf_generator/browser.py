@@ -38,7 +38,7 @@ class Browser:
 		# //// ran it bare. Every step here can raise (a CDP event that never arrives, a
 		# //// wedged Chromium, a render that outlives its timeout), and when it did, the
 		# //// tabs already opened were never closed and the CDP socket was never
-		# //// disconnected. Measured on SRV-0127 (terrettaz-sa.ch, 2026-09-08): 63 orphan
+		# //// disconnected. Measured on one such instance (2026-09-08): 63 orphan
 		# //// about:blank pages and 20 CLOSE-WAIT sockets to port 9222, with the gunicorn
 		# //// workers holding them grown to 415 MB against a ~215 MB baseline elsewhere in
 		# //// the fleet. That leak feeds itself — a heavier Chromium answers CDP events
@@ -521,7 +521,7 @@ class Browser:
 		# //// is now also called from the failure path, where open() may never have run
 		# //// (self.session is None) or the socket is already dead. A raise here would mask
 		# //// the real exception and, worse, skip the disconnect that releases the FD —
-		# //// the CLOSE-WAIT sockets that grew the workers to 415 MB on SRV-0127.
+		# //// the CLOSE-WAIT sockets that grew the workers to 415 MB there.
 		if not self.session:
 			return
 		try:

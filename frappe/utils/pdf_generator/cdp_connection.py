@@ -180,7 +180,7 @@ class CDPSocketClient:
 	# //// cancelled future and a bare CancelledError surfaced as an HTTP 500 on the print
 	# //// preview, with a traceback naming asyncio instead of the real cause. 3 s was also
 	# //// below the measured p95 of a render on a loaded 2-vCPU instance (3.58 s on
-	# //// SRV-0127 / terrettaz-sa.ch), so roughly 5 % of previews failed by construction.
+	# //// a loaded client instance), so roughly 5 % of previews failed by construction.
 	# //// Callers now branch on the return value instead of touching a cancelled future.
 	# //// Remove when upstream ships the Chrome generator on v15 with its own fix.
 	def wait_for_event(self, event, timeout=15):
