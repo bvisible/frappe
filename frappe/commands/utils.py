@@ -787,6 +787,39 @@ def run_tests(
 
 		allow_tests = frappe.get_conf(site).allow_tests
 
+		# //// Neoffice — a test run on the fleet's production site name is refused
+		# //// outright, whatever site_config says. Upstream gates this on
+		# //// `allow_tests`, and that key keeps coming back on our dev instance: it
+		# //// was removed after incident #245 (osiris mute for five days, because
+		# //// the `_Test Comm Account 1` fixture takes default_outgoing and
+		# //// there_must_be_only_one_default strips the real account), found back on
+		# //// 2026-09-09 (#319), and back AGAIN on 2026-09-10 (#340) — that time it
+		# //// re-enabled the same fixture's IMAP pull, which wrote 2185 Error Log
+		# //// rows and reopened a tracker issue every time it was closed (#79).
+		# ////
+		# //// Watching for the key only tells us afterwards. Every instance of the
+		# //// fleet, dev included, names its site `prod.local`, and the throwaway
+		# //// site for running suites is a different name by convention
+		# //// (`subtest.local`). So the site NAME is the durable signal, and it
+		# //// cannot be turned off by whoever sets a config key.
+		# ////
+		# //// CI is unaffected: its sites are named `test_site` and it sets CI=1.
+		# //// Escape hatch, deliberately explicit and never a config key:
+		# //// NEOFFICE_ALLOW_TESTS_ON_PROD=1 in the environment of that one command.
+		if site == "prod.local" and not os.environ.get("NEOFFICE_ALLOW_TESTS_ON_PROD"):
+			click.secho(
+				f"Refusing to run tests on {site}: this is the fleet's production site name.",
+				fg="red",
+				bold=True,
+			)
+			click.secho(
+				"A suite run here makes the site mute (a fixture takes the default outgoing "
+				"account) and can leave the scheduler stopped — incident #245.",
+			)
+			click.secho("Use a throwaway site instead:", bold=True)
+			click.secho("  bench new-site subtest.local --db-name subtest", fg="green")
+			return
+
 		if not (allow_tests or os.environ.get("CI")):
 			click.secho("Testing is disabled for the site!", bold=True)
 			click.secho("You can enable tests by entering following command:")

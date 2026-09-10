@@ -389,4 +389,70 @@ class TestAPartialBackupIsNotAnnouncedAsASuccess(unittest.TestCase):
 		notify.assert_called_once()
 		self.assertIn("private files", notify.call_args[0][0])
 
+
+# //// Neoffice — see the block marker above: run-tests refused on prod.local.
+class TestTestsAreRefusedOnTheFleetProductionSite(unittest.TestCase):
+	"""`allow_tests` is a key someone keeps setting back; the site NAME is not.
+
+	A suite run on a live site makes it MUTE: the `_Test Comm Account 1` fixture
+	takes `default_outgoing` (smtp test.example.com, which does not resolve) and
+	`there_must_be_only_one_default()` strips the real account — incident #245,
+	five days of silence. The key was removed afterwards, found back on
+	2026-09-09 (#319) and again on 2026-09-10 (#340), that time re-enabling the
+	same fixture's IMAP pull: 2185 Error Log rows, and a tracker issue that
+	reopened every time it was closed (#79).
+
+	Every instance of the fleet names its site `prod.local`, and a throwaway test
+	site is a different name by convention. So the refusal is keyed on the name,
+	which no config key can turn off.
+	"""
+
+	def _gate(self, site, env):
+		"""Replays the decision of frappe.commands.utils.run_tests, no click."""
+		import os
+
+		if site == "prod.local" and not env.get("NEOFFICE_ALLOW_TESTS_ON_PROD"):
+			return "refused-prod"
+		if not (env.get("allow_tests") or env.get("CI")):
+			return "refused-no-key"
+		return "runs"
+
+	def test_the_production_site_name_is_refused_even_with_the_key(self):
+		self.assertEqual(self._gate("prod.local", {"allow_tests": True}), "refused-prod")
+
+	def test_it_is_refused_even_under_ci(self):
+		"""CI never runs against prod.local; if it ever did, that is the accident."""
+		self.assertEqual(self._gate("prod.local", {"CI": "1"}), "refused-prod")
+
+	def test_a_throwaway_site_with_the_key_still_runs(self):
+		self.assertEqual(self._gate("subtest.local", {"allow_tests": True}), "runs")
+
+	def test_ci_sites_are_untouched(self):
+		self.assertEqual(self._gate("test_site", {"CI": "1"}), "runs")
+
+	def test_the_escape_hatch_lifts_the_name_guard_and_nothing_else(self):
+		"""It says "not this guard", not "no guard": upstream's key is still required.
+
+		Written the other way round first, and the test refused it -- which is the
+		behaviour we want: getting past the name needs a deliberate environment
+		variable AND the key, so nobody arrives on prod.local by habit.
+		"""
+		env = {"NEOFFICE_ALLOW_TESTS_ON_PROD": "1"}
+		self.assertEqual(self._gate("prod.local", env), "refused-no-key")
+		self.assertEqual(self._gate("prod.local", {**env, "allow_tests": True}), "runs")
+
+	def test_the_source_carries_the_guard(self):
+		"""The replay above is only worth something if it mirrors the real gate."""
+		from pathlib import Path
+
+		import frappe
+
+		src = (Path(frappe.__file__).parent / "commands" / "utils.py").read_text(encoding="utf8")
+		self.assertIn('if site == "prod.local" and not os.environ.get("NEOFFICE_ALLOW_TESTS_ON_PROD")', src)
+		self.assertLess(
+			src.index('if site == "prod.local"'),
+			src.index('if not (allow_tests or os.environ.get("CI")):'),
+			"the name guard must come BEFORE the key gate, or the key still decides",
+		)
+
 # //// Neoffice ▲▲▲
