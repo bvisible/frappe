@@ -212,6 +212,7 @@ scheduler_events = {
 		"0/15 * * * *": [
 			"frappe.email.doctype.email_account.email_account.notify_unreplied",
 			"frappe.utils.global_search.sync_global_search",
+			# //// Neoffice — removed "frappe.automation.doctype.reminder.reminder.send_reminders" from here (d17232d736 "fix(reminders): a reminder fired up to 15 minutes EARLY, and had nowhere to be seen"): moved to the 2-minute cron group below — see the marker there.
 			"frappe.deferred_insert.save_to_db",
 			"frappe.model.utils.link_count.update_link_count",
 			"frappe.pulse.client.send_queued_events",

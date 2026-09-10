@@ -90,6 +90,7 @@ def send_reminders():
 	pending_reminders = frappe.get_all(
 		"Reminder",
 		filters=[
+			# //// Neoffice — see the block marker above: due-only fix
 			("remind_at", "<=", now),
 			("remind_at", ">=", lower_threshold),  # dont send too old reminders if failed to send
 			("notified", "=", 0),

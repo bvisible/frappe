@@ -872,6 +872,7 @@ frappe.ui.form.FormHero = class FormHero {
 	render_extras() {
 		this.bind_hero_avatar();
 		this.bind_hero_title();
+		//// Neoffice — see the block marker above: hero row rendering
 		this.render_hero_rows();
 		if (this.frm.doctype === "Item") this.render_item_extras();
 		else if (this.frm.doctype === "Customer") this.render_customer_extras();
