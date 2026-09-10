@@ -100,15 +100,23 @@ class HTTPRequest:
 			return
 
 		frappe.flags.disable_traceback = True
-		# //// Neoffice — upstream throws here. The line was commented out by the very first
-		# //// commit of this fork (4c842a98fc, 2023-10-30, "First change v15") with no reason
-		# //// recorded, so CSRF protection has not existed on the fleet since. Re-arming it
-		# //// blind would break whichever client has been relying on it — mobile, kiosks,
-		# //// webshop, NORA — and nobody knows which. So: OBSERVE first, refuse later.
-		# //// This records what the guard WOULD have refused, once per minute per route, and
-		# //// still lets the request through. Remove this block and restore the throw once
-		# //// the observation window has named the callers (tracker #310).
+		# //// Neoffice — upstream throws here unconditionally. The line was commented out by
+		# //// the very first commit of this fork (4c842a98fc, 2023-10-30, "First change v15")
+		# //// with no reason recorded, so CSRF protection has not existed on the fleet since.
+		# //// Re-arming it fleet-wide in one gesture would break whichever client had been
+		# //// relying on its absence, on every instance at once, with no way back but a
+		# //// deploy. So the throw comes back behind a SITE FLAG, default off:
+		# ////
+		# ////     bench --site <site> set-config neoffice_csrf_enforce true
+		# ////
+		# //// The code ships everywhere refusing nothing; an instance is armed when someone
+		# //// decides it is, and disarmed the same way in seconds if it bites. The
+		# //// observation keeps running in both modes -- what it records when armed is what
+		# //// a user actually hit, which is the only thing worth reading afterwards.
+		# //// Drop the flag and restore the bare throw once the fleet is armed. (#310)
 		_neoffice_observe_csrf_refusal()
+		if frappe.conf.get("neoffice_csrf_enforce"):
+			frappe.throw(_("Invalid Request"), frappe.CSRFTokenError)
 
 	def set_lang(self):
 		frappe.local.lang = get_language()
