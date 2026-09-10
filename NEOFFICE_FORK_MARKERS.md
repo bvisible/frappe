@@ -156,3 +156,7 @@ a file we added (byte-identical to frappe develop at `4f365bfbf5`), so it is not
 | `frappe/utils/user.py`, `load_user()` | 🔴 Selects `view_interface`, which is **not** a field of the shipped User doctype — it must be a Custom Field from a Neoffice app. On any site without it, loading the boot info raises. |
 | `frappe/utils/__init__.py` | 🔴 Module-level `import frappe` (upstream deliberately avoids it — circular import) and an unused `from redis.exceptions import ConnectionError` that **shadows the builtin** for this module and for every `from frappe.utils import *` consumer. |
 | `frappe/utils/file_manager.py`, `is_safe_path()` | 🔴 A security guard widened with a hard-coded `/mnt/neoffice` prefix, by a commit with no message. |
+
+## Auto-marked (fork-markers workflow)
+
+- `babel_extractors.csv` — added the row `**.ts,frappe.gettext.extractors.javascript.extract` — TypeScript files were never extracted into the POT: the CSV mapped `**.py`, `**.js`, `**.html` and `**.vue` but no `**.ts`, so every `__()` call in a `.ts` file was invisible to `bench generate-pot-file` in every app (0955ff3001 "fix(i18n): TypeScript files were never extracted into the POT")
