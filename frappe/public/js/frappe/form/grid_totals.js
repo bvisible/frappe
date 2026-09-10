@@ -114,6 +114,16 @@ frappe.ui.form.GridTotals = class GridTotals {
 		const currency = doc.currency || frappe.boot.sysdefaults.currency || "";
 		const fmt = (v) => format_number(flt(v), null, 2);
 		const taxes = flt(doc.total_taxes_and_charges);
+		//// Neoffice — show the figure that will actually be settled, exactly as the
+		//// hero does. With CHF rounding to 0.05, grand_total and rounded_total differ,
+		//// and the band printed 2'709.09 three centimetres under a hero reading
+		//// 2'709.10 — two totals for one document on one screen. rounded_total is what
+		//// the ledger, the outstanding amount and the payment file all use; it is 0
+		//// when rounding is disabled, in which case grand_total IS the settled amount.
+		const settled =
+			!cint(doc.disable_rounded_total) && flt(doc.rounded_total)
+				? flt(doc.rounded_total)
+				: flt(doc.grand_total);
 		const html = `
 			<span class="tot-pair">
 				<span class="tot-label">${__("Net Total")}</span>
@@ -129,7 +139,7 @@ frappe.ui.form.GridTotals = class GridTotals {
 			}
 			<span class="tot-pair tot-grand">
 				<span class="tot-label">${__("Total")} ${frappe.utils.escape_html(currency)}</span>
-				<span class="tot-value tot-serif">${fmt(doc.grand_total)}</span>
+				<span class="tot-value tot-serif">${fmt(settled)}</span>
 			</span>
 		`;
 		//// Neoffice — registered providers (gross margin, today) add their pairs after
