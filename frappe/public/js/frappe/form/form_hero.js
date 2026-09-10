@@ -629,6 +629,7 @@ frappe.ui.form.FormHero = class FormHero {
 				<div class="form-hero-value">
 					<div class="form-hero-amount">${format_number(flt(computed.amount), null, 2)}</div>
 					<div class="form-hero-currency">${frappe.utils.escape_html(currency)} · ${frappe.utils.escape_html(computed.label || "")}</div>
+					//// Neoffice — add_hero_value_note registry: second, quiet line under the hero's key value, for a figure that belongs with the amount without being the amount (42791ead30 "feat(cockpit): the totals band and the hero take figures an app owns")
 					${this.hero_value_note_html()}
 				</div>`;
 		}
@@ -643,6 +644,7 @@ frappe.ui.form.FormHero = class FormHero {
 				<div class="form-hero-value">
 					<div class="form-hero-amount">${amount}</div>
 					<div class="form-hero-currency">${frappe.utils.escape_html(currency)} · ${__(value_label)}</div>
+					//// Neoffice — add_hero_value_note registry: second, quiet line under the hero's key value, for a figure that belongs with the amount without being the amount (42791ead30 "feat(cockpit): the totals band and the hero take figures an app owns")
 					${this.hero_value_note_html()}
 				</div>`;
 		}
