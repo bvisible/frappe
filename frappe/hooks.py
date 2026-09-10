@@ -39,7 +39,7 @@ app_include_css = [
 	"desk.bundle.css",
 	"report.bundle.css",
 	# //// NEOFFICE PATCH — cockpit desk shell (gray frame + floating panel)
-	"/assets/frappe/css/cockpit.css?v=70",
+	"/assets/frappe/css/cockpit.css?v=71",
 ]
 app_include_icons = [
 	"frappe/icons/timeless/icons.svg",
@@ -213,7 +213,6 @@ scheduler_events = {
 			"frappe.email.doctype.email_account.email_account.notify_unreplied",
 			"frappe.utils.global_search.sync_global_search",
 			"frappe.deferred_insert.save_to_db",
-			"frappe.automation.doctype.reminder.reminder.send_reminders",
 			"frappe.model.utils.link_count.update_link_count",
 			"frappe.pulse.client.send_queued_events",
 			"frappe.search.sqlite_search.build_index_if_not_exists",
@@ -229,6 +228,14 @@ scheduler_events = {
 		# //// (is_job_in_queue), donc un pull lent ne se cumule pas.
 		"0/2 * * * *": [
 			"frappe.email.doctype.email_account.email_account.pull",
+			# //// Neoffice — moved off the 15-minute group (upstream). A reminder
+			# //// asked for 15:02 is worth nothing if it can arrive at 15:15, and
+			# //// that was the first thing said about the feature once it was
+			# //// visible (2026-09-10). Here the lateness is bounded by 2 minutes.
+			# //// See send_reminders(): its window was widened by the same amount
+			# //// as the job frequency, so it also used to fire up to 15 minutes
+			# //// EARLY — that is fixed there, not here.
+			"frappe.automation.doctype.reminder.reminder.send_reminders",
 		],
 		# Hourly but offset by 30 minutes
 		"30 * * * *": [],

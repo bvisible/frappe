@@ -90,6 +90,22 @@ frappe.ui.form.add_hero_value_note = function (doctype, provider) {
 	(frappe.ui.form.hero_value_notes[doctype] =
 		frappe.ui.form.hero_value_notes[doctype] || []).push(provider);
 };
+
+//// Neoffice: a full-width ROW under the hero, for something that concerns the
+//// document and needs to be both seen and acted on — a reminder set on it, today.
+//// The value-note registry above cannot serve here: it renders text next to the
+//// amount, with no room and no click. This is the same shape the Item stock row
+//// already uses (.form-hero-stockrow), offered to any doctype.
+////
+//// A provider is called on every render with the form and returns null or
+////   { label, items: [{ text, title?, action?: {label, run} }] }
+//// It must be SYNCHRONOUS — fetch in the background and re-render — and a throw is
+//// swallowed: an extra row must never take the form header down.
+////   frappe.ui.form.add_hero_row("*", (frm) => ({ label: __("Reminders"), items: [...] }));
+frappe.ui.form.hero_rows = frappe.ui.form.hero_rows || {};
+frappe.ui.form.add_hero_row = function (doctype, provider) {
+	(frappe.ui.form.hero_rows[doctype] = frappe.ui.form.hero_rows[doctype] || []).push(provider);
+};
 function send_action(frm) {
 	if (frm.doc.docstatus !== 1) return null;
 	const base = { label: __("Send"), icon: "mail", run: () => frm.email_doc() };
@@ -809,9 +825,54 @@ frappe.ui.form.FormHero = class FormHero {
 			.join("");
 	}
 
+	//// Neoffice — draws the rows registered through add_hero_row (see above).
+	//// Each item may carry one action, wired here rather than in the provider so a
+	//// provider stays a pure description of what to show.
+	render_hero_rows() {
+		this.$wrapper.find(".form-hero-extrarow").remove();
+		const providers = [
+			...(frappe.ui.form.hero_rows["*"] || []),
+			...(frappe.ui.form.hero_rows[this.frm.doctype] || []),
+		];
+		providers.forEach((provider) => {
+			let row;
+			try {
+				row = provider(this.frm);
+			} catch (e) {
+				row = null;
+			}
+			if (!row || !(row.items || []).length) return;
+			const $row = $('<div class="form-hero-stockrow form-hero-extrarow"></div>').appendTo(
+				this.$wrapper
+			);
+			let html = row.label
+				? `<span class="stock-label">${frappe.utils.escape_html(row.label)}</span>`
+				: "";
+			row.items.forEach((item, idx) => {
+				const title = item.title ? ` title="${frappe.utils.escape_html(item.title)}"` : "";
+				const action = item.action
+					? `<button class="hero-row-action" data-item-idx="${idx}">${frappe.utils.escape_html(
+							item.action.label || ""
+					  )}</button>`
+					: "";
+				html += `<span class="stock-chip"${title}><span class="w">${frappe.utils.escape_html(
+					item.text || ""
+				)}</span>${action}</span>`;
+			});
+			$row.html(html);
+			$row.find(".hero-row-action").on("click", (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				const item = row.items[cint($(e.currentTarget).attr("data-item-idx"))];
+				item && item.action && item.action.run(this.frm);
+			});
+		});
+	}
+
 	render_extras() {
 		this.bind_hero_avatar();
 		this.bind_hero_title();
+		this.render_hero_rows();
 		if (this.frm.doctype === "Item") this.render_item_extras();
 		else if (this.frm.doctype === "Customer") this.render_customer_extras();
 		else if (["Sales Invoice", "Purchase Invoice"].includes(this.frm.doctype))

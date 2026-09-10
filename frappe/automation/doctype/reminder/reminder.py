@@ -74,15 +74,23 @@ def create_new_reminder(
 
 
 def send_reminders():
-	# Ensure that we send all reminders that might be before next job execution.
-	job_freq = 15 * 60  # 15 minutes, as specified in hooks.py
-	upper_threshold = add_to_date(now_datetime(), seconds=job_freq, as_string=True, as_datetime=True)
-	lower_threshold = add_to_date(now_datetime(), hours=-1, as_string=True, as_datetime=True)
+	# //// Neoffice — rewritten. Upstream widened the window by the job frequency
+	# //// ("send all reminders that might be before next job execution"), so a
+	# //// reminder asked for 15:02 was notified from 14:47 — up to fifteen minutes
+	# //// EARLY, which is not a reminder, it is a guess. And the widening was a
+	# //// hardcoded 15 * 60 that had to be kept in step with hooks.py by hand.
+	# ////
+	# //// A reminder now fires only once it is DUE. The job runs every 2 minutes
+	# //// (hooks.py), so it can be up to 2 minutes late and is never early — which
+	# //// is the only direction that makes sense for something asked for a
+	# //// precise time. Nothing here depends on the frequency any more.
+	now = now_datetime()
+	lower_threshold = add_to_date(now, hours=-1, as_string=True, as_datetime=True)
 
 	pending_reminders = frappe.get_all(
 		"Reminder",
 		filters=[
-			("remind_at", "<=", upper_threshold),
+			("remind_at", "<=", now),
 			("remind_at", ">=", lower_threshold),  # dont send too old reminders if failed to send
 			("notified", "=", 0),
 		],
