@@ -1160,7 +1160,14 @@ from {tables}
 		sql = criterion.get_sql(with_namespace=True, quote_char=quote_char, param_wrapper=param_wrapper)
 		for key, value in param_wrapper.get_parameters().items():
 			sql = sql.replace(f"%({key})s", frappe.db.escape(value))
-		return sql
+		# //// Neoffice — parenthesised, always. `build_match_conditions` concatenates
+		# //// this into a larger WHERE with `and` (`conditions += " and " +
+		# //// doctype_conditions`), and AND binds tighter than OR in SQL. A criterion
+		# //// whose top level is an OR — which is the normal shape of a permission
+		# //// rule: mine, or shared with me, or public — would let its branches escape
+		# //// that AND, so the match conditions meant to narrow the query stop
+		# //// narrowing it. Cheap, and wrong only in one direction if omitted.
+		return f"({sql})"
 
 	def set_order_by(self, args):
 		if self.order_by and self.order_by != "KEEP_DEFAULT_ORDERING":
