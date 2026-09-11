@@ -1142,7 +1142,17 @@ from {tables}
 			if condition := script.get_permission_query_conditions(self.user):
 				conditions.append(condition)
 
-		return " and ".join(conditions) if conditions else ""
+		# //// Neoffice — every fragment is parenthesised before the AND join. A
+		# //// permission_query_conditions hook returns a bare SQL fragment, and a rule's
+		# //// natural shape is an OR — "mine, or shared with me, or public". AND binds
+		# //// tighter than OR, so one unwrapped fragment let its branches escape every
+		# //// other condition joined here AND the match conditions build_match_conditions
+		# //// puts in front: measured on a real site, 3 rows outside the narrowing
+		# //// condition came back (neoffice-maintenance#348). Found in suite, Raven and
+		# //// crm's Deal/Lead hooks; fixing each app leaves the next one exposed, so the
+		# //// framework does it once. The newline before ")" ends a trailing "--" comment
+		# //// a fragment might carry. Upstream (v15 and develop) joins unwrapped too.
+		return " and ".join(f"({c}\n)" for c in conditions) if conditions else ""
 
 	# //// Neoffice — backport of upstream 0ae2243ad6 (v16), see get_permission_query_conditions.
 	def _render_permission_criterion(self, criterion) -> str:
