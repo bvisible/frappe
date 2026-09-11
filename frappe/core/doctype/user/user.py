@@ -390,6 +390,17 @@ class User(Document):
 
 		return link
 
+	# //// Neoffice — backport of the name upstream v15 uses. Upstream renamed this
+	# //// method to `_reset_password` (same signature, same body) and its apps now call
+	# //// that name: crm v1.83 does, in `www/crm.py` and `api/__init__.py`, and died on
+	# //// `AttributeError: 'User' object has no attribute '_reset_password'` against
+	# //// our fork, which stopped at 15.89 (neoffice-maintenance#351). It DELEGATES
+	# //// rather than aliasing `reset_password` at class-definition time, so an app
+	# //// that overrides `reset_password` is still honoured through either name.
+	# //// Drop at #138, once the fork is rebased on upstream v15 and has the real one.
+	def _reset_password(self, send_email=False, password_expired=False):
+		return self.reset_password(send_email=send_email, password_expired=password_expired)
+
 	def get_fullname(self):
 		"""get first_name space last_name"""
 		return (self.first_name or "") + ((self.first_name and " ") or "") + (self.last_name or "")
