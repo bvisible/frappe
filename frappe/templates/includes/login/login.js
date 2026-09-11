@@ -309,7 +309,11 @@ login.login_handlers = (function () {
 		},
 		401: get_error_handler({{ _("Invalid Login. Try again.") | tojson }}),
 		417: get_error_handler({{ _("Oops! Something went wrong.") | tojson }}),
-		404: get_error_handler({{ _("User does not exist.") | tojson }}),
+		//// Neoffice — backport of frappe/frappe version-15 (neoffice-maintenance#353): the
+		//// 404 "User does not exist." handler is gone with the answers that fed it (reset
+		//// password and email-link login no longer tell an unknown account apart), and a
+		//// rate-limited request now says so instead of failing silently.
+		429: get_error_handler({{ _("Too many requests. Please try again later.") | tojson }}),
 		500: get_error_handler({{ _("Something went wrong.") | tojson }})
 	};
 

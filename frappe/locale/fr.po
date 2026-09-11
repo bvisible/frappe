@@ -34508,16 +34508,6 @@ msgctxt "Title of confirmation dialog"
 msgid "Delete Tab"
 msgstr ""
 
-#: frappe/public/js/frappe/list/list_view.js:1964
-msgctxt "Title of confirmation dialog"
-msgid "Delete {0} item permanently?"
-msgstr ""
-
-#: frappe/public/js/frappe/list/list_view.js:1970
-msgctxt "Title of confirmation dialog"
-msgid "Delete {0} items permanently?"
-msgstr "Supprimer {0} éléments de façon permanente?"
-
 #: frappe/public/js/frappe/list/list_view.js:2023
 msgctxt "Title of confirmation dialog"
 msgid "Submit {0} documents?"
@@ -35303,3 +35293,11 @@ msgstr "Mise à jour du JSON..."
 #: frappe/public/js/frappe/form/grid_row.js
 msgid "Updating the JSON and pushing to git..."
 msgstr "Mise à jour du JSON et push git..."
+
+#: frappe/core/doctype/user/user.py
+msgid "If this email is registered with us, we have sent password reset instructions to it. Please check your inbox."
+msgstr "Si cette adresse e-mail est enregistrée chez nous, nous y avons envoyé les instructions de réinitialisation du mot de passe. Veuillez vérifier votre boîte de réception."
+
+#: frappe/templates/includes/login/login.js
+msgid "Too many requests. Please try again later."
+msgstr "Trop de requêtes. Veuillez réessayer plus tard."

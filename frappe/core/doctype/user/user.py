@@ -1040,25 +1040,38 @@ def sign_up(email: str, full_name: str, redirect_to: str) -> tuple[int, str]:
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=get_password_reset_limit, seconds=60 * 60)
-def reset_password(user: str) -> str:
+def reset_password(user: str) -> None:
+	# //// Neoffice — backport of frappe/frappe version-15 (neoffice-maintenance#353). Our
+	# //// v15.89.0 base answered "not allowed", "disabled" or a 404 "not found" according
+	# //// to the account, so this guest endpoint told anyone whether an address has an
+	# //// account and in which state (CWE-204). Upstream gives the same answer in every
+	# //// case and logs failures instead of exposing them. Drop at #138, once the fork is
+	# //// rebased on upstream v15 and carries this code itself.
+	# Always return the same generic response regardless of whether the user
+	# exists, is disabled, or is restricted. This prevents username enumeration
+	# via different messages or HTTP status codes (CWE-204).
+
 	try:
-		user: User = frappe.get_doc("User", user)
-		if user.name == "Administrator":
-			return "not allowed"
-		if not user.enabled:
-			return "disabled"
-
-		user.validate_reset_password()
-		user.reset_password(send_email=True)
-
-		return frappe.msgprint(
-			msg=_("Password reset instructions have been sent to your email"),
-			title=_("Password Email Sent"),
-		)
+		user_doc: User = frappe.get_doc("User", user)
+		if user_doc.name != "Administrator" and user_doc.enabled:
+			user_doc.validate_reset_password()
+			user_doc._reset_password(send_email=True)
+		# For Administrator or disabled users: silently skip — same response below
 	except frappe.DoesNotExistError:
-		frappe.local.response["http_status_code"] = 404
 		frappe.clear_messages()
-		return "not found"
+	except frappe.OutgoingEmailError:
+		frappe.clear_messages()
+		frappe.log_error(title="Password reset email could not be sent", message=frappe.get_traceback())
+	except Exception:
+		frappe.clear_messages()
+		frappe.log_error(title="Password reset failed unexpectedly", message=frappe.get_traceback())
+
+	frappe.msgprint(
+		msg=_(
+			"If this email is registered with us, we have sent password reset instructions to it. Please check your inbox."
+		),
+		title=_("Password Reset"),
+	)
 
 
 @frappe.whitelist()

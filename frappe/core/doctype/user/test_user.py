@@ -291,7 +291,9 @@ class TestUser(FrappeTestCase):
 		c = FrappeClient(url)
 		res1 = c.session.post(url, data=data, verify=c.verify, headers=c.headers)
 		res2 = c.session.post(url, data=data, verify=c.verify, headers=c.headers)
-		self.assertEqual(res1.status_code, 404)
+		# //// Neoffice — 200, not 404: an unknown account gets the same answer as a known one
+		# //// since the upstream v15 backport (neoffice-maintenance#353).
+		self.assertEqual(res1.status_code, 200)
 		self.assertEqual(res2.status_code, 429)
 
 	def test_user_rename(self):
