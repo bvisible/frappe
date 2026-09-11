@@ -137,6 +137,9 @@ jobs:
             --frappe-path "$GITHUB_WORKSPACE" --frappe-branch ci-under-test \
             --python "$(which python)" ~/frappe-bench
           ~/frappe-bench/env/bin/pip install --quiet "setuptools<81"
+          # frappe's dev dependencies (Faker, hypothesis, freezegun...): without them a
+          # suite that imports one dies at import time, and the run said PASS anyway (#357).
+          cd ~/frappe-bench && bench setup requirements --dev
 
       - name: New site
         working-directory: /home/runner/frappe-bench
@@ -154,12 +157,42 @@ jobs:
       - name: Run them
         working-directory: /home/runner/frappe-bench
         run: |
+          # What decides is the exit status of run-tests, never the one of the last
+          # command of a pipe. `run-tests | tail -40` answered with tail's 0, and the
+          # default shell of a step has no pipefail: this workflow could not go red on
+          # a test, and cut 9 of 11 errors out of the log on top of it (#357).
+          set -o pipefail
           if [ "${{ steps.modules.outputs.mode }}" = "full" ]; then
-            bench --site test_site run-tests --app frappe 2>&1 | tail -60
+            bench --site test_site run-tests --app frappe 2>&1 | tail -200
             exit $?
           fi
           CASES="${{ steps.modules.outputs.cases }}"
           if [ -z "$CASES" ]; then echo "Nothing to run."; exit 0; fi
+          # A doctype suite reads its test records (`_Test Role 2`, the test users).
+          # `--module --case` never builds them; `--doctype` does. So a class of a
+          # doctype module runs as `--doctype X --test <each of its methods>`: the
+          # same class, with its records.
+          cat > /tmp/case_args.py <<'PY'
+          import ast, json, os, sys
+
+          mod, case = sys.argv[1], sys.argv[2]
+          parts = mod.split(".")
+          doctype, methods = "", []
+          if "doctype" in parts[:-1]:
+              i = parts.index("doctype")
+              meta = os.path.join("apps/frappe", *parts[: i + 2], parts[i + 1] + ".json")
+              try:
+                  doctype = json.load(open(meta, encoding="utf-8"))["name"]
+              except (OSError, KeyError, ValueError):
+                  doctype = ""
+          if doctype:
+              tree = ast.parse(open(os.path.join("apps/frappe", *parts) + ".py", encoding="utf-8").read())
+              for node in tree.body:
+                  if isinstance(node, ast.ClassDef) and node.name == case:
+                      methods = [n.name for n in node.body if isinstance(n, ast.FunctionDef) and n.name.startswith("test")]
+          print(doctype)
+          print(" ".join(methods))
+          PY
           : > /tmp/results
           # One CASE per call, and the class is the right grain: our divergence in
           # test_email_account.py is the class we added, not upstream's TestInboundMail
@@ -169,9 +202,20 @@ jobs:
             [ -n "$entry" ] || continue
             mod="${entry%%::*}"; case_name="${entry##*::}"
             echo "::group::$case_name ($mod)"
-            if bench --site test_site run-tests --module "$mod" --case "$case_name" 2>&1 | tail -40; then
+            args=$(python3 /tmp/case_args.py "$mod" "$case_name" || true)
+            doctype=$(printf '%s\n' "$args" | sed -n 1p); methods=$(printf '%s\n' "$args" | sed -n 2p)
+            if [ -n "$doctype" ] && [ -n "$methods" ]; then
+              cmd=(bench --site test_site run-tests --doctype "$doctype")
+              for m in $methods; do cmd+=(--test "$m"); done
+            else
+              cmd=(bench --site test_site run-tests --module "$mod" --case "$case_name")
+            fi
+            echo "+ ${cmd[*]}"
+            if "${cmd[@]}" < /dev/null > /tmp/case.log 2>&1; then
+              tail -40 /tmp/case.log
               echo "PASS $entry" >> /tmp/results
             else
+              tail -600 /tmp/case.log
               echo "FAIL $entry" >> /tmp/results
             fi
             echo "::endgroup::"
