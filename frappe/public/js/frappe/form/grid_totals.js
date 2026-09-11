@@ -32,14 +32,18 @@ frappe.provide("frappe.ui.form");
 ////
 //// A provider is called on every render with the form and returns either null or
 ////   { pairs: [{label, value, serif?, muted?}], note?: "...", action?: {label, run} }
-//// `action` renders one small button at the left of the band — where a per-line
-//// breakdown belongs. It is a button and not a grid column on purpose: a column
-//// would have to fight the grid's own width arithmetic, and a real field would
-//// follow the line into the print format, where the customer would read our
-//// buying price.
-//// `pairs` join the band; `note` is a second, quieter line under it — that is where
-//// the COVERAGE goes ("margin known on 4 of 9 lines"), because a percentage without
-//// its coverage is a wrong number when half the catalogue has no buying price.
+//// Everything a provider returns renders as ONE group on the LEFT of the band: its
+//// pairs, then `action` as one small button — where a per-line breakdown belongs —
+//// and `note` as a quieter line right under them. That is where the COVERAGE goes
+//// ("margin known on 4 of 9 lines"), because a percentage without its coverage is
+//// a wrong number when half the catalogue has no buying price.
+//// The right end of the band is the document's own: Net Total, Taxes, and the
+//// settled total LAST, the figure the band exists for. The first version appended
+//// provider pairs after it, so on every sales document the margin had the last word
+//// and the total no longer closed the band (moved to the left on 2026-09-11).
+//// The action is a button and not a grid column on purpose: a column would have to
+//// fight the grid's own width arithmetic, and a real field would follow the line
+//// into the print format, where the customer would read our buying price.
 //// Providers must be synchronous: fetch in the background, render what you have.
 frappe.ui.form.grid_total_providers = frappe.ui.form.grid_total_providers || [];
 frappe.ui.form.add_grid_total_provider = function (provider) {
@@ -142,12 +146,13 @@ frappe.ui.form.GridTotals = class GridTotals {
 				<span class="tot-value tot-serif">${fmt(settled)}</span>
 			</span>
 		`;
-		//// Neoffice — registered providers (gross margin, today) add their pairs after
-		//// the grand total and may add one quieter note line under the band. A provider
-		//// that throws is skipped: a broken add-on must never take the totals down.
-		let extra_pairs = "";
-		let notes = [];
+		//// Neoffice — registered providers (gross margin, today) render on the LEFT,
+		//// one group each: pairs and action on the band's line, note right under them.
+		//// The right end stays the document's own and closes on the settled total (see
+		//// the contract above). A provider that throws is skipped: a broken add-on must
+		//// never take the totals down.
 		this._actions = [];
+		const groups = [];
 		(frappe.ui.form.grid_total_providers || []).forEach((provider) => {
 			let extra;
 			try {
@@ -156,43 +161,40 @@ frappe.ui.form.GridTotals = class GridTotals {
 				extra = null;
 			}
 			if (!extra) return;
-			(extra.pairs || []).forEach((pair) => {
-				extra_pairs += `
+			const pairs = (extra.pairs || [])
+				.map(
+					(pair) => `
 					<span class="tot-pair${pair.muted ? " tot-muted" : ""}">
 						<span class="tot-label">${frappe.utils.escape_html(pair.label || "")}</span>
 						<span class="tot-value${pair.serif ? " tot-serif" : ""}">${frappe.utils.escape_html(
 							pair.value == null ? "" : String(pair.value)
 						)}</span>
-					</span>`;
-			});
-			if (extra.note) notes.push(extra.note);
+					</span>`
+				)
+				.join("");
+			let action = "";
 			if (extra.action && typeof extra.action.run === "function") {
 				this._actions.push(extra.action);
+				action = `<button class="grid-totals-action" data-action-idx="${
+					this._actions.length - 1
+				}">${frappe.utils.escape_html(extra.action.label || "")}</button>`;
 			}
+			const note = extra.note
+				? `<div class="grid-totals-note">${frappe.utils.escape_html(extra.note)}</div>`
+				: "";
+			if (!pairs && !action && !note) return;
+			groups.push(
+				`<div class="grid-totals-group"><div class="grid-totals-line">${pairs}${action}</div>${note}</div>`
+			);
 		});
-		const actions_html = this._actions.length
-			? `<div class="grid-totals-actions">${this._actions
-					.map(
-						(a, i) =>
-							`<button class="grid-totals-action" data-action-idx="${i}">${frappe.utils.escape_html(
-								a.label || ""
-							)}</button>`
-					)
-					.join("")}</div>`
-			: "";
-		const note_html = notes.length
-			? `<div class="grid-totals-note">${notes
-					.map((n) => frappe.utils.escape_html(n))
-					.join(" · ")}</div>`
-			: "";
-		const pairs_html = html + extra_pairs;
-		const full =
-			note_html || actions_html
-				? `<div class="grid-totals-row">${actions_html}<div class="grid-totals-pairs">${pairs_html}</div></div>${note_html}`
-				: pairs_html;
+		const full = groups.length
+			? `<div class="grid-totals-row"><div class="grid-totals-start">${groups.join(
+					""
+			  )}</div><div class="grid-totals-pairs">${html}</div></div>`
+			: html;
 		if (this._last_html === full) return;
 		this._last_html = full;
-		this.$band.toggleClass("has-note", Boolean(note_html || actions_html));
+		this.$band.toggleClass("has-start", Boolean(groups.length));
 		this.$band.removeClass("hide").html(full);
 		this.$band.find(".grid-totals-action").on("click", (e) => {
 			e.preventDefault();

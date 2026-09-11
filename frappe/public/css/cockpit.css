@@ -1068,35 +1068,43 @@ body.neoffice-cockpit .grid-totals-band .tot-value {
 	font-variant-numeric: tabular-nums;
 	color: var(--text-color);
 }
-/* //// Neoffice — the band can carry a second, quieter line: the COVERAGE of a
-   figure that does not speak for the whole document ("margin known on 4 of 9
-   lines"). Without it the band would print a percentage that looks like the
-   document's own. When a note is present the pairs move into their own row so
-   they keep their right alignment. */
-body.neoffice-cockpit .grid-totals-band.has-note {
+/* //// Neoffice — what an app adds to the band (the gross margin, today) sits on
+   the LEFT as one group: its figure and its button on the band's line, its
+   COVERAGE note right under them ("margin known on 4 of 9 lines" — without it the
+   band would print a percentage that looks like the document's own). The right end
+   stays the document's own totals and closes on the settled total, the figure the
+   band exists for; the first version put the margin after it. On a narrow screen
+   the row wraps: the totals drop under the group, still right-aligned. */
+body.neoffice-cockpit .grid-totals-band.has-start {
 	display: block;
-	text-align: right;
 }
 body.neoffice-cockpit .grid-totals-band .grid-totals-row {
 	display: flex;
-	justify-content: flex-end;
-	align-items: baseline;
-	gap: 26px;
-}
-body.neoffice-cockpit .grid-totals-band .grid-totals-row {
+	flex-wrap: wrap;
 	justify-content: space-between;
+	align-items: baseline;
+	gap: 10px 26px;
+}
+body.neoffice-cockpit .grid-totals-band .grid-totals-start {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 10px 26px;
+	min-width: 0;
+}
+body.neoffice-cockpit .grid-totals-band .grid-totals-line {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 6px 14px;
 }
 body.neoffice-cockpit .grid-totals-band .grid-totals-pairs {
 	display: flex;
+	flex-wrap: wrap;
 	justify-content: flex-end;
 	align-items: baseline;
-	gap: 26px;
-	flex: 1;
-}
-body.neoffice-cockpit .grid-totals-band .grid-totals-actions {
-	display: flex;
-	gap: 8px;
-	align-items: center;
+	gap: 8px 26px;
+	flex: 1 1 auto;
 }
 body.neoffice-cockpit .grid-totals-band .grid-totals-action {
 	border: 1px solid var(--border-color);
