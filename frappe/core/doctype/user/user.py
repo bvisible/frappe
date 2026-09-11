@@ -372,7 +372,10 @@ class User(Document):
 	def validate_reset_password(self):
 		pass
 
-	def reset_password(self, send_email=False, password_expired=False):
+	# //// Neoffice — upstream v15's name for this method (40ce7e36c0, "return link only when used
+	# //// internally"): it returns a live reset link, and the underscore says it is for internal
+	# //// callers. The whitelisted `reset_password(user)` below is the public way in (#353).
+	def _reset_password(self, send_email=False, password_expired=False):
 		from frappe.utils import get_url
 
 		key = frappe.generate_hash()
@@ -390,16 +393,13 @@ class User(Document):
 
 		return link
 
-	# //// Neoffice — backport of the name upstream v15 uses. Upstream renamed this
-	# //// method to `_reset_password` (same signature, same body) and its apps now call
-	# //// that name: crm v1.83 does, in `www/crm.py` and `api/__init__.py`, and died on
-	# //// `AttributeError: 'User' object has no attribute '_reset_password'` against
-	# //// our fork, which stopped at 15.89 (neoffice-maintenance#351). It DELEGATES
-	# //// rather than aliasing `reset_password` at class-definition time, so an app
-	# //// that overrides `reset_password` is still honoured through either name.
-	# //// Drop at #138, once the fork is rebased on upstream v15 and has the real one.
-	def _reset_password(self, send_email=False, password_expired=False):
-		return self.reset_password(send_email=send_email, password_expired=password_expired)
+	# //// Neoffice — the pre-40ce7e36c0 name, kept as an alias. Our own callers (the welcome
+	# //// mail, auth.py, user invitations) and our other forks (erpnext's request for
+	# //// quotation, a crm fallback) still say `reset_password()`. It delegates, so an app that
+	# //// overrides `_reset_password` is honoured through either name. Until #353 the real
+	# //// method was this one and `_reset_password` the alias (#351). Drop at #138.
+	def reset_password(self, send_email=False, password_expired=False):
+		return self._reset_password(send_email=send_email, password_expired=password_expired)
 
 	def get_fullname(self):
 		"""get first_name space last_name"""

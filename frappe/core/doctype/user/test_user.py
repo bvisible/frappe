@@ -422,17 +422,43 @@ class TestUser(FrappeTestCase):
 			key = parse_qs(urlparse(link).query)["key"][0]
 			self.assertEqual(update_password(new_password, key=key), "me")
 			update_password(old_password, old_password=new_password)
+			# //// Neoffice — upstream's generic message since e5233b7c0e (#353).
 			self.assertEqual(
 				frappe.message_log[0].get("message"),
-				"Password reset instructions have been sent to your email",
+				"If this email is registered with us, we have sent password reset instructions to it. Please check your inbox.",
 			)
 
 		sendmail.assert_called_once()
 		self.assertEqual(sendmail.call_args[1]["recipients"], "test2@example.com")
 
-		self.assertEqual(reset_password(user="test2@example.com"), None)
-		self.assertEqual(reset_password(user="Administrator"), "not allowed")
-		self.assertEqual(reset_password(user="random"), "not found")
+		# //// Neoffice — upstream's assertions since e5233b7c0e (#353), plus a disabled account:
+		# //// that is the case our 15.89 base answered "disabled", and upstream's test skips it.
+		# Constant-response guarantee: every path — existing user, Administrator,
+		# and non-existent user — must return None AND enqueue the same generic
+		# message, so callers cannot distinguish between them.
+		_GENERIC_MSG = "If this email is registered with us, we have sent password reset instructions to it. Please check your inbox."
+
+		frappe.clear_messages()
+		self.assertIsNone(reset_password(user="test2@example.com"))
+		self.assertEqual(frappe.message_log[0].get("message"), _GENERIC_MSG)
+
+		frappe.clear_messages()
+		self.assertIsNone(reset_password(user="Administrator"))
+		self.assertEqual(frappe.message_log[0].get("message"), _GENERIC_MSG)
+
+		frappe.clear_messages()
+		self.assertIsNone(reset_password(user="random"))
+		self.assertEqual(frappe.message_log[0].get("message"), _GENERIC_MSG)
+
+		test_user.db_set("enabled", 0)
+		try:
+			frappe.clear_messages()
+			frappe.local.response.pop("http_status_code", None)
+			self.assertIsNone(reset_password(user="test2@example.com"))
+			self.assertEqual(frappe.message_log[0].get("message"), _GENERIC_MSG)
+			self.assertEqual(frappe.local.response.get("http_status_code"), None)
+		finally:
+			test_user.db_set("enabled", 1)
 
 	def test_user_onload_modules(self):
 		from frappe.config import get_modules_from_all_apps
