@@ -1057,6 +1057,8 @@ def reset_password(user: str) -> None:
 			user_doc.validate_reset_password()
 			user_doc._reset_password(send_email=True)
 		# For Administrator or disabled users: silently skip — same response below
+	# //// Neoffice — upstream's handlers from here down (#353): no 404 and no distinct return
+	# //// value any more, every case ends on the one message below.
 	except frappe.DoesNotExistError:
 		frappe.clear_messages()
 	except frappe.OutgoingEmailError:
