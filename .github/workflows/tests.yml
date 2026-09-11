@@ -111,7 +111,24 @@ jobs:
                   if not any("TestCase" in ast.unparse(b) for b in node.bases):
                       continue
                   span = set(range(node.lineno, (node.end_lineno or node.lineno) + 1))
-                  if span & added:
+                  touched = span & added
+                  if not touched:
+                      continue
+                  # Method grain when every touched line sits inside test methods: an upstream
+                  # test of the same class that we never touched (and that may need a mail
+                  # account or a server this CI lacks) says nothing about us. A touched setUp,
+                  # helper or class attribute concerns every test: then the whole class runs.
+                  hit, inside = [], set()
+                  for n in node.body:
+                      if isinstance(n, ast.FunctionDef) and n.name.startswith("test"):
+                          first = min([d.lineno for d in n.decorator_list] + [n.lineno])
+                          lines = set(range(first, (n.end_lineno or n.lineno) + 1))
+                          if lines & touched:
+                              hit.append(n.name)
+                              inside |= lines & touched
+                  if hit and not touched - inside:
+                      out.append(f"{module}::{node.name}::{','.join(sorted(hit))}")
+                  else:
                       out.append(f"{module}::{node.name}")
           print("|".join(sorted(set(out))))
           PY
@@ -154,6 +171,20 @@ jobs:
           bench --site test_site set-config allow_tests true
           bench --site test_site set-config developer_mode 1
 
+      - name: Serve the site, for the tests that call it over HTTP
+        working-directory: /home/runner/frappe-bench
+        run: |
+          # Some upstream tests POST to get_url(), i.e. http://test_site:8000 — the rate
+          # limit test of reset_password does. Upstream's CI serves the site for them; here
+          # they died on "NameResolutionError: test_site" (#357). The server outlives the step.
+          echo "127.0.0.1 test_site" | sudo tee -a /etc/hosts > /dev/null
+          nohup bench serve --port 8000 --noreload > /tmp/serve.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://test_site:8000/api/method/ping; then echo "site served after ${i}s"; exit 0; fi
+            sleep 1
+          done
+          echo "::warning::test_site:8000 never answered"; tail -40 /tmp/serve.log
+
       - name: Run them
         working-directory: /home/runner/frappe-bench
         run: |
@@ -194,20 +225,26 @@ jobs:
           print(" ".join(methods))
           PY
           : > /tmp/results
-          # One CASE per call, and the class is the right grain: our divergence in
-          # test_email_account.py is the class we added, not upstream's TestInboundMail
-          # — which needs an inbound-mail fixture no bare CI site has, and whose red
-          # says nothing about us. `|| true` so one red never hides the others.
+          # One CASE per call, at the grain of our divergence: the class we added in
+          # test_email_account.py, not upstream's TestInboundMail — which needs an
+          # inbound-mail fixture no bare CI site has, and whose red says nothing about
+          # us — and in an upstream class, only the methods we touched.
+          # `|| true` so one red never hides the others.
           echo "$CASES" | tr '|' '\n' | while read -r entry; do
             [ -n "$entry" ] || continue
-            mod="${entry%%::*}"; case_name="${entry##*::}"
-            echo "::group::$case_name ($mod)"
+            # module::Class, or module::Class::m1,m2 when only those methods are ours
+            mod="${entry%%::*}"; rest="${entry#*::}"; case_name="${rest%%::*}"
+            picked=""; [ "$rest" = "$case_name" ] || picked="${rest#*::}"
+            echo "::group::$case_name${picked:+ [$picked]} ($mod)"
             args=$(python3 /tmp/case_args.py "$mod" "$case_name" || true)
             doctype=$(printf '%s\n' "$args" | sed -n 1p); methods=$(printf '%s\n' "$args" | sed -n 2p)
+            [ -z "$picked" ] || methods="${picked//,/ }"
             if [ -n "$doctype" ] && [ -n "$methods" ]; then
               cmd=(bench --site test_site run-tests --doctype "$doctype")
               for m in $methods; do cmd+=(--test "$m"); done
             else
+              # a plain module runs its whole class: `--case` with `--test` breaks the
+              # runner (`_run_unittest` reads `_tests` off a TestCase)
               cmd=(bench --site test_site run-tests --module "$mod" --case "$case_name")
             fi
             echo "+ ${cmd[*]}"
