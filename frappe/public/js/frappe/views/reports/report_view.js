@@ -881,6 +881,61 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		}
 	}
 
+	//// Neoffice — added override (neoffice-maintenance#377). ListView.setup_realtime_updates
+	//// removes every "list_update" handler before adding its own, so the on_update() above never
+	//// runs (upstream v15.89.0 and develop alike): ListView.process_document_refreshes answers the
+	//// event and ends in this.render_list(), which builds LIST rows. In a report view that throws —
+	//// get_column_html reads this.link_field_title_fields, set only by ListView's own
+	//// setup_columns — so a record created through QuickEntry never showed until a reload.
+	//// Same query as the list, then the report's own paths: a row that only changed is repainted
+	//// in place (update_row keeps a cell edit's focus and flashes another user's change); a new
+	//// row, one that left the filters or was deleted, a grouped or totalled view re-queries the
+	//// page through refresh(). Drop this once upstream routes the event to the report view again.
+	process_document_refreshes() {
+		if (!this.pending_document_refreshes.length) return;
+
+		const route = frappe.get_route() || [];
+		if (!cur_list || route[0] != "List" || cur_list.doctype != route[1]) {
+			// same guard as ListView: wait till the user is back on the view
+			this.pending_document_refreshes = [];
+			this.disable_realtime_updates();
+			return;
+		}
+
+		const pending = this.pending_document_refreshes;
+		this.pending_document_refreshes = [];
+		const names = [...new Set(pending.map((d) => d.name))];
+
+		const call_args = this.get_call_args();
+		call_args.args.filters.push([this.doctype, "name", "in", names]);
+		call_args.args.start = 0;
+
+		frappe.call(call_args).then(({ message }) => {
+			const rows = message ? frappe.utils.dict(message.keys, message.values) : [];
+			const shown_once = (name) => this.data.filter((d) => d.name === name).length === 1;
+			const in_place =
+				this.datatable &&
+				!this.group_by &&
+				!this.add_totals_row &&
+				rows.length === names.length &&
+				rows.every(
+					(row) =>
+						shown_once(row.name) && !Object.keys(row).some((key) => key.includes(":"))
+				);
+
+			if (!in_place) {
+				this.refresh();
+				return;
+			}
+			rows.forEach((row) => {
+				const by_other_user = pending.some(
+					(d) => d.name === row.name && d.user !== frappe.session.user
+				);
+				this.update_row(row, by_other_user);
+			});
+		});
+	}
+
 	update_row(doc, flash_row) {
 		const to_refresh = [];
 
