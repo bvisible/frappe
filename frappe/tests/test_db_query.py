@@ -593,8 +593,13 @@ class TestDBQuery(FrappeTestCase):
 		# to avoid if_owner filter
 		update("Nested DocType", "All", 0, "if_owner", 0)
 
-		frappe.set_user("test2@example.com")
-		data = DatabaseQuery("Nested DocType").execute()
+		# //// Neoffice — upstream develop's form of this test. Upstream v15 restored if_owner
+		# //// below while still signed in as test2 (no System Manager), which only passed
+		# //// because only_for() skipped every check under tests. Our only_for() no longer
+		# //// does (v16 parity, 29a26f60c7), so the restore must run as Administrator.
+		# //// Drop this marker once the fork is on v16, where the test reads the same.
+		with self.set_user("test2@example.com"):
+			data = DatabaseQuery("Nested DocType").execute()
 
 		# children of root folder (for which we added user permission) should be accessible
 		self.assertTrue({"name": "Level 2 A"} in data)
@@ -604,7 +609,8 @@ class TestDBQuery(FrappeTestCase):
 		self.assertFalse({"name": "Level 1 B"} in data)
 		self.assertFalse({"name": "Level 2 B"} in data)
 		update("Nested DocType", "All", 0, "if_owner", 1)
-		frappe.set_user("Administrator")
+		# //// Neoffice — upstream v15 switched back to Administrator here; the
+		# //// self.set_user() block above already did, before the restore.
 
 	def test_filter_sanitizer(self):
 		self.assertRaises(
