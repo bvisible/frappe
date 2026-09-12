@@ -136,12 +136,17 @@ def _neoffice_observe_csrf_refusal() -> None:
 		sent = bool(frappe.get_request_header("X-Frappe-CSRF-Token"))
 		agent = (frappe.get_request_header("User-Agent") or "")[:120]
 		user = getattr(getattr(frappe, "session", None), "user", None) or "?"
+		# //// Neoffice — deferred insert (Redis, flushed every 15 min by save_to_db). Once the site
+		# //// is armed, the refused request rolls its transaction back and an Error Log inserted in
+		# //// it went too: on osiris, armed since 10.09, not one refusal was ever recorded while
+		# //// nginx answered 192 POSTs with a 400 in a day (neoffice-maintenance#310).
 		frappe.log_error(
 			"CSRF would refuse this request (observed, not refused)",
 			f"route: {method} {path}\n"
 			f"header X-Frappe-CSRF-Token present: {sent}\n"
 			f"user: {user}\n"
 			f"user-agent: {agent}",
+			defer_insert=True,
 		)
 	except Exception:
 		pass
@@ -186,6 +191,7 @@ def _neoffice_observe_session_cookie() -> None:
 			f"session holds csrf_token: {bool(saved)}\n"
 			f"user: {getattr(frappe.session, 'user', '?')}\n"
 			f"user-agent: {agent}",
+			defer_insert=True,  # //// Neoffice — survives a refused request (see the probe above)
 		)
 	except Exception:
 		pass
