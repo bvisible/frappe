@@ -182,6 +182,12 @@ jobs:
           # they died on "NameResolutionError: test_site" (#357). The server outlives the step.
           echo "127.0.0.1 test_site" | sudo tee -a /etc/hosts > /dev/null
           nohup bench serve --port 8000 --noreload > /tmp/serve.log 2>&1 &
+          # The whole suite also enqueues jobs and waits for them (rq_job, prepared_report):
+          # upstream's CI runs workers, and here each such test died on a 60 s wait
+          # (neoffice-maintenance#392). The cases mode keeps its bare site.
+          if [ "${{ steps.modules.outputs.mode }}" = "full" ]; then
+            nohup bench worker --queue default,short,long > /tmp/worker.log 2>&1 &
+          fi
           for i in $(seq 1 60); do
             if curl -sf -o /dev/null http://test_site:8000/api/method/ping; then echo "site served after ${i}s"; exit 0; fi
             sleep 1
@@ -197,17 +203,41 @@ jobs:
           # a test, and cut 9 of 11 errors out of the log on top of it (#357).
           set -o pipefail
           if [ "${{ steps.modules.outputs.mode }}" = "full" ]; then
-            # One line per test as it runs (--verbose), to the log and to a file: a
-            # run cut short still names every test it reached. Behind `| tail -200`
-            # a cancelled run printed nothing, and a finished one kept 200 lines
-            # (neoffice-maintenance#392). The failures are listed again at the end.
-            rc=0
-            bench --site test_site --verbose run-tests --app frappe 2>&1 | tee /tmp/full.log || rc=$?
-            echo "::group::Summary: ERROR / FAIL lines"
-            grep -E '^(ERROR|FAIL): ' /tmp/full.log || echo "no ERROR or FAIL line"
-            grep -E '^(Ran [0-9]+ tests|FAILED \(|OK)' /tmp/full.log | tail -3
+            # The whole suite, ONE module per run-tests call, each under a deadline. In a
+            # single process it hung 2 h 46 in test_commands (add-database-index: an ALTER
+            # TABLE waiting on a metadata lock) and printed no traceback at all, since
+            # unittest keeps them for the end of the run (neoffice-maintenance#392). Per
+            # module, a hang costs its deadline and reads TIMEOUT, and each module prints
+            # its own tracebacks. A doctype module runs as --doctype, which builds its test
+            # records (same reason as the cases below). --verbose: one line per test.
+            : > /tmp/full_results
+            (cd apps/frappe && find frappe -name 'test_*.py' -not -name 'test_runner.py' -not -path '*/node_modules/*' | sort) > /tmp/full_modules
+            while read -r f; do
+              grep -qE '^class [A-Za-z_]*\(.*TestCase' "apps/frappe/$f" || continue
+              mod="${f%.py}"; mod="${mod//\//.}"; dir="${f%/*}"; doctype=""
+              case "$dir" in
+                */doctype/*) doctype=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["name"])' "apps/frappe/$dir/${dir##*/}.json" 2>/dev/null || true) ;;
+              esac
+              if [ -n "$doctype" ]; then
+                cmd=(bench --site test_site --verbose run-tests --doctype "$doctype")
+              else
+                cmd=(bench --site test_site --verbose run-tests --module "$mod")
+              fi
+              echo "::group::$mod"
+              echo "+ ${cmd[*]}"
+              rc=0
+              timeout --kill-after=30 600 "${cmd[@]}" < /dev/null > /tmp/mod.log 2>&1 || rc=$?
+              cat /tmp/mod.log
+              echo "::endgroup::"
+              if [ "$rc" -eq 0 ]; then verdict=PASS; elif [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then verdict=TIMEOUT; else verdict=FAIL; fi
+              echo "$verdict $mod · $(grep -E '^Ran [0-9]+ test' /tmp/mod.log | tail -1)" >> /tmp/full_results
+            done < /tmp/full_modules
+            echo "::group::Summary: one line per module"
+            for v in PASS FAIL TIMEOUT; do echo "$v: $(grep -c "^$v " /tmp/full_results || true)"; done
+            grep -E '^(FAIL|TIMEOUT) ' /tmp/full_results || echo "no FAIL or TIMEOUT"
             echo "::endgroup::"
-            exit $rc
+            ! grep -qE '^(FAIL|TIMEOUT) ' /tmp/full_results
+            exit $?
           fi
           CASES="${{ steps.modules.outputs.cases }}"
           if [ -z "$CASES" ]; then echo "Nothing to run."; exit 0; fi
