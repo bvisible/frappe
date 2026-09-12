@@ -11407,6 +11407,10 @@ msgstr "Forcer l&#39;utilisateur à réinitialiser le mot de passe"
 msgid "Force Web Capture Mode for Uploads"
 msgstr "Forcer le mode de capture web pour les téléversements"
 
+#: frappe/www/login.html:199
+msgid "Forgot Password"
+msgstr "Mot de passe oublié"
+
 #: frappe/www/login.html:36
 msgid "Forgot Password?"
 msgstr "Mot de Passe Oublié ?"

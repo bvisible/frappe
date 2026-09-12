@@ -194,7 +194,9 @@
 	</section>
 
 	<section class='for-forgot'>
-		{{ logo_section('Forgot Password') }}
+		{#- //// Neoffice — upstream passes the bare string: no extractor ever saw it, fr.po only
+		    //// had "Forgot Password?", and the heading stayed English (#365). -#}
+		{{ logo_section(_('Forgot Password')) }}
 		<div class="login-content page-card">
 			<form class="form-signin form-forgot hide" role="form">
 				<div class="page-card-body">

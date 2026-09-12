@@ -120,6 +120,12 @@ upstream merge, an edited shipped JSON does not.
 | `frappe/desk/doctype/workspace/workspace.json` | `title`, `parent_page`, `sequence_id`: `in_list_view` → `1` | 4304bba972 | idem. |
 | `frappe/desk/doctype/todo/todo.json` | **none — reverted to upstream on 2026-09-04** (was: `status` options `Open\nClosed\nCancelled` → `test\nClosed\nCancelled\nOpen`) | 4e23539603 (2024-09-23 "last updates", empty message), reverted for #205 | The accident is undone — the list is upstream's again, `Open` first. The fleet *did* store `test` (one ToDo on Osiris), so the revert ships with `frappe/patches/v15_0/neoffice_todo_status_test_to_open.py`, which carries those rows to `Open`. Nothing left to reconcile at the merge. |
 
+### Translation catalogue — a `.po` cannot carry a marker the guard accepts
+
+| File | Divergence vs `v15.89.0` | Introduced by | Note |
+|---|---|---|---|
+| `frappe/locale/fr.po` | French entries we fixed or added: grid and form strings, the account-enumeration messages of the #353 backport, and `Forgot Password` → « Mot de passe oublié » (the login heading, #365) | fa0221ec33, 84c371c586, 94a6b5b015, 2026-09-12 | Regenerating with `bench update-po-files` keeps these as long as their msgids stay in `main.pot`: re-check them after any upstream merge. The catalogue already failed `msgfmt -c` before these edits, on `Use % for any non empty value.` (a `python-format` flag on a string that is not a format): harmless for frappe's own compiler. |
+
 ### Final newline dropped (marked in place, listed here for completeness)
 
 Same whitespace-only divergence as lots F1 and F2: upstream ends the file with a newline, ours does

@@ -52,7 +52,9 @@ def get_context(context):
 
 	context.no_header = True
 	context.for_test = "login.html"
-	context["title"] = "Login"
+	# //// Neoffice — upstream: `context["title"] = "Login"`, never translated. A Builder chrome
+	# //// prints the title as is, so every French login page read « LOGIN » (#365).
+	context["title"] = _("Login")
 	context["hide_login"] = True  # dont show login link on login page again.
 	context["provider_logins"] = []
 	context["disable_signup"] = cint(frappe.get_website_settings("disable_signup"))
