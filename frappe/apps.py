@@ -12,6 +12,23 @@ from frappe.core.doctype.installed_applications.installed_applications import (
 )
 from frappe.desk.utils import slug
 
+# //// Neoffice — added (no upstream equivalent). A Website User, like Guest, has no desk:
+# //// every /app route answers them 403 « Non Autorisé ». Our App Customization list is
+# //// made of desk workspaces, and an empty « User Visible App » whitelist means « show
+# //// everything », so a portal customer was offered all ten: in the website user menu
+# //// (« Apps » / « Switch To Desk »), on /apps, and through get_default_path(), which
+# //// sent a signed-in customer opening /login to /app (#364, osiris 2026-09-11).
+# //// System Users, Administrator included, get exactly what they got before.
+_DESK_ROUTE = re.compile(r"^/app(/.*)?$")
+
+
+def without_desk_routes_for_portal_users(apps, route_key="route"):
+	if frappe.session.user == "Administrator":
+		return apps
+	if frappe.get_cached_value("User", frappe.session.user, "user_type") == "System User":
+		return apps
+	return [app for app in apps if not _DESK_ROUTE.match(app.get(route_key) or "")]
+
 
 @frappe.whitelist()
 def get_apps():
@@ -19,12 +36,13 @@ def get_apps():
 
 	allowed_workspaces = get_workspace_sidebar_items().get("pages")
 
+	# //// Neoffice — both branches go through the portal filter above (#364).
 	# Check if App Customization is available and has entries
 	if frappe.db.table_exists("App Customization") and frappe.db.count("App Customization") > 0:
-		return get_apps_from_customization(allowed_workspaces)
+		return without_desk_routes_for_portal_users(get_apps_from_customization(allowed_workspaces))
 
 	# Fallback to default behavior (hooks-based)
-	return get_apps_default(allowed_workspaces)
+	return without_desk_routes_for_portal_users(get_apps_default(allowed_workspaces))
 
 
 def get_apps_from_customization(allowed_workspaces):

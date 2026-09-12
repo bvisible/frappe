@@ -14,13 +14,23 @@ from frappe import _
 def get_context():
 	# Use the same logic as boot.py for app data generation
 	all_apps = get_app_data()
+	# //// Neoffice — the portal filter of frappe.apps.get_apps() (#364): /apps listed ten desk
+	# //// workspaces to a portal customer, each ending in « Non Autorisé ».
+	from frappe.apps import without_desk_routes_for_portal_users
+
+	all_apps = without_desk_routes_for_portal_users(all_apps, route_key="app_route")
 
 	system_default_app = frappe.get_system_settings("default_app")
 	user_default_app = frappe.db.get_value("User", frappe.session.user, "default_app")
 	default_app = user_default_app if user_default_app else system_default_app
 
 	if len(all_apps) == 0:
-		frappe.local.flags.redirect_location = "/app"
+		# //// Neoffice — upstream sends an empty list to /app, a 403 for anyone without the
+		# //// desk: a portal customer goes to the website home instead (#364).
+		from frappe.website.utils import get_home_page
+
+		has_desk = frappe.get_cached_value("User", frappe.session.user, "user_type") == "System User"
+		frappe.local.flags.redirect_location = "/app" if has_desk else "/" + (get_home_page() or "")
 		raise frappe.Redirect
 
 	for app in all_apps:
