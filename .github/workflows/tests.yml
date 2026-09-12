@@ -42,7 +42,10 @@ concurrency:
 jobs:
   tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # The whole suite (workflow_dispatch, full_suite) runs past an hour: at 60 it
+    # was cancelled 58 minutes into the tests, every time (neoffice-maintenance#392).
+    # The cases mode, the one every push runs, keeps its hour.
+    timeout-minutes: ${{ inputs.full_suite && 180 || 60 }}
     services:
       mariadb:
         image: mariadb:10.6
@@ -194,8 +197,17 @@ jobs:
           # a test, and cut 9 of 11 errors out of the log on top of it (#357).
           set -o pipefail
           if [ "${{ steps.modules.outputs.mode }}" = "full" ]; then
-            bench --site test_site run-tests --app frappe 2>&1 | tail -200
-            exit $?
+            # One line per test as it runs (--verbose), to the log and to a file: a
+            # run cut short still names every test it reached. Behind `| tail -200`
+            # a cancelled run printed nothing, and a finished one kept 200 lines
+            # (neoffice-maintenance#392). The failures are listed again at the end.
+            rc=0
+            bench --site test_site --verbose run-tests --app frappe 2>&1 | tee /tmp/full.log || rc=$?
+            echo "::group::Summary: ERROR / FAIL lines"
+            grep -E '^(ERROR|FAIL): ' /tmp/full.log || echo "no ERROR or FAIL line"
+            grep -E '^(Ran [0-9]+ tests|FAILED \(|OK)' /tmp/full.log | tail -3
+            echo "::endgroup::"
+            exit $rc
           fi
           CASES="${{ steps.modules.outputs.cases }}"
           if [ -z "$CASES" ]; then echo "Nothing to run."; exit 0; fi
