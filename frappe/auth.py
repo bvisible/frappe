@@ -122,7 +122,6 @@ class HTTPRequest:
 		frappe.local.lang = get_language()
 
 
-
 # //// Neoffice — added function (no upstream equivalent). Measures what re-arming the
 # //// CSRF guard would cost, without paying it: one Error Log entry per route per minute,
 # //// naming the route and the kind of caller, never the token itself. See #310.
@@ -144,9 +143,8 @@ def _neoffice_observe_csrf_refusal() -> None:
 			f"user: {user}\n"
 			f"user-agent: {agent}",
 		)
-	except Exception:  # noqa: BLE001 — observing must never break a request
+	except Exception:
 		pass
-
 
 
 # //// Neoffice — added function (no upstream equivalent). Measurement for #310: does this
@@ -163,10 +161,15 @@ def _neoffice_observe_session_cookie() -> None:
 		# Two questions in one probe: does a Bearer/token call also carry a session
 		# cookie (two identities on one request), and would the guard refuse it?
 		carries_both = bool(auth_header) and bool(cookie_sid) and cookie_sid != "Guest"
-		would_refuse = bool(saved) and sent != saved
+		# //// Neoffice — "would refuse" only for the methods the guard checks. A GET never sends
+		# //// the header and is never checked, yet it counted as a refusal: every desk page and
+		# //// private file a signed-in user opened became an Error Log entry (46 in a week on one
+		# //// client instance) and opened neoffice-maintenance#380, drowning the real signal.
+		method = getattr(frappe.request, "method", "?")
+		unsafe = method in UNSAFE_HTTP_METHODS
+		would_refuse = unsafe and bool(saved) and sent != saved
 		if not carries_both and not would_refuse:
 			return
-		method = getattr(frappe.request, "method", "?")
 		path = getattr(frappe.request, "path", "") or "?"
 		key = f"neoffice:csrf_seen:{method}:{path}"
 		if frappe.cache.get_value(key):
@@ -174,10 +177,9 @@ def _neoffice_observe_session_cookie() -> None:
 		frappe.cache.set_value(key, 1, expires_in_sec=60)
 		kind = auth_header.split(" ")[0] if auth_header else "(aucun)"
 		agent = (frappe.get_request_header("User-Agent") or "")[:100]
-		unsafe = method in UNSAFE_HTTP_METHODS
 		frappe.log_error(
 			"CSRF observation: session cookie on this request",
-			f"method: {method}   would be refused: {bool(would_refuse and unsafe)}\n"
+			f"method: {method}   would be refused: {would_refuse}\n"
 			f"route: {path}\n"
 			f"Authorization header: {kind}\n"
 			f"cookie sid present: {bool(cookie_sid)}\n"
@@ -185,7 +187,7 @@ def _neoffice_observe_session_cookie() -> None:
 			f"user: {getattr(frappe.session, 'user', '?')}\n"
 			f"user-agent: {agent}",
 		)
-	except Exception:  # noqa: BLE001 — observing must never break a request
+	except Exception:
 		pass
 
 
