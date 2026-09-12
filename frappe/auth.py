@@ -86,6 +86,10 @@ class HTTPRequest:
 		# //// cookie is riding along with a Bearer-authenticated call — which is the actual
 		# //// question for the mobile app. This records that, method included.
 		_neoffice_observe_session_cookie()
+		# //// Neoffice — read before the check below, which pops a form-posted csrf_token.
+		_neoffice_sent_token = frappe.get_request_header("X-Frappe-CSRF-Token") or frappe.form_dict.get(
+			"csrf_token"
+		)
 		if (
 			not frappe.request
 			or frappe.request.method not in UNSAFE_HTTP_METHODS
@@ -114,7 +118,7 @@ class HTTPRequest:
 		# //// observation keeps running in both modes -- what it records when armed is what
 		# //// a user actually hit, which is the only thing worth reading afterwards.
 		# //// Drop the flag and restore the bare throw once the fleet is armed. (#310)
-		_neoffice_observe_csrf_refusal()
+		_neoffice_observe_csrf_refusal(_neoffice_sent_token)
 		if frappe.conf.get("neoffice_csrf_enforce"):
 			frappe.throw(_("Invalid Request"), frappe.CSRFTokenError)
 
@@ -123,17 +127,32 @@ class HTTPRequest:
 
 
 # //// Neoffice — added function (no upstream equivalent). Measures what re-arming the
-# //// CSRF guard would cost, without paying it: one Error Log entry per route per minute,
-# //// naming the route and the kind of caller, never the token itself. See #310.
-def _neoffice_observe_csrf_refusal() -> None:
+# //// CSRF guard would cost, without paying it, and never records the token. See #310.
+# //// Two causes, two answers:
+# //// - a token that looks real but belongs to another session comes from a tab opened
+# ////   before the session changed (a login in another tab, a new session). Upstream
+# ////   refuses it the same way and the user reloads: nothing to fix. Its list views
+# ////   refresh every 5 minutes (upstream list_view.js), so one forgotten tab made 288
+# ////   refusals a day on osiris, each one an Error Log entry. It is only counted now,
+# ////   per route and per day, in the Redis hash neoffice:csrf_stale_token:<date> (kept
+# ////   14 days; read it with execute_command("HGETALL", frappe.cache.make_key(...))).
+# //// - no token, or a placeholder ("undefined", "None"), is a code path that never
+# ////   sends one and breaks for everyone once the site is armed: that one is an Error
+# ////   Log entry, one per route per hour.
+def _neoffice_observe_csrf_refusal(sent=None) -> None:
 	try:
 		path = getattr(frappe.request, "path", "") or "?"
 		method = getattr(frappe.request, "method", "?")
+		sent = str(sent or "")  # //// Neoffice — read by validate_csrf_token before its pop
+		if _neoffice_looks_like_a_csrf_token(sent):
+			counter = frappe.cache.make_key(f"neoffice:csrf_stale_token:{frappe.utils.today()}")
+			frappe.cache.execute_command("HINCRBY", counter, f"{method} {path}", 1)
+			frappe.cache.execute_command("EXPIRE", counter, 14 * 24 * 3600)
+			return
 		key = f"neoffice:csrf_observed:{method}:{path}"
 		if frappe.cache.get_value(key):
 			return
-		frappe.cache.set_value(key, 1, expires_in_sec=60)
-		sent = bool(frappe.get_request_header("X-Frappe-CSRF-Token"))
+		frappe.cache.set_value(key, 1, expires_in_sec=3600)  # //// Neoffice — once per route per hour
 		agent = (frappe.get_request_header("User-Agent") or "")[:120]
 		user = getattr(getattr(frappe, "session", None), "user", None) or "?"
 		# //// Neoffice — deferred insert (Redis, flushed every 15 min by save_to_db). Once the site
@@ -141,9 +160,9 @@ def _neoffice_observe_csrf_refusal() -> None:
 		# //// it went too: on osiris, armed since 10.09, not one refusal was ever recorded while
 		# //// nginx answered 192 POSTs with a 400 in a day (neoffice-maintenance#310).
 		frappe.log_error(
-			"CSRF would refuse this request (observed, not refused)",
+			"CSRF would refuse this request: no token sent (observed, not refused)",
 			f"route: {method} {path}\n"
-			f"header X-Frappe-CSRF-Token present: {sent}\n"
+			f"sent instead of a token: {sent[:12]!r}\n"  # //// Neoffice — a placeholder, never a token
 			f"user: {user}\n"
 			f"user-agent: {agent}",
 			defer_insert=True,  # //// Neoffice — see the deferred-insert note above the call
@@ -152,44 +171,40 @@ def _neoffice_observe_csrf_refusal() -> None:
 		pass
 
 
-# //// Neoffice — added function (no upstream equivalent). Measurement for #310: does this
-# //// request carry a session cookie whose session holds a csrf_token, without the header?
-# //// Records the route and the method, never the token. Removed with the observation.
+# //// Neoffice — added helper (no upstream equivalent), for _neoffice_observe_csrf_refusal.
+def _neoffice_looks_like_a_csrf_token(value: str) -> bool:
+	"""A session's csrf_token is a frappe.generate_hash() hex string; "undefined", "None" or
+	"null" is what a page sends when it never had one."""
+	return len(value) >= 16 and all(c in "0123456789abcdef" for c in value.lower())
+
+
+# //// Neoffice — added function (no upstream equivalent). Measurement for #310, the question
+# //// for the mobile app: does a Bearer/token call also carry a session cookie (two
+# //// identities on one request)? Records the route and the method, never the token.
+# //// It used to report "would refuse" too, which _neoffice_observe_csrf_refusal already
+# //// does, so every refusal made two entries (neoffice-maintenance#380, #310).
+# //// Removed with the observation.
 def _neoffice_observe_session_cookie() -> None:
 	try:
 		if not frappe.request or not frappe.session:
 			return
 		cookie_sid = (frappe.request.cookies or {}).get("sid")
 		auth_header = frappe.get_request_header("Authorization") or ""
-		saved = frappe.session.data.get("csrf_token")
-		sent = frappe.get_request_header("X-Frappe-CSRF-Token") or frappe.form_dict.get("csrf_token")
-		# Two questions in one probe: does a Bearer/token call also carry a session
-		# cookie (two identities on one request), and would the guard refuse it?
-		carries_both = bool(auth_header) and bool(cookie_sid) and cookie_sid != "Guest"
-		# //// Neoffice — "would refuse" only for the methods the guard checks. A GET never sends
-		# //// the header and is never checked, yet it counted as a refusal: every desk page and
-		# //// private file a signed-in user opened became an Error Log entry (46 in a week on one
-		# //// client instance) and opened neoffice-maintenance#380, drowning the real signal.
-		method = getattr(frappe.request, "method", "?")
-		unsafe = method in UNSAFE_HTTP_METHODS
-		would_refuse = unsafe and bool(saved) and sent != saved
-		if not carries_both and not would_refuse:
+		if not (auth_header and cookie_sid and cookie_sid != "Guest"):  # //// Neoffice — see above
 			return
-		# //// Neoffice — method is read before the early return now (see "would refuse" above)
+		method = getattr(frappe.request, "method", "?")
 		path = getattr(frappe.request, "path", "") or "?"
 		key = f"neoffice:csrf_seen:{method}:{path}"
 		if frappe.cache.get_value(key):
 			return
-		frappe.cache.set_value(key, 1, expires_in_sec=60)
-		kind = auth_header.split(" ")[0] if auth_header else "(aucun)"
+		frappe.cache.set_value(key, 1, expires_in_sec=3600)  # //// Neoffice — once per route per hour
+		saved = frappe.session.data.get("csrf_token")
 		agent = (frappe.get_request_header("User-Agent") or "")[:100]
-		# //// Neoffice — "unsafe" is computed with "would refuse" above; the entry reports refusals only
 		frappe.log_error(
 			"CSRF observation: session cookie on this request",
-			f"method: {method}   would be refused: {would_refuse}\n"  # //// Neoffice — see above
+			f"method: {method}\n"  # //// Neoffice — no "would refuse" here any more (see above)
 			f"route: {path}\n"
-			f"Authorization header: {kind}\n"
-			f"cookie sid present: {bool(cookie_sid)}\n"
+			f"Authorization header: {auth_header.split(' ')[0]}\n"
 			f"session holds csrf_token: {bool(saved)}\n"
 			f"user: {getattr(frappe.session, 'user', '?')}\n"
 			f"user-agent: {agent}",
