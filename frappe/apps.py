@@ -42,7 +42,7 @@ def get_apps():
 		return without_desk_routes_for_portal_users(get_apps_from_customization(allowed_workspaces))
 
 	# Fallback to default behavior (hooks-based)
-	return without_desk_routes_for_portal_users(get_apps_default(allowed_workspaces))
+	return without_desk_routes_for_portal_users(get_apps_default(allowed_workspaces))  # //// Neoffice — #364
 
 
 def get_apps_from_customization(allowed_workspaces):
