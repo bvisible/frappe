@@ -47,6 +47,12 @@ def setup_patched_blog_post():
 	yield
 
 
+# //// Neoffice — test helper for test_permission_fragments_are_parenthesised: a hook whose
+# //// rule is a bare OR, the natural shape of "mine, or shared with me" (neoffice-maintenance#348).
+def _neoffice_bare_or_condition(user=None, doctype=None):
+	return "1=0 or 1=1"
+
+
 class TestDBQuery(FrappeTestCase):
 	def setUp(self):
 		frappe.set_user("Administrator")
@@ -1093,6 +1099,30 @@ class TestDBQuery(FrappeTestCase):
 		)[0]
 
 		self.assertTrue(dashboard_settings)
+
+	# //// Neoffice — every permission fragment comes back parenthesised before the AND join.
+	# //// Unwrapped, a hook's bare OR let its branches escape the other conditions: rows the
+	# //// narrowing condition excluded came back (neoffice-maintenance#348).
+	def test_permission_fragments_are_parenthesised(self):
+		self.doctype = "ToDo"
+		self.user = "test@example.com"
+		original_get_hooks = frappe.get_hooks
+
+		def only_the_bare_or_hook(hook=None, default=None, *args, **kwargs):
+			if hook == "permission_query_conditions":
+				return {"ToDo": ["frappe.tests.test_db_query._neoffice_bare_or_condition"]}
+			return original_get_hooks(hook, default, *args, **kwargs)
+
+		with patch("frappe.get_hooks", side_effect=only_the_bare_or_hook):
+			conditions = DatabaseQuery.get_permission_query_conditions(self)
+
+		self.assertEqual(conditions, "(1=0 or 1=1\n)")
+		# The narrowing condition matches nothing: wrapped, the fragment cannot bring rows back.
+		rows = frappe.db.sql(
+			f"select count(*) from `tabToDo` where name = %s and {conditions}",
+			("neoffice-348-no-such-todo",),
+		)[0][0]
+		self.assertEqual(rows, 0)
 
 	def test_virtual_doctype(self):
 		"""Test that virtual doctypes can be queried using get_all"""
