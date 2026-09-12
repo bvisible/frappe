@@ -35,6 +35,11 @@ on:
         required: false
         type: boolean
         default: false
+      full_filter:
+        description: "With full_suite: only the test files whose path matches this regex (e.g. 'doctype/file/|installed_applications')"
+        required: false
+        type: string
+        default: ""
 concurrency:
   group: tests-${{ github.ref }}
   cancel-in-progress: true
@@ -173,6 +178,10 @@ jobs:
           bench new-site test_site --db-root-password root --admin-password admin --no-mariadb-socket
           bench --site test_site set-config allow_tests true
           bench --site test_site set-config developer_mode 1
+          # FrappeTestCase reads ADMIN_PASSWORD from the site config (frappe/tests/utils.py), and
+          # upstream's CI site config carries it. Ours did not: every test that logs in as
+          # Administrator died on "Incomplete login details" (test_brute_security, #392).
+          bench --site test_site set-config admin_password admin
 
       - name: Serve the site, for the tests that call it over HTTP
         working-directory: /home/runner/frappe-bench
@@ -196,6 +205,9 @@ jobs:
 
       - name: Run them
         working-directory: /home/runner/frappe-bench
+        env:
+          # read as a variable, never pasted into the script: a regex carries quotes and pipes
+          FULL_FILTER: ${{ inputs.full_filter }}
         run: |
           # What decides is the exit status of run-tests, never the one of the last
           # command of a pipe. `run-tests | tail -40` answered with tail's 0, and the
@@ -212,6 +224,17 @@ jobs:
             # records (same reason as the cases below). --verbose: one line per test.
             : > /tmp/full_results
             (cd apps/frappe && find frappe -name 'test_*.py' -not -name 'test_runner.py' -not -path '*/node_modules/*' | sort) > /tmp/full_modules
+            if [ -n "$FULL_FILTER" ]; then
+              grep -E -- "$FULL_FILTER" /tmp/full_modules > /tmp/full_modules.kept || true
+              mv /tmp/full_modules.kept /tmp/full_modules
+              echo "filter '$FULL_FILTER': $(wc -l < /tmp/full_modules) test files"
+            fi
+            # A module past its deadline tends to leave the environment stuck: on 2026-09-12 every
+            # module after File hit its ten minutes, one after the other, until the run was cut at
+            # three hours without a single verdict printed (#392). So each verdict prints the moment
+            # it is known, whatever a module left running is killed, a TIMEOUT shows the processes
+            # and the database's threads, and two TIMEOUTs in a row stop the run.
+            timeouts_in_a_row=0
             while read -r f; do
               grep -qE '^class [A-Za-z_]*\(.*TestCase' "apps/frappe/$f" || continue
               mod="${f%.py}"; mod="${mod//\//.}"; dir="${f%/*}"; doctype=""
@@ -228,10 +251,27 @@ jobs:
               rc=0
               timeout --kill-after=30 600 "${cmd[@]}" < /dev/null > /tmp/mod.log 2>&1 || rc=$?
               cat /tmp/mod.log
+              if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+                echo "--- deadline reached: what is still running, and what the database is doing"
+                ps -eo pid,ppid,etimes,args --forest | grep -E "bench|frappe|python|rq" | grep -v grep | cut -c1-220 | head -60 || true
+                mariadb --host 127.0.0.1 --port 3306 -u root -proot -e "SHOW FULL PROCESSLIST" 2>&1 | cut -c1-300 | head -40 || true
+              fi
+              # a run-tests child that outlived the deadline would keep its locks for the next module
+              pkill -9 -f -- "--verbose run-tests" 2>/dev/null || true
               echo "::endgroup::"
               if [ "$rc" -eq 0 ]; then verdict=PASS; elif [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then verdict=TIMEOUT; else verdict=FAIL; fi
-              echo "$verdict $mod · $(grep -E '^Ran [0-9]+ test' /tmp/mod.log | tail -1)" >> /tmp/full_results
+              echo "$verdict $mod · $(grep -E '^Ran [0-9]+ test' /tmp/mod.log | tail -1)" | tee -a /tmp/full_results
+              if [ "$verdict" = TIMEOUT ]; then timeouts_in_a_row=$((timeouts_in_a_row + 1)); else timeouts_in_a_row=0; fi
+              if [ "$timeouts_in_a_row" -ge 2 ]; then
+                echo "::error::two modules in a row reached their deadline: the environment is stuck, the run stops here"
+                break
+              fi
             done < /tmp/full_modules
+            echo "::group::Serve and worker: last lines"
+            tail -80 /tmp/serve.log 2>/dev/null || true
+            echo "---"
+            tail -80 /tmp/worker.log 2>/dev/null || true
+            echo "::endgroup::"
             echo "::group::Summary: one line per module"
             for v in PASS FAIL TIMEOUT; do echo "$v: $(grep -c "^$v " /tmp/full_results || true)"; done
             grep -E '^(FAIL|TIMEOUT) ' /tmp/full_results || echo "no FAIL or TIMEOUT"
