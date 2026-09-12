@@ -112,8 +112,13 @@ class File(Document):
 			base_name = self.file_name
 			try:
 				self.file_name = re.sub(r"/", "", self.file_name)
-				extension = self.file_name.split(".")[-1]
-				self.file_name = self.file_name[:self.file_name.rfind('.')]
+				# //// Neoffice — split around the last dot only when the name HAS one: rfind() gave -1
+				# //// on "pixel", the stem lost its last letter and the whole name came back as the
+				# //// "extension" ("pixe.pixel"). Same slip as in validate_file_url (#392).
+				stem, dot, extension = self.file_name.rpartition(".")
+				if not dot:
+					stem, extension = self.file_name, ""
+				self.file_name = stem
 				self.file_name = re.sub("[-]\d+x\d+", '', self.file_name)
 				self.file_name = re.sub("\d+x\d+", '', self.file_name)
 				self.file_name = unicodedata.normalize('NFKD', self.file_name).encode('ascii', 'ignore').decode('ascii')
@@ -132,7 +137,7 @@ class File(Document):
 					extrema = img.getextrema()
 					if extrema[3][0] < 255:
 						extension = "png"
-				self.file_name = self.file_name + '.' + extension
+				self.file_name = self.file_name + ("." + extension if extension else "")  # //// Neoffice — no bare dot
 			except (PIL.UnidentifiedImageError, TypeError):
 				# //// Neoffice — TypeError too: when content is still a str
 				# //// (base64 not yet decoded — decode happens later in
@@ -262,15 +267,23 @@ class File(Document):
 
 		# //// added code
 		self.file_url = unquote(self.file_url)
-		extension = self.file_url.split(".")[-1]
 		path = '/files/' if self.file_url.startswith('/files/') else '/private/files/'
-		self.file_url = (self.file_url[:self.file_url.rfind('.')]).replace(path, '')
+		# //// Neoffice — split around the last dot only when the file HAS an extension. rfind() gave
+		# //// -1 on "/files/logo": the stem lost its last letter and the whole URL came back as the
+		# //// "extension" ("/files/log./files/logo"), so validate_file_on_disk refused every file
+		# //// without one: 4 of frappe's own File tests (neoffice-maintenance#392). A dot in a folder
+		# //// name ("/files/v1.2/logo") is no extension either.
+		stem, dot, extension = self.file_url[len(path):].rpartition(".")
+		if not dot or "/" in extension:
+			stem, extension = self.file_url[len(path):], ""
+		self.file_url = stem
 		self.file_url = re.sub("[-]\d+x\d+", '', self.file_url)
 		self.file_url = re.sub("\d+x\d+", '', self.file_url)
 		self.file_url = unicodedata.normalize('NFKD', self.file_url).encode('ascii', 'ignore').decode('ascii')
 		#self.file_url = re.sub(r'[^\w\s-]', '', self.file_url.lower())
 		self.file_url = re.sub(r'[-\s]+', '-', self.file_url).strip('-_')
-		self.file_url = path + self.file_url + '.' + extension
+		# //// Neoffice — no trailing dot when there was no extension (see above).
+		self.file_url = path + self.file_url + ("." + extension if extension else "")
 		self.is_private = cint(self.is_private)
 		# ////
 

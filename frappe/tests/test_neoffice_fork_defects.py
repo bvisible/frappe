@@ -455,4 +455,49 @@ class TestTestsAreRefusedOnTheFleetProductionSite(unittest.TestCase):
 			"the name guard must come BEFORE the key gate, or the key still decides",
 		)
 
+
+class TestAFileWithoutExtensionKeepsItsName(unittest.TestCase):
+	"""Our file clean-up split every name and URL around its last dot, even when there was none.
+
+	rfind(".") gave -1 on "/files/logo": the stem lost its last letter and the whole URL came back
+	as the "extension" ("/files/log./files/logo"), and validate_file_on_disk refused the file. Four
+	of frappe's own File tests died on it. On an image named "pixel", the same slip saved the file
+	as "pixe.pixel" (neoffice-maintenance#392).
+	"""
+
+	def url_after_validation(self, file_url):
+		file = frappe.get_doc({"doctype": "File", "file_url": file_url, "is_private": 0})
+		file.validate_file_url()
+		return file.file_url
+
+	def test_an_url_without_extension_is_left_alone(self):
+		self.assertEqual(self.url_after_validation("/files/logo"), "/files/logo")
+		self.assertEqual(self.url_after_validation("/private/files/notes_txt"), "/private/files/notes_txt")
+
+	def test_a_dot_in_a_folder_name_is_not_an_extension(self):
+		self.assertEqual(self.url_after_validation("/files/v1.2/logo"), "/files/v1.2/logo")
+
+	def test_an_url_with_an_extension_is_still_cleaned_up(self):
+		# what the clean-up is there for: sizes and accents out of the name, the extension kept
+		self.assertEqual(self.url_after_validation("/files/photo-800x600.jpg"), "/files/photo.jpg")
+		self.assertEqual(self.url_after_validation("/files/Café Menu.pdf"), "/files/Cafe-Menu.pdf")
+
+	def test_an_image_named_without_extension_keeps_its_name(self):
+		import io
+		import os
+
+		from PIL import Image
+
+		buffer = io.BytesIO()
+		Image.new("RGB", (1, 1)).save(buffer, format="PNG")
+		file = frappe.get_doc(
+			{"doctype": "File", "file_name": "pixel", "content": buffer.getvalue(), "is_private": 1}
+		).insert()
+		try:
+			self.assertEqual(file.file_name, "pixel")
+			self.assertNotIn(".", file.file_url.rsplit("/", 1)[-1])
+			self.assertTrue(os.path.exists(file.get_full_path()))
+		finally:
+			file.delete()
+
 # //// Neoffice ▲▲▲
