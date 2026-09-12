@@ -146,9 +146,9 @@ def _neoffice_observe_csrf_refusal() -> None:
 			f"header X-Frappe-CSRF-Token present: {sent}\n"
 			f"user: {user}\n"
 			f"user-agent: {agent}",
-			defer_insert=True,
+			defer_insert=True,  # //// Neoffice — see the deferred-insert note above the call
 		)
-	except Exception:
+	except Exception:  # //// Neoffice — observing must never break a request
 		pass
 
 
@@ -175,6 +175,7 @@ def _neoffice_observe_session_cookie() -> None:
 		would_refuse = unsafe and bool(saved) and sent != saved
 		if not carries_both and not would_refuse:
 			return
+		# //// Neoffice — method is read before the early return now (see "would refuse" above)
 		path = getattr(frappe.request, "path", "") or "?"
 		key = f"neoffice:csrf_seen:{method}:{path}"
 		if frappe.cache.get_value(key):
@@ -182,9 +183,10 @@ def _neoffice_observe_session_cookie() -> None:
 		frappe.cache.set_value(key, 1, expires_in_sec=60)
 		kind = auth_header.split(" ")[0] if auth_header else "(aucun)"
 		agent = (frappe.get_request_header("User-Agent") or "")[:100]
+		# //// Neoffice — "unsafe" is computed with "would refuse" above; the entry reports refusals only
 		frappe.log_error(
 			"CSRF observation: session cookie on this request",
-			f"method: {method}   would be refused: {would_refuse}\n"
+			f"method: {method}   would be refused: {would_refuse}\n"  # //// Neoffice — see above
 			f"route: {path}\n"
 			f"Authorization header: {kind}\n"
 			f"cookie sid present: {bool(cookie_sid)}\n"
@@ -193,7 +195,7 @@ def _neoffice_observe_session_cookie() -> None:
 			f"user-agent: {agent}",
 			defer_insert=True,  # //// Neoffice — survives a refused request (see the probe above)
 		)
-	except Exception:
+	except Exception:  # //// Neoffice — observing must never break a request
 		pass
 
 
