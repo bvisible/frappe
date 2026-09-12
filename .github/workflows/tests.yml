@@ -262,14 +262,29 @@ jobs:
 
       - name: Report to the fleet tracker (via the hub)
         if: always()
+        env:
+          CI_SECRET: ${{ secrets.CI_REPORT_SECRET }}
         run: |
-          curl -sS --max-time 20 -X POST \
+          # The hub's answer is read, not discarded. Until 2026-09-12 this repository
+          # had no CI_REPORT_SECRET: every report came back 403 {"ok": false} inside a
+          # green step, and no red run of the fork ever reached the tracker. A report
+          # that does not land now leaves a warning on the run; it never turns it red.
+          if [ -z "$CI_SECRET" ]; then
+            echo "::warning title=CI report not sent::no CI_REPORT_SECRET on this repository: this run opens and closes no tracker issue"
+            exit 0
+          fi
+          resp=$(curl -sS --max-time 20 -X POST \
             "https://neoservice.neoffice.me/api/method/neoffice_devops.github.ci.report" \
-            --data-urlencode "secret=${{ secrets.CI_REPORT_SECRET }}" \
+            --data-urlencode "secret=$CI_SECRET" \
             --data-urlencode "repo=${{ github.repository }}" \
             --data-urlencode "app=frappe" \
             --data-urlencode "sha=${{ github.sha }}" \
             --data-urlencode "run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             --data-urlencode "conclusion=${{ job.status }}" \
             --data-urlencode "ref=${{ github.ref_name }}" \
-            --data-urlencode "summary=cases this fork touches: ${{ steps.modules.outputs.cases }}" || true
+            --data-urlencode "summary=cases this fork touches: ${{ steps.modules.outputs.cases }}" 2>&1) || true
+          echo "$resp"
+          if ! printf '%s' "$resp" | python3 -c 'import json, sys; sys.exit(0 if json.load(sys.stdin).get("message", {}).get("ok") else 1)' 2>/dev/null; then
+            short=$(printf '%s' "$resp" | tr -d '\r\n' | cut -c1-200)
+            echo "::warning title=CI report refused::the hub did not accept this run's report (${short:-no answer}): no tracker issue was opened or closed"
+          fi
