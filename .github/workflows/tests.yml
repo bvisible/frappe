@@ -270,6 +270,42 @@ jobs:
               echo "--- Email Queue rows after the test"
               echo "SELECT q.name, q.status, q.retry, q.sender, IFNULL(q.email_account, '-') AS account, LEFT(SUBSTRING_INDEX(SUBSTRING_INDEX(q.message, 'Subject: ', -1), '\n', 1), 60) AS subject, (SELECT GROUP_CONCAT(CONCAT(r.recipient, '=', r.status)) FROM \`tabEmail Queue Recipient\` r WHERE r.parent = q.name) AS recipients, LEFT(REPLACE(IFNULL(q.error, ''), '\n', ' | '), 1500) AS error FROM \`tabEmail Queue\` q ORDER BY q.creation DESC LIMIT 6;" \
                 | bench --site test_site mariadb 2>&1 | cut -c1-2000 | head -16 || true
+              # then a probe: does the setup wizard of before_tests (which mutes mail while it runs)
+              # complete, and can a queue row sent at once pass can_send_now()? (#392)
+              printf '%s\n' \
+                'import frappe' \
+                'from unittest.mock import patch' \
+                'frappe.init(site="test_site", sites_path=".")' \
+                'frappe.connect()' \
+                'print("setup complete before:", frappe.is_setup_complete(), "| mute flag:", frappe.flags.mute_emails)' \
+                'try:' \
+                '    from frappe.utils.install import before_tests' \
+                '    before_tests()' \
+                'except Exception:' \
+                '    print("before_tests raised:", frappe.get_traceback()[-1500:])' \
+                'print("setup complete after:", frappe.is_setup_complete(), "| mute flag:", frappe.flags.mute_emails)' \
+                'frappe.flags.in_test = True' \
+                'from frappe import are_emails_muted' \
+                'from frappe.email.doctype.email_queue.email_queue import QueueBuilder' \
+                'if not frappe.db.exists("Email Account", "_Test Email Account 1"):' \
+                '    raise SystemExit("no _Test Email Account 1 on the site")' \
+                'account = frappe.get_doc("Email Account", "_Test Email Account 1")' \
+                'account.default_outgoing = 1' \
+                'account.always_use_account_name_as_sender_name = 0' \
+                'account.always_use_account_email_id_as_sender = 0' \
+                'with patch.object(QueueBuilder, "get_outgoing_email_account", return_value=account):' \
+                '    queue = QueueBuilder(recipients=["test1@example.com"], sender="admin@example.com", subject="probe 392", message="probe").process(send_now=False)' \
+                'print("queue:", queue.name, queue.status, queue.sender, "| muted:", are_emails_muted(), "| to be sent:", queue.is_to_be_sent(), "| suspended:", frappe.db.get_default("suspend_email_queue"), "| can send now:", queue.can_send_now())' \
+                'try:' \
+                '    queue.send()' \
+                'except Exception:' \
+                '    print("send raised:", frappe.get_traceback()[-1500:])' \
+                'queue.reload()' \
+                'print("after send:", queue.status, [(r.recipient, r.status) for r in queue.recipients], (queue.error or "")[:600])' \
+                'frappe.db.rollback()' \
+                'frappe.destroy()' > /tmp/probe_392.py
+              echo "--- probe"
+              (cd sites && ../env/bin/python /tmp/probe_392.py) 2>&1 | tail -40 || true
               exit 0
             fi
             : > /tmp/full_results
