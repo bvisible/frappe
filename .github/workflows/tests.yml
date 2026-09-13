@@ -177,7 +177,23 @@ jobs:
           bench set-config -g redis_socketio redis://127.0.0.1:6379
           bench new-site test_site --db-root-password root --admin-password admin --no-mariadb-socket
           bench --site test_site set-config allow_tests true
-          bench --site test_site set-config developer_mode 1
+          if [ "${{ steps.modules.outputs.mode }}" = "full" ]; then
+            # The whole suite runs on upstream's own CI site config (.github/helper/db/mariadb.json):
+            # outgoing mail to an SMTP sink on 2525, server scripts on, the host name, the monitor,
+            # and NO developer_mode. Under developer_mode, test_no_delete_doc really deleted the
+            # Address DocType, folder included, and later modules died importing it; and every mail
+            # test failed on "Please setup default outgoing Email Account" (#392).
+            bench --site test_site set-config auto_email_id test@example.com
+            bench --site test_site set-config mail_server localhost
+            bench --site test_site set-config -p mail_port 2525
+            bench --site test_site set-config mail_login test@example.com
+            bench --site test_site set-config mail_password test
+            bench --site test_site set-config host_name http://test_site:8000
+            bench --site test_site set-config -p monitor 1
+            bench --site test_site set-config -p server_script_enabled true
+          else
+            bench --site test_site set-config developer_mode 1
+          fi
           # FrappeTestCase reads ADMIN_PASSWORD from the site config (frappe/tests/utils.py), and
           # upstream's CI site config carries it. Ours did not: every test that logs in as
           # Administrator died on "Incomplete login details" (test_brute_security, #392).
@@ -189,6 +205,13 @@ jobs:
           # two TIMEOUTs in a row, seen by SHOW FULL PROCESSLIST on 2026-09-13 (#392).
           mkdir -p sites/assets
           [ -f sites/assets/assets.json ] || echo '{}' > sites/assets/assets.json
+
+      - name: SMTP sink, for the whole suite
+        if: steps.modules.outputs.mode == 'full'
+        run: |
+          # upstream's server-tests.yml runs this very image as a service: the site's outgoing
+          # mail (mail_server localhost:2525, set above) lands here instead of failing to connect
+          docker run -d --name smtp_sink -p 2525:25 rnwood/smtp4dev:3.7.1
 
       - name: Serve the site, for the tests that call it over HTTP
         working-directory: /home/runner/frappe-bench
