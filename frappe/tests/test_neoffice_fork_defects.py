@@ -500,4 +500,32 @@ class TestAFileWithoutExtensionKeepsItsName(unittest.TestCase):
 		finally:
 			file.delete()
 
+
+class TestAReplyToOurOwnMailIsRecognised(unittest.TestCase):
+	"""Our Message-IDs end in @neoemail.ch (DMARC alignment), never in the site name.
+
+	InboundMail.is_reply_to_system_sent_mail() looked for the site name only, so a reply to our own
+	mail read as a stranger's: the Email Queue lookup never ran, and a reply to a mail sent without
+	a Communication (a Notification, a reminder) lost its document. Three of frappe's own
+	TestInboundMail tests failed on it in the full suite (neoffice-maintenance#392).
+	"""
+
+	def reply_to(self, message_id):
+		from frappe.email.receive import InboundMail
+
+		mail = InboundMail.__new__(InboundMail)
+		mail.in_reply_to = message_id.strip(" <>")
+		return mail.is_reply_to_system_sent_mail()
+
+	def test_a_reply_to_one_of_our_message_ids_is_a_reply_to_our_mail(self):
+		from frappe.email.email_body import get_message_id
+
+		self.assertTrue(self.reply_to(get_message_id()))
+
+	def test_a_reply_to_a_message_id_naming_the_site_still_is(self):
+		self.assertTrue(self.reply_to(f"<abc123@{frappe.local.site}>"))
+
+	def test_a_reply_to_someone_elses_mail_is_not(self):
+		self.assertFalse(self.reply_to("<abc123@mail.example.org>"))
+
 # //// Neoffice ▲▲▲

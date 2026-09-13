@@ -540,12 +540,17 @@ def add_attachment(fname, fcontent, content_type=None, parent=None, content_id=N
 	parent.attach(part)
 
 
+# //// Neoffice — the domain of our Message-IDs, shared with receive.InboundMail, which recognises
+# //// a reply to our own mail by it: upstream looks for the site name there (#392).
+MESSAGE_ID_DOMAIN = "neoemail.ch"
+
+
 def get_message_id():
 	"""Returns Message ID created from doctype and name"""
 	# Use neoemail.ch domain for Message-ID to ensure DMARC alignment
 	# Format: <hex@neoemail.ch> — no hyphens, pure alphanumeric for max compatibility
 	import uuid
-	return f"<{uuid.uuid4().hex}@neoemail.ch>"
+	return f"<{uuid.uuid4().hex}@{MESSAGE_ID_DOMAIN}>"  # //// Neoffice — see MESSAGE_ID_DOMAIN
 
 
 def get_signature(email_account):

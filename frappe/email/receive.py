@@ -738,7 +738,16 @@ class InboundMail(Email):
 
 	def is_reply_to_system_sent_mail(self):
 		"""Is it a reply to already sent mail."""
-		return self.is_reply() and frappe.local.site in self.in_reply_to
+		# //// Neoffice — our Message-IDs end in @neoemail.ch (email_body.get_message_id, for DMARC
+		# //// alignment), never in the site name upstream looks for. Every reply to our own mail
+		# //// read as a stranger's: parent_email_queue() never ran, and a reply to a mail sent
+		# //// without a Communication (a Notification, a reminder) lost its document. Found by
+		# //// frappe's own TestInboundMail in the full suite (neoffice-maintenance#392).
+		from frappe.email.email_body import MESSAGE_ID_DOMAIN
+
+		return self.is_reply() and (
+			frappe.local.site in self.in_reply_to or f"@{MESSAGE_ID_DOMAIN}" in self.in_reply_to
+		)
 
 	def parent_email_queue(self):
 		"""Get parent record from `Email Queue`.
