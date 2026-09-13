@@ -182,6 +182,13 @@ jobs:
           # upstream's CI site config carries it. Ours did not: every test that logs in as
           # Administrator died on "Incomplete login details" (test_brute_security, #392).
           bench --site test_site set-config admin_password admin
+          # --skip-assets leaves no sites/assets/assets.json, and frappe's error page reads it
+          # (jinja_globals.bundled_asset). A 404 on the served site then crashed INSIDE
+          # handle_exception, the dev server never closed that request's transaction, and its
+          # metadata lock on tabCustom Field held every later run-tests at before_tests' TRUNCATE:
+          # two TIMEOUTs in a row, seen by SHOW FULL PROCESSLIST on 2026-09-13 (#392).
+          mkdir -p sites/assets
+          [ -f sites/assets/assets.json ] || echo '{}' > sites/assets/assets.json
 
       - name: Serve the site, for the tests that call it over HTTP
         working-directory: /home/runner/frappe-bench
@@ -238,8 +245,14 @@ jobs:
             while read -r f; do
               grep -qE '^class [A-Za-z_]*\(.*TestCase' "apps/frappe/$f" || continue
               mod="${f%.py}"; mod="${mod//\//.}"; dir="${f%/*}"; doctype=""
+              # --doctype imports test_<doctype>.py and nothing else: it ran test_data_import three
+              # times in place of test_importer and test_exporter, and died on Data Export, whose
+              # file is test_data_exporter.py (ModuleNotFoundError). Any other file: --module.
               case "$dir" in
-                */doctype/*) doctype=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["name"])' "apps/frappe/$dir/${dir##*/}.json" 2>/dev/null || true) ;;
+                */doctype/*)
+                  if [ "${f##*/}" = "test_${dir##*/}.py" ]; then
+                    doctype=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["name"])' "apps/frappe/$dir/${dir##*/}.json" 2>/dev/null || true)
+                  fi ;;
               esac
               if [ -n "$doctype" ]; then
                 cmd=(bench --site test_site --verbose run-tests --doctype "$doctype")
