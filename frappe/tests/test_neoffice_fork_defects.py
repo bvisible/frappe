@@ -511,10 +511,14 @@ class TestAReplyToOurOwnMailIsRecognised(unittest.TestCase):
 	"""
 
 	def reply_to(self, message_id):
+		"""A reply carrying `message_id` in In-Reply-To: is it a reply to our own mail?"""
+		import email
+
 		from frappe.email.receive import InboundMail
 
+		# in_reply_to is a property read from the parsed mail's In-Reply-To header
 		mail = InboundMail.__new__(InboundMail)
-		mail.in_reply_to = message_id.strip(" <>")
+		mail.mail = email.message_from_string(f"In-Reply-To: {message_id}\n\nThanks.")
 		return mail.is_reply_to_system_sent_mail()
 
 	def test_a_reply_to_one_of_our_message_ids_is_a_reply_to_our_mail(self):
