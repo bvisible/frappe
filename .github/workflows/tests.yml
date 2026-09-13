@@ -1,0 +1,372 @@
+# //// Neoffice — added file (no upstream equivalent).
+#
+# The fork had NO test signal at all: upstream's `server-tests.yml` is
+# `disabled_manually` here (like Linters, Pre-commit and UI), and its last run
+# was 2026-02-16. Meanwhile 29 app repos run their suites against this fork on
+# every push — so a frappe regression that breaks an app IS caught, but nothing
+# ran frappe's own tests, including the ones we add.
+#
+# Re-enabling upstream's workflow was not the answer: it is a 4-way parallel
+# matrix over the whole suite, ~16-23 min wall each, and this branch takes ~6.7
+# real pushes a day. That is roughly 60 $/month of Actions on one repo.
+#
+# So this runs OUR DIVERGENCE ONLY: the test modules where this fork differs
+# from `upstream/version-15`, computed at run time. Today that is three modules;
+# it grows exactly when we add a test, and never when upstream does. A run is a
+# bench init plus a handful of modules.
+#
+# One module per `run-tests` call ON PURPOSE: `bench run-tests --module A
+# --module B` keeps only the LAST one — a silent way to test a fraction of what
+# you listed.
+name: Tests
+on:
+  # Armed on a MEASURED number, not an estimate: a run is 2.6 min, ~0.016 $, and
+  # this branch takes ~6.7 real pushes a day — about 3 $/month. Upstream's full
+  # matrix would have been ~60 $/month on this repo alone, against a 20 $/month
+  # budget for everything. That gap is the whole reason this runs the cases the
+  # fork touches instead of the suite upstream ships.
+  push:
+    branches: [version-15]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      full_suite:
+        description: "Run frappe's WHOLE suite instead of our divergence (slow, ~1 h of Actions)"
+        required: false
+        type: boolean
+        default: false
+      full_filter:
+        description: "With full_suite: only the test files whose path matches this regex (e.g. 'doctype/file/|installed_applications')"
+        required: false
+        type: string
+        default: ""
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    # The whole suite (workflow_dispatch, full_suite) runs past an hour: at 60 it
+    # was cancelled 58 minutes into the tests, every time (neoffice-maintenance#392).
+    # The cases mode, the one every push runs, keeps its hour.
+    timeout-minutes: ${{ inputs.full_suite && 180 || 60 }}
+    services:
+      mariadb:
+        image: mariadb:10.6
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+      redis:
+        image: redis:alpine
+        ports: ["6379:6379"]
+    steps:
+      - name: Clone the fork at the pushed sha
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Which test CASES does this fork touch?
+        id: modules
+        run: |
+          set -o pipefail
+          git remote add upstream https://github.com/frappe/frappe.git 2>/dev/null || true
+          git fetch --quiet --depth=200 upstream version-15
+          if [ "${{ inputs.full_suite }}" = "true" ]; then
+            { echo "mode=full"; echo "cases="; } >> "$GITHUB_OUTPUT"
+            echo "Full suite requested."; exit 0
+          fi
+          CASES=$(python3 - <<'PY'
+          import ast, re, subprocess
+
+          BASE = "upstream/version-15"
+          files = subprocess.run(
+              ["git", "diff", "--name-only", f"{BASE}...HEAD", "--", "**/test_*.py"],
+              capture_output=True, text=True, check=True,
+          ).stdout.split()
+
+          out = []
+          for f in files:
+              try:
+                  src = open(f, encoding="utf-8").read()
+              except OSError:
+                  continue
+              # frappe/test_runner.py matches the glob and is the RUNNER, not a suite.
+              if not re.search(r"^class [A-Za-z_]*\(.*TestCase", src, re.M):
+                  continue
+              diff = subprocess.run(
+                  ["git", "diff", "-U0", f"{BASE}...HEAD", "--", f],
+                  capture_output=True, text=True,
+              ).stdout
+              added = set()
+              for h in re.finditer(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", diff, re.M):
+                  start, count = int(h.group(1)), int(h.group(2) or 1)
+                  added.update(range(start, start + count))
+              module = f[:-3].replace("/", ".")
+              for node in ast.parse(src).body:
+                  if not isinstance(node, ast.ClassDef):
+                      continue
+                  if not any("TestCase" in ast.unparse(b) for b in node.bases):
+                      continue
+                  span = set(range(node.lineno, (node.end_lineno or node.lineno) + 1))
+                  touched = span & added
+                  if not touched:
+                      continue
+                  # Method grain when every touched line sits inside test methods: an upstream
+                  # test of the same class that we never touched (and that may need a mail
+                  # account or a server this CI lacks) says nothing about us. A touched setUp,
+                  # helper or class attribute concerns every test: then the whole class runs.
+                  hit, inside = [], set()
+                  for n in node.body:
+                      if isinstance(n, ast.FunctionDef) and n.name.startswith("test"):
+                          first = min([d.lineno for d in n.decorator_list] + [n.lineno])
+                          lines = set(range(first, (n.end_lineno or n.lineno) + 1))
+                          if lines & touched:
+                              hit.append(n.name)
+                              inside |= lines & touched
+                  if hit and not touched - inside:
+                      out.append(f"{module}::{node.name}::{','.join(sorted(hit))}")
+                  else:
+                      out.append(f"{module}::{node.name}")
+          print("|".join(sorted(set(out))))
+          PY
+          )
+          { echo "mode=cases"; echo "cases=$CASES"; } >> "$GITHUB_OUTPUT"
+          echo "Test cases this fork touches:"
+          echo "$CASES" | tr '|' '\n' | sed 's/^/  - /'
+          [ -n "$CASES" ] || echo "::notice::this fork touches no TestCase — the run only proves the bench builds"
+
+      - name: System deps
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq mariadb-client libcups2-dev
+
+      - name: Init bench on THIS sha
+        run: |
+          pip install frappe-bench
+          # bench validates --frappe-branch with `git ls-remote`, where a SHA is
+          # neither a head nor a tag ("Invalid branch or tag"). Give the commit
+          # under test a branch name instead — exact for push, PR and dispatch alike.
+          git -C "$GITHUB_WORKSPACE" branch -f ci-under-test "${{ github.sha }}"
+          bench init --skip-redis-config-generation --skip-assets \
+            --frappe-path "$GITHUB_WORKSPACE" --frappe-branch ci-under-test \
+            --python "$(which python)" ~/frappe-bench
+          ~/frappe-bench/env/bin/pip install --quiet "setuptools<81"
+          # frappe's dev dependencies (Faker, hypothesis, freezegun...): without them a
+          # suite that imports one dies at import time, and the run said PASS anyway (#357).
+          cd ~/frappe-bench && bench setup requirements --dev
+
+      - name: New site
+        working-directory: /home/runner/frappe-bench
+        run: |
+          mariadb --host 127.0.0.1 --port 3306 -u root -proot \
+            -e "SET GLOBAL character_set_server = 'utf8mb4'; SET GLOBAL collation_server = 'utf8mb4_unicode_ci';"
+          bench set-config -g db_host 127.0.0.1
+          bench set-config -g redis_cache redis://127.0.0.1:6379
+          bench set-config -g redis_queue redis://127.0.0.1:6379
+          bench set-config -g redis_socketio redis://127.0.0.1:6379
+          bench new-site test_site --db-root-password root --admin-password admin --no-mariadb-socket
+          bench --site test_site set-config allow_tests true
+          bench --site test_site set-config developer_mode 1
+          # FrappeTestCase reads ADMIN_PASSWORD from the site config (frappe/tests/utils.py), and
+          # upstream's CI site config carries it. Ours did not: every test that logs in as
+          # Administrator died on "Incomplete login details" (test_brute_security, #392).
+          bench --site test_site set-config admin_password admin
+
+      - name: Serve the site, for the tests that call it over HTTP
+        working-directory: /home/runner/frappe-bench
+        run: |
+          # Some upstream tests POST to get_url(), i.e. http://test_site:8000 — the rate
+          # limit test of reset_password does. Upstream's CI serves the site for them; here
+          # they died on "NameResolutionError: test_site" (#357). The server outlives the step.
+          echo "127.0.0.1 test_site" | sudo tee -a /etc/hosts > /dev/null
+          nohup bench serve --port 8000 --noreload > /tmp/serve.log 2>&1 &
+          # The whole suite also enqueues jobs and waits for them (rq_job, prepared_report):
+          # upstream's CI runs workers, and here each such test died on a 60 s wait
+          # (neoffice-maintenance#392). The cases mode keeps its bare site.
+          if [ "${{ steps.modules.outputs.mode }}" = "full" ]; then
+            nohup bench worker --queue default,short,long > /tmp/worker.log 2>&1 &
+          fi
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://test_site:8000/api/method/ping; then echo "site served after ${i}s"; exit 0; fi
+            sleep 1
+          done
+          echo "::warning::test_site:8000 never answered"; tail -40 /tmp/serve.log
+
+      - name: Run them
+        working-directory: /home/runner/frappe-bench
+        env:
+          # read as a variable, never pasted into the script: a regex carries quotes and pipes
+          FULL_FILTER: ${{ inputs.full_filter }}
+        run: |
+          # What decides is the exit status of run-tests, never the one of the last
+          # command of a pipe. `run-tests | tail -40` answered with tail's 0, and the
+          # default shell of a step has no pipefail: this workflow could not go red on
+          # a test, and cut 9 of 11 errors out of the log on top of it (#357).
+          set -o pipefail
+          if [ "${{ steps.modules.outputs.mode }}" = "full" ]; then
+            # The whole suite, ONE module per run-tests call, each under a deadline. In a
+            # single process it hung 2 h 46 in test_commands (add-database-index: an ALTER
+            # TABLE waiting on a metadata lock) and printed no traceback at all, since
+            # unittest keeps them for the end of the run (neoffice-maintenance#392). Per
+            # module, a hang costs its deadline and reads TIMEOUT, and each module prints
+            # its own tracebacks. A doctype module runs as --doctype, which builds its test
+            # records (same reason as the cases below). --verbose: one line per test.
+            : > /tmp/full_results
+            (cd apps/frappe && find frappe -name 'test_*.py' -not -name 'test_runner.py' -not -path '*/node_modules/*' | sort) > /tmp/full_modules
+            if [ -n "$FULL_FILTER" ]; then
+              grep -E -- "$FULL_FILTER" /tmp/full_modules > /tmp/full_modules.kept || true
+              mv /tmp/full_modules.kept /tmp/full_modules
+              echo "filter '$FULL_FILTER': $(wc -l < /tmp/full_modules) test files"
+            fi
+            # A module past its deadline tends to leave the environment stuck: on 2026-09-12 every
+            # module after File hit its ten minutes, one after the other, until the run was cut at
+            # three hours without a single verdict printed (#392). So each verdict prints the moment
+            # it is known, whatever a module left running is killed, a TIMEOUT shows the processes
+            # and the database's threads, and two TIMEOUTs in a row stop the run.
+            timeouts_in_a_row=0
+            while read -r f; do
+              grep -qE '^class [A-Za-z_]*\(.*TestCase' "apps/frappe/$f" || continue
+              mod="${f%.py}"; mod="${mod//\//.}"; dir="${f%/*}"; doctype=""
+              case "$dir" in
+                */doctype/*) doctype=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["name"])' "apps/frappe/$dir/${dir##*/}.json" 2>/dev/null || true) ;;
+              esac
+              if [ -n "$doctype" ]; then
+                cmd=(bench --site test_site --verbose run-tests --doctype "$doctype")
+              else
+                cmd=(bench --site test_site --verbose run-tests --module "$mod")
+              fi
+              echo "::group::$mod"
+              echo "+ ${cmd[*]}"
+              rc=0
+              timeout --kill-after=30 600 "${cmd[@]}" < /dev/null > /tmp/mod.log 2>&1 || rc=$?
+              cat /tmp/mod.log
+              if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+                echo "--- deadline reached: what is still running, and what the database is doing"
+                ps -eo pid,ppid,etimes,args --forest | grep -E "bench|frappe|python|rq" | grep -v grep | cut -c1-220 | head -60 || true
+                mariadb --host 127.0.0.1 --port 3306 -u root -proot -e "SHOW FULL PROCESSLIST" 2>&1 | cut -c1-300 | head -40 || true
+              fi
+              # a run-tests child that outlived the deadline would keep its locks for the next module
+              pkill -9 -f -- "--verbose run-tests" 2>/dev/null || true
+              echo "::endgroup::"
+              if [ "$rc" -eq 0 ]; then verdict=PASS; elif [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then verdict=TIMEOUT; else verdict=FAIL; fi
+              echo "$verdict $mod · $(grep -E '^Ran [0-9]+ test' /tmp/mod.log | tail -1)" | tee -a /tmp/full_results
+              if [ "$verdict" = TIMEOUT ]; then timeouts_in_a_row=$((timeouts_in_a_row + 1)); else timeouts_in_a_row=0; fi
+              if [ "$timeouts_in_a_row" -ge 2 ]; then
+                echo "::error::two modules in a row reached their deadline: the environment is stuck, the run stops here"
+                break
+              fi
+            done < /tmp/full_modules
+            echo "::group::Serve and worker: last lines"
+            tail -80 /tmp/serve.log 2>/dev/null || true
+            echo "---"
+            tail -80 /tmp/worker.log 2>/dev/null || true
+            echo "::endgroup::"
+            echo "::group::Summary: one line per module"
+            for v in PASS FAIL TIMEOUT; do echo "$v: $(grep -c "^$v " /tmp/full_results || true)"; done
+            grep -E '^(FAIL|TIMEOUT) ' /tmp/full_results || echo "no FAIL or TIMEOUT"
+            echo "::endgroup::"
+            ! grep -qE '^(FAIL|TIMEOUT) ' /tmp/full_results
+            exit $?
+          fi
+          CASES="${{ steps.modules.outputs.cases }}"
+          if [ -z "$CASES" ]; then echo "Nothing to run."; exit 0; fi
+          # A doctype suite reads its test records (`_Test Role 2`, the test users).
+          # `--module --case` never builds them; `--doctype` does. So a class of a
+          # doctype module runs as `--doctype X --test <each of its methods>`: the
+          # same class, with its records.
+          cat > /tmp/case_args.py <<'PY'
+          import ast, json, os, sys
+
+          mod, case = sys.argv[1], sys.argv[2]
+          parts = mod.split(".")
+          doctype, methods = "", []
+          if "doctype" in parts[:-1]:
+              i = parts.index("doctype")
+              meta = os.path.join("apps/frappe", *parts[: i + 2], parts[i + 1] + ".json")
+              try:
+                  doctype = json.load(open(meta, encoding="utf-8"))["name"]
+              except (OSError, KeyError, ValueError):
+                  doctype = ""
+          if doctype:
+              tree = ast.parse(open(os.path.join("apps/frappe", *parts) + ".py", encoding="utf-8").read())
+              for node in tree.body:
+                  if isinstance(node, ast.ClassDef) and node.name == case:
+                      methods = [n.name for n in node.body if isinstance(n, ast.FunctionDef) and n.name.startswith("test")]
+          print(doctype)
+          print(" ".join(methods))
+          PY
+          : > /tmp/results
+          # One CASE per call, at the grain of our divergence: the class we added in
+          # test_email_account.py, not upstream's TestInboundMail — which needs an
+          # inbound-mail fixture no bare CI site has, and whose red says nothing about
+          # us — and in an upstream class, only the methods we touched.
+          # `|| true` so one red never hides the others.
+          echo "$CASES" | tr '|' '\n' | while read -r entry; do
+            [ -n "$entry" ] || continue
+            # module::Class, or module::Class::m1,m2 when only those methods are ours
+            mod="${entry%%::*}"; rest="${entry#*::}"; case_name="${rest%%::*}"
+            picked=""; [ "$rest" = "$case_name" ] || picked="${rest#*::}"
+            echo "::group::$case_name${picked:+ [$picked]} ($mod)"
+            args=$(python3 /tmp/case_args.py "$mod" "$case_name" || true)
+            doctype=$(printf '%s\n' "$args" | sed -n 1p); methods=$(printf '%s\n' "$args" | sed -n 2p)
+            [ -z "$picked" ] || methods="${picked//,/ }"
+            if [ -n "$doctype" ] && [ -n "$methods" ]; then
+              cmd=(bench --site test_site run-tests --doctype "$doctype")
+              for m in $methods; do cmd+=(--test "$m"); done
+            else
+              # a plain module runs its whole class: `--case` with `--test` breaks the
+              # runner (`_run_unittest` reads `_tests` off a TestCase)
+              cmd=(bench --site test_site run-tests --module "$mod" --case "$case_name")
+            fi
+            echo "+ ${cmd[*]}"
+            if "${cmd[@]}" < /dev/null > /tmp/case.log 2>&1; then
+              tail -40 /tmp/case.log
+              echo "PASS $entry" >> /tmp/results
+            else
+              tail -600 /tmp/case.log
+              echo "FAIL $entry" >> /tmp/results
+            fi
+            echo "::endgroup::"
+          done || true
+          echo "--- résultats ---"; cat /tmp/results
+          ! grep -q '^FAIL ' /tmp/results
+
+      - name: Report to the fleet tracker (via the hub)
+        if: always()
+        env:
+          CI_SECRET: ${{ secrets.CI_REPORT_SECRET }}
+        run: |
+          # The hub's answer is read, not discarded. Until 2026-09-12 this repository
+          # had no CI_REPORT_SECRET: every report came back 403 {"ok": false} inside a
+          # green step, and no red run of the fork ever reached the tracker. A report
+          # that does not land now leaves a warning on the run; it never turns it red.
+          if [ -z "$CI_SECRET" ]; then
+            echo "::warning title=CI report not sent::no CI_REPORT_SECRET on this repository: this run opens and closes no tracker issue"
+            exit 0
+          fi
+          resp=$(curl -sS --max-time 20 -X POST \
+            "https://neoservice.neoffice.me/api/method/neoffice_devops.github.ci.report" \
+            --data-urlencode "secret=$CI_SECRET" \
+            --data-urlencode "repo=${{ github.repository }}" \
+            --data-urlencode "app=frappe" \
+            --data-urlencode "sha=${{ github.sha }}" \
+            --data-urlencode "run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --data-urlencode "conclusion=${{ job.status }}" \
+            --data-urlencode "ref=${{ github.ref_name }}" \
+            --data-urlencode "summary=cases this fork touches: ${{ steps.modules.outputs.cases }}" 2>&1) || true
+          echo "$resp"
+          if ! printf '%s' "$resp" | python3 -c 'import json, sys; sys.exit(0 if json.load(sys.stdin).get("message", {}).get("ok") else 1)' 2>/dev/null; then
+            short=$(printf '%s' "$resp" | tr -d '\r\n' | cut -c1-200)
+            echo "::warning title=CI report refused::the hub did not accept this run's report (${short:-no answer}): no tracker issue was opened or closed"
+          fi
