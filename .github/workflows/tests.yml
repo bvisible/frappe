@@ -190,7 +190,8 @@ jobs:
             bench --site test_site set-config mail_password test
             bench --site test_site set-config host_name http://test_site:8000
             bench --site test_site set-config -p monitor 1
-            bench --site test_site set-config -p server_script_enabled true
+            # -p goes through ast.literal_eval: Python's True, not JSON's true (the first try died on it)
+            bench --site test_site set-config -p server_script_enabled True
           else
             bench --site test_site set-config developer_mode 1
           fi
