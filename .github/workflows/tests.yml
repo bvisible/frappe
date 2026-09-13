@@ -40,6 +40,11 @@ on:
         required: false
         type: string
         default: ""
+      full_test:
+        description: "With full_suite: ONE test alone, module::Class::method, then the Email Queue rows it left"
+        required: false
+        type: string
+        default: ""
 concurrency:
   group: tests-${{ github.ref }}
   cancel-in-progress: true
@@ -239,6 +244,7 @@ jobs:
         env:
           # read as a variable, never pasted into the script: a regex carries quotes and pipes
           FULL_FILTER: ${{ inputs.full_filter }}
+          FULL_TEST: ${{ inputs.full_test }}
         run: |
           # What decides is the exit status of run-tests, never the one of the last
           # command of a pipe. `run-tests | tail -40` answered with tail's 0, and the
@@ -253,6 +259,19 @@ jobs:
             # module, a hang costs its deadline and reads TIMEOUT, and each module prints
             # its own tracebacks. A doctype module runs as --doctype, which builds its test
             # records (same reason as the cases below). --verbose: one line per test.
+            if [ -n "$FULL_TEST" ]; then
+              # ONE test alone (module::Class::method), then the Email Queue rows it left. The
+              # module-end diagnostic cannot see a failing test's rows: the next test's setUp deletes
+              # them first (seven mail reds on the fork only, 2026-09-13, #392).
+              mod="${FULL_TEST%%::*}"; test_name="${FULL_TEST##*::}"
+              echo "+ bench --site test_site --verbose run-tests --module $mod --test $test_name"
+              bench --site test_site --verbose run-tests --module "$mod" --test "$test_name" < /dev/null > /tmp/mod.log 2>&1 || true
+              cat /tmp/mod.log
+              echo "--- Email Queue rows after the test"
+              echo "SELECT q.name, q.status, q.retry, q.sender, IFNULL(q.email_account, '-') AS account, LEFT(SUBSTRING_INDEX(SUBSTRING_INDEX(q.message, 'Subject: ', -1), '\n', 1), 60) AS subject, (SELECT GROUP_CONCAT(CONCAT(r.recipient, '=', r.status)) FROM \`tabEmail Queue Recipient\` r WHERE r.parent = q.name) AS recipients, LEFT(REPLACE(IFNULL(q.error, ''), '\n', ' | '), 1500) AS error FROM \`tabEmail Queue\` q ORDER BY q.creation DESC LIMIT 6;" \
+                | bench --site test_site mariadb 2>&1 | cut -c1-2000 | head -16 || true
+              exit 0
+            fi
             : > /tmp/full_results
             (cd apps/frappe && find frappe -name 'test_*.py' -not -name 'test_runner.py' -not -path '*/node_modules/*' | sort) > /tmp/full_modules
             if [ -n "$FULL_FILTER" ]; then
