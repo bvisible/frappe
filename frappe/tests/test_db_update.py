@@ -35,6 +35,10 @@ class TestDBUpdate(FrappeTestCase):
 			)
 			default = field_def.default if field_def.default is not None else fallback_default
 
+			# //// Neoffice — MariaDB reports a JSON column as longtext. Upstream's User has no JSON
+			# //// field and ours has one (report_settings), so this comparison had never met one (#392).
+			if fieldtype == "json" and frappe.db.db_type == "mariadb":
+				fieldtype = "longtext"
 			self.assertEqual(fieldtype, table_column.type)
 			self.assertIn(cstr(table_column.default) or "NULL", [cstr(default), f"'{default}'"])
 

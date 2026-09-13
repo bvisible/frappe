@@ -176,9 +176,10 @@ class TestReport(FrappeTestCase):
 		)
 
 	def test_report_permissions(self):
-		frappe.set_user("test@example.com")
-		frappe.db.delete("Has Role", {"parent": frappe.session.user, "role": "Test Has Role"})
-		frappe.db.commit()
+		# //// Neoffice — upstream develop's order: the role and the report are created as
+		# //// Administrator, only the check runs as test@example.com. Our frappe.only_for has no
+		# //// in_test short-circuit (v16 parity, 29a26f60c7), so test@example.com could no longer
+		# //// insert a Query Report: "only allowed for Script Manager" (neoffice-maintenance#392).
 		if not frappe.db.exists("Role", "Test Has Role"):
 			frappe.get_doc({"doctype": "Role", "role_name": "Test Has Role"}).insert(ignore_permissions=True)
 
@@ -196,11 +197,17 @@ class TestReport(FrappeTestCase):
 		else:
 			report = frappe.get_doc("Report", "Test Report")
 
-		self.assertNotEqual(report.is_permitted(), True)
-		frappe.set_user("Administrator")
+		frappe.set_user("test@example.com")  # //// Neoffice — see the block marker above
+		try:
+			frappe.db.delete("Has Role", {"parent": frappe.session.user, "role": "Test Has Role"})
+			frappe.db.commit()
+			self.assertNotEqual(report.is_permitted(), True)
+		finally:
+			frappe.set_user("Administrator")
 
 	def test_report_custom_permissions(self):
-		frappe.set_user("test@example.com")
+		# //// Neoffice — same order as test_report_permissions above: created as Administrator,
+		# //// checked as test@example.com (upstream develop's form, #392).
 		frappe.db.delete("Custom Role", {"report": "Test Custom Role Report"})
 		frappe.db.commit()  # nosemgrep
 		if not frappe.db.exists("Report", "Test Custom Role Report"):
@@ -217,7 +224,11 @@ class TestReport(FrappeTestCase):
 		else:
 			report = frappe.get_doc("Report", "Test Custom Role Report")
 
-		self.assertEqual(report.is_permitted(), True)
+		frappe.set_user("test@example.com")  # //// Neoffice — checked as the user, see above
+		try:
+			self.assertEqual(report.is_permitted(), True)
+		finally:
+			frappe.set_user("Administrator")
 
 		frappe.get_doc(
 			{
@@ -228,8 +239,11 @@ class TestReport(FrappeTestCase):
 			}
 		).insert(ignore_permissions=True)
 
-		self.assertNotEqual(report.is_permitted(), True)
-		frappe.set_user("Administrator")
+		frappe.set_user("test@example.com")  # //// Neoffice — checked as the user, see above
+		try:
+			self.assertNotEqual(report.is_permitted(), True)
+		finally:
+			frappe.set_user("Administrator")
 
 	# test for the `_format` method if report data doesn't have sort_by parameter
 	def test_format_method(self):

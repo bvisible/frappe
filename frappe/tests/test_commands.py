@@ -822,6 +822,11 @@ class TestBenchBuild(BaseTestCommands):
 		default_bundle_size = 0.0
 
 		for chunk in default_bundle:
+			# //// Neoffice — our vendored desk files under /assets/frappe/js/lib/ (NeoCockpit, the filter
+			# //// pill) carry a ?v= cache-buster and are budgeted in their own repository: the budget
+			# //// here is upstream's bundle. The ?v= made stat() look for a file of that name (#392).
+			if chunk.startswith("/assets/frappe/js/lib/"):
+				continue
 			abs_path = Path.cwd() / frappe.local.sites_path / bundled_asset(chunk)[1:]
 			default_bundle_size += abs_path.stat().st_size
 

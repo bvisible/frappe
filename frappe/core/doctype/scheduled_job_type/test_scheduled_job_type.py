@@ -67,15 +67,16 @@ class TestScheduledJobType(FrappeTestCase):
 		self.assertFalse(job.is_event_due(get_datetime("2019-01-31 23:59:59")))
 
 	def test_cron_job(self):
-		# runs every 10 mins
+		# //// Neoffice — the mail pull runs every 2 minutes here, not every 10 (hooks.py "0/2 * * * *",
+		# //// 2026-08-13: a customer's mail waited up to 10 minutes before it became a ticket) (#392)
 		job = frappe.get_doc(
 			"Scheduled Job Type", dict(method="frappe.email.doctype.email_account.email_account.pull")
 		)
 		job.db_set("last_execution", "2019-01-01 00:00:00")
-		self.assertEqual(job.next_execution, get_datetime("2019-01-01 00:10:00"))
-		self.assertTrue(job.is_event_due(get_datetime("2019-01-01 00:10:01")))
-		self.assertFalse(job.is_event_due(get_datetime("2019-01-01 00:05:06")))
-		self.assertFalse(job.is_event_due(get_datetime("2019-01-01 00:09:59")))
+		self.assertEqual(job.next_execution, get_datetime("2019-01-01 00:02:00"))  # //// Neoffice — 2 min
+		self.assertTrue(job.is_event_due(get_datetime("2019-01-01 00:02:01")))  # //// Neoffice — 2 min
+		self.assertFalse(job.is_event_due(get_datetime("2019-01-01 00:01:06")))  # //// Neoffice — 2 min
+		self.assertFalse(job.is_event_due(get_datetime("2019-01-01 00:01:59")))  # //// Neoffice — 2 min
 
 	def test_maintenance_jobs(self):
 		sjt = frappe.new_doc(
