@@ -302,8 +302,9 @@ jobs:
               # row, not in the test's traceback (7 such reds on the fork only, 2026-09-13, #392)
               if [ "$verdict" = FAIL ] && case "$mod" in *email*|*user_invitation*) true ;; *) false ;; esac; then
                 echo "--- the last Email Queue rows, and why they did not reach Sent"
-                echo "SELECT name, status, sender, email_account, LEFT(REPLACE(IFNULL(error, ''), '\n', ' | '), 700) AS error FROM \`tabEmail Queue\` ORDER BY creation DESC LIMIT 4;" \
-                  | bench --site test_site mariadb 2>&1 | cut -c1-1000 | head -12 || true
+                echo "SELECT q.name, q.status, q.retry, q.sender, IFNULL(q.email_account, '-') AS account, LEFT(SUBSTRING_INDEX(SUBSTRING_INDEX(q.message, 'Subject: ', -1), '\n', 1), 60) AS subject, (SELECT GROUP_CONCAT(CONCAT(r.recipient, '=', r.status)) FROM \`tabEmail Queue Recipient\` r WHERE r.parent = q.name) AS recipients, LEFT(REPLACE(IFNULL(q.error, ''), '\n', ' | '), 300) AS error FROM \`tabEmail Queue\` q ORDER BY q.creation DESC LIMIT 6; SELECT defkey, defvalue FROM \`tabDefaultValue\` WHERE defkey = 'suspend_email_queue';" \
+                  | bench --site test_site mariadb 2>&1 | cut -c1-1000 | head -16 || true
+                grep -h -E '"mute_emails"' sites/test_site/site_config.json sites/common_site_config.json 2>/dev/null || echo "mute_emails: not set in any config"
               fi
               if [ "$verdict" = TIMEOUT ]; then timeouts_in_a_row=$((timeouts_in_a_row + 1)); else timeouts_in_a_row=0; fi
               if [ "$timeouts_in_a_row" -ge 2 ]; then
