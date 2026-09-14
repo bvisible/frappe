@@ -163,6 +163,31 @@ a file we added (byte-identical to frappe develop at `4f365bfbf5`), so it is not
 | `frappe/utils/__init__.py` | 🔴 Module-level `import frappe` (upstream deliberately avoids it — circular import) and an unused `from redis.exceptions import ConnectionError` that **shadows the builtin** for this module and for every `from frappe.utils import *` consumer. |
 | `frappe/utils/file_manager.py`, `is_safe_path()` | 🔴 A security guard widened with a hard-coded `/mnt/neoffice` prefix, by a commit with no message. |
 
+## Binary files, and the vendored pdf.js viewer
+
+A binary diff has no line a marker could sit on, so `fork_markers.py check` excuses a binary we add
+or change only when this manifest names its path, or when a pattern of a `| Binary |` table matches
+it (neoffice-maintenance#414). Measured from `v15.89.0`, these are all of them.
+
+The pdf.js viewer is declared whole, as an artifact: the check skips the directory, its text files
+included, because none of it is ours to mark.
+
+| Artifact | Why |
+|---|---|
+| `frappe/public/pdfjs/*` | The pdf.js viewer, vendored whole for the embedded print preview (`e1a3fd4e35`, 2026-06-12): the generic viewer build with its CMaps, standard fonts, wasm decoders, ICC profile and images (185 of its files are binaries). Third-party files with no upstream equivalent: take the next pdf.js release whole, never edit them. |
+
+| Binary | Why |
+|---|---|
+| `frappe/public/fonts/forum/*` | Forum, the title typeface of the Neoffice design system, self-hosted for the cockpit (`a7b5b73deb`, 2026-06-10). No upstream equivalent. |
+| `frappe/public/images/frappe-logo.png` | Upstream's Frappe logo, replaced by the Neoffice one (`c2b7ad6ad8`, 2025-03-16). **Keep ours at the merge.** |
+| `frappe/public/images/frappe-framework-logo.png` | Same artwork, same commit. **Keep ours at the merge.** |
+| `frappe/public/images/icon-logiciel-erp-gestion-business-app.jpg` | The Neoffice app icon (`82445e57e0`, 2025-06-27). No upstream equivalent. |
+| `frappe/public/lottie/loader.lottie` | The Neoffice loader animation, played by the dotlottie player above (`bfd6894b1d`, 2025-03-26; redrawn in `83a0b03f45`, 2026-06-09). No upstream equivalent. |
+
+A wheel, `markitdown-0.0.1-py3-none-any.whl`, sat at the root of the repository from `11b57094e7`
+(2025-11-14): committed by accident and referenced by nothing, while benches install markitdown
+from PyPI. It was removed rather than declared.
+
 ## Auto-marked (fork-markers workflow)
 
 - `babel_extractors.csv` — added the row `**.ts,frappe.gettext.extractors.javascript.extract` — TypeScript files were never extracted into the POT: the CSV mapped `**.py`, `**.js`, `**.html` and `**.vue` but no `**.ts`, so every `__()` call in a `.ts` file was invisible to `bench generate-pot-file` in every app (0955ff3001 "fix(i18n): TypeScript files were never extracted into the POT")
