@@ -784,7 +784,17 @@ frappe.ui.form.FormHero = class FormHero {
 			})
 			.join("");
 
-		this.$wrapper.html(`${top_html}<div class="form-hero-steps">${seg}</div>`);
+		// //// Neoffice — an EMPTY slot, filled by neoffice_theme's document
+		// //// insights (Nora's remarks on the open document). It is rendered here,
+		// //// by the hero itself, and not appended from outside: the hero re-renders
+		// //// (measured twice per document load) and REPLACES this wrapper's HTML,
+		// //// so anything appended from another module is silently dropped a second
+		// //// later. Owning the slot is the only way the row survives. The hero
+		// //// knows nothing about what goes in it, and an unfilled slot renders
+		// //// nothing at all.
+		this.$wrapper.html(
+			`${top_html}<div class="form-hero-steps">${seg}</div><div class="form-hero-insights"></div>`
+		);
 		if (all_actions.length) {
 			this.$wrapper.find(".step-cta").on("click", (e) => {
 				e.preventDefault();
