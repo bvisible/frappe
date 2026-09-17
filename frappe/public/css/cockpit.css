@@ -711,6 +711,28 @@ body.neoffice-cockpit .form-hero-step .step-ctas {
 	gap: 5px;
 	justify-content: center;
 	margin-top: 5px;
+	/* //// Neoffice — `align-items: center` is not cosmetic here. A flex row
+	   //// defaults to `stretch`, so the moment anything in the row is taller
+	   //// than a pill — the actions mirror wraps its clones onto a second
+	   //// line — every sibling pill grows to match it. Measured on a Sales
+	   //// Order: the same button was 23px tall before the mirror painted and
+	   //// 57px after, which is the "huge buttons" the row was reported for.
+	   //// The pills now keep their own height whatever lands beside them. */
+	align-items: center;
+	/* //// Neoffice — NOT `flex-wrap: wrap`, tried and measured: the row is a
+	   //// child of one step, so wrapping confines it to that step's column
+	   //// (a quarter of the hero) and four pills already stacked onto two
+	   //// lines. Overflowing past the column is deliberate — the row is
+	   //// centred under the whole stepper and reads as one line. A narrow
+	   //// viewport wants an overflow menu, not a taller hero. */
+}
+/* //// Neoffice — the one action that moves the document forward opens the row.
+   //// The mirror appends its clones after the native pills, so without this the
+   //// primary (ink) button landed LAST, behind four secondary tools — the eye
+   //// reads a row left to right and would find "Print" before "Confirm". */
+body.neoffice-cockpit .form-hero .step-cta.primary,
+body.neoffice-cockpit .form-hero .step-cta[data-neo-primary="1"] {
+	order: -1;
 }
 body.neoffice-cockpit .form-hero .step-cta {
 	display: inline-flex;
@@ -754,6 +776,67 @@ body.neoffice-cockpit .form-hero-step.current .bubble {
 	border-color: var(--nc-accent);
 	color: var(--nc-accent);
 	box-shadow: 0 0 0 4px rgba(var(--nc-accent-rgb), 0.16);
+	/* //// Neoffice — the halo breathes instead of sitting still: it is the one
+	   //// thing on the page that answers "where am I in this document". Slow
+	   //// (2.8s) and shallow (4px→7px, 0.16→0.08) on purpose — a stepper that
+	   //// blinks reads as an error, and this is a status, not an alarm. */
+	animation: neo-step-breathe 2.6s ease-in-out infinite;
+}
+/* //// Neoffice — TWO shadows, and both matter. The flat ring (0 0 0 Npx) is the
+   //// one that was already there: it draws the edge. The blurred one
+   //// (0 0 Npx Mpx) is the glow — without it the halo only changed size and
+   //// nobody saw it, which is exactly the report we got. The ring grows 4→8px
+   //// while the glow goes 10px/0.38 → 22px/0.20: the mark lights up and
+   //// settles, it never flashes. */
+@keyframes neo-step-breathe {
+	0%,
+	100% {
+		box-shadow: 0 0 0 4px rgba(var(--nc-accent-rgb), 0.18), 0 0 10px 1px rgba(var(--nc-accent-rgb), 0.38);
+	}
+	50% {
+		box-shadow: 0 0 0 8px rgba(var(--nc-accent-rgb), 0.09), 0 0 22px 5px rgba(var(--nc-accent-rgb), 0.2);
+	}
+}
+/* //// Neoffice — the travelled part of the bar carries a slow sheen, so the
+   //// progress reads as something that happened rather than a painted line.
+   //// One pass every 3.4s and a highlight at 45% opacity: at a glance you see
+   //// a green bar; only if you look do you catch the movement. */
+body.neoffice-cockpit .form-hero-step.done::before,
+body.neoffice-cockpit .form-hero-step.current::before {
+	/* //// Neoffice — the travelled bar is 2px of flat green. The highlight has
+	   //// to be tight and bright to register on 2px: a wide, faint gradient
+	   //// just washed the whole segment and read as nothing. 0.92 white over a
+	   //// narrow band, one pass every 2.6s, and a pause between passes (the
+	   //// gradient is 300% wide, so most of the cycle is plain green). */
+	background-image: linear-gradient(
+		90deg,
+		rgba(255, 255, 255, 0) 0%,
+		rgba(255, 255, 255, 0) 44%,
+		rgba(255, 255, 255, 0.92) 50%,
+		rgba(255, 255, 255, 0) 56%,
+		rgba(255, 255, 255, 0) 100%
+	);
+	background-size: 300% 100%;
+	background-repeat: no-repeat;
+	animation: neo-step-sheen 2.6s linear infinite;
+}
+@keyframes neo-step-sheen {
+	from {
+		background-position: 130% 0;
+	}
+	to {
+		background-position: -30% 0;
+	}
+}
+/* //// Neoffice — a stepper is decoration for someone who asked not to be
+   //// moved. Both animations stop; the halo and the bar keep their resting
+   //// look, so nothing is lost besides the motion. */
+@media (prefers-reduced-motion: reduce) {
+	body.neoffice-cockpit .form-hero-step.current .bubble,
+	body.neoffice-cockpit .form-hero-step.done::before,
+	body.neoffice-cockpit .form-hero-step.current::before {
+		animation: none;
+	}
 }
 body.neoffice-cockpit .form-hero-step.current .lbl {
 	color: var(--nc-accent-deep);
