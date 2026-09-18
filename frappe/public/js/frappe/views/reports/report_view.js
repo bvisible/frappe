@@ -676,7 +676,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			);
 
 			if (link_title !== undefined) {
-				document.querySelectorAll(`a[data-name="${key}"]`).forEach((el) => {
+				//// Neoffice — :not([data-neo-id]): the ID column keeps the name (see format above).
+				document.querySelectorAll(`a[data-name="${key}"]:not([data-neo-id])`).forEach((el) => {
 					el.innerHTML = link_title;
 				});
 			}
@@ -2232,6 +2233,18 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			align,
 			compareValue: compareFn,
 			format: (value, row, column, data) => {
+				//// Neoffice — the ID column always shows the record's NAME (18.09). Upstream
+				//// formats it as a Link to its own doctype, so on a doctype with « show title
+				//// field in link » (Project, Task…) the ID was swapped for the title as soon as
+				//// titles were cached — the column « ID » then repeated « Project name » and the
+				//// PROJ-2026-… number was nowhere. Still a link (hover preview kept); marked so
+				//// set_link_title_field_value below leaves it alone.
+				if (column.docfield && column.docfield.fieldname === "name" && value && typeof value === "string") {
+					const dt = column.docfield.options || column.docfield.parent || this.doctype;
+					const v = frappe.utils.escape_html(value);
+					return `<a href="${frappe.utils.get_form_link(dt, value)}" data-doctype="${frappe.utils.escape_html(dt)}" data-name="${v}" data-value="${v}" data-neo-id="1">${v}</a>`;
+				}
+				////
 				let doc = null;
 				if (Array.isArray(row)) {
 					doc = row.reduce((acc, curr) => {
