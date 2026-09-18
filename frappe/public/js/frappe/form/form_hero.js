@@ -455,7 +455,17 @@ const HERO_REGISTRY = {
 	//// (the visits are Activities, not on the document).
 	Project: {
 		steps: (doc) => [
-			{ label: per_visit(doc) ? __("Visites") : __("Chiffrage"), when: doc.creation },
+			//// Neoffice — and a nature that HIDES the Chiffrage tab gets no costing step
+			//// either (18.09): a maintenance contract is sold by its contract, not by a
+			//// costing, and that tab is not on its form — so the stepper was naming a step
+			//// the screen does not show. Its pipeline IS its visits, like a per-visit job.
+			//// Only the LABEL follows: `rank` still reads the work lines, because the
+			//// per-visit ranking needs __onload.neo_visits, which this nature does not
+			//// necessarily carry — a wrong step is worse than a wrong word.
+			{
+				label: per_visit(doc) || hides_costing(doc) ? __("Visites") : __("Chiffrage"),
+				when: doc.creation,
+			},
 			{ label: __("En cours"), when: null },
 			{ label: __("Validation"), when: null },
 			{ label: __("Facturation"), when: null },
@@ -488,6 +498,12 @@ const HERO_REGISTRY = {
 
 //// Neoffice — the Project pipeline has two shapes (see Project above).
 const per_visit = (doc) => doc.neo_billing_mode === "Per intervention";
+//// Neoffice — the kind row the job already carries says which tabs it shows; a kind
+//// that cannot be read, or a job without one, yields no opinion (false).
+const hides_costing = (doc) => {
+	const tabs = ((doc.__onload || {}).neo_project_kind_row || {}).tabs;
+	return !!(tabs && tabs.length && tabs.indexOf("neo_tab_costing") === -1);
+};
 
 const DEFAULT_PIPELINE = {
 	steps: (doc, tx) => [
