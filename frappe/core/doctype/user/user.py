@@ -1248,6 +1248,14 @@ def create_contact(user, ignore_links=False, ignore_mandatory=False):
 	if user.name in ["Administrator", "Guest"]:
 		return
 
+	# //// Neoffice — the User arrives here as the copy serialized when on_update
+	# //// ENQUEUED this job (enqueue_after_commit). By the time it runs, the user may
+	# //// have been renamed (a portal user first named after the company, then aligned
+	# //// on the real contact), and the stale names overwrote the contact's real ones.
+	# //// Re-read the user as it is now; keep the passed copy if it is gone.
+	if frappe.db.exists("User", user.name):
+		user = frappe.get_doc("User", user.name)
+
 	contact_name = get_contact_name(user.email)
 	# //// Neoffice — upstream CREATES a Contact when the user has none (the whole `if not
 	# //// contact_name:` branch, neutralised here by wrapping it in a ''' string literal) and only
