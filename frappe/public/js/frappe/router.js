@@ -267,14 +267,22 @@ frappe.router = {
 				//// "Wiki Document" from the Training workspace showed an empty page.
 				//// get_standard_route_for_list() below already special-cases tree the
 				//// same way; this branch bypasses it, hence the duplicated check.
-				if (meta.default_view.toLowerCase() === "tree") {
+				//// Neoffice — the view goes in the THIRD place, under "List" (as upstream
+				//// writes it). Our pinned default_view_load ("Report") used to lead the
+				//// route: a doctype whose default_view is "List" came out as
+				//// ["Report", doctype, "List"] — ReportFactory then set_route'd a SECOND
+				//// history entry (/view/report/List), and Back landed on /view/list,
+				//// which re-routed to the report again: a loop the user could not leave
+				//// (every doctype of ours with a default_view — Activity, …). "List"
+				//// still opens the Report view (our re-routing); Kanban, Calendar…
+				//// keep their own view.
+				const dv = meta.default_view.toLowerCase();
+				if (dv === "tree") {
 					route = ["Tree", doctype_route.doctype];
+				} else if (dv === "list" || dv === "report") {
+					route = ["List", doctype_route.doctype, "Report"];
 				} else {
-					route = [
-						default_view_load,
-						doctype_route.doctype,
-						this.list_views_route[meta.default_view.toLowerCase()],
-					];
+					route = ["List", doctype_route.doctype, this.list_views_route[dv]];
 				}
 			} else if (default_view_load === "Report") {
 				route = ["List", doctype_route.doctype, "Report"];
