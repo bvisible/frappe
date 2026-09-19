@@ -279,9 +279,11 @@ frappe.router = {
 				const dv = meta.default_view.toLowerCase();
 				if (dv === "tree") {
 					route = ["Tree", doctype_route.doctype];
+					//// Neoffice — see the block marker above: List/Report route fix
 				} else if (dv === "list" || dv === "report") {
 					route = ["List", doctype_route.doctype, "Report"];
 				} else {
+					//// Neoffice — see the block marker above: List/Report route fix
 					route = ["List", doctype_route.doctype, this.list_views_route[dv]];
 				}
 			} else if (default_view_load === "Report") {
