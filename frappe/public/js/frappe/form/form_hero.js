@@ -359,6 +359,28 @@ const HERO_REGISTRY = {
 			return [print_action(frm)];
 		},
 	},
+	//// Neoffice — the Swiss salary certificate (hrms): drafted from the slips, validated, then
+	//// handed to the employee. The third step is the one the default pipeline cannot show:
+	//// hrms fills sent_to_employee_on when it mails the certificate, and replaces the Send pill
+	//// through set_hero_send_action (hrms, swiss_salary_certificate.js).
+	"Swiss Salary Certificate": {
+		value_field: "position_11_net_salary",
+		value_label: "Net Salary",
+		steps: (doc, tx) => [
+			{ label: __("Draft"), when: doc.creation },
+			{ label: __("Validated"), when: tx.submit() },
+			{ label: __("Sent to employee"), when: doc.sent_to_employee_on },
+		],
+		rank(doc) {
+			if (doc.docstatus === 2) return -1;
+			if (doc.docstatus === 0) return 1;
+			return doc.sent_to_employee_on ? 4 : 2;
+		},
+		actions(rank, frm) {
+			if (rank === 1) return [submit_action(frm)];
+			return [send_action(frm), print_action(frm)];
+		},
+	},
 	"Payment Entry": {
 		value_field: "paid_amount",
 		value_label: "Paid Amount",
