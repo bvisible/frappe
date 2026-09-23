@@ -119,11 +119,15 @@ class File(Document):
 				if not dot:
 					stem, extension = self.file_name, ""
 				self.file_name = stem
-				self.file_name = re.sub("[-]\d+x\d+", '', self.file_name)
-				self.file_name = re.sub("\d+x\d+", '', self.file_name)
+				self.file_name = re.sub(r"[-]\d+x\d+", '', self.file_name)
+				self.file_name = re.sub(r"\d+x\d+", '', self.file_name)
 				self.file_name = unicodedata.normalize('NFKD', self.file_name).encode('ascii', 'ignore').decode('ascii')
 				#self.file_name = re.sub(r'[^\w\s-]', '', self.file_name.lower())
 				self.file_name = re.sub(r'[-\s]+', '-', self.file_name).strip('-_')
+				# //// Neoffice — a name that was nothing but a size ("1200x800.png") came out empty
+				# //// and the image was stored as ".png": a dot file, which web servers commonly
+				# //// refuse to serve. Such a name is kept as it was.
+				self.file_name = self.file_name or stem
 				stream = io.BytesIO(self.content)
 				img = Image.open(stream)
 				if img.info.get("transparency", None) is not None:
@@ -276,14 +280,25 @@ class File(Document):
 		stem, dot, extension = self.file_url[len(path):].rpartition(".")
 		if not dot or "/" in extension:
 			stem, extension = self.file_url[len(path):], ""
-		self.file_url = stem
-		self.file_url = re.sub("[-]\d+x\d+", '', self.file_url)
-		self.file_url = re.sub("\d+x\d+", '', self.file_url)
-		self.file_url = unicodedata.normalize('NFKD', self.file_url).encode('ascii', 'ignore').decode('ascii')
-		#self.file_url = re.sub(r'[^\w\s-]', '', self.file_url.lower())
-		self.file_url = re.sub(r'[-\s]+', '-', self.file_url).strip('-_')
+		clean_url = stem
+		clean_url = re.sub(r"[-]\d+x\d+", '', clean_url)
+		clean_url = re.sub(r"\d+x\d+", '', clean_url)
+		clean_url = unicodedata.normalize('NFKD', clean_url).encode('ascii', 'ignore').decode('ascii')
+		#clean_url = re.sub(r'[^\w\s-]', '', clean_url.lower())
+		clean_url = re.sub(r'[-\s]+', '-', clean_url).strip('-_')
 		# //// Neoffice — no trailing dot when there was no extension (see above).
-		self.file_url = path + self.file_url + ("." + extension if extension else "")
+		clean_url = path + clean_url + ("." + extension if extension else "")
+		# //// Neoffice — the URL names a file already on disk, and nothing here renames that file.
+		# //// This block used to adopt the cleaned URL whenever it differed, which pointed the
+		# //// record at a file that does not exist ("File … does not exist") — or at another file
+		# //// that happens to carry the cleaned name. Only images (before_insert) and desk uploads
+		# //// (handler.upload_file) are renamed before they are written, so a document created by
+		# //// code with a space or an accent in its name — every attachment a Communication builds
+		# //// from a print — could not be stored at all, and a legacy upload named with spaces
+		# //// could not be attached again: get_content() calls this method before reading
+		# //// (neoffice-maintenance#662). The cleaned URL now wins only when it is the one on disk.
+		if clean_url != self.file_url and not _url_on_disk(self.file_url) and _url_on_disk(clean_url):
+			self.file_url = clean_url
 		self.is_private = cint(self.is_private)
 		# ////
 
@@ -905,6 +920,15 @@ class File(Document):
 			zf.writestr(_file.file_name, _file.get_content())
 		zf.close()
 		return zip_file.getvalue()
+
+
+# //// Neoffice — added function (no upstream equivalent), used by File.validate_file_url.
+def _url_on_disk(file_url: str) -> bool:
+	"""Whether the local ``file_url`` names a file inside this site's files folder."""
+	is_private = file_url.startswith("/private/files/")
+	base = os.path.realpath(get_files_path(is_private=is_private))
+	path = os.path.realpath(get_files_path(*file_url.split("/files/", 1)[1].split("/"), is_private=is_private))
+	return path.startswith(base + os.sep) and os.path.isfile(path)
 
 
 def on_doctype_update():

@@ -940,3 +940,78 @@ class TestGuestFileAndAttachments(FrappeTestCase):
 		self.assertEqual(doc_pri.get_content(), content)
 		doc_pri.delete()
 		self.assertFalse(os.path.exists(doc_pri.get_full_path()))
+
+
+# //// Neoffice — added tests (no upstream equivalent): our fork slugs file names and URLs
+# //// (File.before_insert, File.validate_file_url, handler.upload_file). The URL must keep naming
+# //// the file that is actually on disk (neoffice-maintenance#662).
+def _png_bytes():
+	from io import BytesIO
+
+	from PIL import Image
+
+	buffer = BytesIO()
+	Image.new("RGB", (4, 4), "white").save(buffer, format="PNG")
+	return buffer.getvalue()
+
+
+class TestNeofficeFileNames(FrappeTestCase):
+	def assertOnDisk(self, doc):
+		self.assertTrue(os.path.isfile(doc.get_full_path()), doc.file_url)
+		self.assertEqual(doc.file_url.rsplit("/", 1)[1], os.path.basename(doc.get_full_path()))
+
+	def test_a_document_named_with_a_space_and_an_accent_is_stored(self):
+		"""What a Communication does with a printed attachment: a name built by code, not typed."""
+		suffix = frappe.generate_hash(length=6)
+		doc = frappe.get_doc(
+			{
+				"doctype": "File",
+				"file_name": f"Salary Certificate été {suffix}.txt",
+				"content": f"certificate {suffix}".encode(),
+				"is_private": 1,
+			}
+		).insert(ignore_permissions=True)
+		self.assertOnDisk(doc)
+		self.assertEqual(doc.get_content(), f"certificate {suffix}".encode())
+
+	def test_a_legacy_upload_named_with_spaces_can_be_attached_again(self):
+		"""Attaching an existing file again (email composer, attach from library) creates a File
+		by URL, and uploads stored before names were slugged still carry spaces."""
+		from frappe.core.doctype.file.utils import get_content_hash
+
+		name = f"legacy upload {frappe.generate_hash(length=6)}.txt"
+		path = get_files_path(name)
+		with open(path, "w") as f:
+			f.write(name)
+		self.addCleanup(lambda: os.path.exists(path) and os.remove(path))
+		legacy = frappe.new_doc("File")
+		legacy.update(
+			{
+				"name": frappe.generate_hash(length=10),
+				"file_name": name,
+				"file_url": f"/files/{name}",
+				"content_hash": get_content_hash(name.encode()),
+			}
+		)
+		legacy.db_insert()  # as stored back then, without today's validation
+
+		doc = frappe.get_doc({"doctype": "File", "file_url": f"/files/{name}"}).insert(ignore_permissions=True)
+		self.assertEqual(doc.file_url, f"/files/{name}")
+		self.assertEqual(doc.get_content(), name)  # read from disk: text comes back decoded
+
+	def test_an_image_name_is_still_cleaned(self):
+		suffix = frappe.generate_hash(length=6)
+		doc = frappe.get_doc(
+			{"doctype": "File", "file_name": f"Photo été {suffix}-800x600.png", "content": _png_bytes()}
+		).insert(ignore_permissions=True)
+		self.assertTrue(doc.file_name.startswith(f"Photo-ete-{suffix}"), doc.file_name)
+		self.assertNotIn(" ", doc.file_url)
+		self.assertOnDisk(doc)
+
+	def test_an_image_named_only_by_its_size_keeps_a_name(self):
+		"""Stripping "1200x800" left ".png": a dot file, which web servers commonly refuse to serve."""
+		doc = frappe.get_doc(
+			{"doctype": "File", "file_name": "1200x800.png", "content": _png_bytes() + os.urandom(8)}
+		).insert(ignore_permissions=True)
+		self.assertFalse(doc.file_name.startswith("."), doc.file_name)
+		self.assertOnDisk(doc)
