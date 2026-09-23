@@ -119,6 +119,9 @@ class File(Document):
 				if not dot:
 					stem, extension = self.file_name, ""
 				self.file_name = stem
+				# //// Neoffice — TO REVIEW: these two regexes became raw strings (were plain strings)
+				# //// (9d08c46 "fix(file): a File's URL keeps naming the file on disk") — reason not
+				# //// stated in the commit
 				self.file_name = re.sub(r"[-]\d+x\d+", '', self.file_name)
 				self.file_name = re.sub(r"\d+x\d+", '', self.file_name)
 				self.file_name = unicodedata.normalize('NFKD', self.file_name).encode('ascii', 'ignore').decode('ascii')
@@ -280,6 +283,9 @@ class File(Document):
 		stem, dot, extension = self.file_url[len(path):].rpartition(".")
 		if not dot or "/" in extension:
 			stem, extension = self.file_url[len(path):], ""
+		# //// Neoffice — the cleaned name is built into a local `clean_url` instead of overwriting
+		# //// self.file_url directly, so it can be compared against self.file_url below before
+		# //// deciding which one wins (9d08c46 "fix(file): a File's URL keeps naming the file on disk").
 		clean_url = stem
 		clean_url = re.sub(r"[-]\d+x\d+", '', clean_url)
 		clean_url = re.sub(r"\d+x\d+", '', clean_url)
