@@ -146,7 +146,7 @@ def resolve_redirect(path, query_string=None):
 	# //// The site build's own render is let through: neoffice_theme flags the loopback
 	# //// request that names its profile (frappe.local.flags.server_side_render), and
 	# //// builder's website switch reads the same flag. Without it the visual check
-	# //// reviewed the login page as the home of both League sites (2026-09-09).
+	# //// reviewed the login page as the home of two client sites (2026-09-09).
 	profile = getattr(frappe.local, "website_profile_doc", None)
 	if (
 		profile is not None
