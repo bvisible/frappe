@@ -367,7 +367,13 @@ class EmailAccount(Document):
 		except OSError:
 			if in_receive:
 				# timeout while connecting, see receive.py connect method
-				description = frappe.message_log.pop() if frappe.message_log else "Socket Error"
+				# //// Neoffice — upstream passed message_log.pop() as is. In v15 a message_log
+				# //// entry is a dict ({"message": ..., "title": ...}), not a string, and it ended
+				# //// in assign_to.add(description=...) -> strip_html(dict) -> "TypeError: expected
+				# //// string or bytes-like object, got '_dict'". The account was switched off and
+				# //// the ToDo that says so to the System Managers died with the job. Keep the text.
+				last = frappe.message_log.pop() if frappe.message_log else None
+				description = (last.get("message") if isinstance(last, dict) else last) or "Socket Error"
 				self.db_set("no_failed", self.no_failed + 1)
 				if self.no_failed > 2:
 					self.handle_incoming_connect_error(description=description)

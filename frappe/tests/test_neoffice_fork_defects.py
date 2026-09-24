@@ -241,6 +241,42 @@ class TestBrokenIncomingAccountIsActuallyDisabled(unittest.TestCase):
 		self.assertEqual(db.call_args.args[:2], ("no_failed", 2))
 
 
+class TestASocketErrorKeepsItsText(unittest.TestCase):
+	"""A socket error hands the System Managers a sentence, not a dict.
+
+	In v15 a message_log entry is a dict. check_email_server_connection passed it as it
+	was, and assign_to.add(description=...) died on strip_html(dict) with "expected string
+	or bytes-like object, got '_dict'": the account was switched off, and the ToDo that
+	tells the System Managers so died with the background job.
+	"""
+
+	def _description_after_socket_error(self, message_log):
+		from frappe.email.doctype.email_account.email_account import EmailAccount
+
+		a = EmailAccount.__new__(EmailAccount)
+		a.name = "test-account"
+		a.no_failed = 3  # past the "> 2" guard of the OSError branch
+		server = MagicMock()
+		server.connect.side_effect = OSError("timed out")
+		with (
+			patch.object(frappe.local, "message_log", message_log, create=True),
+			patch.object(a, "db_set"),
+			patch.object(a, "handle_incoming_connect_error") as handle,
+		):
+			a.check_email_server_connection(server, in_receive=True)
+		return handle.call_args.kwargs["description"]
+
+	def test_a_logged_message_is_passed_as_its_text(self):
+		entry = frappe._dict(message="Connection timed out", title="Error", indicator="red")
+		self.assertEqual(self._description_after_socket_error([entry]), "Connection timed out")
+
+	def test_an_empty_log_still_says_socket_error(self):
+		self.assertEqual(self._description_after_socket_error([]), "Socket Error")
+
+	def test_a_plain_string_entry_is_kept(self):
+		self.assertEqual(self._description_after_socket_error(["plain text"]), "plain text")
+
+
 class TestIsSafePathIsNotWidened(unittest.TestCase):
 	"""is_safe_path() is the guard File.get_full_path() asks before touching a path on disk.
 
