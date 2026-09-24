@@ -142,6 +142,15 @@ class TestWebsite(FrappeTestCase):
 		response = handle_exception(frappe.PageDoesNotExistError(), "all-products", "all-products", 200)
 		self.assertEqual(response.status_code, 404)
 
+	# //// Neoffice — added test: the icon sprites are fetched, not printed (templates/base.html).
+	def test_a_page_fetches_the_icon_sprites_instead_of_printing_them(self):
+		set_request(method="GET", path="/login")
+		html = frappe.safe_decode(get_response().get_data())
+		self.assertNotIn("<symbol", html, "320 kB of sprites printed inline in every page")
+		self.assertIn("frappe/icons/timeless/icons.svg", html)
+		self.assertIn('id="all-symbols"', html)
+		self.assertRegex(html, r'"\?v=[^"]+"', "the build names the address: a new build, a new sprite")
+
 	def test_login(self):
 		set_request(method="GET", path="/login")
 		response = get_response()

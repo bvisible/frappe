@@ -54,8 +54,21 @@
 	</script>
 </head>
 <body frappe-session-status="{{ 'logged-in' if frappe.session.user != 'Guest' else 'logged-out'}}" data-path="{{ path | e }}" {%- if template and template.endswith('.md') %} frappe-content-type="markdown" {%- endif %} class="{{ body_class or ''}}">
-	{% include "public/icons/timeless/icons.svg" %}
-	{% include "public/icons/espresso/icons.svg" %}
+	{#- //// Neoffice — the icon sprites are fetched, not printed (neoffice-maintenance#691, lot 5).
+	    Both were included inline at the top of every website page: 117 + 203 kB that every visitor
+	    and every crawler read before the page's own content (pages of 460 to 725 kB, measured on a
+	    shop). The desk already fetches the very same files (www/app.html); a page now does the same,
+	    once per build (build_version, base_template_page.py), cached by the browser, into a hidden
+	    container: an icon (<use href="#icon-…">) draws as soon as its symbol arrives. -#}
+	<div id="all-symbols" style="display:none"></div>
+	<script>
+		["frappe/icons/timeless/icons.svg", "frappe/icons/espresso/icons.svg"].forEach(function (path) {
+			fetch("/assets/" + path + "?v={{ build_version or '' }}", { credentials: "same-origin" })
+				.then(function (r) { return r.ok ? r.text() : ""; })
+				.then(function (svg) { document.getElementById("all-symbols").insertAdjacentHTML("beforeend", svg); })
+				.catch(function () {});
+		});
+	</script>
 	{%- block banner -%}
 		{% include "templates/includes/banner_extension.html" ignore missing %}
 

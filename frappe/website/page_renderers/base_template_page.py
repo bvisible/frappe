@@ -14,6 +14,10 @@ class BaseTemplatePage(BaseRenderer):
 		self.context = frappe._dict()
 		self.context.update(get_website_settings())
 		self.context.update(frappe.local.conf.get("website_context") or {})
+		# //// Neoffice — every page names the build: templates/base.html fetches the icon sprites
+		# //// under it, so a new build is a new address and a browser never keeps a stale sprite.
+		# //// Only TemplatePage set it (update_context); a DocumentPage, a product page, had none.
+		self.context.build_version = frappe.utils.get_build_version()
 
 	def add_csrf_token(self, html):
 		if frappe.local.session and getattr(frappe.local.session, "data", None):
