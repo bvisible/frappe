@@ -62,6 +62,24 @@ class SentEmailInInboxError(Exception):
 	pass
 
 
+# //// Neoffice ▼▼▼ — added helper, used by EmailServer.get_new_mails.
+def keep_uids_at_or_above_floor(sync_rule, uids):
+	"""Keep the UIDs an "UID n:*" search rule actually asked for.
+
+	"*" is the largest UID in use and an IMAP range reads both ways (RFC 3501, 6.4.8), so a
+	mailbox whose highest UID is 20 answers "UID 21:*" with 20: the last message comes back at
+	every pull, synced or not. Any other rule is returned untouched.
+	"""
+	match = re.fullmatch(r"UID (\d+):\*", (sync_rule or "").strip())
+	if not match:
+		return uids
+	floor = int(match.group(1))
+	return [uid for uid in uids if int(uid) >= floor]
+
+
+# //// Neoffice ▲▲▲
+
+
 class EmailServer:
 	"""Wrapper for POP server to pull emails."""
 
@@ -206,7 +224,11 @@ class EmailServer:
 			self.imap.select(folder, readonly=readonly)
 			_response, message = self.imap.uid("search", None, self.settings.email_sync_rule)
 			if message[0]:
-				email_list = message[0].split()
+				# //// Neoffice — filtered through keep_uids_at_or_above_floor() (below). Upstream relied on
+				# //// the Message-ID check to skip the last message, which IMAP returns again at every pull;
+				# //// a message without a Message-ID was ingested again each time: on a support mailbox, one
+				# //// new reply and one alert every two minutes (2026-09-24).
+				email_list = keep_uids_at_or_above_floor(self.settings.email_sync_rule, message[0].split())
 		else:
 			email_list = self.pop.list()[1]
 
