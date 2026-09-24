@@ -478,9 +478,29 @@ class TestAFileWithoutExtensionKeepsItsName(unittest.TestCase):
 		self.assertEqual(self.url_after_validation("/files/v1.2/logo"), "/files/v1.2/logo")
 
 	def test_an_url_with_an_extension_is_still_cleaned_up(self):
-		# what the clean-up is there for: sizes and accents out of the name, the extension kept
-		self.assertEqual(self.url_after_validation("/files/photo-800x600.jpg"), "/files/photo.jpg")
-		self.assertEqual(self.url_after_validation("/files/Café Menu.pdf"), "/files/Cafe-Menu.pdf")
+		# what the clean-up is there for: sizes and accents out of the name, the extension kept.
+		# Since neoffice-maintenance#662 the cleaned URL is adopted only when it is the file on
+		# disk (a record must never point at a file that does not exist), so the cleaned files
+		# are written first. Without them the URL is kept as it was.
+		import os
+
+		from frappe.utils import get_files_path
+
+		for original, cleaned in (
+			("/files/photo-800x600.jpg", "/files/photo.jpg"),
+			("/files/Café Menu.pdf", "/files/Cafe-Menu.pdf"),
+		):
+			path = get_files_path(cleaned.split("/files/", 1)[1])
+			existed = os.path.exists(path)  # never delete a file the site already had
+			if not existed:
+				self.assertEqual(self.url_after_validation(original), original)
+				with open(path, "wb") as f:
+					f.write(b"x")
+			try:
+				self.assertEqual(self.url_after_validation(original), cleaned)
+			finally:
+				if not existed:
+					os.remove(path)
 
 	def test_an_image_named_without_extension_keeps_its_name(self):
 		import io
