@@ -32,7 +32,12 @@ def handle_exception(e, endpoint, path, http_status_code):
 		return NotPermittedPage(endpoint, http_status_code, exception=e).render()
 
 	if isinstance(e, frappe.PageDoesNotExistError):
-		return NotFoundPage(endpoint, http_status_code).render()
+		# //// Neoffice — a page that does not exist answers 404. Upstream passes the request's own status
+		# //// through, 200 for every page, so a controller raising PageDoesNotExistError during its render
+		# //// (a product reserved to another site, a listing page beyond its last one) served the
+		# //// not-found page with 200: a soft 404, which a search engine indexes or reports as an error
+		# //// (2026-09-24, neoffice-maintenance#691). NotPermittedPage already forces its 403 this way.
+		return NotFoundPage(endpoint, 404).render()
 
 	return ErrorPage(exception=e).render()
 

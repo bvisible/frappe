@@ -133,6 +133,15 @@ class TestWebsite(FrappeTestCase):
 		response = get_response()
 		self.assertEqual(response.status_code, 417)
 
+	# //// Neoffice — added test: a page raising PageDoesNotExistError during its render answers 404,
+	# //// not the not-found page at the request's own 200 (serve.handle_exception, #691).
+	def test_a_page_that_does_not_exist_answers_404(self):
+		from frappe.website.serve import handle_exception
+
+		set_request(method="GET", path="/all-products")
+		response = handle_exception(frappe.PageDoesNotExistError(), "all-products", "all-products", 200)
+		self.assertEqual(response.status_code, 404)
+
 	def test_login(self):
 		set_request(method="GET", path="/login")
 		response = get_response()
