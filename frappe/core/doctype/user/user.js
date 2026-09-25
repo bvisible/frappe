@@ -69,8 +69,12 @@ frappe.ui.form.on("User", {
 						let d = frm.add_child("block_modules");
 						d.module = v.module;
 					});
-					frm.module_editor.disable = 1;
-					frm.module_editor && frm.module_editor.show();
+					//// Neoffice — backport of upstream version-15: the editor only exists for
+					//// who may edit roles, and this line threw for everyone else.
+					if (frm.module_editor) {
+						frm.module_editor.disable = 1;
+						frm.module_editor.show();
+					}
 				},
 			});
 		}
@@ -250,8 +254,14 @@ frappe.ui.form.on("User", {
 				frm.roles_editor.show();
 			}
 
-			frm.module_editor.disable = frm.doc.module_profile ? 1 : 0;
-			frm.module_editor && frm.module_editor.show();
+			//// Neoffice — backport of upstream version-15. The module editor is only
+			//// built for who may edit roles; for anyone else opening their own User
+			//// record this line threw, and the rest of refresh never ran (no "Create
+			//// User Email", no time-zone note). Drop at the upstream merge (#138).
+			if (frm.module_editor) {
+				frm.module_editor.disable = frm.doc.module_profile ? 1 : 0;
+				frm.module_editor.show();
+			}
 
 			if (frappe.session.user == doc.name) {
 				// update display settings
