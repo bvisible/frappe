@@ -275,7 +275,9 @@ class User(Document):
 			frappe.local.login_manager.logout(user=self.name)
 
 		# toggle notifications based on the user's status
-		toggle_notifications(self.name, enable=cint(self.enabled))
+		# //// Neoffice — upstream b77ba68763: whoever may save this User may toggle
+		# //// its notifications; the customer's Admin could not disable an account.
+		toggle_notifications(self.name, enable=cint(self.enabled), ignore_permissions=True)
 
 	def email_new_password(self, new_password=None):
 		if new_password and not self.flags.in_insert:

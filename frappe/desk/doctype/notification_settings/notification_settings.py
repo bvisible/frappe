@@ -73,7 +73,12 @@ def create_notification_settings(user):
 		_doc.insert(ignore_permissions=True)
 
 
-def toggle_notifications(user: str, enable: bool = False):
+# //// Neoffice — backport of upstream b77ba68763 ("ignore perm while updating
+# //// notification settings", 2023): the caller may skip the permission check.
+# //// Without it, the customer's Admin could not disable an employee's account —
+# //// saving the User toggles that person's Notification Settings, which only
+# //// the person or System Manager may write. Drop at the next upstream merge.
+def toggle_notifications(user: str, enable: bool = False, ignore_permissions=False):
 	try:
 		settings = frappe.get_doc("Notification Settings", user)
 	except frappe.DoesNotExistError:
@@ -82,7 +87,7 @@ def toggle_notifications(user: str, enable: bool = False):
 
 	if settings.enabled != enable:
 		settings.enabled = enable
-		settings.save()
+		settings.save(ignore_permissions=ignore_permissions)
 
 
 @frappe.whitelist()
