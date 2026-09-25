@@ -235,7 +235,13 @@ def is_desk_apps(apps):
 
 
 def get_default_path(apps=None):
-	if not apps:
+	# //// Neoffice — `is None`, not upstream's `not apps`. A visitor, a portal customer, any
+	# //// account without an application gets an EMPTY list, and upstream then computed it a
+	# //// second time, to the same empty answer: get_apps() walks every workspace's permissions,
+	# //// 39 queries and ~25 ms, twice on every website page (get_boot_data) and every desk boot
+	# //// (sessions.py). Measured on osiris, 2026-09-25. A caller that passes nothing still gets
+	# //// the list computed.
+	if apps is None:
 		apps = get_apps()
 	_apps = [app for app in apps if app.get("name") != "frappe"]
 
