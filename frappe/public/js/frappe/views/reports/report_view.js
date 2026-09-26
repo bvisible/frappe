@@ -991,15 +991,24 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		//// only focuses a datatable cell (editing starts on a double click or Enter), the ID link still opens
 		//// the form, the checkbox still selects, and nothing changes when the theme defines no hook. Bound once
 		//// per wrapper (namespaced), since setup_datatable runs again at every refresh.
-		this.$datatable_wrapper.off("click.neo_row").on("click.neo_row", ".dt-row .dt-cell", (e) => {
-			if (typeof frappe.neo_row_click !== "function") return;
-			if ($(e.target).closest("a, input, button, .dt-cell--editing, .dt-cell__resize-handle").length) {
-				return;
-			}
-			const row_index = cint($(e.currentTarget).attr("data-row-index"));
-			const doc = (this.data || [])[row_index];
-			if (doc && doc.name) frappe.neo_row_click(this, doc.name);
-		});
+		this.$datatable_wrapper
+			.off("click.neo_row")
+			.on("click.neo_row", ".dt-row .dt-cell", (e) => {
+				if (typeof frappe.neo_row_click !== "function") return;
+				if (
+					$(e.target).closest(
+						"a, input, button, .dt-cell--editing, .dt-cell__resize-handle"
+					).length
+				) {
+					return;
+				}
+				//// Only a body cell names a row: header and inline-filter cells carry no row index,
+				//// and cint() of a missing index is 0, which opened the first row on a header click.
+				const row_index = $(e.currentTarget).attr("data-row-index");
+				if (!/^\d+$/.test(row_index || "")) return;
+				const doc = (this.data || [])[+row_index];
+				if (doc && doc.name) frappe.neo_row_click(this, doc.name);
+			});
 		this.datatable = new DataTable(this.$datatable_wrapper[0], {
 			columns: this.columns,
 			data: this.get_data(values),
