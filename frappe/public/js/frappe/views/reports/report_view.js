@@ -985,6 +985,21 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 	setup_datatable(values) {
 		this.$datatable_wrapper.empty();
+		//// Neoffice — the workspace tabs' panel (neoffice_theme/public/js/workspace_tabs.js, decision J9 of the
+		//// workspace redesign, maintenance#822): a single click on a cell shows its row in the tab's side panel,
+		//// through frappe.neo_row_click(view, name) - the same hook as the list view's row click. A single click
+		//// only focuses a datatable cell (editing starts on a double click or Enter), the ID link still opens
+		//// the form, the checkbox still selects, and nothing changes when the theme defines no hook. Bound once
+		//// per wrapper (namespaced), since setup_datatable runs again at every refresh.
+		this.$datatable_wrapper.off("click.neo_row").on("click.neo_row", ".dt-row .dt-cell", (e) => {
+			if (typeof frappe.neo_row_click !== "function") return;
+			if ($(e.target).closest("a, input, button, .dt-cell--editing, .dt-cell__resize-handle").length) {
+				return;
+			}
+			const row_index = cint($(e.currentTarget).attr("data-row-index"));
+			const doc = (this.data || [])[row_index];
+			if (doc && doc.name) frappe.neo_row_click(this, doc.name);
+		});
 		this.datatable = new DataTable(this.$datatable_wrapper[0], {
 			columns: this.columns,
 			data: this.get_data(values),
