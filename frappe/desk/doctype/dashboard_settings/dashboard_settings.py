@@ -32,12 +32,14 @@ def create_dashboard_settings(user):
 		# //// Neoffice — a workspace loads several charts at once and each one asks for
 		# //// these settings: two requests could both find none and both insert, and the
 		# //// loser showed "Duplicate Name" on a new account's first visit (maintenance#828).
-		# //// The loser now returns the settings the winner created. Drop this once upstream
-		# //// handles the race.
+		# //// The loser now returns the settings the winner created, read in a fresh
+		# //// transaction: its own snapshot predates the winner's commit (REPEATABLE READ),
+		# //// and a plain read answered "not found". Drop this once upstream handles the race.
 		try:
 			doc.insert(ignore_permissions=True)
 		except frappe.DuplicateEntryError:
 			frappe.clear_last_message()
+			frappe.db.rollback()
 			return frappe.get_doc("Dashboard Settings", user)
 		frappe.db.commit()
 		return doc
