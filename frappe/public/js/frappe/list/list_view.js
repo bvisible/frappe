@@ -1353,6 +1353,22 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 
 			// clicked on the row, open form
 			const $row = $(e.currentTarget);
+			//// Neoffice — one hook for the workspace tabs (neoffice_theme/public/js/workspace_tabs.js,
+			//// decision J9 of the workspace redesign, maintenance#822): a click on a row may show that
+			//// row in the tab's side panel instead of opening the form. The theme defines
+			//// frappe.neo_row_click(list_view, name) and returns true when it took the click; the
+			//// row's title link still opens the form (handled above), so the form is one click
+			//// further. Upstream behaviour is unchanged when nothing is defined or it returns false.
+			//// Intercepting from the theme instead would depend on CSS classes and event order,
+			//// and break silently at an update: hence this line in the fork.
+			const neo_name = $row.find(".list-row-checkbox").attr("data-name");
+			if (
+				neo_name &&
+				typeof frappe.neo_row_click === "function" &&
+				frappe.neo_row_click(this, neo_name) === true
+			) {
+				return false;
+			}
 			const link = $row.find(".list-subject a").get(0);
 			if (link) {
 				frappe.set_route(link.pathname);
