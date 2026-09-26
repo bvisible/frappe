@@ -39,6 +39,7 @@ def create_dashboard_settings(user):
 			doc.insert(ignore_permissions=True)
 		except frappe.DuplicateEntryError:
 			frappe.clear_last_message()
+			# //// Neoffice — end this request's snapshot, so the read below sees the winner's commit.
 			frappe.db.rollback()
 			return frappe.get_doc("Dashboard Settings", user)
 		frappe.db.commit()
