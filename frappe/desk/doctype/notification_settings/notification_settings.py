@@ -87,6 +87,8 @@ def toggle_notifications(user: str, enable: bool = False, ignore_permissions=Fal
 
 	if settings.enabled != enable:
 		settings.enabled = enable
+		# //// Neoffice — upstream b77ba68763: the caller decides whether the permission
+		# //// check applies (User.check_enable_disable passes True). Drop at the upstream merge.
 		settings.save(ignore_permissions=ignore_permissions)
 
 
