@@ -17,6 +17,12 @@ frappe.neo_is_form_link = function (anchor, doctype, name) {
 	}
 };
 
+//// Neoffice — added (no upstream equivalent): tells an app that this list asks
+//// frappe.neo_list_args(list) for extra arguments of its request (get_args in base_list.js, the
+//// count below). neoffice_theme only puts several views of a space on at once when it is set:
+//// with an upstream frappe, the union it asks for would never reach the server.
+frappe.neo_list_args_supported = true;
+
 frappe.views.ListView = class ListView extends frappe.views.BaseList {
 	static load_last_view() {
 		const route = frappe.get_route();
@@ -1042,11 +1048,34 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		let current_count = this.data.length;
 		let count_without_children = this.data.uniqBy((d) => d.name).length;
 
-		return frappe.db
-			.count(this.doctype, {
+		//// Neoffice — the count carries the list's own extra arguments too (frappe.neo_list_args,
+		//// see get_args in base_list.js): the rows of a union counted without it read "20 of 1,647"
+		//// where the union holds 740. The same call as frappe.db.count, those arguments added;
+		//// without any, upstream's call, untouched.
+		const neo_args = typeof frappe.neo_list_args === "function" ? frappe.neo_list_args(this) : null;
+		let count_call;
+		if (neo_args) {
+			const neo_filters = this.get_filters_for_args();
+			count_call = frappe.xcall(
+				"frappe.desk.reportview.get_count",
+				Object.assign(
+					{
+						doctype: this.doctype,
+						filters: neo_filters,
+						fields: [],
+						distinct: neo_filters.some((filter) => filter[0] !== this.doctype),
+						limit: this.count_upper_bound,
+					},
+					neo_args
+				)
+			);
+		} else {
+			count_call = frappe.db.count(this.doctype, {
 				filters: this.get_filters_for_args(),
 				limit: this.count_upper_bound,
-			})
+			});
+		}
+		return count_call
 			.then((total_count) => {
 				this.total_count = total_count || current_count;
 				this.count_without_children =

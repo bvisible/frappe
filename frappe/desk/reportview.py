@@ -93,6 +93,17 @@ def get_form_params():
 	data = frappe._dict(frappe.local.form_dict)
 	clean_params(data)
 	validate_args(data)
+	# //// Neoffice — added. The views of a space (neoffice_theme's workspace tabs) are pills
+	# //// above the list, and two of them on at once mean their UNION - the drafts OR the
+	# //// invoices to be paid - which filters joined by AND cannot say. The list sends the
+	# //// keys of those views (`neo_views`, see frappe.neo_list_args in base_list.js) and the
+	# //// app that declared them adds the matching filters, rebuilt on the server from its own
+	# //// declarations, never from SQL or filters the browser sent. Every reader of this
+	# //// function gets it: the rows, the count, the export. Popped either way, so that a site
+	# //// without the hook ignores it: DatabaseQuery.execute() takes no such argument.
+	if neo_views := data.pop("neo_views", None):
+		for method in frappe.get_hooks("neo_list_views"):
+			frappe.get_attr(method)(data, neo_views)
 	return data
 
 
