@@ -3,6 +3,20 @@ import ListSettings from "./list_settings";
 
 frappe.provide("frappe.views");
 
+//// Neoffice — added helper (no upstream equivalent), for the workspace tabs' panel (maintenance#822):
+//// does this <a> open the form of this very document? A list row's ID and title links do; a link
+//// cell pointing at another document (the customer of an invoice) does not.
+frappe.neo_is_form_link = function (anchor, doctype, name) {
+	if (!anchor || !anchor.getAttribute("href") || !doctype || !name) return false;
+	try {
+		const path = decodeURIComponent(new URL(anchor.href, window.location.origin).pathname);
+		const own = decodeURIComponent(frappe.utils.get_form_link(doctype, name));
+		return path.replace(/\/$/, "") === own.replace(/\/$/, "");
+	} catch (e) {
+		return false;
+	}
+};
+
 frappe.views.ListView = class ListView extends frappe.views.BaseList {
 	static load_last_view() {
 		const route = frappe.get_route();
@@ -1346,6 +1360,30 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 			) {
 				e.stopPropagation();
 				return;
+			}
+
+			//// Neoffice — the row's own document link (its ID, its title) shows the row in the
+			//// workspace tab's side panel too, like a click on the row (maintenance#822, Jérémy
+			//// 27.09: "clicking the ID must not open the document but show the side bar"). The
+			//// panel's first action opens the document. Ctrl/Cmd/Shift-click and the middle button
+			//// still open it directly, a link to another document still navigates, and nothing
+			//// changes where frappe.neo_row_click is not defined or declines the click.
+			const $neo_link = $target.closest("a");
+			if (
+				$neo_link.length &&
+				!(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) &&
+				typeof frappe.neo_row_click === "function"
+			) {
+				const neo_row_name = $(e.currentTarget).find(".list-row-checkbox").attr("data-name");
+				if (
+					neo_row_name &&
+					frappe.neo_is_form_link($neo_link.get(0), this.doctype, neo_row_name) &&
+					frappe.neo_row_click(this, neo_row_name) === true
+				) {
+					e.preventDefault();
+					e.stopPropagation();
+					return false;
+				}
 			}
 
 			// link, let the event be handled via set_route
