@@ -1026,9 +1026,15 @@ from {tables}
 
 			# add user permission only if role has read perm
 			elif role_permissions.get("read") or role_permissions.get("select"):
-				# get user permissions
-				user_permissions = frappe.permissions.get_user_permissions(self.user)
-				self.add_user_permissions(user_permissions)
+				# //// Neoffice — backport of the upstream v15 flag (frappe/frappe version-15, not in
+				# //// our v15.89 base): frappe.desk.search.search_widget sets it, for one doctype and
+				# //// only once may_ignore_user_permissions has accepted the claim, to lift the User
+				# //// Permissions of that search and keep every other rule (neoffice-maintenance#894).
+				# //// Identical to upstream v15, so it merges cleanly at #138.
+				if frappe.flags.get("ignore_user_permissions_for_doctype") != self.doctype:
+					# get user permissions
+					user_permissions = frappe.permissions.get_user_permissions(self.user)
+					self.add_user_permissions(user_permissions)
 
 			# Only when full read access is not present fetch shared docuemnts.
 			# This is done to avoid extra query.
