@@ -1056,11 +1056,13 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 				)
 			);
 		} else {
+			//// Neoffice — no extra arguments: upstream's own frappe.db.count call, unchanged.
 			count_call = frappe.db.count(this.doctype, {
 				filters: this.get_filters_for_args(),
 				limit: this.count_upper_bound,
 			});
 		}
+		//// Neoffice — upstream returned frappe.db.count(...) directly; either call chains the same.
 		return count_call
 			.then((total_count) => {
 				this.total_count = total_count || current_count;
@@ -1377,6 +1379,9 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 				return;
 			}
 
+			//// Neoffice — a plain click on the row's own ID or title link opens its document again,
+			//// as upstream does (maintenance#822, 27.09: "the ID opens the document, a click anywhere
+			//// else shows the panel"). The block that sent that click to the workspace tab's panel is gone.
 			// link, let the event be handled via set_route
 			if ($target.is("a")) return;
 

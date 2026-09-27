@@ -1020,6 +1020,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 					e.preventDefault();
 					e.stopPropagation();
 				}
+				//// Neoffice — one panel call only: the one in the condition above replaces the separate
+				//// call that followed it until 27.09.
 			});
 		this.datatable = new DataTable(this.$datatable_wrapper[0], {
 			columns: this.columns,
