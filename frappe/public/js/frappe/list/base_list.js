@@ -472,7 +472,8 @@ frappe.views.BaseList = class BaseList {
 			filters.some((filter) => {
 				return filter[0] !== this.doctype;
 			});
-		return {
+		//// Neoffice — `const args =` where upstream returns the object directly: see below.
+		const args = {
 			doctype: this.doctype,
 			fields: this.get_fields(),
 			filters,
@@ -482,6 +483,15 @@ frappe.views.BaseList = class BaseList {
 			view: this.view,
 			group_by: group_by_required ? group_by : null,
 		};
+		//// Neoffice — added (upstream returns the object above as is). An app may add arguments
+		//// of its own to the list's request through frappe.neo_list_args(list): the views of a
+		//// space (neoffice_theme's workspace tabs) send `neo_views`, the keys of the pills that are
+		//// on, whose union frappe.desk.reportview.get_form_params has the app rebuild on the
+		//// server. No function, or nothing returned: the request is upstream's.
+		if (typeof frappe.neo_list_args === "function") {
+			Object.assign(args, frappe.neo_list_args(this) || {});
+		}
+		return args;
 	}
 
 	get_call_args() {
