@@ -1,8 +1,32 @@
+import re
 from io import BufferedReader
+
+# //// Neoffice — added (maintenance#866): a second, plain-text pass over the source.
+# //// babel's lexer cuts a template literal at the first backtick of a nested one, so
+# //// every __() after it in that template - and in the templates the cut throws out of
+# //// step - was never extracted (63 of 1345 calls in neoffice-theme.js), and the nightly
+# //// catalogue rebuild dropped their translations. Any __("literal") the tokenizer
+# //// missed is taken from the text itself. An upstream candidate.
+PLAIN_CALL = re.compile(r"""(?<![\w.$])__\(\s*(["'`])((?:\\.|(?!\1)[^\\])*)\1\s*[,)]""")
+
+
+def _plain_calls(code, seen):
+	from babel.messages.jslexer import unquote_string
+
+	for match in PLAIN_CALL.finditer(code):
+		quote, raw = match.group(1), match.group(2)
+		if not raw or (quote == "`" and "${" in raw):
+			continue  # a template with a hole says nothing fixed to translate
+		message = unquote_string(quote + raw + quote)
+		if not message or message in seen:
+			continue
+		seen.add(message)
+		yield code.count("\n", 0, match.start()) + 1, message
 
 
 def extract(fileobj: BufferedReader, keywords: str, comment_tags: tuple, options: dict):
 	code = fileobj.read().decode("utf-8")
+	seen = set()  # //// Neoffice — what the tokenizer found, for the plain-text pass below
 
 	for lineno, funcname, messages in extract_javascript(code, options=options):
 		if not messages or not messages[0]:
@@ -19,7 +43,12 @@ def extract(fileobj: BufferedReader, keywords: str, comment_tags: tuple, options
 			else:
 				messages = messages[0]
 
+		seen.add(messages if isinstance(messages, str) else messages[-1])
 		yield lineno, funcname, messages, []
+
+	# //// Neoffice — the calls the tokenizer lost in nested templates (see PLAIN_CALL).
+	for lineno, message in _plain_calls(code, seen):
+		yield lineno, "gettext", message, []
 
 
 def extract_javascript(code, keywords=None, options=None, lineno=1):
@@ -192,11 +221,16 @@ def parse_template_string(
 	inside_str = False
 	expression_contents = ""
 	for character in template_string[1:-1]:
-		if not inside_str and character in ('"', "'", "`"):
-			inside_str = character
-		elif inside_str == character and prev_character != r"\\":
-			inside_str = False
+		# //// Neoffice — quotes delimit strings only inside a ${…} expression. Upstream
+		# //// tracked them in the template's own text too, so a call sitting in an HTML
+		# //// attribute (placeholder="${__("Search a role")}") was taken for the inside of
+		# //// a string and never extracted, and the nightly PO regeneration dropped its
+		# //// translation (maintenance#866). An upstream candidate.
 		if level:
+			if not inside_str and character in ('"', "'", "`"):
+				inside_str = character
+			elif inside_str == character and prev_character != r"\\":
+				inside_str = False
 			expression_contents += character
 		if not inside_str:
 			if character == "{" and prev_character == "$":
