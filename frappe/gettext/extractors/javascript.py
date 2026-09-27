@@ -1,3 +1,4 @@
+# //// Neoffice — `re` added for the plain-text pass below (PLAIN_CALL, maintenance#866).
 import re
 from io import BufferedReader
 
@@ -43,6 +44,8 @@ def extract(fileobj: BufferedReader, keywords: str, comment_tags: tuple, options
 			else:
 				messages = messages[0]
 
+		# //// Neoffice — remember what the tokenizer found, so the plain-text pass below
+		# //// does not yield it a second time (maintenance#866).
 		seen.add(messages if isinstance(messages, str) else messages[-1])
 		yield lineno, funcname, messages, []
 
