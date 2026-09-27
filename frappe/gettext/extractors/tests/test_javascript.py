@@ -15,3 +15,9 @@ class TestJavaScript(FrappeTestCase):
 			next(extract_javascript(code)),
 			(1, "__", ("Test", None, "Context")),
 		)
+
+	# //// Neoffice — added test (maintenance#866): a call in an HTML attribute of a template
+	# //// string was never extracted, so its translation was dropped every night.
+	def test_extract_javascript_in_an_attribute(self):
+		code = 'let test = `<input class="search" placeholder="${__("Search a role")}" title=\'${__("Level")}\'>`;'
+		self.assertEqual([message for _lineno, _func, message, _comments in extract_javascript(code)], ["Search a role", "Level"])

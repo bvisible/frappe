@@ -192,11 +192,16 @@ def parse_template_string(
 	inside_str = False
 	expression_contents = ""
 	for character in template_string[1:-1]:
-		if not inside_str and character in ('"', "'", "`"):
-			inside_str = character
-		elif inside_str == character and prev_character != r"\\":
-			inside_str = False
+		# //// Neoffice — quotes delimit strings only inside a ${…} expression. Upstream
+		# //// tracked them in the template's own text too, so a call sitting in an HTML
+		# //// attribute (placeholder="${__("Search a role")}") was taken for the inside of
+		# //// a string and never extracted, and the nightly PO regeneration dropped its
+		# //// translation (maintenance#866). An upstream candidate.
 		if level:
+			if not inside_str and character in ('"', "'", "`"):
+				inside_str = character
+			elif inside_str == character and prev_character != r"\\":
+				inside_str = False
 			expression_contents += character
 		if not inside_str:
 			if character == "{" and prev_character == "$":
