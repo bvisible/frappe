@@ -995,11 +995,16 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			.off("click.neo_row")
 			.on("click.neo_row", ".dt-row .dt-cell", (e) => {
 				if (typeof frappe.neo_row_click !== "function") return;
+				//// The row's own ID link (data-neo-id, set where the name column is formatted) opens
+				//// its document, and a Ctrl/Cmd/Shift/Alt-click follows any link.
+				const $link = $(e.target).closest("a");
 				if (
-					$(e.target).closest(
-						"a, input, button, .dt-cell--editing, .dt-cell__resize-handle"
-					).length
+					$link.length &&
+					($link.is("[data-neo-id]") || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey)
 				) {
+					return;
+				}
+				if ($(e.target).closest("input, button, .dt-cell--editing, .dt-cell__resize-handle").length) {
 					return;
 				}
 				//// Only a body cell names a row: header and inline-filter cells carry no row index,
@@ -1007,7 +1012,14 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				const row_index = $(e.currentTarget).attr("data-row-index");
 				if (!/^\d+$/.test(row_index || "")) return;
 				const doc = (this.data || [])[+row_index];
-				if (doc && doc.name) frappe.neo_row_click(this, doc.name);
+				if (!doc || !doc.name) return;
+				//// Any other cell shows the row in the panel - a link to another document too (the
+				//// supplier of an invoice), which reads like the text around it (Jérémy, 27.09:
+				//// "the ID opens the document, a click anywhere else shows the panel").
+				if (frappe.neo_row_click(this, doc.name) === true && $link.length) {
+					e.preventDefault();
+					e.stopPropagation();
+				}
 			});
 		this.datatable = new DataTable(this.$datatable_wrapper[0], {
 			columns: this.columns,
