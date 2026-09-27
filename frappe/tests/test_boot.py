@@ -78,3 +78,22 @@ class TestPermissionQueries(FrappeTestCase):
 		# Test user must not see admin user's report
 		self.assertNotIn("Test Admin Report", allowed_reports)
 		self.assertIn("Test User Report", allowed_reports)
+
+
+# //// Neoffice — added test (#898). The boot trims its own copy of the setup-wizard app
+# //// lists; the request-cached lists every other caller reads must stay whole.
+class TestBootAppLists(FrappeTestCase):
+	def test_the_boot_trims_its_own_copies(self):
+		from frappe.boot import get_bootinfo
+		from frappe.core.doctype.installed_applications.installed_applications import (
+			get_setup_wizard_completed_apps,
+			get_setup_wizard_not_required_apps,
+		)
+
+		bootinfo = get_bootinfo()
+		self.assertIsNot(bootinfo.setup_wizard_not_required_apps, get_setup_wizard_not_required_apps())
+		self.assertIsNot(bootinfo.setup_wizard_completed_apps, get_setup_wizard_completed_apps())
+		self.assertEqual(
+			get_setup_wizard_not_required_apps(),
+			frappe.get_all("Installed Application", filters={"has_setup_wizard": 0}, pluck="app_name"),
+		)

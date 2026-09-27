@@ -129,8 +129,16 @@ def get_bootinfo():
 	if sentry_dsn := get_sentry_dsn():
 		bootinfo.sentry_dsn = sentry_dsn
 
-	bootinfo.setup_wizard_completed_apps = get_setup_wizard_completed_apps() or []
-	bootinfo.setup_wizard_not_required_apps = get_setup_wizard_not_required_apps() or []
+	# //// Neoffice — copies, not the lists themselves. Both getters are
+	# //// @frappe.request_cache: every caller of the request gets the SAME list object,
+	# //// and remove_apps_with_incomplete_dependencies() below removes from it in place.
+	# //// Every later call in the request then read the trimmed list - on a real site
+	# //// none of the 31 apps without a setup wizard - so frappe.apps.get_apps_default()
+	# //// dropped every app for an account without System Manager: the desk chrome lost
+	# //// its app tiles on each freshly computed boot, and on every Vue surface (#898).
+	# //// Upstream develop no longer trims this list; drop the copies with it (v16).
+	bootinfo.setup_wizard_completed_apps = list(get_setup_wizard_completed_apps() or [])
+	bootinfo.setup_wizard_not_required_apps = list(get_setup_wizard_not_required_apps() or [])
 	remove_apps_with_incomplete_dependencies(bootinfo)
 
 	return bootinfo
