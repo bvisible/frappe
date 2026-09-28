@@ -44,11 +44,13 @@ frappe.views.BaseList = class BaseList {
 		this.user_settings = frappe.get_user_settings(this.doctype);
 
 		this.start = 0;
-		//// Neoffice — upstream: `this.page_length = frappe.is_large_screen() ? 100 : 20;` (4e23539603,
-		//// 2024-09-23 "last updates"; no rationale in the commit): every list opens with 100 rows, small
-		//// screens included. The upstream line is kept commented out just below.
+		//// Neoffice — upstream: `this.page_length = frappe.is_large_screen() ? 100 : 20;`. Every list
+		//// opened with 100 rows from 4e23539603 (2024-09-23, no rationale), small screens included; 50 since
+		//// 2026-09-28 (Jérémy). The report view's datatable held the page 144-182 ms to draw 100 rows of
+		//// Sales Invoices, 18-23 ms for 20 (measured on osiris, neoffice-maintenance#916), and it runs on
+		//// every list a space opens. The upstream line is kept commented out just below.
 		////this.page_length = frappe.is_large_screen() ? 100 : 20;
-		this.page_length = 100;
+		this.page_length = 50;
 		this.data = [];
 		this.method = "frappe.desk.reportview.get";
 
@@ -376,7 +378,9 @@ frappe.views.BaseList = class BaseList {
 	}
 
 	setup_paging_area() {
-		const paging_values = [20, 100, 500, 2500];
+		//// Neoffice — 50 added (upstream: [20, 100, 500, 2500]): the length every list opens with (see
+		//// page_length in the constructor), so its button shows as the active one.
+		const paging_values = [20, 50, 100, 500, 2500];
 		this.$paging_area = $(
 			`<div class="list-paging-area level">
 				<div class="level-left">
@@ -422,10 +426,10 @@ frappe.views.BaseList = class BaseList {
 
 		this.$paging_area.on("click", ".btn-more", (e) => {
 			this.start += this.page_length;
-			//// Neoffice — upstream: `this.page_length = this.selected_page_count || 20;` (same change as in the
-			//// constructor, 4e23539603, carried through the merge 0b9b53c7ea): "Load more" adds 100 rows, not 20.
-			//// up 20 => 100
-			this.page_length = this.selected_page_count || 100;
+			//// Neoffice — upstream: `this.page_length = this.selected_page_count || 20;`. "Load more" adds as
+			//// many rows as a list opens with: 100 from 4e23539603 (carried through the merge 0b9b53c7ea), 50
+			//// since 2026-09-28 (see the constructor).
+			this.page_length = this.selected_page_count || 50;
 			this.refresh();
 		});
 	}
