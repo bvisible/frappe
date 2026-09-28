@@ -606,6 +606,7 @@ from {tables}
 
 	def set_optional_columns(self):
 		"""Removes optional columns like `_user_tags`, `_comments` etc. if not in table"""
+
 		# remove from fields
 		# //// Neoffice — upstream v15 tests `f in fld` (a substring): any field whose name merely CONTAINS
 		# //// an optional column name (`last_seen`, `first_seen`, `nora_seen`) was silently dropped from the
@@ -1025,9 +1026,15 @@ from {tables}
 
 			# add user permission only if role has read perm
 			elif role_permissions.get("read") or role_permissions.get("select"):
-				# get user permissions
-				user_permissions = frappe.permissions.get_user_permissions(self.user)
-				self.add_user_permissions(user_permissions)
+				# //// Neoffice — backport of the upstream v15 flag (frappe/frappe version-15, not in
+				# //// our v15.89 base): frappe.desk.search.search_widget sets it, for one doctype and
+				# //// only once may_ignore_user_permissions has accepted the claim, to lift the User
+				# //// Permissions of that search and keep every other rule (neoffice-maintenance#894).
+				# //// Identical to upstream v15, so it merges cleanly at #138.
+				if frappe.flags.get("ignore_user_permissions_for_doctype") != self.doctype:
+					# get user permissions
+					user_permissions = frappe.permissions.get_user_permissions(self.user)
+					self.add_user_permissions(user_permissions)
 
 			# Only when full read access is not present fetch shared docuemnts.
 			# This is done to avoid extra query.
@@ -1051,10 +1058,103 @@ from {tables}
 			if not only_if_shared and self.shared and conditions:
 				conditions = f"(({conditions}) or ({self.get_share_condition()}))"
 
+			# //// Neoffice — a list of child rows follows each row's parent (neoffice-maintenance#894).
+			# //// Upstream only checks that the caller may read the parent doctype they NAMED, then
+			# //// returns every row of the table: rows of records the parent's own rules hide (User
+			# //// Permissions, permission_query_conditions hooks, if_owner, shares) and rows of other
+			# //// parent types. See get_child_row_parent_condition. Drop once upstream filters them.
+			if self.doctype_meta.istable and (parent_condition := self.get_child_row_parent_condition()):
+				conditions = f"({conditions}) and {parent_condition}" if conditions else parent_condition
+
 			return conditions
 
 		else:
 			return self.match_filters
+
+	# //// Neoffice — added (neoffice-maintenance#894), no upstream equivalent; see the call in
+	# //// build_match_conditions. Drop, with _parent_read_condition and get_parent_doctypes, once
+	# //// upstream applies the parent's own rules to a list of child rows.
+	def get_child_row_parent_condition(self) -> str:
+		"""Keep the child rows whose parent the user could list: "" when that is every row.
+
+		A child row is read through its parent. Frappe's check for a list of child rows
+		(has_child_permission) asks only whether the user may read the parent doctype
+		they named, at doctype level, where one shared record is enough. Nothing then
+		applies that parent's own rules, and rows of every other parent type come out
+		too: an account allowed its own payslips listed every salary line of the company.
+
+		Here each parent type of the table decides for its own rows, with the conditions
+		a list of that parent would get (see _parent_read_condition):
+		- read in full: all its rows, one `parenttype in (...)` for all such parents;
+		- read with conditions: the rows whose parent passes them, one subquery each;
+		- not read: none of its rows.
+		When every parent is read in full, nothing is added and the query is unchanged.
+		"""
+		if self.user == "Administrator":
+			return ""
+
+		parents = get_parent_doctypes(self.doctype)
+		child_table = f"`tab{self.doctype}`"
+		open_parents, restricted = [], []
+		for parent in parents:
+			condition = self._parent_read_condition(parent)
+			if condition is None:
+				continue
+			if not condition:
+				open_parents.append(parent)
+				continue
+			parent_table = f"`tab{parent}`"
+			restricted.append(
+				f"({child_table}.`parenttype` = {frappe.db.escape(parent, percent=False)}"
+				f" and {child_table}.`parent` in (select {cast_name(f'{parent_table}.`name`')}"
+				f" from {parent_table} where {condition}\n))"
+			)
+
+		if len(open_parents) == len(parents):
+			return ""
+
+		branches = restricted
+		if open_parents:
+			names = ", ".join(frappe.db.escape(parent, percent=False) for parent in open_parents)
+			branches = [f"{child_table}.`parenttype` in ({names})", *restricted]
+
+		# No parent the user may read: no row.
+		return "(" + " or ".join(branches) + ")" if branches else "1=0"
+
+	# //// Neoffice — added (neoffice-maintenance#894), see get_child_row_parent_condition.
+	def _parent_read_condition(self, parent: str) -> str | None:
+		"""What a list of `parent` would show this user: None (nothing), "" (every record)
+		or a condition on `tab<parent>`.
+
+		Role-level read, as has_permission reads it without a document: a doctype read
+		"if owner" only is still read, and its owner condition comes from the match
+		conditions. The match conditions are the parent's own, built by the same code
+		as a list of the parent: User Permissions, permission_query_conditions hooks and
+		server scripts, if_owner, and the shares Frappe adds to them. Without a role read,
+		only the records shared with the user: a single share must not open every row of
+		the type, which the doctype-level check upstream relies on would.
+		"""
+		meta = frappe.get_meta(parent)
+		has_table = not (meta.issingle or is_virtual_doctype(parent))
+		role_permissions = frappe.permissions.get_role_permissions(meta, user=self.user)
+
+		if not role_permissions.get("read"):
+			if not has_table:
+				return None
+			shared = frappe.share.get_shared(parent, self.user, rights=["read"])
+			if not shared:
+				return None
+			names = ", ".join(frappe.db.escape(name, percent=False) for name in shared)
+			return cast_name(f"`tab{parent}`.`name`") + f" in ({names})"
+
+		if not has_table:
+			# A single or virtual parent has no records to filter on: its read decides.
+			return None if requires_owner_constraint(role_permissions) else ""
+
+		parent_query = DatabaseQuery(parent, user=self.user)
+		# As a list of the parent itself: User Permissions "applicable for" the parent apply.
+		parent_query.reference_doctype = parent
+		return parent_query.build_match_conditions()
 
 	def get_share_condition(self):
 		return (
@@ -1353,6 +1453,47 @@ def check_parent_permission(parent, child_doctype):
 
 	# Either parent not passed or the user doesn't have permission on parent doctype of child table!
 	raise frappe.PermissionError
+
+
+# //// Neoffice — added (neoffice-maintenance#894), see DatabaseQuery.get_child_row_parent_condition.
+# //// Cached for the request: frappe.clear_cache (run on every DocType and Custom Field save)
+# //// empties the request cache, so a table added mid-request is seen.
+@frappe.request_cache
+def get_parent_doctypes(child_doctype: str) -> tuple[str, ...]:
+	"""Every doctype with a table field of this child doctype, standard or custom.
+
+	The same test as has_child_permission (the parent's meta has a table field with
+	this child as options), so that a row whose parenttype is anything else, such as a
+	doctype since deleted, is never taken for a readable parent's.
+	"""
+	candidates = set(
+		frappe.get_all(
+			"DocField",
+			filters={
+				"fieldtype": ("in", frappe.model.table_fields),
+				"options": child_doctype,
+				"parenttype": "DocType",
+			},
+			pluck="parent",
+		)
+	)
+	candidates |= set(
+		frappe.get_all(
+			"Custom Field",
+			filters={"fieldtype": ("in", frappe.model.table_fields), "options": child_doctype},
+			pluck="dt",
+		)
+	)
+	if not candidates:
+		return ()
+
+	existing = frappe.get_all("DocType", filters={"name": ("in", list(candidates))}, pluck="name")
+	parents = []
+	for parent in sorted(existing):
+		meta = frappe.get_meta(parent)
+		if not meta.istable and any(df.options == child_doctype for df in meta.get_table_fields()):
+			parents.append(parent)
+	return tuple(parents)
 
 
 def get_order_by(doctype, meta):
