@@ -214,6 +214,8 @@ def search_widget(
 	previous_flag = frappe.flags.get("ignore_user_permissions_for_doctype")
 	frappe.flags.ignore_user_permissions_for_doctype = doctype if ignore_user_permissions else None
 	try:
+		# //// Neoffice — the upstream get_list call, re-indented into this try; only
+		# //// ignore_permissions changed: DocType alone now, the claim goes through the flag.
 		values = frappe.get_list(
 			doctype,
 			filters=filters,
@@ -227,6 +229,8 @@ def search_widget(
 			as_list=not as_dict,
 			strict=False,
 		)
+	# //// Neoffice — restore the caller's flag even when get_list raises, so a refused or
+	# //// failed search never leaves User Permissions lifted for the rest of the request.
 	finally:
 		frappe.flags.ignore_user_permissions_for_doctype = previous_flag
 
