@@ -42,6 +42,9 @@ frappe.provide("frappe.tags");
 ////   6645876a0b / cfaa702efe / d3e8df1362 2026-07-07 stale async responses never reopen the
 ////     panel (request-id counters + _input_visible), Suite drive files + calendar appointments
 ////     (neoffice_theme.api.search_drive_files / search_calendar_events / get_upcoming_events)
+////   maintenance#822 2026-09-29 « Ask Nora » and « Go to » sections first, fed by providers
+////     (default "Ask" / "GoTo" - neoffice_theme's catalogue of places), providers re-drawn alone
+////     when their data arrives late (refresh / _refresh_providers), on_select hooks (rank, delay)
 //// Server side: frappe/desk/search.py (resolve_document, search_by_amount) and
 //// frappe/utils/global_search.py carry their own markers.
 //// v16 merge note: upstream still ships the Awesomplete version (develop shares < 5% of these
@@ -144,6 +147,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this._create_panel();
 		this._bind_events();
 		frappe.search.utils.setup_recent();
+		//// Neoffice — every palette of the page (the navbar's, the cockpit's overlay) can be re-drawn
+		//// when a provider's data arrives after the first keys (frappe.search.AwesomeBar.refresh).
+		frappe.search.AwesomeBar._instances.push(this);
 	}
 
 	// ── Panel creation ─────────────────────────────────────
@@ -253,6 +259,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 
 		// Track search term
 		this.analytics.track_search(txt);
+		//// Neoffice — when the search began, for the delay measured at the opening (R6).
+		if (!this._started) this._started = Date.now();
 
 		// Pre-load help context (async, cached per doctype)
 		this._load_help_context();
@@ -528,16 +536,33 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this._make_calendar_search(txt);
 
 		// Custom search providers
+		this.options = this.options.concat(this._run_providers(txt));
+	}
+
+	//// Neoffice — the custom providers' loop, out of _add_defaults (maintenance#822): their results are
+	//// marked, so that a provider whose data arrives later re-draws only them (_refresh_providers)
+	//// instead of firing the document, amount, drive and calendar searches a second time.
+	_run_providers(txt) {
+		let out = [];
 		for (const provider of frappe.search.AwesomeBar.custom_providers) {
 			try {
 				const results = provider(txt);
 				if (Array.isArray(results)) {
-					this.options = this.options.concat(results);
+					results.forEach((r) => (r._provided = true));
+					out = out.concat(results);
 				}
 			} catch (e) {
 				console.warn("Search provider error:", e);
 			}
 		}
+		return out;
+	}
+
+	_refresh_providers() {
+		const txt = this._current_txt;
+		if (!txt || txt.length < 2 || !this.$panel.hasClass("active")) return;
+		this.options = this.options.filter((o) => !o._provided).concat(this._run_providers(txt));
+		this._render(txt);
 	}
 
 	//// Neoffice — upstream build_options (tags shortcut, creatables / lists / pages / … options,
@@ -610,7 +635,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		});
 	}
 
-	//// Neoffice — _render, the panel body (417d4f52cf / dba8b1fd89). Section order: Create action
+	//// Neoffice — _render, the panel body (417d4f52cf / dba8b1fd89). Section order: Ask Nora and Go to
+	//// (maintenance#822) › Create action
 	//// (f9980ea85c) › View all (8822b0ef36 / 2fb7b98d18) › recent records of the matched DocType
 	//// (b73d9fe958) › Go to Document, max 3 (529db29093 / 1f08f5cdd2) › amount matches (f131a66b4a) ›
 	//// appointments + files (cfaa702efe) › calculator (69a0372263) › global results grouped by DocType,
@@ -637,6 +663,23 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		const $sidebar = $body.find(".search-panel-sidebar");
 
 		// ── LEFT COLUMN: Results ──
+
+		//// Neoffice — a question and the places first (maintenance#822, search R5 / R1). A provider
+		//// (neoffice_theme awesome_bar_docs.js) answers a question with « Ask Nora » (default "Ask")
+		//// and names the places of the reader's spaces that match - a space, a tab, a view of a list,
+		//// a report - with "GoTo": where the reader wants to go comes before the documents that merely
+		//// contain the words. The best places first (index), six at most.
+		const ask = this.options.filter((o) => o.default === "Ask");
+		if (ask.length) {
+			this._render_section_into($main, "", ask.slice(0, 1), "ask");
+		}
+		const places = this.options
+			.filter((o) => o.default === "GoTo")
+			.sort((a, b) => (b.index || 0) - (a.index || 0));
+		if (places.length) {
+			// A context of its own: a bare « Go to » is already « Aller au » (a date) in French.
+			this._render_section_into($main, __("Go to", null, "Search palette section"), places.slice(0, 6), "goto-place");
+		}
 
 		// 0. Create action ("Create Customer" → Quick Entry) — prominent, first
 		const create_actions = this.options.filter((o) => o.default === "CreateAction");
@@ -978,7 +1021,10 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		const clean_label = typeof label === "string" ? label.replace(/<[^>]*>/g, "") : label;
 		let display_label = frappe.utils.xss_sanitise(clean_label);
 		// Highlight search term in label
-		if (this._current_txt && (type === "global" || type === "learn" || type === "docs" || type === "goto")) {
+		if (
+			this._current_txt &&
+			(type === "global" || type === "learn" || type === "docs" || type === "goto" || type === "goto-place")
+		) {
 			const words = this._current_txt.split(/\s+/).filter((w) => w.length > 1);
 			words.forEach((w) => {
 				const re = new RegExp(
@@ -997,6 +1043,10 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		// DocType badge for global results
 		if (item.doctype && type === "global") {
 			inner += `<span class="search-item-doctype">${__(item.doctype)}</span>`;
+		}
+		//// Neoffice — what a place is (a list, a view, a report), on the right like a DocType (#822).
+		if (item.badge && type === "goto-place") {
+			inner += `<span class="search-item-doctype">${frappe.utils.xss_sanitise(item.badge)}</span>`;
 		}
 
 		const $item = $(`<div class="search-item" role="option">${inner}</div>`);
@@ -1184,8 +1234,21 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			);
 		}
 
+		//// Neoffice — tell the apps what was opened: its rank and how long after the first key
+		//// (maintenance#822, search R6). neoffice_theme measures it - never the typed text.
+		const rank = this._all_items.findIndex((x) => x.data === item);
+		const elapsed = this._started ? Date.now() - this._started : null;
+		for (const hook of frappe.search.AwesomeBar.on_select) {
+			try {
+				hook(item, { rank, elapsed, txt: this._current_txt });
+			} catch (err) {
+				console.warn("Search select hook error:", err);
+			}
+		}
+
 		if (item.onclick) {
-			item.onclick(item.match);
+			//// Neoffice — the event too: a place opens in a new browser tab on Ctrl / Cmd (#822).
+			item.onclick(item.match, e);
 		} else if (item.route) {
 			if (e && (e.ctrlKey || e.metaKey)) {
 				frappe.open_in_new_tab = true;
@@ -1210,6 +1273,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this._search_id++;
 		this._search_pending = false;
 		this._current_txt = "";
+		this._started = null;
 		frappe.search.AwesomeBar._resolve_request_id++;
 		frappe.search.AwesomeBar._amount_search_id++;
 		frappe.search.AwesomeBar._drive_search_id++;
@@ -1738,6 +1802,15 @@ frappe.search.AwesomeBar = class AwesomeBar {
 //// discard stale responses (b6f135ea30, f131a66b4a, cfaa702efe).
 // Extension point for custom search providers
 frappe.search.AwesomeBar.custom_providers = [];
+//// Neoffice — maintenance#822 (search R1 / R6): the palettes of the page, re-drawn by refresh() when
+//// a provider's data arrives late, and the hooks told what the reader opened.
+frappe.search.AwesomeBar._instances = [];
+frappe.search.AwesomeBar.on_select = [];
+frappe.search.AwesomeBar.refresh = function () {
+	for (const bar of frappe.search.AwesomeBar._instances) {
+		bar._refresh_providers();
+	}
+};
 
 // Internal counter for discarding stale resolve_document responses
 frappe.search.AwesomeBar._resolve_request_id = 0;
