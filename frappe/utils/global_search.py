@@ -587,6 +587,9 @@ def search(text, start=0, limit=20, doctype=""):
 		if r.rank > 0.0:
 			grouped[r.doctype].append(r)
 
+	# //// Neoffice — removed the inline ENTITY_PRIORITY list that used to sit here (3f8553f719
+	# //// "fix(search): a customer is found by its name..."): promoted to the module constant
+	# //// above so search() can also draw its own entity pool from it — see the block marker there.
 	def doctype_sort_key(dt):
 		if dt in ENTITY_PRIORITY:
 			return (0, ENTITY_PRIORITY.index(dt))
