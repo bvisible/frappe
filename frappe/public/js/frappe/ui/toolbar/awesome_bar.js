@@ -596,6 +596,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 	// ── Check if text is a math expression ─────────────────
 	_is_math_expression(txt) {
 		if (txt.charAt(0) === "(" || txt.charAt(0) === "=") return true;
+		//// Neoffice — digits joined by hyphens are a code (« 03185-20 », an item), not a subtraction:
+		//// the document lookup and the full-text search were skipped for them (maintenance#822).
+		if (/^\d+(-\d+)+$/.test(txt)) return false;
 		// Only treat as math if it starts with a digit AND contains an operator
 		// "00079" is a document number, not math. "10+10" is math.
 		if (/^\d/.test(txt) && /[+\-*/%(]/.test(txt)) return true;

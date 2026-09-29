@@ -462,6 +462,17 @@ def delete_for_document(doc):
 	frappe.db.delete("__global_search", {"doctype": doc.doctype, "name": doc.name})
 
 
+# //// Neoffice — the entity doctypes of the search (5ca9112574 / 599cca5304 / cfaa702efe), shown
+# //// before the transactional ones; a module constant since maintenance#822, which also gives
+# //// them a pool of their own in search().
+# Entity doctypes shown first — these are the "who/what" that users
+# care about most. Transactional doctypes come after.
+ENTITY_PRIORITY = [
+	"Item", "Customer", "Supplier", "Contact", "Employee", "Lead",
+	"Address", "User", "Voice Note", "Document Scan", "Archived Document",
+]
+
+
 @frappe.whitelist()
 def search(text, start=0, limit=20, doctype=""):
 	"""
@@ -510,6 +521,24 @@ def search(text, start=0, limit=20, doctype=""):
 
 		result = query.run(as_dict=True)
 
+		# //// Neoffice — the entities rank below their own documents: a customer named in 257
+		# //// invoices had them fill the pool above, and the customer itself never reached the
+		# //// per-doctype diversification below - searching a customer's name did not find the
+		# //// customer (maintenance#822, search R4). A second, small pool of entities only.
+		if not doctype and not cint(start):
+			entities = [dt for dt in ENTITY_PRIORITY if dt in allowed_doctypes]
+			if entities:
+				seen = {(r.doctype, r.name) for r in result}
+				extra = (
+					frappe.qb.from_(global_search)
+					.select(global_search.doctype, global_search.name, global_search.content, rank.as_("rank"))
+					.where(rank)
+					.where(global_search.doctype.isin(entities))
+					.orderby("rank", order=frappe.qb.desc)
+					.limit(20)
+				).run(as_dict=True)
+				result.extend(r for r in extra if (r.doctype, r.name) not in seen)
+
 		results.extend(result)
 
 	# //// Neoffice ▼▼▼ — upstream sorts the fulltext hits by walking allowed_doctypes and appending
@@ -557,13 +586,6 @@ def search(text, start=0, limit=20, doctype=""):
 	for r in results:
 		if r.rank > 0.0:
 			grouped[r.doctype].append(r)
-
-	# Entity doctypes shown first — these are the "who/what" that users
-	# care about most. Transactional doctypes come after.
-	ENTITY_PRIORITY = [
-		"Item", "Customer", "Supplier", "Contact", "Employee", "Lead",
-		"Address", "User", "Voice Note", "Document Scan", "Archived Document",
-	]
 
 	def doctype_sort_key(dt):
 		if dt in ENTITY_PRIORITY:
