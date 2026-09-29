@@ -44,7 +44,8 @@ frappe.provide("frappe.tags");
 ////     (neoffice_theme.api.search_drive_files / search_calendar_events / get_upcoming_events)
 ////   maintenance#822 2026-09-29 « Ask Nora » and « Go to » sections first, fed by providers
 ////     (default "Ask" / "GoTo" - neoffice_theme's catalogue of places), providers re-drawn alone
-////     when their data arrives late (refresh / _refresh_providers), on_select hooks (rank, delay)
+////     when their data arrives late (refresh / _refresh_providers), on_select hooks (rank, delay),
+////     on_highlight hooks with the sidebar (the theme's quick card of an item, customer, supplier)
 //// Server side: frappe/desk/search.py (resolve_document, search_by_amount) and
 //// frappe/utils/global_search.py carry their own markers.
 //// v16 merge note: upstream still ships the Awesomplete version (develop shares < 5% of these
@@ -985,6 +986,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 				e.preventDefault();
 				this._select_item(item, e);
 			});
+			//// Neoffice — the result under the mouse is announced like the selected one (#822, R4).
+			$item.on("mouseenter", () => this._highlight(item));
 			$section.append($item);
 			this._all_items.push({ $el: $item, data: item });
 		});
@@ -1197,6 +1200,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		if (this._selected >= 0 && this._selected < this._all_items.length) {
 			const $el = this._all_items[this._selected].$el;
 			$el.addClass("selected");
+			//// Neoffice — the selected result is announced to the apps (#822, search R4).
+			this._highlight(this._all_items[this._selected].data);
 			// Scroll into view within the main column
 			const scrollParent = $el.closest(".search-panel-main").get(0);
 			const item = $el.get(0);
@@ -1210,6 +1215,21 @@ frappe.search.AwesomeBar = class AwesomeBar {
 					scrollParent.scrollTop =
 						item.offsetTop + item.offsetHeight - scrollParent.clientHeight + 8;
 				}
+			}
+		}
+	}
+
+	//// Neoffice — the result the reader is on - selected with the keys, or under the mouse - is
+	//// announced to the apps with the sidebar and the palette (maintenance#822, search R4):
+	//// neoffice_theme shows there the key facts of an item, a customer or a supplier without
+	//// opening it, and closes the palette when one of its links is followed.
+	_highlight(item) {
+		const $sidebar = this.$panel.find(".search-panel-sidebar");
+		for (const hook of frappe.search.AwesomeBar.on_highlight) {
+			try {
+				hook(item, $sidebar, this);
+			} catch (err) {
+				console.warn("Search highlight hook error:", err);
 			}
 		}
 	}
@@ -1810,6 +1830,7 @@ frappe.search.AwesomeBar.custom_providers = [];
 //// a provider's data arrives late, and the hooks told what the reader opened.
 frappe.search.AwesomeBar._instances = [];
 frappe.search.AwesomeBar.on_select = [];
+frappe.search.AwesomeBar.on_highlight = [];
 frappe.search.AwesomeBar.refresh = function () {
 	for (const bar of frappe.search.AwesomeBar._instances) {
 		bar._refresh_providers();
