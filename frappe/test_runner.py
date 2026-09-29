@@ -320,7 +320,11 @@ def _add_test(app, path, filename, verbose, test_suite=None):
 	app_path = frappe.get_app_path(app)
 	relative_path = os.path.relpath(path, app_path)
 	if relative_path == ".":
-		module_name = app
+		# //// Neoffice — a test file at the package root is its own module: `<app>.<test_file>` (#816).
+		# //// Upstream names the APP here, so `bench run-tests --app <app>` imported the app package
+		# //// instead of the file and collected no test at all from files placed at the package root
+		# //// (47 files of neoffice_activity ran in no CI for months). Drop this when upstream fixes it.
+		module_name = f"{app}.{filename[:-3]}"
 	else:
 		module_name = "{app}.{relative_path}.{module_name}".format(
 			app=app, relative_path=relative_path.replace("/", "."), module_name=filename[:-3]
