@@ -1,5 +1,6 @@
 # Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
+# //// Neoffice — patch is used by TestEmptyTablesByModuleCache below (44136d350b "perf(config): the answer of get_all_empty_tables_by_module is kept for an hour")
 from unittest.mock import patch
 
 import frappe
