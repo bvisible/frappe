@@ -548,6 +548,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			try {
 				const results = provider(txt);
 				if (Array.isArray(results)) {
+					//// Neoffice — see the block marker above: results tagged _provided
 					results.forEach((r) => (r._provided = true));
 					out = out.concat(results);
 				}
@@ -558,6 +559,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		return out;
 	}
 
+	//// Neoffice — see the block marker above: re-draws only provider results
 	_refresh_providers() {
 		const txt = this._current_txt;
 		if (!txt || txt.length < 2 || !this.$panel.hasClass("active")) return;
@@ -1021,6 +1023,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		const clean_label = typeof label === "string" ? label.replace(/<[^>]*>/g, "") : label;
 		let display_label = frappe.utils.xss_sanitise(clean_label);
 		// Highlight search term in label
+		//// Neoffice — see the block marker above: goto-place items also highlighted
 		if (
 			this._current_txt &&
 			(type === "global" || type === "learn" || type === "docs" || type === "goto" || type === "goto-place")
@@ -1273,6 +1276,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this._search_id++;
 		this._search_pending = false;
 		this._current_txt = "";
+		//// Neoffice — see the block marker above: reset the first-key timer (#822, search R6)
 		this._started = null;
 		frappe.search.AwesomeBar._resolve_request_id++;
 		frappe.search.AwesomeBar._amount_search_id++;
