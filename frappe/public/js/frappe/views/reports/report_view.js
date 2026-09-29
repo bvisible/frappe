@@ -988,20 +988,19 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		//// Neoffice — the workspace tabs' panel (neoffice_theme/public/js/workspace_tabs.js, decision J9 of the
 		//// workspace redesign, maintenance#822): a single click on a cell shows its row in the tab's side panel,
 		//// through frappe.neo_row_click(view, name) - the same hook as the list view's row click. A single click
-		//// only focuses a datatable cell (editing starts on a double click or Enter), the ID link still opens
-		//// the form, the checkbox still selects, and nothing changes when the theme defines no hook. Bound once
-		//// per wrapper (namespaced), since setup_datatable runs again at every refresh.
+		//// only focuses a datatable cell (editing starts on Enter; a double click opens the document, see
+		//// neoffice_theme), the ID link shows the row as well, the checkbox still selects, and nothing changes
+		//// when the theme defines no hook. Bound once per wrapper (namespaced), since setup_datatable runs
+		//// again at every refresh.
 		this.$datatable_wrapper
 			.off("click.neo_row")
 			.on("click.neo_row", ".dt-row .dt-cell", (e) => {
 				if (typeof frappe.neo_row_click !== "function") return;
-				//// The row's own ID link (data-neo-id, set where the name column is formatted) opens
-				//// its document, and a Ctrl/Cmd/Shift/Alt-click follows any link.
+				//// A Ctrl/Cmd/Shift/Alt-click follows any link, the row's own ID link included. A plain
+				//// click on the ID shows the row like any other cell (Jérémy, 29.09: one click shows,
+				//// a double click opens - the 27.09 exception that let the ID open is gone).
 				const $link = $(e.target).closest("a");
-				if (
-					$link.length &&
-					($link.is("[data-neo-id]") || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey)
-				) {
+				if ($link.length && (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey)) {
 					return;
 				}
 				if ($(e.target).closest("input, button, .dt-cell--editing, .dt-cell__resize-handle").length) {
@@ -1013,9 +1012,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				if (!/^\d+$/.test(row_index || "")) return;
 				const doc = (this.data || [])[+row_index];
 				if (!doc || !doc.name) return;
-				//// Any other cell shows the row in the panel - a link to another document too (the
-				//// supplier of an invoice), which reads like the text around it (Jérémy, 27.09:
-				//// "the ID opens the document, a click anywhere else shows the panel").
+				//// Every cell shows the row in the panel - its ID, and a link to another document too
+				//// (the supplier of an invoice), which reads like the text around it.
 				if (frappe.neo_row_click(this, doc.name) === true && $link.length) {
 					e.preventDefault();
 					e.stopPropagation();

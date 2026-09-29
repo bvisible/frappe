@@ -3,6 +3,20 @@ import ListSettings from "./list_settings";
 
 frappe.provide("frappe.views");
 
+//// Neoffice — added helper (no upstream equivalent), for the workspace tabs' panel (maintenance#822):
+//// does this <a> open the form of this very document? A list row's ID and title links do; a link
+//// to another document (the customer of an invoice) does not.
+frappe.neo_is_form_link = function (anchor, doctype, name) {
+	if (!anchor || !anchor.getAttribute("href") || !doctype || !name) return false;
+	try {
+		const path = decodeURIComponent(new URL(anchor.href, window.location.origin).pathname);
+		const own = decodeURIComponent(frappe.utils.get_form_link(doctype, name));
+		return path.replace(/\/$/, "") === own.replace(/\/$/, "");
+	} catch (e) {
+		return false;
+	}
+};
+
 //// Neoffice — added (no upstream equivalent): tells an app that this list asks
 //// frappe.neo_list_args(list) for extra arguments of its request (get_args in base_list.js, the
 //// count below). neoffice_theme only puts several views of a space on at once when it is set:
@@ -1379,9 +1393,33 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 				return;
 			}
 
-			//// Neoffice — a plain click on the row's own ID or title link opens its document again,
-			//// as upstream does (maintenance#822, 27.09: "the ID opens the document, a click anywhere
-			//// else shows the panel"). The block that sent that click to the workspace tab's panel is gone.
+			//// Neoffice — the row's own document link (its ID, its title) shows the row in the
+			//// workspace tab's side panel, like a click anywhere else on the row; a double click opens
+			//// the document (neoffice_theme, maintenance#924), and so does the panel's first action.
+			//// Jérémy, 29.09: the ID "still opens" - the rule of 27.09 morning is back, now that a
+			//// double click opens (the afternoon had the ID open again, as a second click on the
+			//// panel was the only other way). A Ctrl/Cmd/Shift/Alt-click and the middle button still
+			//// open the document, a link to another document still navigates, and nothing changes
+			//// where frappe.neo_row_click is not defined or declines the click.
+			const $neo_link = $target.closest("a");
+			if (
+				$neo_link.length &&
+				!(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) &&
+				typeof frappe.neo_row_click === "function"
+			) {
+				const neo_row_name = $(e.currentTarget)
+					.find(".list-row-checkbox")
+					.attr("data-name");
+				if (
+					neo_row_name &&
+					frappe.neo_is_form_link($neo_link.get(0), this.doctype, neo_row_name) &&
+					frappe.neo_row_click(this, neo_row_name) === true
+				) {
+					e.preventDefault();
+					e.stopPropagation();
+					return false;
+				}
+			}
 			// link, let the event be handled via set_route
 			if ($target.is("a")) return;
 
@@ -1391,8 +1429,8 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 			//// decision J9 of the workspace redesign, maintenance#822): a click on a row may show that
 			//// row in the tab's side panel instead of opening the form. The theme defines
 			//// frappe.neo_row_click(list_view, name) and returns true when it took the click; the
-			//// row's title link still opens the form (handled above), so the form is one click
-			//// further. Upstream behaviour is unchanged when nothing is defined or it returns false.
+			//// row's own title link goes there too (handled above), and a double click opens the
+			//// form. Upstream behaviour is unchanged when nothing is defined or it returns false.
 			//// Intercepting from the theme instead would depend on CSS classes and event order,
 			//// and break silently at an update: hence this line in the fork.
 			const neo_name = $row.find(".list-row-checkbox").attr("data-name");
