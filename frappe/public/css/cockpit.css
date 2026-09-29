@@ -726,6 +726,15 @@ body.neoffice-cockpit .form-hero-step .step-ctas {
 	   //// centred under the whole stepper and reads as one line. A narrow
 	   //// viewport wants an overflow menu, not a taller hero. */
 }
+/* //// Neoffice — the row above overflows its step's column ON PURPOSE, but the steps that come after
+   //// it are `position: relative` and later in the DOM, so they painted over the overflowing pills and
+   //// took their clicks: with five actions on a VAT declaration the last two were dead (measured: the
+   //// mousedown of the last pill landed on the next step, and elementFromPoint answered that step).
+   //// Lifting the row itself puts its pills back on top of the neighbouring steps, whatever their count. */
+body.neoffice-cockpit .form-hero-step .step-ctas {
+	position: relative;
+	z-index: 2;
+}
 /* //// Neoffice — the one action that moves the document forward opens the row.
    //// The mirror appends its clones after the native pills, so without this the
    //// primary (ink) button landed LAST, behind four secondary tools — the eye
