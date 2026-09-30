@@ -367,6 +367,9 @@ def attach_files_to_document(doc: "Document", event) -> None:
 			attached_to_doctype=doc.doctype,
 			attached_to_field=df.fieldname,
 			folder="Home/Attachments",
+			# //// Neoffice — is_private set so the duplicate-content hash check below reads the
+			# //// right folder (6f2cb90e17 "fix(file): the same content is not attached again to
+			# //// a field under another url")
 			is_private=cint(value.startswith("/private")),
 		)
 		# //// Neoffice — is_private above lets the content hash read the right folder. And the
