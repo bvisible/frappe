@@ -1004,6 +1004,11 @@ frappe.ui.form.FormHero = class FormHero {
 		const $av = this.$wrapper.find(".form-hero-avatar");
 		if (!$av.length) return;
 		$av.off("click.heroimg").on("click.heroimg", () => {
+			//// Neoffice — a locked picture is not replaced by a click: the Company form's logo is set
+			//// in the company settings (neoffice_wizard), whose next save undid an upload made here.
+			//// Read at click time: the lock is set after the hero is drawn.
+			const df = frappe.meta.get_docfield(this.frm.doctype, image_field, this.frm.docname);
+			if ((df && df.read_only) || !(this.frm.perm && this.frm.perm[0] && this.frm.perm[0].write)) return;
 			new frappe.ui.FileUploader({
 				doctype: this.frm.doctype,
 				docname: this.frm.docname,
