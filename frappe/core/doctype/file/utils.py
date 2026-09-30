@@ -367,11 +367,43 @@ def attach_files_to_document(doc: "Document", event) -> None:
 			attached_to_doctype=doc.doctype,
 			attached_to_field=df.fieldname,
 			folder="Home/Attachments",
+			is_private=cint(value.startswith("/private")),
 		)
+		# //// Neoffice — is_private above lets the content hash read the right folder. And the
+		# //// same content may already be attached to this field under another url.
+		# //// File.validate_duplicate_entry points a new record at an older copy of the same content
+		# //// attached to the document, and still inserts it: the url check above then never matched
+		# //// again, and every save of the document added one more record (764 on one company's
+		# //// settings, saved by each update, their logo shown 760 times). Same content, same
+		# //// document and field: nothing to attach.
+		if _content_already_attached(file):
+			continue
 		try:
 			file.insert(ignore_permissions=True)
 		except Exception:
 			doc.log_error("Error Attaching File")
+
+
+def _content_already_attached(file: "File") -> bool:
+	"""//// Neoffice — added (see attach_files_to_document): whether a File with this content is
+	attached to the same document and field."""
+	try:
+		file.generate_content_hash()
+	except Exception:
+		return False
+	return bool(
+		file.content_hash
+		and frappe.db.exists(
+			"File",
+			{
+				"content_hash": file.content_hash,
+				"is_private": file.is_private,
+				"attached_to_doctype": file.attached_to_doctype,
+				"attached_to_name": file.attached_to_name,
+				"attached_to_field": file.attached_to_field,
+			},
+		)
+	)
 
 
 def relink_files(doc, fieldname, temp_doc_name):
