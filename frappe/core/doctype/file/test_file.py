@@ -622,6 +622,44 @@ class TestAttachment(FrappeTestCase):
 
 		self.assertTrue(exists)
 
+	def test_the_same_content_is_not_attached_again_under_another_url(self):
+		# //// Neoffice — added test (see attach_files_to_document): a field pointing at a copy of a
+		# //// file already attached to it must not gain one more File at every save.
+		doc = frappe.get_doc(doctype=self.test_doctype, title="neo same content").insert()
+		other = frappe.get_doc(doctype=self.test_doctype, title="neo same content, other").insert()
+		content = "Neoffice same content " + frappe.generate_hash()
+		first = frappe.get_doc(
+			{
+				"doctype": "File",
+				"file_name": "neo_same_a.txt",
+				"content": content,
+				"attached_to_doctype": self.test_doctype,
+				"attached_to_name": doc.name,
+				"attached_to_field": "attachment",
+			}
+		).insert()
+		# The same content under another name on disk, attached elsewhere: File would store a
+		# content it already has under the first url, so the copy is written directly.
+		copy_name = f"neo_same_b_{frappe.generate_hash(length=6)}.txt"
+		with open(frappe.get_site_path("public", "files", copy_name), "w") as f:
+			f.write(content)
+		second = frappe.get_doc(
+			{
+				"doctype": "File",
+				"file_url": f"/files/{copy_name}",
+				"attached_to_doctype": self.test_doctype,
+				"attached_to_name": other.name,
+			}
+		).insert()
+		self.assertNotEqual(first.file_url, second.file_url)
+
+		doc.attachment = second.file_url
+		doc.save()
+		doc.save()
+
+		attached = {"attached_to_doctype": self.test_doctype, "attached_to_name": doc.name}
+		self.assertEqual(frappe.db.count("File", attached), 1)
+
 
 class TestAttachmentsAccess(FrappeTestCase):
 	def setUp(self) -> None:
