@@ -54,6 +54,14 @@ frappe.ui.form.add_hero_step_action = function (doctype, provider) {
 	(frappe.ui.form.hero_step_actions[doctype] =
 		frappe.ui.form.hero_step_actions[doctype] || []).push(provider);
 };
+//// Neoffice — the hero's title as text (see FormHero.render): HTML is parsed in an inert document.
+function hero_text(value) {
+	const text = String(value == null ? "" : value);
+	if (!/[<&]/.test(text)) return text;
+	const parsed = new DOMParser().parseFromString(text, "text/html");
+	return (parsed.body.textContent || "").replace(/\s+/g, " ").trim();
+}
+
 function submit_action(frm) {
 	if (frm.doc.docstatus !== 0) return null;
 	if (!frm.perm || !frm.perm[0] || !frm.perm[0].submit) return null;
@@ -672,7 +680,12 @@ frappe.ui.form.FormHero = class FormHero {
 	render() {
 		const doc = this.frm.doc;
 		const meta = this.frm.meta;
-		const title = (meta.title_field && doc[meta.title_field]) || doc.name;
+		//// Neoffice — a title field may hold HTML: a ToDo's title is its description, which the Text Editor
+		//// stores as <div class="ql-editor read-mode"><p>…</p></div>, and the hero showed those tags. The page
+		//// title and the breadcrumbs already read it as text. Read in an inert document (DOMParser): nothing
+		//// in a user's HTML loads or runs, unlike frappe.utils.html2text's live <div>.
+		const raw_title = (meta.title_field && doc[meta.title_field]) || doc.name;
+		const title = hero_text(raw_title) || doc.name;
 		const initial = (title || "?").trim().charAt(0).toUpperCase();
 		// Main image in the round hero avatar: any doctype that declares an
 		// `image_field` (Item, Customer, Employee…) shows its picture here;
