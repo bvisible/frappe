@@ -201,6 +201,28 @@ function make_action(frm, label, method, target_doctype) {
 	return { label, icon: "plus", run: () => frappe.model.open_mapped_doc({ method, frm }) };
 }
 
+//// Neoffice — an app may give a doctype its own pipeline, as it gives it step actions above: the steps, the rank
+//// and the actions of HERO_REGISTRY's shape. The delivery note's journey belongs to neoffice_theme's logistics
+//// (Brouillon → Validé → Livré → Facturé: « Livré » is a status frappe knows nothing about), so the app declares it
+//// and frappe stays agnostic. The builders of the standard actions are offered with it, so that an app's pipeline
+//// says « Valider », « Imprimer », « Créer » the way every other one does. A registered pipeline wins over the
+//// registry's entry; nothing registered, nothing changes.
+////   frappe.ui.form.set_hero_pipeline("Delivery Note", { steps(doc, tx), rank(doc), actions(rank, frm) });
+frappe.ui.form.hero_pipelines = frappe.ui.form.hero_pipelines || {};
+frappe.ui.form.set_hero_pipeline = function (doctype, conf) {
+	frappe.ui.form.hero_pipelines[doctype] = conf;
+};
+frappe.ui.form.hero_actions = {
+	submit: (frm) => submit_action(frm),
+	send: (frm) => send_action(frm),
+	print: (frm) => print_action(frm),
+	create_menu: (frm) => create_menu_action(frm),
+	make: (frm, label, method, target_doctype) => make_action(frm, label, method, target_doctype),
+};
+function hero_conf(doctype) {
+	return frappe.ui.form.hero_pipelines[doctype] || HERO_REGISTRY[doctype];
+}
+
 const HERO_REGISTRY = {
 	Quotation: {
 		steps: (doc, tx) => [
@@ -677,7 +699,7 @@ frappe.ui.form.FormHero = class FormHero {
 
 		// key value (right side): registry override, else auto grand_total
 		let value_html = "";
-		const conf_entry = HERO_REGISTRY[this.frm.doctype] || {};
+		const conf_entry = hero_conf(this.frm.doctype) || {}; //// Neoffice — an app's pipeline first (set_hero_pipeline)
 		let vf =
 			conf_entry.value_field ||
 			(meta.fields.some((f) => f.fieldname === "grand_total") ? "grand_total" : null);
@@ -765,7 +787,8 @@ frappe.ui.form.FormHero = class FormHero {
 			</div>`;
 
 		// stepper — only for submittable doctypes (masters have no lifecycle)
-		let conf = HERO_REGISTRY[this.frm.doctype] || (meta.is_submittable ? DEFAULT_PIPELINE : null);
+		//// Neoffice — an app's pipeline first (set_hero_pipeline), then the registry, then the default.
+		let conf = hero_conf(this.frm.doctype) || (meta.is_submittable ? DEFAULT_PIPELINE : null);
 		//// Neoffice — an entry may carry only a key figure (Task): without
 		//// steps there is no pipeline to draw, and .steps() must not crash.
 		if (conf && !conf.steps) conf = null;
