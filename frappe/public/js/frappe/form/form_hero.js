@@ -782,6 +782,7 @@ frappe.ui.form.FormHero = class FormHero {
 					<div class="form-hero-title">${frappe.utils.escape_html(title)}</div>
 					<div class="form-hero-sub">${frappe.utils.escape_html(sub)}</div>
 				</div>
+				<!-- //// Neoffice — the detail block beside the title, filled by apps (add_hero_detail); empty without one. -->
 				${detail.html}
 				${value_html}
 			</div>`;
