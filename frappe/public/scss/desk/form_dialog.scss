@@ -76,4 +76,16 @@
 		min-height: 100vh;
 		border-radius: 0;
 	}
+
+	/* the doctype on a small line of its own above the title, which then wraps on the full width */
+	.form-dialog .modal-title {
+		flex-wrap: wrap;
+		gap: 0 var(--padding-sm);
+		font-size: var(--text-2xl);
+	}
+
+	.form-dialog .form-dialog-doctype {
+		flex-basis: 100%;
+		font-size: var(--text-sm);
+	}
 }
