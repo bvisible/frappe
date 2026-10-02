@@ -278,6 +278,24 @@ frappe.ui.form.FormDialog = class FormDialog {
 	}
 
 	async show() {
+		this.watch_slow_double_click();
+		// Access first (prefetched at pointerdown, so usually already answered): a refused or excluded
+		// document shows no dialog at all, not one that flashes open and shut.
+		let access;
+		try {
+			access = await FormDialog.access(this.doctype, this.name);
+		} catch (e) {
+			// The server did not answer: go to the document as before.
+			return this.give_up(() => FormDialog.go(this.doctype, this.name));
+		}
+		if (!access || access.status !== "ok") {
+			return this.give_up(() =>
+				access && access.status === "excluded"
+					? FormDialog.go(this.doctype, this.name)
+					: FormDialog.refuse(access && access.status)
+			);
+		}
+
 		const level = FormDialog.level(this.depth);
 		level.current = this;
 		// The hover card of the link (ui/link_preview.js) would stay over the dialog.
@@ -297,25 +315,24 @@ frappe.ui.form.FormDialog = class FormDialog {
 		if (!this.dialog.$wrapper.get(0).isConnected) this.dialog.$wrapper.appendTo(document.body);
 		this.dialog.show();
 		this.hold_open(false);
-		this.watch_slow_double_click();
 
-		let access;
 		try {
-			access = await FormDialog.load(this.doctype, this.name);
+			await FormDialog.load(this.doctype, this.name);
 		} catch (e) {
-			// The server did not answer: go to the document as before.
 			this.close();
 			return FormDialog.go(this.doctype, this.name);
 		}
 		if (this.hidden) return;
-		if (!access || access.status !== "ok") {
-			this.close();
-			if (access && access.status === "excluded")
-				return FormDialog.go(this.doctype, this.name);
-			return FormDialog.refuse(access && access.status);
-		}
 		this.mount();
 		FormDialog.last_open = this;
+	}
+
+	// Nothing was shown yet: leave the stack, then go or say why.
+	give_up(then) {
+		this.hidden = true;
+		this.stop_watch && this.stop_watch();
+		FormDialog.stack = FormDialog.stack.filter((f) => f !== this);
+		return then();
 	}
 
 	mount() {
@@ -427,7 +444,15 @@ frappe.ui.form.FormDialog = class FormDialog {
 
 	close({ discard = false } = {}) {
 		this.discard = discard;
-		if (this.dialog && this.dialog.display) this.dialog.hide();
+		const d = this.dialog;
+		if (!d) return this.on_hidden();
+		const modal = d.$wrapper.data("bs.modal");
+		// Still fading in: Bootstrap ignores a hide during that transition, hide once it is shown.
+		if (modal && modal._isTransitioning && !d.display) {
+			d.$wrapper.one("shown.bs.modal", () => d.hide());
+			return;
+		}
+		if (d.display || d.is_visible) d.hide();
 		else this.on_hidden();
 	}
 
