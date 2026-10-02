@@ -1642,6 +1642,80 @@ body.neoffice-cockpit .form-hero-stockrow .stock-chip.empty {
 	color: var(--text-muted);
 	font-style: italic;
 }
+/* //// Neoffice — an attention row (add_hero_row, tone: "attention"): something the user
+   is expected to act on, a draft whose customer's records changed (2026-10-02, « afficher
+   de manière plus visible »). Amber, the design system's warning hue, so it does not read
+   as one more of Nora's clay remarks above it; its button is ink, an app's primary action. */
+body.neoffice-cockpit .form-hero-stockrow.is-attention {
+	gap: 10px;
+	margin-top: 14px;
+	padding: 8px 10px 8px 12px;
+	border: 1px solid #f8e2b4;
+	border-radius: 12px;
+	background: #fcf2dd;
+}
+body.neoffice-cockpit .form-hero-stockrow .hero-row-mark {
+	width: 22px;
+	height: 22px;
+	flex: none;
+	border-radius: 999px;
+	display: grid;
+	place-items: center;
+	background: #e0980f;
+	color: #fff;
+}
+body.neoffice-cockpit .form-hero-stockrow .hero-row-mark svg {
+	width: 12px;
+	height: 12px;
+}
+body.neoffice-cockpit .form-hero-stockrow.is-attention .stock-label {
+	font-size: 12.5px;
+	font-weight: 700;
+	letter-spacing: 0;
+	text-transform: none;
+	color: var(--text-color);
+	margin-right: 0;
+}
+body.neoffice-cockpit .form-hero-stockrow.is-attention .stock-chip {
+	border-color: #f0d49a;
+	background: rgba(255, 255, 255, 0.75);
+}
+body.neoffice-cockpit .form-hero-stockrow.is-attention .stock-chip .w {
+	color: #92610c;
+	font-weight: 600;
+}
+body.neoffice-cockpit .form-hero-stockrow .hero-row-cta {
+	margin-left: auto;
+	border: none;
+	border-radius: 9px;
+	padding: 6px 12px;
+	background: #141414;
+	color: #fffdf8;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.2;
+	white-space: nowrap;
+	cursor: pointer;
+	transition: background 160ms cubic-bezier(0.2, 0.6, 0.3, 1);
+}
+body.neoffice-cockpit .form-hero-stockrow .hero-row-cta:hover {
+	background: #2b2724;
+}
+[data-theme="dark"] body.neoffice-cockpit .form-hero-stockrow.is-attention {
+	border-color: rgba(224, 152, 15, 0.3);
+	background: rgba(224, 152, 15, 0.1);
+}
+[data-theme="dark"] body.neoffice-cockpit .form-hero-stockrow.is-attention .stock-chip {
+	border-color: rgba(224, 152, 15, 0.35);
+	background: transparent;
+}
+[data-theme="dark"] body.neoffice-cockpit .form-hero-stockrow.is-attention .stock-chip .w {
+	color: #f2c46b;
+}
+[data-theme="dark"] body.neoffice-cockpit .form-hero-stockrow .hero-row-cta {
+	background: #f8f8f8;
+	color: #141414;
+}
 
 /* Customer hero extras — unpaid amount alert + accented History CTA */
 body.neoffice-cockpit .form-hero-custstats .price-line.bad .pv {

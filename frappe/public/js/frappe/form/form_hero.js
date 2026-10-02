@@ -110,9 +110,23 @@ frappe.ui.form.add_hero_value_note = function (doctype, provider) {
 //// It must be SYNCHRONOUS — fetch in the background and re-render — and a throw is
 //// swallowed: an extra row must never take the form header down.
 ////   frappe.ui.form.add_hero_row("*", (frm) => ({ label: __("Reminders"), items: [...] }));
+////
+//// Two optional keys (2026-10-02), for a row that asks to be acted on rather than read —
+//// a draft whose customer's records changed, today: « afficher de manière plus visible »:
+////   tone: "attention"        the row becomes an amber callout with a round mark
+////   icon: "refresh"          the mark's icon (ROW_ICONS), "alert" by default
+////   action: { label, run }   one solid button at the row's end, for the row as a whole
+//// A caller checks frappe.ui.form.add_hero_row.supports before relying on them.
 frappe.ui.form.hero_rows = frappe.ui.form.hero_rows || {};
 frappe.ui.form.add_hero_row = function (doctype, provider) {
 	(frappe.ui.form.hero_rows[doctype] = frappe.ui.form.hero_rows[doctype] || []).push(provider);
+};
+frappe.ui.form.add_hero_row.supports = { tone: true, action: true };
+
+//// Neoffice — the marks of an attention row (Lucide, 1.75 stroke).
+const ROW_ICONS = {
+	alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4"/><path d="M12 16h.01"/><circle cx="12" cy="12" r="10"/></svg>',
+	refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>',
 };
 
 //// Neoffice: a DETAIL block beside the title, in the room the hero leaves empty between
@@ -1010,10 +1024,14 @@ frappe.ui.form.FormHero = class FormHero {
 				row = null;
 			}
 			if (!row || !(row.items || []).length) return;
-			const $row = $('<div class="form-hero-stockrow form-hero-extrarow"></div>').appendTo(
-				this.$wrapper
-			);
-			let html = row.label
+			const attention = row.tone === "attention";
+			const $row = $(
+				`<div class="form-hero-stockrow form-hero-extrarow${attention ? " is-attention" : ""}"></div>`
+			).appendTo(this.$wrapper);
+			let html = attention
+				? `<span class="hero-row-mark">${ROW_ICONS[row.icon] || ROW_ICONS.alert}</span>`
+				: "";
+			html += row.label
 				? `<span class="stock-label">${frappe.utils.escape_html(row.label)}</span>`
 				: "";
 			row.items.forEach((item, idx) => {
@@ -1027,7 +1045,17 @@ frappe.ui.form.FormHero = class FormHero {
 					item.text || ""
 				)}</span>${action}</span>`;
 			});
+			if (row.action && row.action.label) {
+				html += `<button class="hero-row-cta">${frappe.utils.escape_html(
+					row.action.label
+				)}</button>`;
+			}
 			$row.html(html);
+			$row.find(".hero-row-cta").on("click", (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				row.action.run && row.action.run(this.frm);
+			});
 			$row.find(".hero-row-action").on("click", (e) => {
 				e.preventDefault();
 				e.stopPropagation();
