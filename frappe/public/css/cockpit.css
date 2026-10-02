@@ -629,10 +629,20 @@ body.neoffice-cockpit .form-hero-value {
    capitalised label, a strong first line, quieter ones under it. The title keeps the room it
    needs: the block takes what is left, up to 40 %, and cuts its lines with « … » (whole text
    in the tooltip). On a narrow screen only the icons stay, same tooltip. */
+/* The detail belongs with the name (2026-10-02: « aligne à gauche, ça fait partie du nom »):
+   with a detail, the name takes only its own width, the detail sits right after it and the key
+   value alone is pushed to the right edge. Without one, nothing changes. */
+body.neoffice-cockpit .form-hero-top:has(> .form-hero-detail) .form-hero-id {
+	flex: 0 1 auto;
+}
+body.neoffice-cockpit .form-hero-top:has(> .form-hero-detail) .form-hero-value {
+	margin-left: auto;
+}
 body.neoffice-cockpit .form-hero-detail {
 	flex: 0 1 auto;
 	min-width: 0;
 	max-width: 40%;
+	margin-left: 8px;
 	align-self: center;
 	display: flex;
 	flex-direction: column;
