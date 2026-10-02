@@ -313,6 +313,13 @@ frappe.ui.form.FormDialog = class FormDialog {
 		// In the document now, so that the form can be drawn right away: Bootstrap would only add
 		// it once the backdrop has faded in, and tabs can't be shown in a detached node.
 		if (!this.dialog.$wrapper.get(0).isConnected) this.dialog.$wrapper.appendTo(document.body);
+		// The level's dialog may still be fading out (a link clicked right after a close): Bootstrap
+		// ignores a show during that transition, so wait for the end of it.
+		const modal = this.dialog.$wrapper.data("bs.modal");
+		if (modal && modal._isTransitioning && !this.dialog.display) {
+			await new Promise((resolve) => this.dialog.$wrapper.one("hidden.bs.modal", resolve));
+		}
+		if (this.hidden) return;
 		this.dialog.show();
 		this.hold_open(false);
 
