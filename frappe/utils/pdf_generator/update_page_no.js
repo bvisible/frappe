@@ -4,7 +4,10 @@
 //// header/footer pages (repeating letterhead + page numbers on every page).
 //// Neoffice-only change: the .only-if-more-pages toggle in update_page_no() — elements with
 //// that class (our "continued on next page" footer note) are shown on every page except
-//// the last one. Everything else is verbatim upstream.
+//// the last one. And front pages (2026-10-02): a header or footer that carries
+//// data-front-pages="N" numbers the document from the page after the N first ones (a cover
+//// page sent ahead of a quotation or an invoice is not a page of it), and hides its
+//// .not-on-front-pages elements on those N pages. Everything else is verbatim upstream.
 // Injected into header/footer pages so clone_and_update is available
 // when browser.py calls header_page.evaluate("clone_and_update(...)").
 // Matches print_designer/print_designer/page/print_designer/update_page_no.js
@@ -25,8 +28,18 @@ const update_page_no = (clone, i, no_of_pages, print_designer) => {
 		replaceText(clone, "page_info_isodate", dateObj.toISOString());
 		replaceText(clone, "page_info_time", dateObj.toLocaleTimeString());
 	} else {
-		replaceText(clone, "page", i);
-		replaceText(clone, "topage", no_of_pages);
+		//// Neoffice — front pages, see the file header.
+		const front_el = clone.matches && clone.matches("[data-front-pages]")
+			? clone
+			: clone.querySelector && clone.querySelector("[data-front-pages]");
+		const front = front_el ? parseInt(front_el.getAttribute("data-front-pages"), 10) || 0 : 0;
+		const on_front = i <= front;
+		const hidden_on_front = clone.getElementsByClassName("not-on-front-pages");
+		for (let k = 0; k < hidden_on_front.length; k++) {
+			hidden_on_front[k].style.visibility = on_front ? "hidden" : "visible";
+		}
+		replaceText(clone, "page", on_front ? "" : i - front);
+		replaceText(clone, "topage", no_of_pages - front);
 		replaceText(clone, "date", dateObj.toLocaleDateString());
 		replaceText(clone, "isodate", dateObj.toISOString());
 		replaceText(clone, "time", dateObj.toLocaleTimeString());
@@ -34,7 +47,8 @@ const update_page_no = (clone, i, no_of_pages, print_designer) => {
 		// footer note) are shown on every page except the last one.
 		const moreEls = clone.getElementsByClassName("only-if-more-pages");
 		for (let k = 0; k < moreEls.length; k++) {
-			moreEls[k].style.visibility = i < no_of_pages ? "visible" : "hidden";
+			//// Neoffice — and never on a front page: a cover page continues nothing.
+			moreEls[k].style.visibility = i < no_of_pages && !on_front ? "visible" : "hidden";
 		}
 	}
 };
