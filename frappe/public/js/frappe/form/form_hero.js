@@ -1,3 +1,6 @@
+//// Neoffice — added file (no upstream equivalent): the cockpit's form hero (identity card, key value,
+//// business stepper, detail block, extra rows). Frappe ships no form_hero.js, so a change here has no upstream
+//// line to be told apart from and the file needs no marker per hunk.
 // //// NEOFFICE PATCH — Form hero (NeoCockpit content redesign, stage 2).
 //
 // A soft-gradient card on top of every form: avatar/initial + big title +
