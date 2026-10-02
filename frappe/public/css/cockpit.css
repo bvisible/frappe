@@ -657,8 +657,10 @@ body.neoffice-cockpit .form-hero-detail-line {
 	min-width: 0;
 	line-height: 1.35;
 }
-/* The first line is the strong one, like the title of the project's block. */
-body.neoffice-cockpit .form-hero-detail-line:first-of-type {
+/* The first line is the strong one, like the title of the project's block (after the label
+   when there is one: :first-of-type would pick the label, a div too). */
+body.neoffice-cockpit .form-hero-detail > .form-hero-detail-line:first-child,
+body.neoffice-cockpit .form-hero-detail-label + .form-hero-detail-line {
 	font-size: 14px;
 	color: var(--text-color);
 }
