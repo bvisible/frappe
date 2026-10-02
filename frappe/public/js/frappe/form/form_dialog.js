@@ -177,27 +177,29 @@ frappe.ui.form.FormDialog = class FormDialog {
 		last.close();
 	}
 
-	// Access, meta and document, loaded once for a click (prefetch at pointerdown).
-	static load(doctype, name) {
+	// The server's answer on access, asked once for a click (prefetch at pointerdown) and kept a few
+	// seconds; the meta and the document are made sure of at every opening - a no-op when they are
+	// already loaded, and a reload when a discard dropped the local copy in between.
+	static access(doctype, name) {
 		const key = `${doctype}\u0000${name}`;
 		const hit = FormDialog.prefetched[key];
 		if (hit && Date.now() - hit.t < PREFETCH_TTL) return hit.promise;
-		const promise = frappe
-			.xcall("frappe.desk.form_dialog.get_access", { doctype, name })
-			.then((access) => {
-				if (!access || access.status !== "ok") return access || { status: "forbidden" };
-				return Promise.all([
-					frappe.model.with_doctype(doctype),
-					new Promise((resolve) =>
-						frappe.model.with_doc(doctype, name, () => resolve())
-					),
-				]).then(() => access);
-			});
+		const promise = frappe.xcall("frappe.desk.form_dialog.get_access", { doctype, name });
 		FormDialog.prefetched[key] = { t: Date.now(), promise };
 		promise
 			.catch(() => {})
 			.then(() => setTimeout(() => delete FormDialog.prefetched[key], PREFETCH_TTL));
 		return promise;
+	}
+
+	static load(doctype, name) {
+		return FormDialog.access(doctype, name).then((access) => {
+			if (!access || access.status !== "ok") return access || { status: "forbidden" };
+			return Promise.all([
+				frappe.model.with_doctype(doctype),
+				new Promise((resolve) => frappe.model.with_doc(doctype, name, () => resolve())),
+			]).then(() => access);
+		});
 	}
 
 	static prefetch(doctype, name) {

@@ -4,8 +4,10 @@
    //// tables »). */
 
 .form-dialog {
+	/* the form's own reading width (the theme centres tabs and sections on ~950px), plus the
+	   dialog's padding: wider only left empty margins on both sides */
 	.modal-dialog.modal-xl {
-		max-width: min(1240px, calc(100vw - 32px));
+		max-width: min(1040px, calc(100vw - 32px));
 	}
 
 	.modal-title {
