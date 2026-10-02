@@ -106,6 +106,35 @@ frappe.ui.form.hero_rows = frappe.ui.form.hero_rows || {};
 frappe.ui.form.add_hero_row = function (doctype, provider) {
 	(frappe.ui.form.hero_rows[doctype] = frappe.ui.form.hero_rows[doctype] || []).push(provider);
 };
+
+//// Neoffice: a DETAIL block beside the title, in the room the hero leaves empty between
+//// the name and the key value — the address and the contact of a sales document, today
+//// (2026-10-02: « un visuel toujours dispo »). Same contract as the registries above: the
+//// app that owns the knowledge registers a provider, frappe only draws the lines.
+////
+//// It speaks the same visual language as the block the activity app puts beside a
+//// project's title (« Next intervention »): a clay rule, a small capitalised label, a
+//// strong first line, quieter ones under it.
+////
+//// A provider is called on every render with the form and returns null or
+////   { label?, hides_contact?: true,
+////     lines: [{ icon: "pin"|"user"|"send", text, title?, run?(frm) }] }
+//// The first line is the strong one. `hides_contact` drops the contact the subtitle names
+//// when a line already says it. A line is cut with « … » when the room is short, its whole
+//// text in its tooltip; on a narrow screen only the icons stay, with the same tooltip.
+//// Synchronous, and a throw is swallowed: a detail must never take the form header down.
+////   frappe.ui.form.add_hero_detail("Sales Invoice", (frm) => ({ lines: [...] }));
+frappe.ui.form.hero_details = frappe.ui.form.hero_details || {};
+frappe.ui.form.add_hero_detail = function (doctype, provider) {
+	(frappe.ui.form.hero_details[doctype] = frappe.ui.form.hero_details[doctype] || []).push(
+		provider
+	);
+};
+const DETAIL_ICONS = {
+	pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>',
+	user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+	send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg>',
+};
 function send_action(frm) {
 	if (frm.doc.docstatus !== 1) return null;
 	const base = { label: __("Send"), icon: "mail", run: () => frm.email_doc() };
@@ -635,8 +664,13 @@ frappe.ui.form.FormHero = class FormHero {
 			: `<div class="form-hero-avatar${image_field ? " is-settable" : ""}"${
 					image_field ? ` title="${__("Add an image")}"` : ""
 			  }>${frappe.utils.escape_html(initial)}</div>`;
+		//// Neoffice — the detail block (see add_hero_detail), collected first: it may
+		//// take the contact over from the subtitle.
+		const detail = this.hero_detail();
 		const contact =
-			doc.contact_display && doc.contact_display !== title ? doc.contact_display : null;
+			doc.contact_display && doc.contact_display !== title && !detail.hides_contact
+				? doc.contact_display
+				: null;
 		const id_part =
 			doc.name === title ? __(this.frm.doctype) : __(this.frm.doctype) + " " + doc.name;
 		const sub = [id_part, contact].filter(Boolean).join(" · ");
@@ -726,6 +760,7 @@ frappe.ui.form.FormHero = class FormHero {
 					<div class="form-hero-title">${frappe.utils.escape_html(title)}</div>
 					<div class="form-hero-sub">${frappe.utils.escape_html(sub)}</div>
 				</div>
+				${detail.html}
 				${value_html}
 			</div>`;
 
@@ -844,6 +879,54 @@ frappe.ui.form.FormHero = class FormHero {
 		this.render_extras();
 	}
 
+	//// Neoffice — collects the registered detail lines (see add_hero_detail). The
+	//// lines are kept on the instance so render_extras can wire their clicks.
+	hero_detail() {
+		const providers = [
+			...(frappe.ui.form.hero_details["*"] || []),
+			...(frappe.ui.form.hero_details[this.frm.doctype] || []),
+		];
+		const lines = [];
+		let hides_contact = false;
+		let label = "";
+		providers.forEach((provider) => {
+			let out;
+			try {
+				out = provider(this.frm);
+			} catch (e) {
+				out = null;
+			}
+			if (!out) return;
+			if (out.hides_contact) hides_contact = true;
+			if (out.label && !label) label = out.label;
+			(out.lines || []).forEach((line) => line && line.text && lines.push(line));
+		});
+		this.detail_lines = lines;
+		if (!lines.length) return { html: "", hides_contact: false };
+		const html = lines
+			.map((line, idx) => {
+				const tip = frappe.utils.escape_html(line.title || line.text);
+				const icon = DETAIL_ICONS[line.icon] || "";
+				return `<div class="form-hero-detail-line${line.run ? " is-clickable" : ""}" data-detail-idx="${idx}" title="${tip}">
+					<span class="form-hero-detail-icon">${icon}</span>
+					<span class="form-hero-detail-text">${frappe.utils.escape_html(line.text)}</span>
+				</div>`;
+			})
+			.join("");
+		const eyebrow = label
+			? `<div class="form-hero-detail-label">${frappe.utils.escape_html(label)}</div>`
+			: "";
+		return { html: `<div class="form-hero-detail">${eyebrow}${html}</div>`, hides_contact };
+	}
+
+	bind_hero_detail() {
+		this.$wrapper.find(".form-hero-detail-line.is-clickable").on("click", (e) => {
+			e.preventDefault();
+			const line = (this.detail_lines || [])[cint($(e.currentTarget).attr("data-detail-idx"))];
+			line && line.run && line.run(this.frm);
+		});
+	}
+
 	//// Neoffice — collects the registered value notes (see add_hero_value_note).
 	//// A provider that throws is skipped: a second figure must never be able to
 	//// take the hero, and with it the whole form header, down.
@@ -922,6 +1005,8 @@ frappe.ui.form.FormHero = class FormHero {
 		this.bind_hero_title();
 		//// Neoffice — see the block marker above: hero row rendering
 		this.render_hero_rows();
+		//// Neoffice — the detail block's clicks (see add_hero_detail)
+		this.bind_hero_detail();
 		if (this.frm.doctype === "Item") this.render_item_extras();
 		else if (this.frm.doctype === "Customer") this.render_customer_extras();
 		else if (["Sales Invoice", "Purchase Invoice"].includes(this.frm.doctype))
