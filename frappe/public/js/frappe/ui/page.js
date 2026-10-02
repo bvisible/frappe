@@ -910,7 +910,10 @@ frappe.ui.Page = class Page {
 			title = strip_html(title);
 		}
 		this.title = title;
-		frappe.utils.set_title(tab_title || title);
+		//// Neoffice — honours set_document_title, a flag upstream sets (constructor) and never reads: a
+		//// form shown in a form dialog (form/form_dialog.js) turns it off, and the browser tab keeps
+		//// the page's title.
+		if (this.set_document_title !== false) frappe.utils.set_title(tab_title || title);
 		if (icon) {
 			title = `${frappe.utils.icon(icon)} ${title}`;
 		}

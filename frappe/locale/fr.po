@@ -35308,3 +35308,23 @@ msgstr "Si cette adresse e-mail est enregistrée chez nous, nous y avons envoyé
 #: frappe/templates/includes/login/login.js
 msgid "Too many requests. Please try again later."
 msgstr "Trop de requêtes. Veuillez réessayer plus tard."
+
+#: frappe/public/js/frappe/form/form_dialog.js
+msgid "Open full page"
+msgstr "Ouvrir en pleine page"
+
+#: frappe/public/js/frappe/form/form_dialog.js
+msgid "This document no longer exists."
+msgstr "Ce document n’existe plus."
+
+#: frappe/public/js/frappe/form/form_dialog.js
+msgid "You are not allowed to open this document."
+msgstr "Vous n’avez pas l’autorisation d’ouvrir ce document."
+
+#: frappe/public/js/frappe/form/form_dialog.js
+msgid "Discard the changes made to {0}?"
+msgstr "Abandonner les modifications apportées à {0} ?"
+
+#: frappe/public/js/frappe/form/form_dialog.js
+msgid "{0} value(s) updated from {1}"
+msgstr "Valeurs mises à jour depuis {1} : {0}"

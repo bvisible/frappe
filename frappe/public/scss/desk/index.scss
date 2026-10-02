@@ -54,6 +54,8 @@
 @import "user_profile";
 @import "theme_switcher";
 @import "link_preview";
+/* //// Neoffice — added import: the form dialog (form/form_dialog.js), an added file. */
+@import "form_dialog";
 @import "../common/quill";
 @import "plyr";
 @import "version";

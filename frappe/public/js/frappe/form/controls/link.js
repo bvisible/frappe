@@ -31,6 +31,25 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 			me.$input.val("").focus();
 		});
 		this.$link_open = this.$link.find(".btn-open");
+		//// Neoffice — added: a click on the arrow opens the linked document's form in a dialog,
+		//// without leaving the page (form/form_dialog.js); the second click of a double click goes
+		//// there through the href, as upstream. What is saved in the dialog comes back into this
+		//// form (frm, the origin).
+		this.$link_open.on("click", (e) => {
+			const doctype = this.get_options();
+			const name = this.get_input_value();
+			if (
+				doctype &&
+				name &&
+				frappe.ui.form.FormDialog?.intercept(e, this.$link_open.get(0), {
+					doctype,
+					name,
+					frm: this.frm,
+				})
+			) {
+				return false;
+			}
+		});
 		this.set_input_attributes();
 		this.$input.on("focus", function () {
 			if (!me.$input.val()) {
@@ -43,6 +62,9 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 			// if this disappears immediately, the user's click
 			// does not register, hence timeout
 			setTimeout(function () {
+				//// Neoffice — added: kept while under the pointer, so that the arrow is still there
+				//// for the second click of a double click (form/form_dialog.js).
+				if (me.$input_area.is(":hover")) return;
 				me.$link.toggle(false);
 				me.hide_link_and_clear_buttons();
 			}, 250);
@@ -73,6 +95,8 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 			const name = this.get_input_value();
 			this.$link.toggle(true);
 			this.$link_open.attr("href", frappe.utils.get_form_link(doctype, name));
+			//// Neoffice — added: the document the arrow opens, read by the form dialog's prefetch.
+			this.$link_open.attr({ "data-dialog-doctype": doctype, "data-dialog-name": name });
 			this.$link_clear.toggle(true);
 		}
 	}

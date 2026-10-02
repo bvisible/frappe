@@ -22,6 +22,9 @@ import "./toolbar";
 import "./form_hero";
 import "./tab_slider";
 import "./grid_totals";
+//// Neoffice — added import: a link to another document opens its form in a dialog (./form_dialog,
+//// an added file with no upstream equivalent; maintenance#1047).
+import "./form_dialog";
 import { UndoManager } from "./undo_manager";
 import "./workflow";
 
@@ -101,6 +104,8 @@ frappe.ui.form.Form = class FrappeForm {
 			sidebar_position: "Right",
 		});
 		this.page = this.wrapper.page;
+		//// Neoffice — a form dialog's page leaves the browser title to the page (ui/page.js).
+		if (this.form_dialog) this.page.set_document_title = false;
 		this.layout_main = this.page.main.get(0);
 
 		this.$wrapper.on("hide", () => {
@@ -118,7 +123,9 @@ frappe.ui.form.Form = class FrappeForm {
 		});
 
 		// navigate records keyboard shortcuts
-		this.add_form_keyboard_shortcuts();
+		//// Neoffice — not for a form shown in a form dialog (form/form_dialog.js): its ctrl+p is
+		//// registered for the whole desk and would print the dialog's document from the page.
+		if (!this.form_dialog) this.add_form_keyboard_shortcuts();
 
 		// 2 column layout
 		this.setup_std_layout();
@@ -414,6 +421,9 @@ frappe.ui.form.Form = class FrappeForm {
 			// check permissions
 			this.fetch_permissions();
 			if (!this.has_read_permission()) {
+				//// Neoffice — added: in a form dialog (form/form_dialog.js) the refusal closes the dialog;
+				//// frappe.show_not_permitted would replace the page behind it.
+				if (this.form_dialog) return this.form_dialog.refuse_from_form();
 				frappe.show_not_permitted(__(this.doctype) + " " + __(cstr(this.docname)));
 				return;
 			}
@@ -584,7 +594,8 @@ frappe.ui.form.Form = class FrappeForm {
 				me.trigger_link_fields();
 			});
 
-			frappe.breadcrumbs.add(me.meta.module, me.doctype);
+			//// Neoffice — the breadcrumbs belong to the page, not to a form dialog (form/form_dialog.js).
+			if (!me.form_dialog) frappe.breadcrumbs.add(me.meta.module, me.doctype);
 		});
 
 		// update seen
@@ -664,6 +675,8 @@ frappe.ui.form.Form = class FrappeForm {
 	}
 
 	run_after_load_hook() {
+		//// Neoffice — a route hook was set for the page's form, not for a form dialog's.
+		if (this.form_dialog) return;
 		if (frappe.route_hooks.after_load) {
 			let route_callback = frappe.route_hooks.after_load;
 			delete frappe.route_hooks.after_load;
@@ -719,7 +732,9 @@ frappe.ui.form.Form = class FrappeForm {
 	refresh_header(switched) {
 		// set title
 		// main title
-		if (!this.meta.in_dialog || this.in_form) {
+		//// Neoffice — added `!this.form_dialog`: the browser tab keeps the page's title while a
+		//// form dialog is open (form/form_dialog.js).
+		if ((!this.meta.in_dialog || this.in_form) && !this.form_dialog) {
 			frappe.utils.set_title(this.meta.issingle ? this.doctype : this.docname);
 		}
 
@@ -733,7 +748,8 @@ frappe.ui.form.Form = class FrappeForm {
 		this.viewers.refresh();
 
 		this.dashboard.refresh();
-		frappe.breadcrumbs.update();
+		//// Neoffice — the breadcrumbs belong to the page, not to a form dialog (form/form_dialog.js).
+		if (!this.form_dialog) frappe.breadcrumbs.update();
 
 		this.show_submit_message();
 		this.clear_custom_buttons();
@@ -783,7 +799,8 @@ frappe.ui.form.Form = class FrappeForm {
 
 				me.script_manager.trigger("after_save");
 
-				if (frappe.route_hooks.after_save) {
+				//// Neoffice — added `!me.form_dialog`: the hook was set for the page's form.
+				if (frappe.route_hooks.after_save && !me.form_dialog) {
 					let route_callback = frappe.route_hooks.after_save;
 					delete frappe.route_hooks.after_save;
 
@@ -1225,7 +1242,8 @@ frappe.ui.form.Form = class FrappeForm {
 		delete this.opendocs[old];
 		this.opendocs[name] = true;
 
-		if (this.meta.in_dialog || !this.in_form) {
+		//// Neoffice — added `this.form_dialog`: a form dialog never changes the page's route.
+		if (this.meta.in_dialog || !this.in_form || this.form_dialog) {
 			return;
 		}
 
@@ -1254,6 +1272,8 @@ frappe.ui.form.Form = class FrappeForm {
 	}
 
 	navigate_records(prev) {
+		//// Neoffice — a form dialog shows one document; moving to the next would change the page.
+		if (this.form_dialog) return;
 		let filters, sort_field, sort_order;
 		let list_view = frappe.get_list_view(this.doctype);
 		if (list_view) {
@@ -1432,6 +1452,8 @@ frappe.ui.form.Form = class FrappeForm {
 	}
 
 	scroll_to_element() {
+		//// Neoffice — route options and the URL hash are the page's, not a form dialog's.
+		if (this.form_dialog) return;
 		if (frappe.route_options && frappe.route_options.scroll_to) {
 			var scroll_to = frappe.route_options.scroll_to;
 			delete frappe.route_options.scroll_to;
@@ -1457,6 +1479,8 @@ frappe.ui.form.Form = class FrappeForm {
 	}
 
 	show_success_action() {
+		//// Neoffice — after a save in a form dialog, the dialog closes: no « what next » banner.
+		if (this.form_dialog) return;
 		const route = frappe.get_route();
 		if (route[0] !== "Form") return;
 		if (this.meta.is_submittable && this.doc.docstatus !== 1) return;

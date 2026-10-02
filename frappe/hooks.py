@@ -18,6 +18,31 @@ after_install = "frappe.utils.install.after_install"
 page_js = {"setup-wizard": "public/js/frappe/setup_wizard.js"}
 
 # website
+# //// Neoffice — added hook: doctypes whose links keep going to the page instead of opening the
+# //// document's form in a dialog (frappe/desk/form_dialog.py, form/form_dialog.js) — developer and
+# //// setup records, where the full page is what one wants. Any app may add its own.
+link_dialog_exclude = [
+	"DocType",
+	"DocField",
+	"Customize Form",
+	"Custom Field",
+	"Property Setter",
+	"Module Def",
+	"Role",
+	"Role Profile",
+	"Report",
+	"Page",
+	"Print Format",
+	"Workspace",
+	"Dashboard",
+	"Dashboard Chart",
+	"Number Card",
+	"Server Script",
+	"Client Script",
+	"Web Page",
+	"Web Form",
+]
+
 app_include_js = [
 	"libs.bundle.js",
 	"desk.bundle.js",

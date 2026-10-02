@@ -116,6 +116,11 @@ def get_bootinfo():
 	bootinfo.points = get_energy_points(frappe.session.user)
 	bootinfo.frequently_visited_links = frequently_visited_links()
 	bootinfo.link_preview_doctypes = get_link_preview_doctypes()
+	# //// Neoffice — added: the form dialog (frappe/desk/form_dialog.py, form/form_dialog.js) — whether
+	# //// a link opens its document's form in a dialog on this site, and which doctypes never do.
+	from frappe.desk.form_dialog import get_boot_settings as get_link_dialog_settings
+
+	bootinfo.link_dialog = get_link_dialog_settings()
 	bootinfo.additional_filters_config = get_additional_filters_from_hooks()
 	bootinfo.desk_settings = get_desk_settings()
 	bootinfo.app_logo_url = get_app_logo()

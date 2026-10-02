@@ -67,7 +67,9 @@ frappe.ui.form.Toolbar = class Toolbar {
 		var me = this;
 		title = __(title);
 		this.page.set_title(title);
-		if (this.frm.meta.title_field) {
+		//// Neoffice — added `!this.frm.form_dialog`: the browser tab keeps the page's title while a
+		//// form dialog is open (form/form_dialog.js).
+		if (this.frm.meta.title_field && !this.frm.form_dialog) {
 			frappe.utils.set_title(title + " - " + this.frm.docname);
 		}
 		this.page.$title_area.toggleClass(
@@ -314,8 +316,12 @@ frappe.ui.form.Toolbar = class Toolbar {
 	//// setup_preview_button is the original one.
 	refresh_hero() {
 		if (!frappe.ui.form.FormHero) return;
-		if (!this.hero) this.hero = new frappe.ui.form.FormHero(this.frm);
-		this.hero.refresh();
+		//// Neoffice — no hero in a form dialog (form/form_dialog.js): nothing above the tabs there
+		//// (Jérémy, 02.10, « sans la partie en haut »). The tab slider and the grid totals below stay.
+		if (!this.frm.form_dialog) {
+			if (!this.hero) this.hero = new frappe.ui.form.FormHero(this.frm);
+			this.hero.refresh();
+		}
 		if (frappe.ui.form.TabSlider) {
 			if (!this.tab_slider) this.tab_slider = new frappe.ui.form.TabSlider(this.frm);
 			this.tab_slider.refresh();

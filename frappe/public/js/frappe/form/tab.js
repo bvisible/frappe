@@ -13,7 +13,12 @@ export default class Tab {
 	}
 
 	make() {
-		const id = `${frappe.scrub(this.doctype, "-")}-${this.df.fieldname}`;
+		//// Neoffice — a form shown in a form dialog (form/form_dialog.js) suffixes its tab ids: the
+		//// page's form of the same doctype has the same ones, and Bootstrap then shows the page's pane
+		//// instead of the dialog's (an empty « Details » tab, seen on osiris on 02.10).
+		const id = `${frappe.scrub(this.doctype, "-")}-${this.df.fieldname}${
+			this.frm?.form_dialog_uid ? "-" + this.frm.form_dialog_uid : ""
+		}`;
 		this.tab_link = $(`
 			<li class="nav-item">
 				<button class="nav-link ${this.df.active ? "active" : ""}" id="${id}-tab"
@@ -45,11 +50,12 @@ export default class Tab {
 		if (!hide) {
 			// show only if there is at least one visible section or control
 			hide = true;
-			if (
-				this.wrapper.find(
-					".form-section:not(.hide-control, .empty-section), .form-dashboard-section:not(.hide-control, .empty-section)"
-				).length
-			) {
+			//// Neoffice — in a form dialog (form/form_dialog.js) the dashboard is not shown, so a tab
+			//// holding only the dashboard (Connections) is hidden: its links lead out of the document.
+			const selector = this.frm?.form_dialog
+				? ".form-section:not(.hide-control, .empty-section)"
+				: ".form-section:not(.hide-control, .empty-section), .form-dashboard-section:not(.hide-control, .empty-section)";
+			if (this.wrapper.find(selector).length) {
 				hide = false;
 			}
 		}

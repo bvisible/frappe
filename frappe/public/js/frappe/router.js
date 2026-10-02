@@ -41,6 +41,14 @@ $("body").on("click", "a", function (e) {
 		return;
 	}
 
+	//// Neoffice — added: a link drawn for a field (Link, Dynamic Link, a table or report cell)
+	//// opens that document's form in a dialog on a single click, without leaving the page
+	//// (form/form_dialog.js). It declines a double click's second click, a modified click and any
+	//// other link, which this handler then follows as upstream does.
+	if (frappe.ui.form?.FormDialog?.intercept(e, target_element)) {
+		return false;
+	}
+
 	const override = (route) => {
 		e.preventDefault();
 		frappe.set_route(route);

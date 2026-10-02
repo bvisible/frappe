@@ -49,7 +49,8 @@ frappe.ui.form.FloatingNavArrows = class FloatingNavArrows {
 
 		// Hide the floating buttons on new / single docs — there's
 		// nothing to navigate to.
-		if (this.frm.is_new() || this.frm.meta.issingle) return;
+		//// Neoffice — nor in a form dialog (form/form_dialog.js): it shows one document.
+		if (this.frm.is_new() || this.frm.meta.issingle || this.frm.form_dialog) return;
 
 		const me = this;
 		this.$prev = $(`

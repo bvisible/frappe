@@ -34,6 +34,11 @@ export default class GridRow {
 				if (me.grid.allow_on_grid_editing() && me.grid.is_editable()) {
 					// pass
 				} else {
+					//// Neoffice — added: in a read-only table, a document link of a cell opens that
+					//// document's form in a dialog and a double click goes to it
+					//// (form/form_dialog.js), instead of opening the row. Upstream never followed
+					//// such a link: the row view took the click.
+					if (frappe.ui.form.FormDialog?.grid_click(e)) return false;
 					me.toggle_view();
 					return false;
 				}

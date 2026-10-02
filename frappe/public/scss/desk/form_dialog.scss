@@ -1,0 +1,77 @@
+/* //// Neoffice — added file (no upstream equivalent). The form dialog (form/form_dialog.js): a
+   //// document's own form shown in a dialog — its tabs, fields and tables, and nothing of the page
+   //// around them (Jérémy, 02.10: « sans le menu, sans la partie en haut, avec les onglets, avec les
+   //// tables »). */
+
+.form-dialog {
+	.modal-dialog.modal-xl {
+		max-width: min(1240px, calc(100vw - 32px));
+	}
+
+	.modal-title {
+		display: flex;
+		align-items: center;
+		gap: var(--padding-sm);
+		min-width: 0;
+	}
+
+	.form-dialog-doctype {
+		color: var(--text-muted);
+		font-weight: normal;
+	}
+
+	.form-dialog-status {
+		font-size: var(--text-xs);
+	}
+
+	.form-dialog-loading {
+		padding: var(--padding-xl) 0;
+		text-align: center;
+	}
+
+	.form-dialog-host {
+		/* the page around the form: its head, sidebar, activity and dashboard */
+		.page-head,
+		.layout-side-section,
+		.form-footer,
+		.layout-footer,
+		.form-dashboard,
+		.form-floating-nav {
+			display: none !important;
+		}
+
+		.page-body,
+		.page-body.container {
+			width: 100%;
+			max-width: 100%;
+			padding: 0;
+			margin: 0;
+		}
+
+		.layout-main,
+		.layout-main-section-wrapper {
+			padding: 0;
+			margin: 0;
+		}
+
+		.layout-main-section {
+			border: none;
+			box-shadow: none;
+			margin: 0;
+		}
+	}
+}
+
+/* a phone: the dialog takes the whole screen */
+@media (max-width: 767px) {
+	.form-dialog .modal-dialog.modal-xl {
+		max-width: 100%;
+		margin: 0;
+		min-height: 100vh;
+	}
+
+	.form-dialog .modal-content {
+		min-height: 100vh;
+		border-radius: 0;
+	}
+}
