@@ -146,3 +146,31 @@ class TestChromePdfEventTimeouts(FrappeTestCase):
 		# subclass on 3.8+ and so escapes every handler up to the HTTP 500.
 		with self.assertRaises(frappe.ValidationError):
 			page.get_pdf_stream_id()
+
+
+# //// Neoffice — added class (no upstream equivalent). The Chrome generator now inlines the private
+# //// images as wkhtmltopdf does (get_chrome_pdf, neoffice-maintenance#1117): outside a web request
+# //// its page has no session cookie, and a franking stamp, private because it carries the
+# //// recipient's address, vanished from a PDF rendered by a background job. No Chromium here: the
+# //// browser is a fake that keeps the HTML it is handed.
+class TestChromePdfPrivateImages(FrappeTestCase):
+	def test_a_private_image_reaches_the_chrome_page_inline(self):
+		from unittest.mock import patch
+
+		handed = []
+
+		class Browser:
+			def __init__(self, generator, print_format, html, options):
+				handed.append(html)
+
+		with (
+			make_test_image_file(private=True) as file,
+			patch("frappe.utils.pdf_generator.browser.Browser", Browser),
+			patch("frappe.utils.pdf_generator.chrome_pdf_generator.ChromePDFGenerator"),
+			patch("frappe.utils.pdf_generator.pdf_merge.PDFTransformer"),
+		):
+			pdfgen.get_chrome_pdf(None, f'<div><img src="{file.file_url}"></div>', {}, None, "chrome")
+
+		self.assertEqual(len(handed), 1)
+		self.assertIn("data:image/", handed[0])
+		self.assertNotIn("/private/files/", handed[0])

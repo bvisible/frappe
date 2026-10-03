@@ -182,6 +182,13 @@ def get_chrome_pdf(print_format, html, options, output, pdf_generator=None):
 	if pdf_generator != "chrome":
 		# Use the default pdf generator
 		return
+	# //// Neoffice — inline the private images, as prepare_options() does for wkhtmltopdf. The page
+	# //// carries the user's sid only inside a web request (page.set_cookies), so a PDF rendered from
+	# //// a background job (bulk print, a mail sent by the scheduler) lost every /private/files/ image:
+	# //// a franking stamp, which carries the recipient's address and is private for that reason
+	# //// (neoffice-maintenance#1117), a letterhead kept private. _get_base64_image() checks that the
+	# //// user may read each file. Drop when upstream's Chrome generator inlines them itself.
+	html = inline_private_images(html)
 	# scrubbing url to expand url is not required as we have set url.
 	# also, planning to remove network requests anyway 🤞
 	generator = ChromePDFGenerator()
