@@ -487,10 +487,15 @@ def get_workspace_sidebar_items(current_workspace=None):
 			pass
 
 	# Get the user's view interface setting
+	# //// Neoffice — an empty view_interface means Advanced, as neoffice_theme (boot_override.inject_mode)
+	# //// and the cockpit read it; this said Simplified, so an account that never chose got the simple
+	# //// sidebar here and the advanced chrome everywhere else (neoffice-maintenance#1115). One column
+	# //// read instead of the whole User document.
 	try:
-		user_view_interface = frappe.get_doc("User", frappe.session.user).get("view_interface") or "Simplified"
+		user_view_interface = frappe.db.get_value("User", frappe.session.user, "view_interface") or "Advanced"
 	except Exception:
-		user_view_interface = "Simplified"
+		# //// Neoffice — Advanced too when the column is missing (a bench without neoffice_theme's custom field).
+		user_view_interface = "Advanced"
 
 	# Initialize exclusion set with titles from the JSON file
 	excluded_titles = set()
