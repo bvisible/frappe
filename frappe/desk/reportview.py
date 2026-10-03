@@ -1003,9 +1003,20 @@ def get_comment_count(doctype, docnames):
 
 	return comment_counts
 
+# //// Neoffice — upstream's export_query, kept under another name: the definition below (ours,
+# //// e5382efca3 2025-03-18 "Fix bug export", for the report view's Excel button, which sends the rows it
+# //// shows) shadows it. Called without rows - the report view's menu « Export » - ours wrote the first 20
+# //// rows of the list under field names (measured on 03.10: 20 of 1 797 invoices, headed « Sr, name,
+# //// customer »). Without rows it now hands the request to upstream's: every row, the labels, translated
+# //// values, CSV, the export right. neoffice_theme's Excel panel uses its own export (list_export.py).
+_upstream_export_query = export_query
+
 @frappe.whitelist()
 def export_query(data=None, selected_items=None, file_format_type='Excel', title='Exported Data', 
                 start=0, page_length=20, filters=None, fields=None, doctype=None, order_by=None):
+    # //// Neoffice — no rows sent: upstream's export reads the list's request from form_dict (see above).
+    if not data:
+        return _upstream_export_query()
     # Case 1: Data is explicitly provided (direct method call with data)
     if data:
         data = frappe.parse_json(data)
