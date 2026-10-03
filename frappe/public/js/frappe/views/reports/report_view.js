@@ -1985,7 +1985,10 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 					docfield: { fieldtype: "Data" },
 					editable: false,
 					align: "left",
-					width: 150,
+					//// Neoffice — 150 px did not hold the cell (neoffice-maintenance#1122): the relative date,
+					//// the comment count and the like heart take ~155 px (« maintenant »), and a row button
+					//// (listview_settings.button) ~70 more, so 200 px, and 260 with a row button.
+					width: this.settings.button ? 260 : 200,
 				});
 				////
 			}
@@ -2032,9 +2035,12 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				${doc._comment_count > 99 ? "99+" : doc._comment_count || 0}`);
 		}
 	
+		//// Neoffice — the cell's content keeps to its right edge, and only the row button or the
+		//// assignees' avatars give way when it does not fit: centred (.level-item), the overflow was cut
+		//// on both sides, « Console » read « ole » and the like heart vanished (neoffice-maintenance#1122).
 		html += `
-			<div class="level-item list-row-activity hidden-xs" style="gap: 5px;">
-				<div class="hidden-md hidden-xs">
+			<div class="level-item list-row-activity hidden-xs" style="gap: 5px; justify-content: flex-end;">
+				<div class="hidden-md hidden-xs" style="min-width: 0; overflow: hidden;">
 					${settings_button || assigned_to}
 				</div>
 				<span class="modified">${modified} </span>
