@@ -284,6 +284,20 @@ body.neoffice-cockpit .page-head .page-title {
 body.neoffice-cockpit .page-head .title-text {
 	max-width: 300px;
 }
+/* //// Neoffice — a phone (03.10, maintenance#1115): a workspace's 34.5px title overflowed the 46% column that
+   //// holds it and was cut mid-word (« Commerci »), the title's own ellipsis never showing since the column
+   //// clips first. On a phone it is smaller, and its area may shrink, so a long name ends with « … ». */
+@media (max-width: 767px) {
+	body.neoffice-cockpit.nf-ws .page-head .title-text {
+		font-size: 24px;
+		margin-left: 4px;
+	}
+	body.neoffice-cockpit .page-head .page-title .title-area,
+	body.neoffice-cockpit .page-head .page-title .title-area > div,
+	body.neoffice-cockpit .page-head .page-title .title-area .flex {
+		min-width: 0;
+	}
+}
 body.neoffice-cockpit .page-head .page-actions {
 	flex: 1 1 auto;
 	min-width: 0;
