@@ -162,9 +162,14 @@ frappe.ui.FilterGroup = class {
 		this.filter_button.find(".filter-icon").toggleClass("active", filters_applied);
 
 		this.filter_button.find(".button-label").html(button_label);
+		//// Neoffice — upstream builds this tooltip as an English template literal ("1 Filter Applied",
+		//// "3 Filters Applied") that never goes through __(). One msgid per plural form, so a language can
+		//// inflect each (a count appended to a word-for-word English sentence would not).
 		this.filter_button.attr(
 			"title",
-			`${this.filters.length} Filter${this.filters.length > 1 ? "s" : ""} Applied`
+			this.filters.length > 1
+				? __("{0} Filters Applied", [this.filters.length])
+				: __("{0} Filter Applied", [this.filters.length])
 		);
 	}
 
