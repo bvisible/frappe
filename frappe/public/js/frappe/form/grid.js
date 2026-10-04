@@ -60,7 +60,7 @@ export default class Grid {
 	}
 
 	make() {
-		//// Neoffice — the grid-field template below carries three additions and nothing else; a marker cannot
+		//// Neoffice — the grid-field template below carries four additions and nothing else; a marker cannot
 		//// live inside a template literal, hence this single block:
 		////   — the "Toggle Full Width" button beside the label, in a .d-flex wrapper (8a044787a8, 2025-11-07
 		////     "Add full-width toggle to grid and improve VAT Declaration handling") — setup_fullwidth_toggle()
@@ -69,7 +69,9 @@ export default class Grid {
 		////     redesign"), the cockpit's in-table "+ Add Row"; it shares the footer button's handler
 		////     (setup_add_row, marked) and its visibility rules (refresh_remove_rows_button, marked);
 		////   — inline SVG icons on Add Row / Add Multiple and icon-only Download / Upload (same commit), the
-		////     labels surviving as title / aria-label.
+		////     labels surviving as title / aria-label;
+		////   — the alt text of the empty-grid image goes through __() (upstream hard-codes "Grid Empty State" in
+		////     English, so it showed as an English tooltip in a French UI).
 		let template = `
 			<div class="grid-field">
 				<div class="d-flex align-items-center">
@@ -91,7 +93,7 @@ export default class Grid {
 							<div class="grid-empty text-center">
 								<img
 									src="/assets/frappe/images/ui-states/grid-empty-state.svg"
-									alt="Grid Empty State"
+									alt="${__("Grid Empty State")}"
 									class="grid-empty-illustration"
 								>
 								${__("No Data")}

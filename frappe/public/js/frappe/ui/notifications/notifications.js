@@ -311,10 +311,12 @@ class NotificationsView extends BaseNotificationsView {
 						<div class="full-log-btn">${__("See all Activity")}</div>
 					</a>`);
 			} else {
+				//// Neoffice — upstream hard-codes this image's alt text in English, so it shows as a tooltip (and is
+				//// read out) in English in a French UI. Passed through __() so the catalogue can translate it.
 				this.container.append(
 					$(`<div class="notification-null-state">
 					<div class="text-center">
-						<img src="/assets/frappe/images/ui-states/notification-empty-state.svg" alt="Generic Empty State" class="null-state">
+						<img src="/assets/frappe/images/ui-states/notification-empty-state.svg" alt="${__("Generic Empty State")}" class="null-state">
 						<div class="title">${__("No New notifications")}</div>
 						<div class="subtitle">
 							${__("Looks like you haven’t received any notifications.")}
@@ -435,10 +437,12 @@ class EventsView extends BaseNotificationsView {
 			};
 			html = event_list.map(get_event_html).join("");
 		} else {
+			//// Neoffice — upstream hard-codes this image's alt text in English, so it shows as a tooltip (and is
+			//// read out) in English in a French UI. Passed through __() so the catalogue can translate it.
 			html = `
 				<div class="notification-null-state">
 					<div class="text-center">
-					<img src="/assets/frappe/images/ui-states/event-empty-state.svg" alt="Generic Empty State" class="null-state">
+					<img src="/assets/frappe/images/ui-states/event-empty-state.svg" alt="${__("Generic Empty State")}" class="null-state">
 					<div class="title">${__("No Upcoming Events")}</div>
 					<div class="subtitle">
 						${__("There are no upcoming events for you.")}
@@ -485,9 +489,11 @@ class ChangelogFeedView extends BaseNotificationsView {
 			};
 			html = changelog_feed.map(get_changelog_feed_html).join("");
 		} else {
+			//// Neoffice — upstream hard-codes this image's alt text in English, so it shows as a tooltip (and is
+			//// read out) in English in a French UI. Passed through __() so the catalogue can translate it.
 			html = `<div class="notification-null-state">
 						<div class="text-center">
-							<img src="/assets/frappe/images/ui-states/notification-empty-state.svg" alt="Generic Empty State" class="null-state">
+							<img src="/assets/frappe/images/ui-states/notification-empty-state.svg" alt="${__("Generic Empty State")}" class="null-state">
 							<div class="title">${__("Nothing New")}</div>
 							<div class="subtitle">
 								${__("There is nothing new to show you right now.")}
