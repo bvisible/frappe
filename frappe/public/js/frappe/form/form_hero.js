@@ -502,19 +502,20 @@ const HERO_REGISTRY = {
 		},
 	},
 	"Document Scan": {
-		// NEOFFICE: Document Scan lifecycle — Scanned -> Analysed (OCR +
-		// Nora) -> Imputed (a Purchase Invoice / Journal Entry was created).
+		// NEOFFICE: Document Scan lifecycle — Scanned -> Analyzed (OCR +
+		// Nora) -> Coded (a Purchase Invoice / Journal Entry was created).
+		//// Neoffice — msgids were French, now English (house rule); the French screen is unchanged, served by the translation catalogue.
 		steps: (doc) => [
-			{ label: __("Scanné"), when: doc.scan_date || doc.creation },
+			{ label: __("Scanned"), when: doc.scan_date || doc.creation },
 			{
-				label: __("Analysé"),
+				label: __("Analyzed"),
 				when:
 					doc.suggestion_status === "Complete" ||
 					["Pending Action", "Processed"].includes(doc.status)
 						? doc.modified
 						: null,
 			},
-			{ label: __("Imputé"), when: doc.status === "Processed" ? doc.modified : null },
+			{ label: __("Coded"), when: doc.status === "Processed" ? doc.modified : null },
 		],
 		rank(doc) {
 			if (doc.status === "Processed") return 4;
@@ -527,21 +528,22 @@ const HERO_REGISTRY = {
 
 	//// Neoffice — Project: the job's business pipeline, read off the fields
 	//// the form already carries (percent_complete, the neo_work lines and
-	//// their review_state, the billed total). French labels on purpose,
-	//// like Document Scan above. Every CTA is registered by the
+	//// their review_state, the billed total). The labels are English
+	//// msgids like everywhere else; the French reads the same as before
+	//// through the translation catalogue. Every CTA is registered by the
 	//// neoffice_activity app via add_hero_step_action — the hero owns the
 	//// frame, the module owns the gestures.
 	//// Neoffice — Task is the CATALOGUE ARTICLE of the activity module:
 	//// no pipeline, but its price belongs top right — firm price when it
-	//// sells one, hourly rate when it has its own. French labels like
-	//// Document Scan above.
+	//// sells one, hourly rate when it has its own. English msgids like
+	//// the Project labels above ("an hour" follows the amount).
 	Task: {
 		value(doc) {
 			if (doc.neo_pricing_mode === "Flat rate" && flt(doc.neo_flat_amount)) {
-				return { amount: doc.neo_flat_amount, label: __("Prix ferme") };
+				return { amount: doc.neo_flat_amount, label: __("Firm price") };
 			}
 			if (flt(doc.neo_hourly_rate)) {
-				return { amount: doc.neo_hourly_rate, label: __("de l'heure") };
+				return { amount: doc.neo_hourly_rate, label: __("an hour") };
 			}
 			return null;
 		},
@@ -553,7 +555,7 @@ const HERO_REGISTRY = {
 	//// (the visits are Activities, not on the document).
 	Project: {
 		steps: (doc) => [
-			//// Neoffice — and a nature that HIDES the Chiffrage tab gets no costing step
+			//// Neoffice — and a nature that HIDES the job costing tab gets no costing step
 			//// either (18.09): a maintenance contract is sold by its contract, not by a
 			//// costing, and that tab is not on its form — so the stepper was naming a step
 			//// the screen does not show. Its pipeline IS its visits, like a per-visit job.
@@ -561,12 +563,12 @@ const HERO_REGISTRY = {
 			//// per-visit ranking needs __onload.neo_visits, which this nature does not
 			//// necessarily carry — a wrong step is worse than a wrong word.
 			{
-				label: per_visit(doc) || hides_costing(doc) ? __("Visites") : __("Chiffrage"),
+				label: per_visit(doc) || hides_costing(doc) ? __("Visits") : __("Job costing"),
 				when: doc.creation,
 			},
-			{ label: __("En cours"), when: null },
+			{ label: __("In progress"), when: null },
 			{ label: __("Validation"), when: null },
-			{ label: __("Facturation"), when: null },
+			{ label: __("Billing"), when: null },
 		],
 		rank(doc) {
 			if (doc.status === "Cancelled") return -1;

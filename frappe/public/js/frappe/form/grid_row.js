@@ -511,14 +511,15 @@ export default class GridRow {
 						? __("Updating the JSON and pushing to git...")
 						: __("Updating the JSON..."),
 					callback: (r) => {
+						//// Neoffice — msgids were French, now English (house rule); the French screen is unchanged, served by the translation catalogue.
 						if (r.message && r.message.success) {
-							let msg = __("{0} : {1} champs mis à jour dans {2}", [
+							let msg = __("{0}: {1} fields updated in {2}", [
 								grid.doctype,
 								r.message.fields_updated,
 								r.message.json_path
 							]);
 							if (r.message.git_pushed) {
-								msg += "<br>" + __("Pushé sur git \u2713");
+								msg += "<br>" + __("Pushed to git \u2713");
 							}
 							frappe.show_alert({ message: msg, indicator: "green" });
 							// Reset user settings so "Reset to default" reads from updated JSON
@@ -528,8 +529,8 @@ export default class GridRow {
 							setTimeout(() => location.reload(), 300);
 						} else {
 							frappe.msgprint({
-								title: __("Erreur"),
-								message: r.message ? r.message.error : __("Erreur inconnue"),
+								title: __("Error"),
+								message: r.message ? r.message.error : __("Unknown error"),
 								indicator: "red"
 							});
 						}
@@ -551,8 +552,9 @@ export default class GridRow {
 				${__("Apply and Push")}
 			</button>`);
 			$btnPush.on("click", () => {
+				//// Neoffice — see the block marker above: msgid restored English
 				frappe.confirm(
-					__("Cela va modifier le JSON, commiter et pousser sur git. Continuer ?"),
+					__("This will edit the JSON, commit and push to git. Continue?"),
 					() => apply_to_json(true)
 				);
 			});
