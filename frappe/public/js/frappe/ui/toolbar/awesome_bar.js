@@ -605,6 +605,18 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		return false;
 	}
 
+	//// Neoffice — the "Search for X" entry and Enter on a bare query opened nothing: upstream creates
+	//// the search dialog in Toolbar.setup_help(), and with the NeoCockpit there is no upstream toolbar
+	//// (frappe.app.toolbar is false), so frappe.searchdialog was never defined and the click died on
+	//// "Cannot read properties of undefined (reading 'search')" - no dialog, no message, nothing.
+	//// The dialog is now built on first use. Drop this when the toolbar is back on every desk.
+	_open_global_search(txt) {
+		if (!frappe.searchdialog || !frappe.searchdialog.search) {
+			frappe.provide("frappe.searchdialog");
+			frappe.searchdialog.search = new frappe.search.SearchDialog();
+		}
+		frappe.searchdialog.search.init_search(txt, "global_search");
+	}
 	//// Neoffice — 417d4f52cf: frappe.utils.global_search.search fired on input (upstream only offered
 	//// a "Search for X" entry opening the dialog); math skipped + operators sanitised (b54cc07267),
 	//// limit 50 (e9da79644d), request id + closed / changed-query guards (25562da1fa, 6645876a0b).
@@ -742,6 +754,23 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			this._render_section_into($main, __("Calculator"), specials, "special");
 		}
 
+		//// Neoffice — the user manual answers in the list itself (provider default "Docs",
+		//// neoffice_theme awesome_bar_docs.js): its pages, or a waiting line while the hub is asked, so
+		//// that « note de crédit » offers the page about credit notes without a click on a footer row.
+		//// A search that has nothing to say shows nothing.
+		const manual = this.options.filter((o) => o.default === "Docs");
+		if (manual.length) {
+			const pages = manual.filter((o) => !o._searching);
+			if (pages.length) {
+				this._render_section_into($main, __("User manual"), pages, "docs");
+			} else if (!this._search_pending) {
+				$main.append(
+					`<div class="search-loading search-manual-loading">
+						<span class="text-extra-muted">${__("Searching the manual")}...</span>
+					</div>`
+				);
+			}
+		}
 		// 5. Global search results grouped by DocType
 		if (this.global_results.length) {
 			// Filter: only show results where the search term actually appears
@@ -827,9 +856,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		}
 
 		// 6. Custom provider results
-		const custom = this.options.filter(
-			(o) => o.default === "Docs" || o.default === "Custom"
-		);
+		//// Neoffice — "Docs" has its own section above now (see « the user manual answers »).
+		const custom = this.options.filter((o) => o.default === "Custom");
 		if (custom.length) {
 			this._render_section_into($main, __("More"), custom, "custom");
 		}
@@ -858,7 +886,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			</div>`);
 			$footer.find("a").on("click", (e) => {
 				e.preventDefault();
-				frappe.searchdialog.search.init_search(txt, "global_search");
+				this._open_global_search(txt);
 				this._close();
 			});
 			this.$panel.append($footer);
@@ -1181,7 +1209,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			} else {
 				const txt = this.$input.val().trim();
 				if (txt) {
-					frappe.searchdialog.search.init_search(txt, "global_search");
+					this._open_global_search(txt);
 					this._close();
 				}
 			}
