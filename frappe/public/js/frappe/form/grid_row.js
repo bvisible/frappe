@@ -201,7 +201,9 @@ export default class GridRow {
 				$(me.frm.wrapper).trigger("grid-move-row", [me.frm, me]);
 			},
 			__("Move To"),
-			"Update"
+			//// Neoffice — upstream passes the primary button label as a bare English literal,
+			//// and frappe.prompt does not translate it; we translate it.
+			__("Update")
 		);
 	}
 	refresh() {

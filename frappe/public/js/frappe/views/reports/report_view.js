@@ -326,7 +326,9 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 								callback: function(r) {
 									if (r.message) {
 										frappe.show_alert({
-											message: __("Settings for ") + doctype + __("deleted successfully"),
+											//// Neoffice — the sentence was cut into pieces around the doctype name
+											//// (no space between them, untranslated name): one template, name translated.
+											message: __("Settings for {0} deleted successfully", [__(doctype)]),
 											indicator: 'green'
 										});
 										// Refresh the page
@@ -353,7 +355,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 								callback: function(r) {
 									if (r.message) {
 										frappe.show_alert({
-											message: __("Settings for ") + doctype + __("pushed to all users successfully"),
+											//// Neoffice — same as above: one template, with the translated doctype name.
+											message: __("Settings for {0} pushed to all users successfully", [__(doctype)]),
 											indicator: 'green'
 										});
 									}
@@ -396,7 +399,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 									callback: function(response) {				
 										if (response.message) {
 											frappe.show_alert({
-												message: __("Global default settings for ") + me.doctype + __(" saved successfully"),
+												//// Neoffice — same as above: one template, with the translated doctype name.
+												message: __("Global default settings for {0} saved successfully", [__(me.doctype)]),
 												indicator: 'green'
 											});
 										}
@@ -3052,7 +3056,9 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			items.push({
 				label: __("Delete"),
 				action: () =>
-					frappe.confirm("Are you sure you want to delete this report?", () =>
+					//// Neoffice — upstream passes the confirmation text untranslated
+					//// (frappe.confirm does not translate its message); we translate it.
+					frappe.confirm(__("Are you sure you want to delete this report?"), () =>
 						this.delete_report()
 					),
 				shortcut: "Shift+Ctrl+D",

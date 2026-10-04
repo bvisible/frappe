@@ -1,7 +1,8 @@
 export default class ListSettings {
 	constructor({ listview, doctype, meta, settings }) {
 		if (!doctype) {
-			frappe.throw("DocType required");
+			//// Neoffice — upstream throws this sentence untranslated; we pass it through __().
+			frappe.throw(__("DocType required"));
 		}
 
 		this.listview = listview;

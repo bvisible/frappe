@@ -438,7 +438,9 @@ frappe.views.FileView = class FileView extends frappe.views.ListView {
 					const file_name = dataTransfer.getData("Text");
 					const folder_name = decodeURIComponent($el.attr("data-name"));
 					frappe.file_manager.paste(folder_name);
-					frappe.show_alert(`File ${file_name} moved to ${folder_name}`);
+					//// Neoffice — upstream shows a template literal that is never translated;
+					//// we translate the template and pass the values as parameters.
+					frappe.show_alert(__("File {0} moved to {1}", [file_name, folder_name]));
 				}
 			}
 		});
