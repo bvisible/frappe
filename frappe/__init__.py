@@ -770,26 +770,25 @@ def sendmail(
 		if communication:
 			ticket_email_account = db.get_value("Communication", communication, "email_account")
 
-		# //// Neoffice — fallback sur le compte du TICKET quand aucune Communication
-		# //// n'est fournie. Seul reply_via_agent passe communication= ; l'accuse de
-		# //// reception et le mail de satisfaction, eux, n'en ont pas, et retombaient
-		# //// donc sur le compte sortant par defaut : un client ecrivant a
-		# //// support@neoffice.ch recevait une reponse de neoservice@neoemail.ch,
-		# //// boite qui n'est PAS relevee (enable_incoming=0) — sa reponse etait
-		# //// perdue en silence. Le ticket porte deja l'info : frappe.email.receive
-		# //// ecrit email_account (recipient_account_field) avant meme l'insert.
-		# //// Constate sur les tickets #25/#26/#27 le 2026-08-12.
+		# //// Neoffice — fall back on the TICKET's account when no Communication is
+		# //// given. Only reply_via_agent passes communication=; the acknowledgement and
+		# //// the satisfaction mail do not, so they fell back on the default outgoing
+		# //// account: a customer writing to the support address got an answer from
+		# //// another mailbox that is NOT fetched (enable_incoming=0), and their reply was
+		# //// silently lost. The ticket already carries the account: frappe.email.receive
+		# //// writes email_account (recipient_account_field) before the insert.
+		# //// Seen on three tickets on 2026-08-12.
 		if not ticket_email_account and (reference_name or name):
 			try:
 				ticket_email_account = db.get_value(
 					"HD Ticket", reference_name or name, "email_account"
 				)
 			except Exception:
-				# helpdesk absent / table manquante : on retombe sur le defaut
+				# //// Neoffice — no helpdesk app or no table: fall back on the default
 				ticket_email_account = None
 
-		# //// Neoffice — un compte qui n'emet pas ne doit jamais devenir expediteur
-		# //// (sinon SMTP refuse et le mail est perdu au lieu de partir du defaut).
+		# //// Neoffice — an account that does not send must never become the sender
+		# //// (SMTP would refuse it and the mail would be lost instead of leaving from the default).
 		if ticket_email_account and not db.get_value(
 			"Email Account", ticket_email_account, "enable_outgoing"
 		):
@@ -803,17 +802,16 @@ def sendmail(
 	else:
 		default_outgoing = None
 
-	# //// Neoffice — respecter un sender qui EST une de nos boîtes émettrices.
-	# //// Ce bloc existe pour éviter les refus Stalwart 501 5.5.4 quand du code
-	# //// ancien passe sender=info@<domaine-client> : une adresse que le système
-	# //// ne sait pas servir. Mais quand le sender correspond à un Email Account
-	# //// avec enable_outgoing=1, il a ses propres identifiants SMTP — l'écraser
-	# //// n'évite aucun refus et fait sortir le mail par le relais NeoMail/Brevo,
-	# //// avec ses en-têtes de mailing de masse.
-	# //// Concret : les alertes support partaient de neoservice@neoemail.ch via
-	# //// Brevo et finissaient dans le SPAM d'emailarray — personne ne les a vues
-	# //// (2026-08-13). Elles partent maintenant de la boîte support elle-même,
-	# //// par son SMTP direct, comme les accusés de réception qui, eux, arrivent.
+	# //// Neoffice — keep a sender that IS one of our sending mailboxes.
+	# //// This block exists to avoid Stalwart's 501 5.5.4 refusals when older code
+	# //// passes sender=info@<customer-domain>: an address the system cannot serve.
+	# //// But when the sender matches an Email Account with enable_outgoing=1, it
+	# //// has its own SMTP credentials: overwriting it avoids no refusal and sends
+	# //// the mail through the bulk relay, with its mass-mailing headers.
+	# //// In practice the support alerts left through that relay and ended in a
+	# //// recipient's spam folder, unseen (2026-08-13). They now leave from the
+	# //// support mailbox itself, over its own SMTP, like the acknowledgements,
+	# //// which do arrive.
 	if default_outgoing is None and sender:
 		from frappe.utils import parse_addr as _neo_parse_addr
 
