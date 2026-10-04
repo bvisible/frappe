@@ -564,9 +564,11 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 			</button></p>`
 			: "";
 
+		//// Neoffice — upstream hard-codes this image's alt text in English, so it shows as a tooltip (and is
+		//// read out) in English in a French UI. Passed through __() so the catalogue can translate it.
 		return `<div class="msg-box no-border">
 			<div>
-				<img src="${empty_state_image}" alt="Generic Empty State" class="null-state">
+				<img src="${empty_state_image}" alt="${__("Generic Empty State")}" class="null-state">
 			</div>
 			<p>${no_result_message}</p>
 			${new_button}

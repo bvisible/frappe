@@ -471,7 +471,10 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				});
 
 				dialog.show();
-			}).addClass('btn-settings').html(`<img src="/assets/frappe/icons/timeless/icon-settings.svg" alt="Settings" style="height: 15px; vertical-align: middle;">`);
+			}).addClass('btn-settings')
+			//// Neoffice — the alt text of this icon-only button was an English literal (it never went through
+			//// __()), so the tooltip stayed English in a French UI. Not upstream's: the button is ours.
+			.html(`<img src="/assets/frappe/icons/timeless/icon-settings.svg" alt="${__("Settings")}" style="height: 15px; vertical-align: middle;">`);
 		}
 		// Totals toggle button
 		if (!this.page.wrapper.find('.btn-totals').length) {
@@ -485,7 +488,10 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				this.style_totals_row();
 				// Update button appearance
 				this.update_totals_button();
-			}).addClass('btn-totals').html(`<img src="/assets/frappe/icons/timeless/sigma.svg" alt="Totals" style="height: 15px; vertical-align: middle;">`);
+			}).addClass('btn-totals')
+			//// Neoffice — the alt text of this icon-only button was an English literal (it never went through
+			//// __()), so the tooltip stayed English in a French UI. Not upstream's: the button is ours.
+			.html(`<img src="/assets/frappe/icons/timeless/sigma.svg" alt="${__("Totals")}" style="height: 15px; vertical-align: middle;">`);
 			// Set initial button state
 			this.update_totals_button();
 		}
@@ -580,7 +586,10 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				);
 				
 				d.show();
-			}).addClass('btn-export-excel').html(`<img src="/assets/frappe/icons/timeless/icon-excel.svg" alt="Export Excel" style="height: 20px; vertical-align: middle;">`);
+			}).addClass('btn-export-excel')
+			//// Neoffice — the alt text of this icon-only button was an English literal (it never went through
+			//// __()), so the tooltip stayed English in a French UI. Not upstream's: the button is ours.
+			.html(`<img src="/assets/frappe/icons/timeless/icon-excel.svg" alt="${__("Export Excel")}" style="height: 20px; vertical-align: middle;">`);
 		}		
 		////
 		if (this.report_doc) {

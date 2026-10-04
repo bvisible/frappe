@@ -200,9 +200,11 @@ frappe.views.DashboardView = class DashboardView extends frappe.views.ListView {
 
 		const empty_state_image = "/assets/frappe/images/ui-states/list-empty-state.svg";
 
+		//// Neoffice — upstream hard-codes this image's alt text in English, so it shows as a tooltip (and is
+		//// read out) in English in a French UI. Passed through __() so the catalogue can translate it.
 		const empty_state_html = `<div class="msg-box no-border empty-dashboard">
 			<div>
-				<img src="${empty_state_image}" alt="Generic Empty State" class="null-state">
+				<img src="${empty_state_image}" alt="${__("Generic Empty State")}" class="null-state">
 			</div>
 			${no_result_message_html}
 			${customize_button}

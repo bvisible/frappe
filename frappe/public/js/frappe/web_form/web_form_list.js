@@ -231,13 +231,15 @@ export default class WebFormList {
 			</a>
 		`;
 
+		//// Neoffice — upstream hard-codes this image's alt text in English, so it shows as a tooltip (and is
+		//// read out) in English in a French UI. Passed through __() so the catalogue can translate it.
 		let empty_state = $(`
 			<div class="no-result text-muted flex justify-center align-center">
 				<div class="text-center">
 					<div>
 						<img
 							src="/assets/frappe/images/ui-states/list-empty-state.svg"
-							alt="Generic Empty State"
+							alt="${__("Generic Empty State")}"
 							class="null-state">
 					</div>
 					<p class="small mb-2">${__("No {0} found", [__(this.doctype)])}</p>

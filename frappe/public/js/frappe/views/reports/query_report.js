@@ -102,9 +102,11 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 	}
 
 	get_no_result_message() {
+		//// Neoffice — upstream hard-codes this image's alt text in English, so it shows as a tooltip (and is
+		//// read out) in English in a French UI. Passed through __() so the catalogue can translate it.
 		return `<div class="msg-box no-border">
 			<div>
-				<img src="/assets/frappe/images/ui-states/list-empty-state.svg" alt="Generic Empty State" class="null-state">
+				<img src="/assets/frappe/images/ui-states/list-empty-state.svg" alt="${__("Generic Empty State")}" class="null-state">
 			</div>
 			<p>${__("Nothing to show")}</p>
 		</div>`;
@@ -1050,9 +1052,11 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 	}
 
 	show_loading_screen() {
+		//// Neoffice — upstream hard-codes this image's alt text in English, so it shows as a tooltip (and is
+		//// read out) in English in a French UI. Passed through __() so the catalogue can translate it.
 		const loading_state = `<div class="msg-box no-border">
 			<div>
-				<img src="/assets/frappe/images/ui-states/list-empty-state.svg" alt="Generic Empty State" class="null-state">
+				<img src="/assets/frappe/images/ui-states/list-empty-state.svg" alt="${__("Generic Empty State")}" class="null-state">
 			</div>
 			<p>${__("Loading")}...</p>
 		</div>`;
