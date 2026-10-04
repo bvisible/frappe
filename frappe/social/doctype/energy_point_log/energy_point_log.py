@@ -115,12 +115,14 @@ def get_notification_message(doc):
 	title = get_title(doc.reference_doctype, doc.reference_name)
 
 	if doc.type == "Auto":
-		owner_name = frappe.bold("You")
+		# //// Neoffice — upstream puts the English word "You" (never translated) in the subject slot of
+		# //// "{0} gained {1} points …": in French that read « You a gagné 5 points ». The sentence about the
+		# //// person themself is now its own template, with no subject to inflect (« Vous avez gagné… »).
 		if points == 1:
-			message = _("{0} gained {1} point for {2} {3}")
+			message = _("You gained {0} point for {1} {2}")
 		else:
-			message = _("{0} gained {1} points for {2} {3}")
-		message = message.format(owner_name, frappe.bold(points), doc.rule, get_title_html(title))
+			message = _("You gained {0} points for {1} {2}")
+		message = message.format(frappe.bold(points), _(doc.rule), get_title_html(title))
 	elif doc.type == "Appreciation":
 		if points == 1:
 			message = _("{0} appreciated your work on {1} with {2} point")
