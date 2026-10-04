@@ -326,11 +326,14 @@ class EmailQueue(Document):
 				ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)
 				ref_doc.add_comment(
 					"Comment",
+					# //// Neoffice — _() strips HTML tags from a message before looking it up, so a
+					# //// msgid that carries <code> can never match its catalog entry: the sentence stays
+					# //// English whatever the .po says. The tags now wrap the value, outside the msgid.
 					text=_(
 						"⚠ An email was blocked because the recipient has a "
-						"placeholder address (<code>{0}</code>). "
+						"placeholder address ({0}). "
 						"Please update the contact's real email."
-					).format(recipient.recipient),
+					).format(f"<code>{recipient.recipient}</code>"),
 				)
 	# ////
 
