@@ -120,9 +120,11 @@ class BaseTimeline {
 			"data-name": item.name,
 			"data-timestamp": item.creation,
 		});
+		//// Neoffice — upstream falls back to the icon name as the badge tooltip ("share" becomes "Share") and
+		//// never translates it, so the tooltip stayed English in a French UI. The fallback goes through __().
 		if (item.icon) {
 			timeline_item.append(`
-				<div class="timeline-badge" title='${item.title || frappe.utils.to_title_case(item.icon)}'>
+				<div class="timeline-badge" title='${item.title || __(frappe.utils.to_title_case(item.icon))}'>
 					${frappe.utils.icon(item.icon, item.icon_size || "md", item.icon_class || "")}
 				</div>
 			`);

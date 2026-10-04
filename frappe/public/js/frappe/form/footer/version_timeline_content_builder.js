@@ -160,7 +160,14 @@ function get_version_timeline_content(version_doc, frm) {
 					) {
 						parts.push(
 							__("{0} from {1} to {2} in row #{3}", [
-								frappe.meta.get_label(frm.fields_dict[row[0]].grid.doctype, p[0]),
+								//// Neoffice — upstream prints the child table's field label as stored (English). The parent-table
+								//// branch above and the added/removed branch below already translate theirs: so do we, with the
+								//// child doctype as translation context, as the form does for a grid column.
+								__(
+									frappe.meta.get_label(frm.fields_dict[row[0]].grid.doctype, p[0]),
+									null,
+									frm.fields_dict[row[0]].grid.doctype
+								),
 								format_content_for_timeline(p[1]),
 								format_content_for_timeline(p[2]),
 								row[1] + 1,
