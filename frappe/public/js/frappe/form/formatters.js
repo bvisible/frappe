@@ -50,7 +50,12 @@ frappe.form.formatters = {
 		return __(frappe.form.formatters["Data"](value, df));
 	},
 	Select: function (value, df) {
-		return __(frappe.form.formatters["Data"](value, df));
+		//// Neoffice — the option is translated with the field's DocType as its context, the way the
+		//// editable control does it (ControlSelect passes df.context || df.parent). Upstream looked the
+		//// bare word up, so a list cell, a read-only field or a grid row not being edited showed another
+		//// app's French for the same English word while the dropdown showed ours. The lookup falls back
+		//// to the bare key when no entry carries the context, so nothing that translated before changes.
+		return __(frappe.form.formatters["Data"](value, df), null, df && (df.context || df.parent));
 	},
 	Float: function (value, docfield, options, doc) {
 		if (value === null) {
