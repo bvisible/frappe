@@ -736,6 +736,24 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			this._render_section_into($main, __("Documents matching amount"), amount_matches, "amount");
 		}
 
+		//// Neoffice — the user manual answers in the list itself (provider default "Docs",
+		//// neoffice_theme awesome_bar_docs.js): its pages, or a waiting line while the hub is asked, so
+		//// that « note de crédit » offers the page about credit notes without a click on a footer row.
+		//// A search that has nothing to say shows nothing. Placed before the files and
+		//// the appointments: eight files named « note_audio… » pushed it below the fold.
+		const manual = this.options.filter((o) => o.default === "Docs");
+		if (manual.length) {
+			const pages = manual.filter((o) => !o._searching);
+			if (pages.length) {
+				this._render_section_into($main, __("User manual"), pages, "docs");
+			} else if (!this._search_pending) {
+				$main.append(
+					`<div class="search-loading search-manual-loading">
+						<span class="text-extra-muted">${__("Searching the manual")}...</span>
+					</div>`
+				);
+			}
+		}
 		// 3b. Calendar appointments matching the query (Suite calendar)
 		const cal_events = this.options.filter((o) => o.default === "CalendarEvent");
 		if (cal_events.length) {
@@ -754,23 +772,6 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			this._render_section_into($main, __("Calculator"), specials, "special");
 		}
 
-		//// Neoffice — the user manual answers in the list itself (provider default "Docs",
-		//// neoffice_theme awesome_bar_docs.js): its pages, or a waiting line while the hub is asked, so
-		//// that « note de crédit » offers the page about credit notes without a click on a footer row.
-		//// A search that has nothing to say shows nothing.
-		const manual = this.options.filter((o) => o.default === "Docs");
-		if (manual.length) {
-			const pages = manual.filter((o) => !o._searching);
-			if (pages.length) {
-				this._render_section_into($main, __("User manual"), pages, "docs");
-			} else if (!this._search_pending) {
-				$main.append(
-					`<div class="search-loading search-manual-loading">
-						<span class="text-extra-muted">${__("Searching the manual")}...</span>
-					</div>`
-				);
-			}
-		}
 		// 5. Global search results grouped by DocType
 		if (this.global_results.length) {
 			// Filter: only show results where the search term actually appears
