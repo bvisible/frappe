@@ -212,6 +212,15 @@ jobs:
           mkdir -p sites/assets
           [ -f sites/assets/assets.json ] || echo '{}' > sites/assets/assets.json
 
+      - name: Compile the translation catalogues
+        working-directory: /home/runner/frappe-bench
+        run: |
+          # A deploy compiles every locale/*.po into .mo; --skip-assets leaves none here, and
+          # without them _() finds no catalogue. frappe's own translation tests then asserted
+          # against English the first time a change made them run: test_translation_with_context
+          # read "Change" for "Changement" (neoffice-maintenance#667, 2026-10-04).
+          bench compile-po-to-mo --app frappe
+
       - name: SMTP sink, for the whole suite
         if: steps.modules.outputs.mode == 'full'
         run: |
