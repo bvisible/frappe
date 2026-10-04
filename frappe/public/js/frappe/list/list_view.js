@@ -2018,8 +2018,10 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 			return {
 				label: __("Clear Assignment", null, "Button in list view actions menu"),
 				action: () => {
+					//// Neoffice — upstream passes the confirmation text untranslated
+					//// (frappe.confirm does not translate its message); we translate it.
 					frappe.confirm(
-						"Are you sure you want to clear the assignments?",
+						__("Are you sure you want to clear the assignments?"),
 						() => {
 							this.disable_list_update = true;
 							bulk_operations.clear_assignment(this.get_checked_items(true), () => {

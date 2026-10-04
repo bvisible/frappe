@@ -513,7 +513,9 @@ frappe.ui.form.Form = class FrappeForm {
 			}
 
 			if (typeof action === "string") {
-				frappe.throw(`Action ${action} not found`);
+				//// Neoffice — upstream throws a template literal that is never translated;
+				//// we translate the template and pass the value as a parameter.
+				frappe.throw(__("Action {0} not found", [action]));
 			}
 		}
 		if (action.action_type === "Server Action") {
