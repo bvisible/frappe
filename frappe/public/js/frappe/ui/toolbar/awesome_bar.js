@@ -887,6 +887,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			</div>`);
 			$footer.find("a").on("click", (e) => {
 				e.preventDefault();
+				//// Neoffice — see the block marker on _open_global_search(): the dialog is built on first use
+				//// (effa923911 "fix(search): the "Search for X" row opens the dialog without the upstream toolbar,
+				//// and the user manual answers in the list").
 				this._open_global_search(txt);
 				this._close();
 			});
@@ -1210,6 +1213,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			} else {
 				const txt = this.$input.val().trim();
 				if (txt) {
+					//// Neoffice — see the block marker on _open_global_search(): Enter on a bare query opens the
+					//// dialog built on first use (effa923911 "fix(search): the "Search for X" row opens the dialog
+					//// without the upstream toolbar, and the user manual answers in the list").
 					this._open_global_search(txt);
 					this._close();
 				}

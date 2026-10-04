@@ -23,6 +23,8 @@ frappe.ui.form.on("Role", {
 			frappe.route_options = { role: frm.doc.name };
 			frappe.set_route("permission-manager");
 		});
+		//// Neoffice — see the block marker above: this label goes through __() as well (486b7e3cf6
+		//// "fix(i18n): the Role form buttons go through __()").
 		frm.add_custom_button(__("Show Users"), function () {
 			frappe.route_options = { role: frm.doc.name };
 			frappe.set_route("List", "User", "Report");

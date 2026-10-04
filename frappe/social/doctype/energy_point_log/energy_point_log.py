@@ -121,6 +121,9 @@ def get_notification_message(doc):
 		if points == 1:
 			message = _("You gained {0} point for {1} {2}")
 		else:
+			# //// Neoffice — see the block marker above: plural form of the same "You gained" template, and
+			# //// its format() call no longer injects a subject (6480fc2f16 "fix(i18n): the energy point
+			# //// notification about oneself is its own template, not an English You in a French sentence").
 			message = _("You gained {0} points for {1} {2}")
 		message = message.format(frappe.bold(points), _(doc.rule), get_title_html(title))
 	elif doc.type == "Appreciation":

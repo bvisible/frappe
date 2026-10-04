@@ -103,6 +103,7 @@ frappe.search.SearchDialog = class {
 		var $placeholder = $(`<div class="row search-results hide">
 			<div class="empty-state">
 				<div class="text-center">
+					<!-- //// Neoffice — the empty state's alt text goes through __() (1e42eee4de "fix(i18n): alt texts of the empty states and of the report toolbar icons go through __()") -->
 					<img src="/assets/frappe/images/ui-states/search-empty-state.svg"
 						alt="${__("Generic Empty State")}"
 						class="null-state"

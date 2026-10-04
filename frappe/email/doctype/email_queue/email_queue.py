@@ -333,6 +333,9 @@ class EmailQueue(Document):
 						"⚠ An email was blocked because the recipient has a "
 						"placeholder address ({0}). "
 						"Please update the contact's real email."
+					# //// Neoffice — see the block marker above: the <code> tags wrap the injected value,
+					# //// outside the msgid (c8187f4746 "fix(i18n): keep HTML tags out of a
+					# //// placeholder-address comment's msgid").
 					).format(f"<code>{recipient.recipient}</code>"),
 				)
 	# ////

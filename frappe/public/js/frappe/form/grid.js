@@ -91,6 +91,7 @@ export default class Grid {
 						<div class="grid-body">
 							<div class="rows"></div>
 							<div class="grid-empty text-center">
+								<!-- //// Neoffice — the empty state's alt text goes through __() (1e42eee4de "fix(i18n): alt texts of the empty states and of the report toolbar icons go through __()") -->
 								<img
 									src="/assets/frappe/images/ui-states/grid-empty-state.svg"
 									alt="${__("Grid Empty State")}"

@@ -122,6 +122,9 @@ def _(msg: str, lang: str | None = None, context: str | None = None) -> str:
 	raw_msg = None
 
 	if is_html(msg):
+		# //// Neoffice — see the block marker above: keep the raw text, tags included, for the fallback
+		# //// lookup (44ed6b9835 "fix(i18n): look an HTML message up with its tags when the stripped text
+		# //// is not in the catalog").
 		raw_msg = as_unicode(msg).strip()
 		msg = strip_html_tags(msg)
 

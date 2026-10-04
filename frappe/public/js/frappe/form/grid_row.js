@@ -519,6 +519,9 @@ export default class GridRow {
 								r.message.json_path
 							]);
 							if (r.message.git_pushed) {
+								//// Neoffice — see the marker above: msgid now English, the French is served by the catalogue
+								//// (f702c41e79 "refactor(i18n): English source strings for the form hero steps and the grid
+								//// column dialog").
 								msg += "<br>" + __("Pushed to git \u2713");
 							}
 							frappe.show_alert({ message: msg, indicator: "green" });
@@ -528,6 +531,9 @@ export default class GridRow {
 							this.grid_settings_dialog.hide();
 							setTimeout(() => location.reload(), 300);
 						} else {
+							//// Neoffice — see the marker above: msgids now English, the French is served by the catalogue
+							//// (f702c41e79 "refactor(i18n): English source strings for the form hero steps and the grid
+							//// column dialog").
 							frappe.msgprint({
 								title: __("Error"),
 								message: r.message ? r.message.error : __("Unknown error"),

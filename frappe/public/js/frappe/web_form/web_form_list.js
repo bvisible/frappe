@@ -237,6 +237,7 @@ export default class WebFormList {
 			<div class="no-result text-muted flex justify-center align-center">
 				<div class="text-center">
 					<div>
+						<!-- //// Neoffice — the empty state's alt text goes through __() (1e42eee4de "fix(i18n): alt texts of the empty states and of the report toolbar icons go through __()") -->
 						<img
 							src="/assets/frappe/images/ui-states/list-empty-state.svg"
 							alt="${__("Generic Empty State")}"

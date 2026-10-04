@@ -2,6 +2,9 @@
 # License: MIT. See LICENSE
 
 import frappe
+# //// Neoffice — added import: the "No read permission" error raised in get() below is now translated,
+# //// the template first and the page title injected after it (78344892f8 "fix(i18n): translate what
+# //// Python messages compose before the catalog sees it").
 from frappe import _
 
 
