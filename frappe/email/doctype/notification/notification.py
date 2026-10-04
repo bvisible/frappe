@@ -388,7 +388,9 @@ def get_context(context):
 			doc.docstatus == 2 and not print_settings.allow_print_for_cancelled
 		):
 			# ignoring attachment as draft and cancelled documents are not allowed to print
-			status = "Draft" if doc.docstatus == 0 else "Cancelled"
+			# //// Neoffice — upstream injects the English literals "Draft" / "Cancelled" into a
+			# //// translated template, so the sentence came out half English; we translate them too.
+			status = _("Draft") if doc.docstatus == 0 else _("Cancelled")
 			frappe.throw(
 				_(
 					"""Not allowed to attach {0} document, please enable Allow Print For {0} in Print Settings"""

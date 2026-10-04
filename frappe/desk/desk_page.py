@@ -2,6 +2,7 @@
 # License: MIT. See LICENSE
 
 import frappe
+from frappe import _
 
 
 def get(name):
@@ -18,7 +19,9 @@ def get(name):
 		return docs
 	else:
 		frappe.response["403"] = 1
-		raise frappe.PermissionError("No read permission for Page %s" % (page.title or name))
+		# //// Neoffice — upstream raises an untranslated English sentence, shown as is to a
+		# //// French user without read access to a page; we translate the template, then inject the title.
+		raise frappe.PermissionError(_("No read permission for Page {0}").format(page.title or name))
 
 
 @frappe.whitelist(allow_guest=True)

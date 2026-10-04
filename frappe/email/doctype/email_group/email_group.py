@@ -46,8 +46,10 @@ class EmailGroup(Document):
 			None,
 		)
 		if not email_field:
+			# //// Neoffice — upstream injects the raw (English) doctype name into a translated
+			# //// template, so the sentence came out half English; we translate the name too.
 			frappe.throw(
-				_("No Email field found in {0}").format(doctype),
+				_("No Email field found in {0}").format(_(doctype)),
 				title=_("Invalid Doctype"),
 			)
 

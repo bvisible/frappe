@@ -253,8 +253,10 @@ def check_permission_and_not_submitted(doc):
 		and frappe.session.user != "Administrator"
 		and (not doc.has_permission("delete") or (doc.doctype == "DocType" and not doc.custom))
 	):
+		# //// Neoffice — upstream injects the raw (English) doctype name into a translated
+		# //// template, so the sentence came out half English; we translate the name too.
 		frappe.msgprint(
-			_("User not allowed to delete {0}: {1}").format(doc.doctype, doc.name),
+			_("User not allowed to delete {0}: {1}").format(_(doc.doctype), doc.name),
 			raise_exception=frappe.PermissionError,
 		)
 

@@ -468,7 +468,9 @@ def get_default_naming_series(doctype: str) -> str | None:
 
 def validate_name(doctype: str, name: int | str):
 	if not name:
-		frappe.throw(_("No Name Specified for {0}").format(doctype))
+		# //// Neoffice — upstream injects the raw (English) doctype name into a translated
+		# //// template, so the sentence came out half English; we translate the name too.
+		frappe.throw(_("No Name Specified for {0}").format(_(doctype)))
 
 	if isinstance(name, int):
 		if is_autoincremented(doctype):
@@ -486,7 +488,8 @@ def validate_name(doctype: str, name: int | str):
 	name = name.strip()
 
 	if not frappe.get_meta(doctype).get("issingle") and (doctype == name) and (name != "DocType"):
-		frappe.throw(_("Name of {0} cannot be {1}").format(doctype, name), frappe.NameError)
+		# //// Neoffice — same as above; here the name equals the doctype name, so both are translated.
+		frappe.throw(_("Name of {0} cannot be {1}").format(_(doctype), _(name)), frappe.NameError)
 
 	special_characters = "<>"
 	if re.findall(f"[{special_characters}]+", name):
