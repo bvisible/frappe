@@ -85,7 +85,11 @@
 					</div>
 				</div>
 				{% if introduction_text and (is_new or in_edit_mode)  %}
-					<div class="web-form-introduction">{{ introduction_text }}</div>
+					{# //// Neoffice — upstream prints the introduction as stored (English), although the
+					//// Web Form extractor puts it in the catalog and the title, button and success message
+					//// are all translated here; we pass it through _() like them. The introduction is HTML:
+					//// it only matches its catalog entry thanks to the raw-text fallback we added to frappe._(). #}
+					<div class="web-form-introduction">{{ _(introduction_text) }}</div>
 				{% endif %}
 			</div>
 		</div>
