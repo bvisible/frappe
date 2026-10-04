@@ -315,7 +315,9 @@ class EmailAccount(Document):
 			args.password = self.get_password()
 
 		if not args.get("host"):
-			frappe.throw(_("{0} is required").format("Email Server"))
+			# //// Neoffice — upstream injects the English literal "Email Server" into a translated
+			# //// template, so the sentence came out half English; we translate the literal too.
+			frappe.throw(_("{0} is required").format(_("Email Server")))
 
 		email_server = EmailServer(frappe._dict(args))
 		self.check_email_server_connection(email_server, in_receive)

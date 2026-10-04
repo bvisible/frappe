@@ -452,11 +452,14 @@ def _export_query(form_params, csv_params, populate_response=True):
 		if frappe.permissions.can_export(doctype, is_owner=True):
 			for row in ret:
 				if row[-1] != frappe.session.user:
+					# //// Neoffice — upstream injects the raw (English) doctype name into a translated
+					# //// template, so the sentence came out half English; we translate the name too.
 					raise frappe.PermissionError(
-						_("You are not allowed to export {} doctype").format(doctype)
+						_("You are not allowed to export {} doctype").format(_(doctype))
 					)
 		else:
-			raise frappe.PermissionError(_("You are not allowed to export {} doctype").format(doctype))
+			# //// Neoffice — same as above: the doctype name is translated before it is injected.
+			raise frappe.PermissionError(_("You are not allowed to export {} doctype").format(_(doctype)))
 
 	if add_totals_row:
 		ret = append_totals_row(ret)
@@ -1021,7 +1024,8 @@ def export_query(data=None, selected_items=None, file_format_type='Excel', title
     if data:
         data = frappe.parse_json(data)
         if not isinstance(data, list):
-            frappe.throw("Invalid data format")
+            # //// Neoffice — this error was thrown in English; it is now translated.
+            frappe.throw(_("Invalid data format"))
             
         # If selected_items is provided, filter the data to include only the selected items
         if selected_items:
@@ -1062,7 +1066,8 @@ def export_query(data=None, selected_items=None, file_format_type='Excel', title
     
     # If no data found after processing both cases
     if not data or len(data) == 0:
-        frappe.throw("No data provided for export")
+        # //// Neoffice — this error was thrown in English; it is now translated.
+        frappe.throw(_("No data provided for export"))
         
     # Create headers and rows
     headers = ["Sr"] + list(data[0].keys())
@@ -1107,7 +1112,8 @@ def export_query(data=None, selected_items=None, file_format_type='Excel', title
         
         return {"file_url": file_doc.file_url}
     else:
-        frappe.throw("Unsupported file format")
+        # //// Neoffice — this error was thrown in English; it is now translated.
+        frappe.throw(_("Unsupported file format"))
 
 def sanitize_title(title):
     title = title.replace(" ", "_")

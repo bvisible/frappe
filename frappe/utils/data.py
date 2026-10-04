@@ -1439,7 +1439,9 @@ def get_thumbnail_base64_for_image(src):
 	from frappe.core.doctype.file.utils import get_local_image
 
 	if not src:
-		frappe.throw(f"Invalid source for image: {src}")
+		# //// Neoffice — upstream throws an f-string that is never translated; we translate the
+		# //// template and inject the value afterwards.
+		frappe.throw(frappe._("Invalid source for image: {0}").format(src))
 
 	if not src.startswith("/files") or ".." in src:
 		return
@@ -1786,7 +1788,9 @@ def filter_operator_is(value: str | None, pattern: str) -> bool:
 	elif pattern == "not set":
 		return not is_set()
 	else:
-		frappe.throw(frappe._(f"Invalid argument for operator 'IS': {pattern}"))
+		# //// Neoffice — upstream passes an f-string to _(): the translation key changes with each
+		# //// value, so no catalog entry can match. The template is the key; the value is injected after.
+		frappe.throw(frappe._("Invalid argument for operator 'IS': {0}").format(pattern))
 
 
 def filter_operator_timespan(value: str, pattern: str) -> bool:

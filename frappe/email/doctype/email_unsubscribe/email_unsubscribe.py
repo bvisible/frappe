@@ -45,9 +45,11 @@ class EmailUnsubscribe(Document):
 					"name": ["!=", self.name],
 				},
 			):
+				# //// Neoffice — upstream injects the raw (English) doctype name into a translated
+				# //// template, so the sentence came out half English; we translate the name too.
 				frappe.throw(
 					_("{0} already unsubscribed for {1} {2}").format(
-						self.email, self.reference_doctype, self.reference_name
+						self.email, _(self.reference_doctype), self.reference_name
 					),
 					frappe.DuplicateEntryError,
 				)

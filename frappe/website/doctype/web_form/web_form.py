@@ -690,7 +690,8 @@ def delete(web_form_name: str, docname: str | int):
 	if frappe.session.user == owner and web_form.allow_delete:
 		frappe.delete_doc(web_form.doc_type, docname, ignore_permissions=True)
 	else:
-		raise frappe.PermissionError("Not Allowed")
+		# //// Neoffice — upstream raises this sentence untranslated; we pass it through _().
+		raise frappe.PermissionError(_("Not Allowed"))
 
 
 @frappe.whitelist()
@@ -715,8 +716,10 @@ def delete_multiple(web_form_name: str, docnames):
 		frappe.delete_doc(web_form.doc_type, docname, ignore_permissions=True)
 
 	if restricted_docnames:
+		# //// Neoffice — upstream glues an untranslated English sentence (with a typo) to the list of
+		# //// names; we use one translatable template and inject the list into it.
 		raise frappe.PermissionError(
-			"You do not have permisssion to delete " + ", ".join(restricted_docnames)
+			_("You do not have permission to delete {0}").format(", ".join(restricted_docnames))
 		)
 
 
@@ -798,8 +801,11 @@ def get_link_options(web_form_name, doctype, allow_read_on_all_link_options=Fals
 		frappe.throw(_("You must be logged in to use this form."), frappe.PermissionError)
 
 	if not web_form.published or not any(f for f in web_form.web_form_fields if f.options == doctype):
+		# //// Neoffice — upstream injects the raw (English) doctype name into a translated
+		# //// template, so the sentence came out half English; we translate the name too.
 		frappe.throw(
-			_("You don't have permission to access the {0} DocType.").format(doctype), frappe.PermissionError
+			_("You don't have permission to access the {0} DocType.").format(_(doctype)),
+			frappe.PermissionError,
 		)
 
 	link_options, filters = [], {}

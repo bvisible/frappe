@@ -57,7 +57,9 @@ class DataImport(Document):
 
 	def validate_doctype(self):
 		if self.reference_doctype in BLOCKED_DOCTYPES:
-			frappe.throw(_("Importing {0} is not allowed.").format(self.reference_doctype))
+			# //// Neoffice — upstream injects the raw (English) doctype name into a translated
+			# //// template, so the sentence came out half English; we translate the name too.
+			frappe.throw(_("Importing {0} is not allowed.").format(_(self.reference_doctype)))
 
 	def validate_import_file(self):
 		if self.import_file:

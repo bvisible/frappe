@@ -117,12 +117,16 @@ class Exporter:
 			if frappe.permissions.can_export(self.doctype, is_owner=True):
 				for doc in data:
 					if doc.get("owner") != frappe.session.user:
+						# //// Neoffice — upstream injects the raw (English) doctype name into a
+						# //// translated template, so the sentence came out half English; we
+						# //// translate the name too.
 						raise frappe.PermissionError(
-							_("You are not allowed to export {} doctype").format(self.doctype)
+							_("You are not allowed to export {} doctype").format(_(self.doctype))
 						)
 			else:
+				# //// Neoffice — same as above: the doctype name is translated before it is injected.
 				raise frappe.PermissionError(
-					_("You are not allowed to export {} doctype").format(self.doctype)
+					_("You are not allowed to export {} doctype").format(_(self.doctype))
 				)
 
 		for doc in data:

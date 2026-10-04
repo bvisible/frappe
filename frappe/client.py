@@ -460,8 +460,10 @@ def validate_link(doctype: str, docname: str, fields=None):
 			frappe.has_permission(doctype, "select", parent_doctype=parent_doctype)
 			or frappe.has_permission(doctype, "read", parent_doctype=parent_doctype)
 		):
+			# //// Neoffice — upstream injects the raw (English) doctype name into a translated
+			# //// template, so the sentence came out half English; we translate the name too.
 			frappe.throw(
-				_("You do not have Read or Select Permissions for {}").format(frappe.bold(doctype)),
+				_("You do not have Read or Select Permissions for {}").format(frappe.bold(_(doctype))),
 				frappe.PermissionError,
 			)
 
@@ -473,8 +475,9 @@ def validate_link(doctype: str, docname: str, fields=None):
 			values.name = docname
 		except frappe.DoesNotExistError:
 			frappe.clear_last_message()
+			# //// Neoffice — same as above: the doctype name is translated before it is injected.
 			frappe.msgprint(
-				_("Document {0} {1} does not exist").format(frappe.bold(doctype), frappe.bold(docname)),
+				_("Document {0} {1} does not exist").format(frappe.bold(_(doctype)), frappe.bold(docname)),
 			)
 		return values
 
@@ -488,9 +491,10 @@ def validate_link(doctype: str, docname: str, fields=None):
 		values.update(get_value(doctype, fields, docname))
 	except frappe.PermissionError:
 		frappe.clear_last_message()
+		# //// Neoffice — same as above: the doctype name is translated before it is injected.
 		frappe.msgprint(
 			_("You need {0} permission to fetch values from {1} {2}").format(
-				frappe.bold(_("Read")), frappe.bold(doctype), frappe.bold(docname)
+				frappe.bold(_("Read")), frappe.bold(_(doctype)), frappe.bold(docname)
 			),
 			title=_("Cannot Fetch Values"),
 			indicator="orange",
