@@ -271,8 +271,12 @@ $.extend(frappe.datetime, {
 	},
 
 	get_time: (timestamp) => {
-		// return time with AM/PM
-		return moment(timestamp).format("hh:mm A");
+		//// Neoffice — upstream hard-codes a 12 h "hh:mm A" format, which printed "09:00 AM" in the
+		//// notifications' agenda (and in the CRM activities template) in a French UI, while the rest of the desk
+		//// follows the site's time format (System Settings only offers 24 h: HH:mm:ss or HH:mm). We use that
+		//// format without its seconds: moment ships no French locale here (moment.locale() stays "en"), so
+		//// the locale cannot be passed, but the configured format already carries the convention.
+		return moment(timestamp).format(frappe.datetime.get_user_time_fmt().replace(/[:.]ss$/, ""));
 	},
 
 	validate: function (d) {
