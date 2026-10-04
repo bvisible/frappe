@@ -27,7 +27,13 @@ export default class Tab {
 					href="#${id}"
 					role="tab"
 					aria-controls="${id}">
-					${__(this.label)}
+					${
+						//// Neoffice — translated with the DocType as context, the way section.js does it for a
+						//// Section Break. Upstream looked the bare word up, so a Tab Break of ours or of a fork
+						//// (a "Store" tab) showed another app's French for the same English word; the lookup
+						//// falls back to the bare key when no entry carries the context.
+						__(this.label, null, this.df.parent)
+					}
 				</button>
 			</li>
 		`).appendTo(this.tab_link_container);
