@@ -17,11 +17,13 @@ frappe.ui.form.on("Role", {
 
 		frm.set_df_property("is_custom", "read_only", frappe.session.user !== "Administrator");
 
-		frm.add_custom_button("Role Permissions Manager", function () {
+		//// Neoffice — upstream passes the two button labels as bare literals: no msgid is extracted, and the
+		//// cockpit's form hero mirrors the label as-is, so both stayed English in a French UI.
+		frm.add_custom_button(__("Role Permissions Manager"), function () {
 			frappe.route_options = { role: frm.doc.name };
 			frappe.set_route("permission-manager");
 		});
-		frm.add_custom_button("Show Users", function () {
+		frm.add_custom_button(__("Show Users"), function () {
 			frappe.route_options = { role: frm.doc.name };
 			frappe.set_route("List", "User", "Report");
 		});
