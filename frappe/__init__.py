@@ -114,7 +114,15 @@ def _(msg: str, lang: str | None = None, context: str | None = None) -> str:
 
 	non_translated_string = msg
 
+	# //// Neoffice — upstream looks a message up only after removing its HTML tags, but the catalog
+	# //// keeps the tags in its msgids: every message that carries <b>, <a>, <code>... could never
+	# //// match its .po entry and stayed English even when translated (about 400 French entries,
+	# //// e.g. a web form introduction or "Creation of <b>{0}</b> successful"). We keep the raw text
+	# //// aside and try it as a fallback below. Drop it if upstream's lookup learns to do the same.
+	raw_msg = None
+
 	if is_html(msg):
+		raw_msg = as_unicode(msg).strip()
 		msg = strip_html_tags(msg)
 
 	# msg should always be unicode
@@ -129,6 +137,15 @@ def _(msg: str, lang: str | None = None, context: str | None = None) -> str:
 
 	if not translated_string:
 		translated_string = all_translations.get(msg)
+
+	# //// Neoffice — fallback on the raw text (tags kept), only when the stripped text found nothing,
+	# //// so the result is unchanged whenever the stripped lookup succeeds.
+	if not translated_string and raw_msg and raw_msg != msg:
+		if context:
+			translated_string = all_translations.get(f"{raw_msg}:{context}")
+
+		if not translated_string:
+			translated_string = all_translations.get(raw_msg)
 
 	return translated_string or non_translated_string
 
