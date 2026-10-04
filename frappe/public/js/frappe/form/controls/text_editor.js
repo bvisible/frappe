@@ -153,6 +153,37 @@ frappe.ui.form.ControlTextEditor = class ControlTextEditor extends frappe.ui.for
 		this.bind_events();
 		const toolbar = this.quill.getModule("toolbar");
 		toolbar.addHandler("table", this.handle_table_actions);
+		//// Neoffice — Quill 2 names every toolbar button by its raw format in aria-label ("bold", "list: bullet",
+		//// "indent: +1") and offers no option to translate them: a French UI exposed English identifiers. The
+		//// labels are translated here, right after the toolbar is built.
+		this.translate_toolbar_labels(toolbar);
+	}
+
+	//// Neoffice — added method (no upstream equivalent), see make_quill_editor. Only the labels listed here are
+	//// touched; any other aria-label is left as Quill wrote it.
+	translate_toolbar_labels(toolbar) {
+		if (!toolbar || !toolbar.container) return;
+		const labels = {
+			bold: __("Bold"),
+			italic: __("Italic"),
+			underline: __("Underline"),
+			strike: __("Strikethrough"),
+			clean: __("Clear formatting"),
+			blockquote: __("Blockquote"),
+			"code-block": __("Code block"),
+			"direction: rtl": __("Right-to-left text"),
+			link: __("Link"),
+			image: __("Image"),
+			"list: ordered": __("Numbered list"),
+			"list: bullet": __("Bullet list"),
+			"list: check": __("Checklist"),
+			"indent: -1": __("Decrease indent"),
+			"indent: +1": __("Increase indent"),
+		};
+		toolbar.container.querySelectorAll("button[aria-label]").forEach((button) => {
+			const label = labels[button.getAttribute("aria-label")];
+			if (label) button.setAttribute("aria-label", label);
+		});
 	}
 
 	handle_table_actions(value) {
