@@ -126,6 +126,29 @@ frappe.search.Analytics = class Analytics {
 	}
 };
 
+//// Neoffice — added (2026-10-05): the typed words are marked in one pass, at the start of a word, and the
+//// words that say nothing are left alone. Each word used to be replaced in turn anywhere in the text: « de »
+//// lit up « Vali-de-r » and « De-vis » in every result (the manual's pages first among them), and a word
+//// typed after another could match inside the <mark> tag the first had just written (« facture ma »).
+//// Tags and entities of the already-escaped text are never touched.
+const SEARCH_MARK_SKIP = new Set(
+	"a au aux ce d de des du en et l la le les ma mes mon ou par pour sa ses son sur un une the of to and or in".split(" ")
+);
+function mark_search_terms(html, txt) {
+	const words = (txt || "")
+		.split(/\s+/)
+		.filter((w) => w.length > 1 && !SEARCH_MARK_SKIP.has(w.toLowerCase()));
+	if (!html || !words.length) return html;
+	const alternation = words
+		.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+		.sort((a, b) => b.length - a.length)
+		.join("|");
+	const re = new RegExp(`(^|[^\\p{L}\\p{N}])(${alternation})`, "giu");
+	return String(html)
+		.split(/(<[^>]*>|&#?\w+;)/)
+		.map((part, i) => (i % 2 ? part : part.replace(re, "$1<mark>$2</mark>")))
+		.join("");
+}
 // ════════════════════════════════════════════════════════════
 // AwesomeBar — Main search bar class
 // ════════════════════════════════════════════════════════════
@@ -1066,14 +1089,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			this._current_txt &&
 			(type === "global" || type === "learn" || type === "docs" || type === "goto" || type === "goto-place")
 		) {
-			const words = this._current_txt.split(/\s+/).filter((w) => w.length > 1);
-			words.forEach((w) => {
-				const re = new RegExp(
-					`(${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
-					"gi"
-				);
-				display_label = display_label.replace(re, "<mark>$1</mark>");
-			});
+			//// Neoffice — one pass at word starts, see mark_search_terms (2026-10-05)
+			display_label = mark_search_terms(display_label, this._current_txt);
 		}
 		inner += `<div class="search-item-label">${display_label}</div>`;
 		if (item.description) {
@@ -1166,16 +1183,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			.filter((p) => !p.startsWith("ID :"))
 			.slice(0, 3)
 			.map((p) => {
-				if (txt) {
-					const words = txt.split(/\s+/).filter((w) => w.length > 1);
-					words.forEach((w) => {
-						const re = new RegExp(
-							`(${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
-							"gi"
-						);
-						p = p.replace(re, "<mark>$1</mark>");
-					});
-				}
+				//// Neoffice — one pass at word starts, see mark_search_terms (2026-10-05)
+				if (txt) p = mark_search_terms(p, txt);
 				return p;
 			});
 		return display.join(" · ");
