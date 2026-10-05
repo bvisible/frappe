@@ -2,6 +2,7 @@
 # License: MIT. See LICENSE
 import base64
 import contextlib
+import functools  # //// Neoffice — _print_format_styles_of() is cached (lru_cache)
 import io
 # //// Neoffice — see the block marker below: needed for cssutils.log.setLevel(CRITICAL)
 import logging
@@ -331,6 +332,16 @@ def get_print_format_styles(soup: BeautifulSoup) -> list[cssutils.css.Property]:
 	for style_tag in style_tags:
 		stylesheet += cstr(style_tag.string)
 
+	# //// Neoffice — parsed once per process per stylesheet. cssutils parsed the whole stylesheet of the format on
+	# //// every PDF to read a few page options: 0.2 to 0.5 s per render for a 70 KB stylesheet, twice per document
+	# //// rendered in two passes (a Swiss QR invoice), and the stylesheet only changes with the format or its theme.
+	# //// Same result, read from a cache keyed on the stylesheet itself. Drop if upstream caches it.
+	return list(_print_format_styles_of(stylesheet))
+
+
+# //// Neoffice — the body of get_print_format_styles() above, cached (see there).
+@functools.lru_cache(maxsize=32)
+def _print_format_styles_of(stylesheet: str) -> tuple:
 	# Use css parser to tokenize the classes and their styles
 	parsed_sheet = cssutils.parseString(stylesheet)
 
@@ -345,7 +356,8 @@ def get_print_format_styles(soup: BeautifulSoup) -> list[cssutils.css.Property]:
 		if ".print-format" in [x.strip() for x in rule.selectorText.split(",")]:
 			valid_styles.extend(entry for entry in rule.style)
 
-	return valid_styles
+	# //// Neoffice — a tuple: the cached result is shared, each caller gets its own list (see above).
+	return tuple(valid_styles)
 
 
 def inline_private_images(html) -> str:
