@@ -219,16 +219,27 @@ frappe.dom = {
 	//// caught mid-birth it was removed with no reprieve — hence the reported
 	//// intermittence, sometimes fine and sometimes flat. Keeping the state on
 	//// the element was the mistake; the confirmation pass carries it now.
+	////
+	//// ⚠ (05.10, maintenance#1202) Two looks were still not enough: a dialog shown
+	//// a little before the SECOND look was stripped as well. Frappe builds a dialog
+	//// detached and Bootstrap appends it to the page only after the backdrop's
+	//// fade-in, so a dialog being born is a backdrop with no modal at all, in the
+	//// page or out of it, and nothing on screen tells it from an orphan. Measured
+	//// on osiris: 5 dialogs out of 6 opened ~850 ms after a first look lost their
+	//// backdrop (the page behind them stayed bright). The first look now hands the
+	//// backdrops it saw to the second, which removes only those: a backdrop born in
+	//// between belongs to a dialog on its way, and the second look leaves the page
+	//// alone.
 	//// Neoffice — re-run of the sweep after the reprieve above. Single shot in
 	//// flight: a burst of route changes must not queue a dozen timers.
-	_resweep: function (reason) {
+	_resweep: function (reason, seen) {
 		if (frappe.dom._resweep_timer) return;
 		frappe.dom._resweep_timer = setTimeout(() => {
 			frappe.dom._resweep_timer = null;
-			frappe.dom.sweep_orphan_overlays((reason || "sweep") + " (recheck)", true);
+			frappe.dom.sweep_orphan_overlays((reason || "sweep") + " (recheck)", true, seen); //// Neoffice — `seen`: the first look's backdrops (#1202)
 		}, 900);
 	},
-	sweep_orphan_overlays: function (reason, confirming) {
+	sweep_orphan_overlays: function (reason, confirming, seen) { //// Neoffice — `seen` added (#1202)
 		let removed = [];
 
 		// Is any modal actually on screen? Modals are `position:fixed`, so
@@ -248,12 +259,18 @@ frappe.dom = {
 			//// a second one. Bootstrap creates the backdrop BEFORE the modal,
 			//// so "no modal on screen" is also exactly what a dialog looks
 			//// like one frame after `show()`.
+			let backdrops = Array.from(document.querySelectorAll(".modal-backdrop")).filter(
+				(el) => el.id !== "freeze" // owned by freeze/unfreeze below
+			);
 			if (!confirming) {
-				frappe.dom._resweep(reason);
+				//// Neoffice — the backdrops this look saw go to the second one.
+				frappe.dom._resweep(reason, new Set(backdrops));
 				return removed;
 			}
-			document.querySelectorAll(".modal-backdrop").forEach((el) => {
-				if (el.id === "freeze") return; // owned by freeze/unfreeze below
+			//// Neoffice — a backdrop the first look did not see belongs to a dialog
+			//// being born (see above): leave the page alone this time.
+			if (backdrops.some((el) => !(seen && seen.has(el)))) return removed;
+			backdrops.forEach((el) => {
 				el.remove();
 				removed.push(".modal-backdrop");
 			});
