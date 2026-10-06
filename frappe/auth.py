@@ -543,6 +543,25 @@ class LoginManager:
 		clear_cookies()
 
 
+# //// Neoffice — the fourth path that has to agree on a session's own expiry (sessions.py, "a session
+# //// may carry ITS OWN expiry", covers the cache, the nightly sweep and the database). `init_cookies`
+# //// runs on EVERY request and gave the `sid` cookie the SITE-WIDE max-age: a session stamped longer
+# //// (the gym journal's 30-day "stay signed in", neoffice_gym.api.session.remember_me) got its month
+# //// on the remember_me response, then six hours again from the very next request. The browser
+# //// dropped the cookie six hours after the last request while the session lived on in the database,
+# //// orphaned, and the member signed in again and again. Measured on a dev instance on 2026-10-06:
+# //// remember_me answered Max-Age=2592000, the next page Max-Age=21600. A session without a stamp,
+# //// or with an unreadable one, keeps the site's expiry, as upstream does.
+def _session_max_age():
+	stamped = (frappe.session.get("data") or {}).get("session_expiry")
+	if stamped:
+		try:
+			return get_expiry_in_seconds(stamped)
+		except Exception:
+			pass
+	return get_expiry_in_seconds()
+
+
 class CookieManager:
 	def __init__(self):
 		self.cookies = {}
@@ -553,7 +572,8 @@ class CookieManager:
 			return
 
 		if frappe.session.sid:
-			self.set_cookie("sid", frappe.session.sid, max_age=get_expiry_in_seconds(), httponly=True)
+			# //// Neoffice — the cookie lives as long as THIS session, not the site's default (see _session_max_age).
+			self.set_cookie("sid", frappe.session.sid, max_age=_session_max_age(), httponly=True)
 
 	def set_cookie(
 		self,
