@@ -77,6 +77,8 @@ frappe.ui.form.ControlDate = class ControlDate extends frappe.ui.form.ControlDat
 
 				this.update_datepicker_position();
 			},
+			//// Neoffice — upstream version-15's set_disabled_dates (frappe/frappe ab8d9b0021), taken with
+			//// the Datetime fixes below it ahead of our next merge (maintenance#1246).
 			onRenderCell: (date, cellType) => {
 				if (cellType === "day" && this.df.disabled_dates) {
 					const formattedDate = moment(date).format("YYYY-MM-DD");

@@ -1,5 +1,6 @@
 frappe.ui.form.ControlDatetime = class ControlDatetime extends frappe.ui.form.ControlDate {
 	set_formatted_input(value) {
+		//// Neoffice — upstream version-15's set_formatted_input (no datetime_format any more), see below.
 		if (this.timepicker_only) return;
 		if (!this.datepicker) return;
 		if (!value) {
@@ -10,13 +11,18 @@ frappe.ui.form.ControlDatetime = class ControlDatetime extends frappe.ui.form.Co
 		} else if (value.toLowerCase() === "now") {
 			value = frappe.datetime.now_datetime();
 		}
+		//// Neoffice — upstream version-15's own code, taken ahead of our next merge (cherry-picks of
+		//// frappe/frappe a65f3399e3, 74205be642, 2bffaf4f9e; maintenance#1246). Our older copy
+		//// re-selected the date on the first render, the picker's change wrote back the value it
+		//// displays (no seconds): every form with a Datetime field opened « Not Saved », and a
+		//// save truncated 08:43:20.629 to 08:43. Now the first render only sets the selection.
 		const raw_value = value;
 		let should_refresh = this.last_value && this.last_value !== value;
 		value = this.format_for_input(value);
 		this.$input && this.$input.val(value);
 		if (should_refresh) {
 			this.datepicker.selectDate(frappe.datetime.user_to_obj(value));
-		} else if (value && !this.datepicker.selectedDates.length) {
+		} else if (value && !this.datepicker.selectedDates.length) {   //// Neoffice — upstream's, see above
 			const date_obj = frappe.datetime.str_to_obj(raw_value);
 			this.datepicker.selectedDates = [date_obj];
 			this.datepicker.viewDate = date_obj;
@@ -63,7 +69,12 @@ frappe.ui.form.ControlDatetime = class ControlDatetime extends frappe.ui.form.Co
 		return frappe.datetime.str_to_user(value, false);
 	}
 	set_description() {
-		const description = this.df.description;
+		//// Neoffice — translated before the time zone is added (upstream develop's fix, not yet in
+		//// version-15): « description<br>Europe/Paris » is in no catalogue, so every described
+		//// Datetime field showed its description in English (maintenance#1246).
+		const description = this.df.description
+			? __(this.df.description, null, this.df.parent)
+			: this.df.description;
 		const time_zone = this.get_user_time_zone();
 
 		if (!this.df.hide_timezone) {
@@ -73,7 +84,7 @@ frappe.ui.form.ControlDatetime = class ControlDatetime extends frappe.ui.form.Co
 			if (!description) {
 				this.df.description = time_zone;
 			} else if (!description.includes(time_zone)) {
-				this.df.description += "<br>" + time_zone;
+				this.df.description = description + "<br>" + time_zone;   //// Neoffice — the translated text, see above
 			}
 		}
 		super.set_description();
