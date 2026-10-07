@@ -76,6 +76,9 @@ class TestSendmailKeepsTheCallersReplyTo(unittest.TestCase):
 	def test_a_helpdesk_reply_still_goes_back_to_the_ticket_mailbox(self):
 		"""A ticket is answered through its own mailbox, which is fetched; an agent's personal
 		address as Reply-To would take the customer's reply out of the ticket for good."""
+		if not frappe.db.exists("DocType", "HD Ticket"):
+			self.skipTest("the helpdesk app is not installed on this site")
+
 		real_get_value = frappe.db.get_value
 
 		def get_value(doctype, filters=None, fieldname="name", *args, **kwargs):
