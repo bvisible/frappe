@@ -84,6 +84,7 @@ frappe.views.CommunicationComposer = class {
 				fieldname: "cc",
 				default: this.get_default_recipients("cc"),
 			},
+			//// Neoffice — see the block marker above: CC/BCC on one row.
 			{ fieldtype: "Column Break", fieldname: "bcc_column" },
 			{
 				label: __("BCC", null, "Email Recipients"),
@@ -91,9 +92,16 @@ frappe.views.CommunicationComposer = class {
 				fieldname: "bcc",
 				default: this.get_default_recipients("bcc"),
 			},
+			//// Neoffice — removed the standalone "Schedule Send At" field here (0651b3f9d "feat(email):
+			//// a compact composer head: a labelled CC / BCC toggle, CC and BCC side by side, the
+			//// template beside the schedule"): it now sits beside the template, after
+			//// "send_after_column" below, instead of being stacked under CC/BCC.
 			{
 				fieldtype: "Section Break",
 				fieldname: "email_template_section_break",
+				//// Neoffice — removed "hidden: 1," here (0651b3f9d "feat(email): a compact composer
+				//// head..."): the template row now always shows, beside the schedule, since a
+				//// template is applied on its own and the user must see which one.
 			},
 			{
 				label: __("Email Template"),
@@ -106,6 +114,10 @@ frappe.views.CommunicationComposer = class {
 				label: __("Clear & Add template"),
 				fieldname: "clear_and_add_template",
 			},
+			//// Neoffice — the schedule now sits beside the template (0651b3f9d "feat(email): a
+			//// compact composer head: a labelled CC / BCC toggle, CC and BCC side by side, the
+			//// template beside the schedule"): template and schedule share this row, always
+			//// visible, instead of being stacked behind the toggle.
 			{ fieldtype: "Column Break", fieldname: "send_after_column" },
 			{
 				label: __("Schedule Send At"),

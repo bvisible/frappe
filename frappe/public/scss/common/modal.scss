@@ -233,6 +233,10 @@ body.modal-open[style^="padding-right"] {
 		}
 		.frappe-control:last-child {
 			margin-left: 10px;
+			// //// Neoffice — removed "margin-bottom: -24px;" here (0651b3f9d "feat(email): a compact
+			// //// composer head..."): it faked a bottom alignment for the unlabelled toggle, and an
+			// //// app adding a section above (an SMS channel) let it slide the toggle's section
+			// //// under the dialog's footer; "align-items: flex-end;" above does the alignment now.
 			button {
 				// same as form-control input
 				height: calc(1.5em + 0.7rem);
