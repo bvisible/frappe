@@ -226,9 +226,10 @@ body.modal-open[style^="padding-right"] {
 			}
 			flex: 1;
 		}
-		// //// Neoffice — the recipients take the row whatever comes before them.
+		// //// Neoffice — the recipients take the row whatever comes before them. A real basis, not
+		// //// 0: with a full-width row before them, a 0 basis kept them on that row at 0px wide.
 		.frappe-control[data-fieldname="recipients"] {
-			flex: 1 1 0;
+			flex: 1 1 240px;
 			min-width: 0;
 		}
 		.frappe-control:last-child {
