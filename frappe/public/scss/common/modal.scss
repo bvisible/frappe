@@ -253,6 +253,41 @@ body.modal-open[style^="padding-right"] {
 	}
 }
 
+// //// Neoffice — the composer's rows closer together (2026-10-07: « optimise les vides entre les
+// //// lignes »). Between two fields there were the field group's 18px, the control's own 18px,
+// //// 6px at the end of a section, 6px at the start of the next and 10px above its body: nearly
+// //// 60px. One gap remains, the field group's.
+.modal.communication-composer {
+	.form-section {
+		padding-top: 0;
+		padding-bottom: 0;
+
+		.section-body {
+			margin-top: 0;
+		}
+	}
+	.frappe-control {
+		margin-bottom: 0;
+	}
+	.form-group {
+		margin-bottom: 12px;
+	}
+	.frappe-control[data-fieldtype="Check"] {
+		margin-bottom: 6px;
+	}
+	.control-label {
+		margin-bottom: 4px;
+	}
+	.help-box {
+		margin-top: 3px;
+	}
+	// The -8px below (upstream, for the template's button) pulled the schedule, last of its
+	// column since the template row has two, onto the subject.
+	[data-fieldname="email_template_section_break"] form .frappe-control:last-child {
+		margin-bottom: 0;
+	}
+}
+
 // //// Neoffice — two columns since 2026-10-07: the template (with its button) and the schedule.
 .modal [data-fieldname="email_template_section_break"] {
 	form {

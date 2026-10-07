@@ -40,6 +40,8 @@ frappe.views.CommunicationComposer = class {
 		//// that adds a section above them (the SMS channel of neoffice_theme) took the class, and
 		//// the CC/BCC toggle fell under the « To » field as a lone, tiny chevron (2026-10-07).
 		this.dialog.fields_dict.recipients.$wrapper.closest(".form-section").addClass("to_section");
+		//// Neoffice — a hook for the composer's own spacing (modal.scss), other dialogs untouched.
+		this.dialog.$wrapper.addClass("communication-composer");
 
 		this.prepare();
 		this.dialog.show();
