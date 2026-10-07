@@ -763,6 +763,11 @@ def sendmail(
 	:param email_headers: Additional headers to be added in the email, e.g. {"X-Custom-Header": "value"} or {"Custom-Header": "value"}. Automatically prepends "X-" to the header name if not present.
 	"""
 
+	# //// Neoffice — remember what the caller asked for: the sender block below rewrites `reply_to`
+	# //// in every branch (neoffice-maintenance#1288, 2026-10-07). See the end of the block.
+	explicit_reply_to = reply_to
+	reply_to_is_locked = False
+
 	# //// NeoMail sender configuration
 	# Special case: HD Ticket uses its own email account
 	if reference_doctype == "HD Ticket":
@@ -797,6 +802,9 @@ def sendmail(
 		if ticket_email_account:
 			default_outgoing = db.get_value("Email Account", ticket_email_account, "email_id")
 			reply_to = None
+			# //// Neoffice — a ticket is answered through its own mailbox, which is fetched: an
+			# //// agent's address as Reply-To would take the customer's reply out of the ticket.
+			reply_to_is_locked = True
 		else:
 			default_outgoing = None
 	else:
@@ -828,6 +836,20 @@ def sendmail(
 			reply_to = sender
 		else:
 			reply_to = None
+
+	# //// Neoffice — the Reply-To the caller asked for wins (neoffice-maintenance#1288, 2026-10-07).
+	# //// Upstream passes `reply_to` straight to the queue; the block above overwrote it with
+	# //// `None` or with `sender` in every branch and never read it, so the website contact form
+	# //// (`sendmail(recipients=<shop>, reply_to=<visitor>)`, no sender) left with the shop's own
+	# //// mailbox as Reply-To: the shop received its customers' messages with no way to answer.
+	# //// An address that is not one is ignored, as it always was (EmailBody would raise on it now
+	# //// that it is read). A ticket mail keeps its mailbox (`reply_to_is_locked`). Keep for as long
+	# //// as the block above rewrites `reply_to`.
+	if explicit_reply_to and not reply_to_is_locked:
+		from frappe.utils import validate_email_address as _neo_validate_email_address
+
+		if _neo_validate_email_address(explicit_reply_to):
+			reply_to = explicit_reply_to
 
 	if session.user and session.user != "Guest" and session.user != "Administrator":
 		user = db.get_value("User", session.user, "full_name") + " | "
