@@ -18,8 +18,32 @@ RECIPIENT = "shop-neoffice-test@example.com"
 class TestSendmailKeepsTheCallersReplyTo(unittest.TestCase):
 	def setUp(self):
 		frappe.db.savepoint("neoffice_sendmail_reply_to")
+		# A site made for the tests (the CI's) has no outgoing Email Account and `sendmail` then refuses
+		# to queue anything: this test makes one, in its own transaction. A site that has one (a clone
+		# of a real site) is left as it is. The cache of accounts is per process: emptied here and put
+		# back, so an account made here never reaches the tests that run after these.
+		self.accounts = getattr(frappe.local, "outgoing_email_account", None)
+		frappe.local.outgoing_email_account = {}
+		if not frappe.db.exists("Email Account", {"enable_outgoing": 1, "default_outgoing": 1}):
+			frappe.get_doc(
+				{
+					"doctype": "Email Account",
+					"email_account_name": "_NEOFFICE reply-to test account",
+					"email_id": "neoffice-reply-to-test@example.com",
+					"enable_outgoing": 1,
+					"default_outgoing": 1,
+					"smtp_server": "smtp.example.invalid",
+				}
+			).insert(ignore_permissions=True)
 
 	def tearDown(self):
+		if self.accounts is None:
+			try:
+				delattr(frappe.local, "outgoing_email_account")
+			except AttributeError:
+				pass
+		else:
+			frappe.local.outgoing_email_account = self.accounts
 		frappe.db.rollback(save_point="neoffice_sendmail_reply_to")
 
 	def headers(self, **kwargs):
