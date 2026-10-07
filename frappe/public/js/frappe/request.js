@@ -10,6 +10,26 @@ frappe.request.ajax_count = 0;
 frappe.request.waiting_for_ajax = [];
 frappe.request.logs = {};
 
+//// Neoffice — added (no upstream equivalent). « Connection Lost » for a request that reached no server: once for a
+//// burst of failed calls (several polls fail together, and the alerts stacked up), and not for the calls the browser
+//// cancels while the page is being left (a reload).
+frappe.request.connection_lost = function () {
+	const now = Date.now();
+	if (frappe.request.leaving_page || now - (frappe.request.connection_lost_at || 0) < 3000)
+		return;
+	frappe.request.connection_lost_at = now;
+	frappe.show_alert(
+		{
+			indicator: "orange",
+			message: __("Connection Lost"),
+			subtitle: __("You are not connected to Internet. Retry after sometime."),
+		},
+		3
+	);
+};
+window.addEventListener("pagehide", () => (frappe.request.leaving_page = true));
+window.addEventListener("pageshow", () => (frappe.request.leaving_page = false));
+
 frappe.xcall = function (method, params) {
 	return new Promise((resolve, reject) => {
 		frappe.call({
@@ -27,18 +47,11 @@ frappe.xcall = function (method, params) {
 
 // generic server call (call page, object)
 frappe.call = function (opts) {
-	if (!frappe.is_online()) {
-		frappe.show_alert(
-			{
-				indicator: "orange",
-				message: __("Connection Lost"),
-				subtitle: __("You are not connected to Internet. Retry after sometime."),
-			},
-			3
-		);
-		opts.always && opts.always();
-		return $.ajax();
-	}
+	//// Neoffice — the call goes out even when navigator.onLine is false. Upstream returned an empty request with
+	//// « Connection Lost » as soon as the browser said it was offline, and the browser can be wrong while every
+	//// request still goes through: an Android phone on a Wi-Fi marked "connected, no internet" (2026-10-07: the
+	//// whole desk unusable, every click a « Connection Lost »), a Mac after sleep or a VPN switch. A call that
+	//// reaches no server now says so in the fail handler of frappe.request.call (connection_lost).
 	if (typeof arguments[0] === "string") {
 		opts = {
 			method: arguments[0],
@@ -343,6 +356,9 @@ frappe.request.call = function (opts) {
 		})
 		.fail(function (xhr, textStatus) {
 			try {
+				//// Neoffice — a request that reached no server (status 0) used to fail in silence: no handler for it.
+				//// Not one the page aborted itself (a search superseded by the next keystroke).
+				if (xhr.status === 0 && textStatus !== "abort") frappe.request.connection_lost();
 				if (
 					xhr.getResponseHeader("content-type") == "application/json" &&
 					xhr.responseText
