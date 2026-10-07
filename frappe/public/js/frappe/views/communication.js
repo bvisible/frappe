@@ -36,7 +36,10 @@ frappe.views.CommunicationComposer = class {
 			minimizable: true,
 		});
 
-		$(this.dialog.$wrapper.find(".form-section").get(0)).addClass("to_section");
+		//// Neoffice — the section that holds the recipients, not the dialog's first one. An app
+		//// that adds a section above them (the SMS channel of neoffice_theme) took the class, and
+		//// the CC/BCC toggle fell under the « To » field as a lone, tiny chevron (2026-10-07).
+		this.dialog.fields_dict.recipients.$wrapper.closest(".form-section").addClass("to_section");
 
 		this.prepare();
 		this.dialog.show();
@@ -56,9 +59,15 @@ frappe.views.CommunicationComposer = class {
 				fieldname: "recipients",
 				default: this.get_default_recipients("recipients"),
 			},
+			//// Neoffice — a compact head (2026-10-07: « ça prend beaucoup de place à l'écran »).
+			//// Upstream stacked CC, BCC, the schedule and the template one under the other behind
+			//// an unlabelled chevron, and a default template opened them all. Here the toggle says
+			//// what it opens (CC / BCC), CC and BCC share one row, and the template and the
+			//// schedule share another that always shows: a template is applied on its own and the
+			//// user must see which one.
 			{
 				fieldtype: "Button",
-				label: frappe.utils.icon("down", "xs"),
+				label: this.more_options_label(false),
 				fieldname: "option_toggle_button",
 				click: () => {
 					this.toggle_more_options();
@@ -75,6 +84,7 @@ frappe.views.CommunicationComposer = class {
 				fieldname: "cc",
 				default: this.get_default_recipients("cc"),
 			},
+			{ fieldtype: "Column Break", fieldname: "bcc_column" },
 			{
 				label: __("BCC", null, "Email Recipients"),
 				fieldtype: "MultiSelect",
@@ -82,14 +92,8 @@ frappe.views.CommunicationComposer = class {
 				default: this.get_default_recipients("bcc"),
 			},
 			{
-				label: __("Schedule Send At"),
-				fieldtype: "Datetime",
-				fieldname: "send_after",
-			},
-			{
 				fieldtype: "Section Break",
 				fieldname: "email_template_section_break",
-				hidden: 1,
 			},
 			{
 				label: __("Email Template"),
@@ -101,6 +105,12 @@ frappe.views.CommunicationComposer = class {
 				fieldtype: "HTML",
 				label: __("Clear & Add template"),
 				fieldname: "clear_and_add_template",
+			},
+			{ fieldtype: "Column Break", fieldname: "send_after_column" },
+			{
+				label: __("Schedule Send At"),
+				fieldtype: "Datetime",
+				fieldname: "send_after",
 			},
 			{ fieldtype: "Section Break" },
 			{
@@ -238,10 +248,17 @@ frappe.views.CommunicationComposer = class {
 	toggle_more_options(show_options) {
 		show_options = show_options || this.dialog.fields_dict.more_options.df.hidden;
 		this.dialog.set_df_property("more_options", "hidden", !show_options);
-		this.dialog.set_df_property("email_template_section_break", "hidden", !show_options);
+		//// Neoffice — the template row stays visible (see get_fields); the toggle says what it opens.
+		this.dialog.get_field("option_toggle_button").set_label(this.more_options_label(show_options));
+	}
 
-		const label = frappe.utils.icon(show_options ? "up-line" : "down", "xs");
-		this.dialog.get_field("option_toggle_button").set_label(label);
+	//// Neoffice — « CC / BCC » and a chevron, rather than a chevron alone nobody recognised.
+	more_options_label(open) {
+		const text = `${__("CC", null, "Email Recipients")} / ${__("BCC", null, "Email Recipients")}`;
+		return `<span>${frappe.utils.escape_html(text)}</span> ${frappe.utils.icon(
+			open ? "up-line" : "down",
+			"xs"
+		)}`;
 	}
 
 	prepare() {
@@ -489,7 +506,8 @@ frappe.views.CommunicationComposer = class {
 			await this.dialog.set_value("email_template", email_template);
 		}
 
-		for (const fieldname of ["email_template", "cc", "bcc"]) {
+		//// Neoffice — only a copy opens CC / BCC: the template has its own row now.
+		for (const fieldname of ["cc", "bcc"]) {
 			if (this.dialog.get_value(fieldname)) {
 				this.toggle_more_options(true);
 				break;

@@ -214,7 +214,11 @@ body.modal-open[style^="padding-right"] {
 .modal .to_section {
 	form {
 		display: flex;
-		align-items: center;
+		// //// Neoffice — bottoms aligned rather than centres: the toggle has no label, and the
+		// //// -24px below used to fake that alignment. Wrapping leaves room for a full-width row
+		// //// above the recipients (neoffice_theme's « Send to » choice).
+		align-items: flex-end;
+		flex-wrap: wrap;
 
 		.frappe-control:first-child {
 			&[data-fieldname="sender"] {
@@ -222,17 +226,29 @@ body.modal-open[style^="padding-right"] {
 			}
 			flex: 1;
 		}
+		// //// Neoffice — the recipients take the row whatever comes before them.
+		.frappe-control[data-fieldname="recipients"] {
+			flex: 1 1 0;
+			min-width: 0;
+		}
 		.frappe-control:last-child {
 			margin-left: 10px;
-			margin-bottom: -24px;
 			button {
 				// same as form-control input
 				height: calc(1.5em + 0.7rem);
+				// //// Neoffice — the toggle reads « CC / BCC » and its chevron (communication.js).
+				display: inline-flex;
+				align-items: center;
+				gap: 5px;
+				padding: 0 10px;
+				white-space: nowrap;
+				font-weight: 500;
 			}
 		}
 	}
 }
 
+// //// Neoffice — two columns since 2026-10-07: the template (with its button) and the schedule.
 .modal [data-fieldname="email_template_section_break"] {
 	form {
 		display: flex;
