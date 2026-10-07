@@ -256,8 +256,9 @@ body.modal-open[style^="padding-right"] {
 // //// Neoffice — the composer's rows closer together (2026-10-07: « optimise les vides entre les
 // //// lignes »). Between two fields there were the field group's 18px, the control's own 18px,
 // //// 6px at the end of a section, 6px at the start of the next and 10px above its body: nearly
-// //// 60px. One gap remains, the field group's.
-.modal.communication-composer {
+// //// 60px. One gap remains, the field group's. Under .modal-body: the desk theme sets 18px on
+// //// `.modal-dialog .modal-body .frappe-control, .form-group`, as specific and loaded later.
+.modal.communication-composer .modal-body {
 	.form-section {
 		padding-top: 0;
 		padding-bottom: 0;
