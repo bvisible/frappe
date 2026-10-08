@@ -15974,11 +15974,11 @@ msgstr "On dirait que vous n'avez pas changé la valeur"
 
 #: frappe/www/third_party_apps.html:57
 msgid "Looks like you haven’t added any third party apps."
-msgstr ""
+msgstr "Vous n’avez encore ajouté aucune application tierce."
 
 #: frappe/public/js/frappe/ui/notifications/notifications.js:315
 msgid "Looks like you haven’t received any notifications."
-msgstr ""
+msgstr "Vous n’avez encore reçu aucune notification."
 
 #: frappe/core/doctype/server_script/server_script_list.js:18
 msgid "Loving Frappe Framework?"
@@ -34373,7 +34373,7 @@ msgstr "Annuler"
 #: frappe/public/js/frappe/list/list_view.js:1897
 msgctxt "Button in list view actions menu"
 msgid "Clear Assignment"
-msgstr ""
+msgstr "Retirer l'attribution"
 
 #: frappe/public/js/frappe/list/list_view.js:1959
 msgctxt "Button in list view actions menu"
@@ -34408,67 +34408,67 @@ msgstr "Nouv. version en cours"
 #: frappe/public/js/frappe/utils/number_systems.js:41
 msgctxt "Number system"
 msgid "Ar"
-msgstr ""
+msgstr "Ar"
 
 #: frappe/public/js/frappe/utils/number_systems.js:9
 msgctxt "Number system"
 msgid "B"
-msgstr ""
+msgstr "Md"
 
 #: frappe/public/js/frappe/utils/number_systems.js:23
 #: frappe/public/js/frappe/utils/number_systems.js:45
 msgctxt "Number system"
 msgid "Cr"
-msgstr ""
+msgstr "Cr"
 
 #: frappe/public/js/frappe/utils/number_systems.js:17
 #: frappe/public/js/frappe/utils/number_systems.js:31
 #: frappe/public/js/frappe/utils/number_systems.js:53
 msgctxt "Number system"
 msgid "K"
-msgstr ""
+msgstr "k"
 
 #: frappe/public/js/frappe/utils/number_systems.js:37
 msgctxt "Number system"
 msgid "Kh"
-msgstr ""
+msgstr "Kh"
 
 #: frappe/public/js/frappe/utils/number_systems.js:27
 #: frappe/public/js/frappe/utils/number_systems.js:49
 msgctxt "Number system"
 msgid "L"
-msgstr ""
+msgstr "L"
 
 #: frappe/public/js/frappe/utils/number_systems.js:13
 msgctxt "Number system"
 msgid "M"
-msgstr ""
+msgstr "M"
 
 #: frappe/public/js/frappe/utils/number_systems.js:5
 msgctxt "Number system"
 msgid "T"
-msgstr ""
+msgstr "Bn"
 
 #: frappe/public/js/form_builder/components/Section.vue:197
 msgctxt "Confirmation dialog message"
 msgid ""
 "Are you sure you want to delete the column? All the fields in the column "
 "will be moved to the previous column."
-msgstr ""
+msgstr "Voulez-vous vraiment supprimer la colonne ? Tous les champs de cette colonne seront déplacés vers la colonne précédente."
 
 #: frappe/public/js/form_builder/components/Section.vue:126
 msgctxt "Confirmation dialog message"
 msgid ""
 "Are you sure you want to delete the section? All the columns along with "
 "fields in the section will be moved to the previous section."
-msgstr ""
+msgstr "Voulez-vous vraiment supprimer la section ? Toutes les colonnes et les champs de cette section seront déplacés vers la section précédente."
 
 #: frappe/public/js/form_builder/components/Tabs.vue:65
 msgctxt "Confirmation dialog message"
 msgid ""
 "Are you sure you want to delete the tab? All the sections along with fields "
 "in the tab will be moved to the previous tab."
-msgstr ""
+msgstr "Voulez-vous vraiment supprimer l'onglet ? Toutes les sections et les champs de cet onglet seront déplacés vers l'onglet précédent."
 
 #: frappe/public/js/frappe/views/communication.js:79
 msgctxt "Email Recipients"
@@ -34483,7 +34483,7 @@ msgstr "CC"
 #: frappe/public/js/frappe/views/communication.js:53
 msgctxt "Email Recipients"
 msgid "To"
-msgstr ""
+msgstr "À"
 
 #: frappe/public/js/frappe/ui/messages.js:68
 msgctxt "Secondary button in warning dialog"
@@ -34503,17 +34503,17 @@ msgstr "Confirmer"
 #: frappe/public/js/form_builder/components/Section.vue:196
 msgctxt "Title of confirmation dialog"
 msgid "Delete Column"
-msgstr ""
+msgstr "Supprimer la colonne"
 
 #: frappe/public/js/form_builder/components/Section.vue:125
 msgctxt "Title of confirmation dialog"
 msgid "Delete Section"
-msgstr ""
+msgstr "Supprimer la section"
 
 #: frappe/public/js/form_builder/components/Tabs.vue:64
 msgctxt "Title of confirmation dialog"
 msgid "Delete Tab"
-msgstr ""
+msgstr "Supprimer l'onglet"
 
 #: frappe/public/js/frappe/list/list_view.js:2023
 msgctxt "Title of confirmation dialog"
@@ -34538,7 +34538,7 @@ msgstr "Réduire"
 #: frappe/public/js/frappe/ui/slides.js:355
 msgctxt "Finish the setup wizard"
 msgid "Complete Setup"
-msgstr ""
+msgstr "Terminer la configuration"
 
 #: frappe/public/js/frappe/list/list_view.js:519
 msgctxt "Create a new document from list view"
@@ -34583,27 +34583,27 @@ msgstr "Autorisations des Utilisateurs"
 #: frappe/public/js/frappe/form/controls/duration.js:20
 msgctxt "Duration"
 msgid "Days"
-msgstr ""
+msgstr "Jours"
 
 #: frappe/public/js/frappe/form/controls/duration.js:22
 msgctxt "Duration"
 msgid "Hours"
-msgstr ""
+msgstr "Heures"
 
 #: frappe/public/js/frappe/form/controls/duration.js:23
 msgctxt "Duration"
 msgid "Minutes"
-msgstr ""
+msgstr "Minutes"
 
 #: frappe/public/js/frappe/form/controls/duration.js:28
 msgctxt "Duration"
 msgid "Seconds"
-msgstr ""
+msgstr "Secondes"
 
 #: frappe/website/doctype/web_form/templates/web_form.html:49
 msgctxt "Button in web form"
 msgid "Delete"
-msgstr ""
+msgstr "Supprimer"
 
 #: frappe/website/doctype/web_form/templates/web_form.html:41
 msgctxt "Button in web form"
@@ -34618,12 +34618,12 @@ msgstr "modifier"
 #: frappe/public/js/frappe/web_form/web_form.js:470
 msgctxt "Button in web form"
 msgid "Edit your response"
-msgstr ""
+msgstr "Modifier votre réponse"
 
 #: frappe/website/doctype/web_form/templates/web_form.html:157
 msgctxt "Button in web form"
 msgid "See previous responses"
-msgstr ""
+msgstr "Voir les réponses précédentes"
 
 #: frappe/website/doctype/web_form/templates/web_form.html:44
 msgctxt "Button in web form"
@@ -34633,47 +34633,47 @@ msgstr "Valider"
 #: frappe/website/doctype/web_form/templates/web_form.html:160
 msgctxt "Button in web form"
 msgid "Submit another response"
-msgstr ""
+msgstr "Envoyer une autre réponse"
 
 #: frappe/public/js/frappe/web_form/web_form.js:478
 msgctxt "Button in web form"
 msgid "View your response"
-msgstr ""
+msgstr "Voir votre réponse"
 
 #: frappe/public/js/form_builder/components/Section.vue:203
 msgctxt "Button text"
 msgid "Delete column"
-msgstr ""
+msgstr "Supprimer la colonne"
 
 #: frappe/public/js/form_builder/components/Section.vue:205
 msgctxt "Button text"
 msgid "Delete entire column with fields"
-msgstr ""
+msgstr "Supprimer la colonne et tous ses champs"
 
 #: frappe/public/js/form_builder/components/Section.vue:134
 msgctxt "Button text"
 msgid "Delete entire section with fields"
-msgstr ""
+msgstr "Supprimer la section et tous ses champs"
 
 #: frappe/public/js/form_builder/components/Tabs.vue:73
 msgctxt "Button text"
 msgid "Delete entire tab with fields"
-msgstr ""
+msgstr "Supprimer l'onglet et tous ses champs"
 
 #: frappe/public/js/form_builder/components/Section.vue:132
 msgctxt "Button text"
 msgid "Delete section"
-msgstr ""
+msgstr "Supprimer la section"
 
 #: frappe/public/js/form_builder/components/Tabs.vue:71
 msgctxt "Button text"
 msgid "Delete tab"
-msgstr ""
+msgstr "Supprimer l'onglet"
 
 #: frappe/public/js/frappe/views/communication.js:30
 msgctxt "Discard Email"
 msgid "Discard"
-msgstr ""
+msgstr "Supprimer le brouillon"
 
 #: frappe/public/js/frappe/widgets/onboarding_widget.js:577
 msgctxt "Stop showing the onboarding widget."
@@ -34713,12 +34713,12 @@ msgstr "Développer"
 #: frappe/public/js/frappe/file_uploader/ImageCropper.vue:112
 msgctxt "Image Cropper"
 msgid "Free"
-msgstr ""
+msgstr "Libre"
 
 #: frappe/public/js/frappe/views/communication.js:185
 msgctxt "Email Sender"
 msgid "From"
-msgstr ""
+msgstr "De"
 
 #: frappe/desk/reportview.py:500
 #: frappe/public/js/frappe/views/reports/report_view.js:990
@@ -34729,17 +34729,17 @@ msgstr "ID"
 #: frappe/public/js/frappe/web_form/web_form.js:253
 msgctxt "Error message in web form"
 msgid "Invalid values for fields:"
-msgstr ""
+msgstr "Valeurs invalides pour les champs :"
 
 #: frappe/public/js/frappe/web_form/web_form.js:258
 msgctxt "Error message in web form"
 msgid "Mandatory fields required:"
-msgstr ""
+msgstr "Champs obligatoires à renseigner :"
 
 #: frappe/public/js/frappe/views/kanban/kanban_view.js:278
 msgctxt "Button in kanban view menu"
 msgid "Kanban Settings"
-msgstr ""
+msgstr "Paramètres Kanban"
 
 #: frappe/printing/page/print_format_builder/print_format_builder.js:483
 #: frappe/public/js/print_format_builder/PrintFormatControls.vue:155
@@ -34756,77 +34756,77 @@ msgstr "Droit"
 #: frappe/public/js/frappe/form/footer/form_timeline.js:216
 msgctxt "Form timeline"
 msgid "Load More Communications"
-msgstr ""
+msgstr "Charger plus de communications"
 
 #: frappe/public/js/frappe/form/footer/form_timeline.js:415
 msgctxt "Form timeline"
 msgid "You attached {0}"
-msgstr ""
+msgstr "Vous avez joint {0}"
 
 #: frappe/public/js/frappe/form/footer/version_timeline_content_builder.js:74
 msgctxt "Form timeline"
 msgid "You cancelled this document"
-msgstr ""
+msgstr "Vous avez annulé ce document"
 
 #: frappe/public/js/frappe/form/footer/version_timeline_content_builder.js:61
 msgctxt "Form timeline"
 msgid "You cancelled this document {1}"
-msgstr ""
+msgstr "Vous avez annulé ce document {1}"
 
 #: frappe/public/js/frappe/form/footer/form_timeline.js:444
 msgctxt "Form timeline"
 msgid "You changed {0} to {1}"
-msgstr ""
+msgstr "Vous avez changé {0} en {1}"
 
 #: frappe/public/js/frappe/form/footer/version_timeline_content_builder.js:247
 msgctxt "Form timeline"
 msgid "You created this document {0}"
-msgstr ""
+msgstr "Vous avez créé ce document {0}"
 
 #: frappe/public/js/frappe/form/footer/form_timeline.js:420
 msgctxt "Form timeline"
 msgid "You removed attachment {0}"
-msgstr ""
+msgstr "Vous avez retiré la pièce jointe {0}"
 
 #: frappe/public/js/frappe/form/footer/version_timeline_content_builder.js:48
 msgctxt "Form timeline"
 msgid "You submitted this document"
-msgstr ""
+msgstr "Vous avez validé ce document"
 
 #: frappe/public/js/frappe/form/footer/version_timeline_content_builder.js:35
 msgctxt "Form timeline"
 msgid "You submitted this document {0}"
-msgstr ""
+msgstr "Vous avez validé ce document {0}"
 
 #: frappe/public/js/frappe/form/footer/form_timeline.js:416
 msgctxt "Form timeline"
 msgid "{0} attached {1}"
-msgstr ""
+msgstr "{0} a joint {1}"
 
 #: frappe/public/js/frappe/form/footer/version_timeline_content_builder.js:68
 msgctxt "Form timeline"
 msgid "{0} cancelled this document {1}"
-msgstr ""
+msgstr "{0} a annulé ce document {1}"
 
 #: frappe/public/js/frappe/form/footer/form_timeline.js:445
 msgctxt "Form timeline"
 msgid "{0} changed {1} to {2}"
-msgstr ""
+msgstr "{0} a changé {1} en {2}"
 
 #: frappe/public/js/frappe/form/footer/version_timeline_content_builder.js:250
 msgctxt "Form timeline"
 msgid "{0} created this document {1}"
-msgstr ""
+msgstr "{0} a créé ce document {1}"
 
 #: frappe/public/js/frappe/form/footer/form_timeline.js:421
 msgctxt "Form timeline"
 msgid "{0} removed attachment {1}"
-msgstr ""
+msgstr "{0} a retiré la pièce jointe {1}"
 
 #: frappe/public/js/frappe/form/footer/version_timeline_content_builder.js:42
 msgctxt "Form timeline"
 msgid "{0} submitted this document {1}"
-msgstr ""
+msgstr "{0} a validé ce document {1}"
 
 #: frappe/__init__.py:546 frappe/public/js/frappe/ui/messages.js:269
 msgctxt "Default title of the message dialog"
@@ -34908,7 +34908,7 @@ msgstr "Public"
 #: frappe/public/js/frappe/desk.js:202
 msgctxt "Email Account"
 msgid "Please enter the password for: <b>{0}</b>"
-msgstr ""
+msgstr "Veuillez saisir le mot de passe pour : <b>{0}</b>"
 
 #: frappe/public/js/frappe/ui/slides.js:351
 msgctxt "Go to previous slide"
@@ -34918,12 +34918,12 @@ msgstr "Précedent"
 #: frappe/public/js/frappe/list/list_view.js:539
 msgctxt "Document count in list view"
 msgid "Refreshing"
-msgstr ""
+msgstr "Actualisation"
 
 #: frappe/public/js/frappe/list/list_view.js:199
 msgctxt "Title of message showing restrictions in list view"
 msgid "Restrictions"
-msgstr ""
+msgstr "Restrictions"
 
 #: frappe/public/js/frappe/form/save.js:9
 msgctxt "Freeze message while saving a document"
@@ -34933,7 +34933,7 @@ msgstr "En Cours d'Enregistrement"
 #: frappe/public/js/frappe/views/communication.js:26
 msgctxt "Send Email"
 msgid "Send"
-msgstr ""
+msgstr "Envoyer"
 
 #: frappe/public/js/frappe/ui/filters/filter.js:605
 msgctxt "Field value is set"
@@ -34988,17 +34988,17 @@ msgstr "ré"
 #: frappe/public/js/frappe/utils/utils.js:1131
 msgctxt "Hours (Field: Duration)"
 msgid "h"
-msgstr ""
+msgstr "h"
 
 #: frappe/public/js/frappe/utils/utils.js:1135
 msgctxt "Minutes (Field: Duration)"
 msgid "m"
-msgstr ""
+msgstr "min"
 
 #: frappe/public/js/frappe/utils/utils.js:1139
 msgctxt "Seconds (Field: Duration)"
 msgid "s"
-msgstr ""
+msgstr "s"
 
 msgid "Liked by {0}"
 msgstr "Aimé par {0}"
