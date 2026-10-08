@@ -1635,8 +1635,11 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		//// Neoffice — added (4e23539603, 2024-09-23, no message): when the synthetic "meta" column is
 		//// present, the query must also fetch the fields it renders (modified, _assign,
 		//// _comment_count, _liked_by) — upstream never asks for them in Report View.
-		////
-		if (this.columns.some(col => col.field === 'meta')) {
+		//// `this.columns` may not exist yet (2026-10-08): a list refreshed before the
+		//// Report View has set its columns (the theme's workspace tabs do, on a page whose
+		//// last view was Report) reaches here first, and `.some` on undefined left the
+		//// page empty. Upstream's own lines above read only `this.fields`, which exists.
+		if ((this.columns || []).some(col => col.field === 'meta')) {
 			fields.push(
 				'name',
 				'modified', 
