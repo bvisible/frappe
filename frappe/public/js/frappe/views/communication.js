@@ -927,11 +927,20 @@ frappe.views.CommunicationComposer = class {
 				filters["default_outgoing"] = 1;
 			}
 
-			const email_accounts = await frappe.db.get_list("Email Account", {
-				filters: filters,
-				fields: ["signature", "email_id"],
-				limit: 1,
-			});
+			//// Neoffice — the signature is looked up in the Email Account list, which only a few roles may read (Inbox
+			//// User, System Manager, Admin, helpdesk agents). For everybody else the call was refused (403) and the
+			//// refusal escaped set_values(): the composer opened with NO text at all — not the message a button passed
+			//// in, not the default e-mail template — only because a signature could not be looked up. Without the right
+			//// to list the accounts there is no signature to add, and the rest of the composer goes on. Upstream
+			//// version-15 has the same code (checked 2026-10-08): drop this guard when upstream tolerates a refusal.
+			let email_accounts = [];
+			if (frappe.model.can_read("Email Account")) {
+				email_accounts = await frappe.db.get_list("Email Account", {
+					filters: filters,
+					fields: ["signature", "email_id"],
+					limit: 1,
+				});
+			}
 
 			let filtered_email = null;
 			if (email_accounts.length) {
