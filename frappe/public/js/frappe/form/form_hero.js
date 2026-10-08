@@ -567,7 +567,11 @@ const HERO_REGISTRY = {
 	//// counts the neoffice_activity app hands over in __onload.neo_visits
 	//// (the visits are Activities, not on the document).
 	Project: {
-		steps: (doc) => [
+		//// Neoffice — a Construction site (the nature « construction_site » neoffice_activity gives the ERP project of a
+		//// site run in the Construction app) has a journey of its own: estimated there, its works, its situations,
+		//// settled. Its estimate is no costing here and it books no visit, so the steps below read « Visits » at its
+		//// first one — the word of a call-out, on a building site.
+		steps: (doc) => (construction_site(doc) ? SITE_STEPS(doc) : [
 			//// Neoffice — and a nature that HIDES the job costing tab gets no costing step
 			//// either (18.09): a maintenance contract is sold by its contract, not by a
 			//// costing, and that tab is not on its form — so the stepper was naming a step
@@ -582,10 +586,18 @@ const HERO_REGISTRY = {
 			{ label: __("In progress"), when: null },
 			{ label: __("Validation"), when: null },
 			{ label: __("Billing"), when: null },
-		],
+		]),
 		rank(doc) {
 			if (doc.status === "Cancelled") return -1;
 			if (doc.status === "Completed") return 5;
+			//// Neoffice — a Construction site: its works begin with its first hour — in a timesheet, or only clocked
+			//// on the site's phone, which neoffice_activity hands over in __onload.neo_site_begun —, its situations
+			//// with its first invoice.
+			if (construction_site(doc)) {
+				if (flt(doc.total_billed_amount) > 0) return 3;
+				if (flt(doc.actual_time) > 0 || (doc.__onload && doc.__onload.neo_site_begun)) return 2;
+				return 1;
+			}
 			const lignes = doc.neo_work || [];
 			if (per_visit(doc)) {
 				const v = (doc.__onload && doc.__onload.neo_visits) || {};
@@ -611,6 +623,15 @@ const HERO_REGISTRY = {
 
 //// Neoffice — the Project pipeline has two shapes (see Project above).
 const per_visit = (doc) => doc.neo_billing_mode === "Per intervention";
+//// Neoffice — and a third: a Construction site (see Project above). Its words carry a context: « Works » or
+//// « Settled » alone mean something else in other catalogues.
+const construction_site = (doc) => doc.neo_project_kind === "construction_site";
+const SITE_STEPS = (doc) => [
+	{ label: __("Estimated", null, "Construction site"), when: doc.creation },
+	{ label: __("Works", null, "Construction site"), when: null },
+	{ label: __("Situations", null, "Construction site"), when: null },
+	{ label: __("Settled", null, "Construction site"), when: null },
+];
 //// Neoffice — the kind row the job already carries says which tabs it shows; a kind
 //// that cannot be read, or a job without one, yields no opinion (false).
 const hides_costing = (doc) => {

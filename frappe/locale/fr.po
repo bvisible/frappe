@@ -35328,3 +35328,23 @@ msgstr "Abandonner les modifications apportées à {0} ?"
 #: frappe/public/js/frappe/form/form_dialog.js
 msgid "{0} value(s) updated from {1}"
 msgstr "Valeurs mises à jour depuis {1} : {0}"
+
+#: frappe/public/js/frappe/form/form_hero.js:630
+msgctxt "Construction site"
+msgid "Estimated"
+msgstr "Devisé"
+
+#: frappe/public/js/frappe/form/form_hero.js:633
+msgctxt "Construction site"
+msgid "Settled"
+msgstr "Soldé"
+
+#: frappe/public/js/frappe/form/form_hero.js:632
+msgctxt "Construction site"
+msgid "Situations"
+msgstr "Situations"
+
+#: frappe/public/js/frappe/form/form_hero.js:631
+msgctxt "Construction site"
+msgid "Works"
+msgstr "Travaux"
