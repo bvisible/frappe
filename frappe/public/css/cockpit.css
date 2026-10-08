@@ -972,6 +972,186 @@ body.neoffice-cockpit .form-hero-step.dead .when {
 	background: var(--card-bg, #1c2127);
 }
 
+/* //// Neoffice — the COMPACT head (set_hero_layout in form_hero.js), asked by an app per document. The design
+   //// system's document header: the identity on the left, the steps on the right of the same row (40 px nodes,
+   //// label and date under each, short connectors), the app's figures under a clay rule, then the actions in
+   //// one row of real buttons. Nothing here applies to a head that did not ask for it (.is-compact). */
+body.neoffice-cockpit .form-hero.is-compact {
+	padding: 30px 34px 24px;
+	border-color: #F3DECC;
+	background: linear-gradient(115deg, #FDF1E4 0%, #FBF6EE 48%, #FAF8F4 100%);
+}
+[data-theme="dark"] body.neoffice-cockpit .form-hero.is-compact {
+	border-color: var(--border-color);
+	background:
+		radial-gradient(ellipse 420px 180px at 85% 0%, rgba(214, 138, 89, 0.08), transparent 70%),
+		linear-gradient(135deg, #26211c 0%, var(--card-bg, #1c2127) 60%);
+}
+body.neoffice-cockpit .form-hero.is-compact .form-hero-top {
+	align-items: flex-start;
+	flex-wrap: wrap;
+	gap: 18px 22px;
+}
+body.neoffice-cockpit .form-hero.is-compact .form-hero-avatar:not(.has-image) {
+	width: 64px;
+	height: 64px;
+	font-family: "Forum", Georgia, serif;
+	font-size: 30px;
+	font-weight: 400;
+	background: #D68A59;
+}
+body.neoffice-cockpit .form-hero.is-compact .form-hero-id {
+	flex: 1 1 280px;
+	min-width: 0;
+	padding-top: 2px;
+}
+body.neoffice-cockpit .form-hero.is-compact .form-hero-title {
+	font-size: 38px;
+	line-height: 1.08;
+	white-space: normal;
+	text-wrap: balance;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+}
+body.neoffice-cockpit .form-hero.is-compact .form-hero-sub {
+	margin-top: 8px;
+	font-size: 14.5px;
+	color: #968C7C;
+}
+body.neoffice-cockpit .form-hero-steps.is-compact {
+	flex: 0 0 auto;
+	margin: 0 0 0 auto;
+	display: flex;
+	align-items: flex-start;
+}
+body.neoffice-cockpit .form-hero-steps.is-compact .form-hero-step {
+	flex: 0 0 104px;
+	width: 104px;
+}
+body.neoffice-cockpit .form-hero-steps.is-compact .form-hero-step:not(:first-child)::before {
+	top: 19px;
+	left: -9px;
+	right: auto;
+	width: 18px;
+	background-color: #DCD4C7;
+}
+body.neoffice-cockpit .form-hero-steps.is-compact .form-hero-step.done::before,
+body.neoffice-cockpit .form-hero-steps.is-compact .form-hero-step.current::before {
+	background-color: #2F6E4E;
+}
+body.neoffice-cockpit .form-hero-steps.is-compact .form-hero-step .bubble {
+	width: 40px;
+	height: 40px;
+	font-size: 15px;
+	font-weight: 600;
+	border-color: #DCD4C7;
+	color: #968C7C;
+}
+body.neoffice-cockpit .form-hero-steps.is-compact .form-hero-step .bubble svg {
+	width: 18px;
+	height: 18px;
+}
+body.neoffice-cockpit .form-hero-steps.is-compact .form-hero-step.done .bubble {
+	background: #2F6E4E;
+	border-color: #2F6E4E;
+	color: #fff;
+}
+body.neoffice-cockpit .form-hero-steps.is-compact .form-hero-step.current .bubble {
+	border-color: #D68A59;
+	color: #A15A2E;
+}
+body.neoffice-cockpit .form-hero-steps.is-compact .form-hero-step .lbl {
+	margin-top: 10px;
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--text-color);
+}
+body.neoffice-cockpit .form-hero-steps.is-compact .form-hero-step.current .lbl {
+	color: #A15A2E;
+}
+body.neoffice-cockpit .form-hero-steps.is-compact .form-hero-step .when {
+	margin-top: 4px;
+	font-size: 13px;
+	color: #968C7C;
+	white-space: nowrap;
+	opacity: 1;
+}
+body.neoffice-cockpit .form-hero.is-compact .form-hero-block {
+	margin-top: 26px;
+	padding-top: 22px;
+	border-top: 1px solid #F3DECC;
+}
+[data-theme="dark"] body.neoffice-cockpit .form-hero.is-compact .form-hero-block {
+	border-top-color: var(--border-color);
+}
+body.neoffice-cockpit .form-hero.is-compact .form-hero-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-top: 22px;
+}
+body.neoffice-cockpit .form-hero.is-compact .form-hero-actions .step-cta {
+	gap: 8px;
+	height: 38px;
+	padding: 0 16px;
+	border-radius: 10px;
+	border: 1px solid #DDA479;
+	background: transparent;
+	color: #A15A2E;
+	font-size: 14.5px;
+	font-weight: 500;
+	line-height: 1;
+}
+body.neoffice-cockpit .form-hero.is-compact .form-hero-actions .step-cta svg {
+	width: 16px;
+	height: 16px;
+}
+body.neoffice-cockpit .form-hero.is-compact .form-hero-actions .step-cta:hover {
+	background: #FAEFE6;
+	color: #7E4523;
+}
+body.neoffice-cockpit .form-hero.is-compact .form-hero-actions .step-cta.accent {
+	border-color: #141414;
+	background: #141414;
+	color: #FFFDF8;
+}
+body.neoffice-cockpit .form-hero.is-compact .form-hero-actions .step-cta.accent:hover {
+	background: #232020;
+	color: #FFFDF8;
+}
+body.neoffice-cockpit .form-hero.is-compact .form-hero-actions .step-cta:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 3px rgba(214, 138, 89, 0.38);
+}
+[data-theme="dark"] body.neoffice-cockpit .form-hero.is-compact .form-hero-actions .step-cta {
+	border-color: rgba(221, 164, 121, 0.55);
+	color: #E9C5A4;
+}
+[data-theme="dark"] body.neoffice-cockpit .form-hero.is-compact .form-hero-actions .step-cta.accent {
+	border-color: #FFFDF8;
+	background: #FFFDF8;
+	color: #141414;
+}
+/* A narrow screen keeps the steps, under the identity, whole. */
+@media (max-width: 720px) {
+	body.neoffice-cockpit .form-hero.is-compact {
+		padding: 24px 18px 18px;
+	}
+	body.neoffice-cockpit .form-hero.is-compact .form-hero-title {
+		font-size: 28px;
+	}
+	body.neoffice-cockpit .form-hero-steps.is-compact {
+		margin-left: 0;
+		width: 100%;
+		justify-content: space-between;
+	}
+	body.neoffice-cockpit .form-hero-steps.is-compact .form-hero-step {
+		flex: 1 1 0;
+		width: auto;
+	}
+}
+
 /* NB: the attachments/comments/tags counts cluster in the head is the
    pre-existing Neoffice compact_header.js module (.form-meta-cluster) —
    restyled boxless below, do not add a second one. */

@@ -248,6 +248,19 @@ function hero_conf(doctype) {
 	return frappe.ui.form.hero_pipelines[doctype] || HERO_REGISTRY[doctype];
 }
 
+//// Neoffice — an app may ask for the COMPACT head on a doctype: the steps move into the top row, on the right, at
+//// the size of the design system's document header (a 40 px node, its label and its date under it); the step
+//// actions leave the stepper for one row of buttons under the head; and a slot the hero owns
+//// (`.form-hero-block`) takes the app's figures between the two. Asked per document — `compact(frm)` — so an app
+//// keeps it behind its own switch. The block is drawn by the hero itself at every render: the hero REPLACES its
+//// HTML each time (measured twice per load), so anything appended from outside vanishes a second later; the app
+//// wires it in `wire($block, frm)`. Nothing registered, nothing changes.
+////   frappe.ui.form.set_hero_layout("Project", { compact(frm), block(frm) -> { html, wire($block, frm) } | null });
+frappe.ui.form.hero_layouts = frappe.ui.form.hero_layouts || {};
+frappe.ui.form.set_hero_layout = function (doctype, conf) {
+	frappe.ui.form.hero_layouts[doctype] = conf;
+};
+
 const HERO_REGISTRY = {
 	Quotation: {
 		steps: (doc, tx) => [
@@ -806,7 +819,8 @@ frappe.ui.form.FormHero = class FormHero {
 			// no status is fine — just skip the pill
 		}
 
-		const top_html = `
+		//// Neoffice — a function, so the compact head (see set_hero_layout) can put its steps inside the row.
+		const make_top = (steps_html) => `
 			<div class="form-hero-top">
 				${avatar_html}
 				<div class="form-hero-id">
@@ -817,7 +831,22 @@ frappe.ui.form.FormHero = class FormHero {
 				<!-- //// Neoffice — the detail block beside the title, filled by apps (add_hero_detail); empty without one. -->
 				${detail.html}
 				${value_html}
+				${steps_html || ""}
 			</div>`;
+		const top_html = make_top("");
+
+		//// Neoffice — the compact head, when the app asks for it on this document (see set_hero_layout).
+		const layout = frappe.ui.form.hero_layouts[this.frm.doctype] || null;
+		let compact = false;
+		if (layout && typeof layout.compact === "function") {
+			try {
+				compact = !!layout.compact(this.frm);
+			} catch (e) {
+				compact = false;
+			}
+		}
+		this.$wrapper.toggleClass("is-compact", compact);
+		const block_html = compact ? this.hero_block_html(layout) : "";
 
 		// stepper — only for submittable doctypes (masters have no lifecycle)
 		//// Neoffice — an app's pipeline first (set_hero_pipeline), then the registry, then the default.
@@ -826,7 +855,8 @@ frappe.ui.form.FormHero = class FormHero {
 		//// steps there is no pipeline to draw, and .steps() must not crash.
 		if (conf && !conf.steps) conf = null;
 		if (!conf) {
-			this.$wrapper.html(top_html);
+			this.$wrapper.html(top_html + block_html); //// Neoffice — the compact head's block, when asked
+			if (compact) this.wire_hero_block();
 			this.render_extras();
 			return;
 		}
@@ -890,7 +920,8 @@ frappe.ui.form.FormHero = class FormHero {
 				else if (cls === "todo") when = "—";
 
 				const my = all_actions.filter((a) => a._anchor === n);
-				const cta = my.length
+				//// Neoffice — the compact head draws its actions in one row under the head, not under the steps.
+				const cta = my.length && !compact
 					? `<div class="step-ctas">${my
 							.map((a) => {
 								const gidx = all_actions.indexOf(a);
@@ -921,9 +952,30 @@ frappe.ui.form.FormHero = class FormHero {
 		// //// later. Owning the slot is the only way the row survives. The hero
 		// //// knows nothing about what goes in it, and an unfilled slot renders
 		// //// nothing at all.
-		this.$wrapper.html(
-			`${top_html}<div class="form-hero-steps">${seg}</div><div class="form-hero-insights"></div>`
-		);
+		if (compact) {
+			//// Neoffice — the compact head (see set_hero_layout): the steps in the top row, the app's block, then
+			//// every action of every step in one row, in step order — the same buttons, wired below as before.
+			const row = all_actions
+				.map((a, gidx) => ({ a, gidx }))
+				.sort((x, y) => x.a._anchor - y.a._anchor)
+				.map(({ a, gidx }) => {
+					const icon = STEP_ICONS[a.icon] || a.icon_svg || "";
+					return `<button class="step-cta${a.primary ? " accent" : ""}" data-idx="${gidx}" title="${frappe.utils.escape_html(a.label)}">
+							${icon}<span>${frappe.utils.escape_html(a.label)}${a.menu ? " ▾" : ""}</span>
+						</button>`;
+				})
+				.join("");
+			this.$wrapper.html(
+				`${make_top(`<div class="form-hero-steps is-compact">${seg}</div>`)}${block_html}${
+					row ? `<div class="form-hero-actions">${row}</div>` : ""
+				}<div class="form-hero-insights"></div>`
+			);
+			this.wire_hero_block();
+		} else {
+			this.$wrapper.html(
+				`${top_html}<div class="form-hero-steps">${seg}</div><div class="form-hero-insights"></div>`
+			);
+		}
 		if (all_actions.length) {
 			this.$wrapper.find(".step-cta").on("click", (e) => {
 				e.preventDefault();
@@ -933,6 +985,28 @@ frappe.ui.form.FormHero = class FormHero {
 			});
 		}
 		this.render_extras();
+	}
+
+	//// Neoffice — the compact head's owned slot (see set_hero_layout). A provider that throws draws nothing: an
+	//// app's figures must never be able to take the whole head down with them.
+	hero_block_html(layout) {
+		this.block = null;
+		if (!layout || typeof layout.block !== "function") return "";
+		try {
+			this.block = layout.block(this.frm) || null;
+		} catch (e) {
+			this.block = null;
+		}
+		return this.block && this.block.html ? `<div class="form-hero-block">${this.block.html}</div>` : "";
+	}
+
+	wire_hero_block() {
+		if (!this.block || typeof this.block.wire !== "function") return;
+		try {
+			this.block.wire(this.$wrapper.find(".form-hero-block").first(), this.frm);
+		} catch (e) {
+			console.error("[form-hero] the block's wiring failed", e);
+		}
 	}
 
 	//// Neoffice — collects the registered detail lines (see add_hero_detail). The
