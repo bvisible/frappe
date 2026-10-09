@@ -82,10 +82,16 @@ function submit_action(frm) {
 //   frappe.ui.form.set_hero_send_action("Quotation", (frm) => ({
 //       label: __("Resend"), primary: true, run: () => open_dialog(frm),
 //   }));
+//
+//// Neoffice — several ways of sending (09.10): the provider may return an ARRAY of such partial actions, drawn as
+//// one button each, side by side where the one button was, in that order. A quotation goes out as an email with
+//// its PDF, as an invoice does, or as a link the customer accepts online: one « Send » could not say which. An
+//// older hero would merge an array into one broken button, so a caller checks `supports.several` first.
 frappe.ui.form.hero_send_actions = frappe.ui.form.hero_send_actions || {};
 frappe.ui.form.set_hero_send_action = function (doctype, provider) {
 	frappe.ui.form.hero_send_actions[doctype] = provider;
 };
+frappe.ui.form.set_hero_send_action.supports = { several: true };
 
 //// Neoffice: a quiet line UNDER the hero's key value, for a second figure that
 //// belongs with the amount but is not the amount — the gross margin of a sales
@@ -170,6 +176,10 @@ function send_action(frm) {
 		custom = provider(frm);
 	} catch (e) {
 		console.error("hero send action provider failed", e); // eslint-disable-line no-console
+	}
+	if (Array.isArray(custom)) {
+		const ways = custom.filter(Boolean).map((way) => Object.assign({}, base, way));
+		return ways.length ? ways : base;
 	}
 	return custom ? Object.assign({}, base, custom) : base;
 }
@@ -890,9 +900,10 @@ frappe.ui.form.FormHero = class FormHero {
 		// step, clamped to the last step so they still show when the pipeline
 		// is complete (e.g. SI Paid: rank 4 > 3 steps). App-registered actions
 		// (e.g. WebStamp) carry their own anchor and stay even on a done step.
-		const native = (rank >= 1 && conf.actions ? conf.actions(rank, this.frm) : []).filter(
-			Boolean
-		);
+		// The send action may be several buttons (set_hero_send_action): flattened in place.
+		const native = (rank >= 1 && conf.actions ? conf.actions(rank, this.frm) : [])
+			.flat()
+			.filter(Boolean);
 		const clamp = (s) => Math.min(Math.max(s, 1), steps.length);
 		const native_anchor = clamp(rank);
 		const all_actions = native.map((a) => ({ ...a, _anchor: native_anchor }));
