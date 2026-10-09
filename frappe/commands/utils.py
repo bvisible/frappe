@@ -798,10 +798,11 @@ def run_tests(
 		# //// rows and reopened a tracker issue every time it was closed (#79).
 		# ////
 		# //// Watching for the key only tells us afterwards. Every instance of the
-		# //// fleet, dev included, names its site `prod.local`, and the throwaway
-		# //// site for running suites is a different name by convention
-		# //// (`subtest.local`). So the site NAME is the durable signal, and it
-		# //// cannot be turned off by whoever sets a config key.
+		# //// fleet, dev included, names its site `prod.local`, and the site for
+		# //// running suites is a different name by convention (`prodclone.local`,
+		# //// a clone of prod.local made for tests: a site created empty proves
+		# //// nothing, decision of 2026-09-26). So the site NAME is the durable
+		# //// signal, and it cannot be turned off by whoever sets a config key.
 		# ////
 		# //// CI is unaffected: its sites are named `test_site` and it sets CI=1.
 		# //// Escape hatch, deliberately explicit and never a config key:
@@ -816,8 +817,10 @@ def run_tests(
 				"A suite run here makes the site mute (a fixture takes the default outgoing "
 				"account) and can leave the scheduler stopped — incident #245.",
 			)
-			click.secho("Use a throwaway site instead:", bold=True)
-			click.secho("  bench new-site subtest.local --db-name subtest", fg="green")
+			# //// Neoffice — this used to advise `bench new-site subtest.local`; the rule since
+			# //// 2026-09-26 is a clone of prod.local, never a site created empty.
+			click.secho("Use the clone of prod.local made for tests, never a site created empty:", bold=True)
+			click.secho("  bench --site prodclone.local run-tests --app <app>", fg="green")
 			return
 
 		if not (allow_tests or os.environ.get("CI")):
