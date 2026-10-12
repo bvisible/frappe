@@ -605,6 +605,14 @@ const HERO_REGISTRY = {
 			if (per_visit(doc)) {
 				const v = (doc.__onload && doc.__onload.neo_visits) || {};
 				const pending = lignes.some((r) => r.review_state === "Pending");
+				//// Neoffice — a visit still to come keeps the job in its visits, whatever was invoiced already
+				//// (12.10): a maintenance contract invoiced at its start read « Visits ✓ Validation ✓ Billing »
+				//// beside « 0 / 3 maintenance visits done », and a job billed visit by visit read the same after its
+				//// first one. `active` (the visits not cancelled) comes from neoffice_activity; without it, as before.
+				//// A contract with visits booked is running: its visits are the step it is at.
+				if (v.active != null && cint(v.active) > cint(v.done)) {
+					return cint(v.started) || visit_kind(doc) === "maintenance_contract" ? 2 : 1;
+				}
 				if (cint(v.unbilled) || flt(doc.total_billed_amount) > 0) return pending ? 3 : 4;
 				if (cint(v.started)) return 2;
 				return 1;
@@ -630,8 +638,9 @@ const per_visit = (doc) =>
 	doc.neo_billing_mode === "Per intervention" || !!(doc.__onload && doc.__onload.neo_visits);
 //// Neoffice — the first two steps of a job billed visit by visit, in its nature's words (see Project above). Own
 //// msgids with a context: « Received » or « Booked » alone mean other things in other catalogues.
+const visit_kind = (doc) => ((doc.__onload || {}).neo_project_kind_row || {}).kind || doc.neo_project_kind;
 const visit_word = (doc) => {
-	const kind = ((doc.__onload || {}).neo_project_kind_row || {}).kind || doc.neo_project_kind;
+	const kind = visit_kind(doc);
 	if (kind === "workshop_repair")
 		return {
 			first: __("Received", null, "Workshop repair"),
