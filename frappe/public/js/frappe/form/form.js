@@ -1189,6 +1189,12 @@ frappe.ui.form.Form = class FrappeForm {
 	}
 
 	add_web_link(path, label) {
+		//// Neoffice — no form sidebar, no « See on Website » link. A desk whose settings turn the form sidebar off
+		//// (desk_settings.form_sidebar = 0: the theme's Simple mode) has no `this.sidebar`, and ERPNext's Project refresh
+		//// threw here; a doctype's refresh handlers run in one promise chain (frappe.run_serially), so every handler
+		//// after ERPNext's never ran — the project sheet of neoffice_activity was not drawn at all in Simple mode
+		//// (12.10). Remove when upstream guards it.
+		if (!this.sidebar) return;
 		label = __(label) || __("See on Website");
 		this.web_link = this.sidebar
 			.add_user_action(__(label), function () {})
