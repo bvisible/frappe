@@ -35378,6 +35378,7 @@ msgstr "Visites"
 msgctxt "Time job"
 msgid "Opened"
 msgstr "Ouvert"
+# //// Neoffice — translations added by our fork (12.10.2026): labels and messages that read in English on a French screen.
 #: frappe/public/js/frappe/form/form_hero.js:316
 msgid "Create delivery"
 msgstr "Créer le bon de livraison"
