@@ -46,6 +46,7 @@ DEFAULT_AUTO_PREPARED_REPORT_EXCLUDE = (
 	"Bank Reconciliation Statement",
 	"VAT Report",
 	"Gross Profit",
+	# //// Neoffice — see the block marker above (bea1b5b541 "fix(report): the statements of the books are excluded from the auto-switch to Prepared Report too")
 	# The five statements of the books (12.10, maintenance#1425): a balance sheet run took 16.4 s on a loaded server,
 	# the watchdog set `prepared_report = 1` for every user of the site, and the Balance Sheet then opened on
 	# "Generate a New Report" instead of the figures.
