@@ -578,12 +578,15 @@ const HERO_REGISTRY = {
 			//// the screen does not show. Its pipeline IS its visits, like a per-visit job.
 			//// Only the LABEL follows: `rank` still reads the work lines, because the
 			//// per-visit ranking needs __onload.neo_visits, which this nature does not
-			//// necessarily carry — a wrong step is worse than a wrong word.
+			//// necessarily carry — a wrong step is worse than a wrong word. (Since 12.10
+			//// neoffice_activity hands it over for every nature billed visit by visit.)
+			//// The first two steps say the nature's own words (12.10): a repair at the workshop is received and
+			//// repaired, an intervention is booked, a contract has visits — « Visits » read on every one of them.
 			{
-				label: per_visit(doc) || hides_costing(doc) ? __("Visits") : __("Job costing"),
+				label: per_visit(doc) || hides_costing(doc) ? visit_word(doc).first : __("Job costing"),
 				when: doc.creation,
 			},
-			{ label: __("In progress"), when: null },
+			{ label: per_visit(doc) || hides_costing(doc) ? visit_word(doc).second : __("In progress"), when: null },
 			{ label: __("Validation"), when: null },
 			{ label: __("Billing"), when: null },
 		]),
@@ -621,8 +624,25 @@ const HERO_REGISTRY = {
 	},
 };
 
-//// Neoffice — the Project pipeline has two shapes (see Project above).
-const per_visit = (doc) => doc.neo_billing_mode === "Per intervention";
+//// Neoffice — the Project pipeline has two shapes (see Project above). Billed visit by visit by its mode, or by its
+//// nature (12.10): neoffice_activity hands the visits' count over in __onload.neo_visits for both.
+const per_visit = (doc) =>
+	doc.neo_billing_mode === "Per intervention" || !!(doc.__onload && doc.__onload.neo_visits);
+//// Neoffice — the first two steps of a job billed visit by visit, in its nature's words (see Project above). Own
+//// msgids with a context: « Received » or « Booked » alone mean other things in other catalogues.
+const visit_word = (doc) => {
+	const kind = ((doc.__onload || {}).neo_project_kind_row || {}).kind || doc.neo_project_kind;
+	if (kind === "workshop_repair")
+		return {
+			first: __("Received", null, "Workshop repair"),
+			second: __("Under repair", null, "Workshop repair"),
+		};
+	if (kind === "maintenance_contract")
+		return { first: __("Contract", null, "Maintenance"), second: __("Visits", null, "Maintenance") };
+	if (kind === "intervention")
+		return { first: __("Booked", null, "Intervention"), second: __("In progress") };
+	return { first: __("Visits"), second: __("In progress") };
+};
 //// Neoffice — and a third: a Construction site (see Project above). Its words carry a context: « Works » or
 //// « Settled » alone mean something else in other catalogues.
 const construction_site = (doc) => doc.neo_project_kind === "construction_site";
