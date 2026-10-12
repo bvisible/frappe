@@ -582,11 +582,15 @@ const HERO_REGISTRY = {
 			//// neoffice_activity hands it over for every nature billed visit by visit.)
 			//// The first two steps say the nature's own words (12.10): a repair at the workshop is received and
 			//// repaired, an intervention is booked, a contract has visits — « Visits » read on every one of them.
-			//// A job whose work is its time costs nothing first: its first step is its opening (12.10).
+			//// A job whose work is its time costs nothing first: its first step is its opening (12.10). Read before
+			//// the hidden costing tab: a project made « on the time spent » hides that tab and has no visit to name,
+			//// and read « Visits » first (neoffice_activity's nature time_billed, 12.10).
 			{
-				label: per_visit(doc) || hides_costing(doc)
+				label: per_visit(doc)
 					? visit_word(doc).first
-					: time_job(doc) ? __("Opened", null, "Time job") : __("Job costing"),
+					: time_job(doc)
+						? __("Opened", null, "Time job")
+						: hides_costing(doc) ? visit_word(doc).first : __("Job costing"),
 				when: doc.creation,
 			},
 			{ label: per_visit(doc) || hides_costing(doc) ? visit_word(doc).second : __("In progress"), when: null },
