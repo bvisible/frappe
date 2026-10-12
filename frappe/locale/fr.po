@@ -35378,3 +35378,21 @@ msgstr "Visites"
 msgctxt "Time job"
 msgid "Opened"
 msgstr "Ouvert"
+#: frappe/public/js/frappe/form/form_hero.js:316
+msgid "Create delivery"
+msgstr "Créer le bon de livraison"
+#: frappe/public/js/frappe/form/form_hero.js:287
+msgid "Create order"
+msgstr "Créer la commande"
+#: frappe/public/js/frappe/form/form_hero.js:795
+msgid "Add an image"
+msgstr "Ajouter une image"
+#: frappe/public/js/frappe/form/form_hero.js:556
+msgid "Firm price"
+msgstr "Prix ferme"
+#: frappe/public/js/frappe/form/form_hero.js:196
+msgid "No create action available"
+msgstr "Aucune action de création disponible"
+#: frappe/public/js/frappe/form/form_hero.js:461
+msgid "Sent to employee"
+msgstr "Envoyé à l’employé"
