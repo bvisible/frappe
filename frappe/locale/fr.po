@@ -35373,3 +35373,8 @@ msgstr "En réparation"
 msgctxt "Maintenance"
 msgid "Visits"
 msgstr "Visites"
+
+#: frappe/public/js/frappe/form/form_hero.js:590
+msgctxt "Time job"
+msgid "Opened"
+msgstr "Ouvert"

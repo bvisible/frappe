@@ -582,8 +582,11 @@ const HERO_REGISTRY = {
 			//// neoffice_activity hands it over for every nature billed visit by visit.)
 			//// The first two steps say the nature's own words (12.10): a repair at the workshop is received and
 			//// repaired, an intervention is booked, a contract has visits — « Visits » read on every one of them.
+			//// A job whose work is its time costs nothing first: its first step is its opening (12.10).
 			{
-				label: per_visit(doc) || hides_costing(doc) ? visit_word(doc).first : __("Job costing"),
+				label: per_visit(doc) || hides_costing(doc)
+					? visit_word(doc).first
+					: time_job(doc) ? __("Opened", null, "Time job") : __("Job costing"),
 				when: doc.creation,
 			},
 			{ label: per_visit(doc) || hides_costing(doc) ? visit_word(doc).second : __("In progress"), when: null },
@@ -617,8 +620,11 @@ const HERO_REGISTRY = {
 				if (cint(v.started)) return 2;
 				return 1;
 			}
+			//// Neoffice — and hours in submitted timesheets start a job too (12.10): a job of five hours spent read
+			//// « Job costing — in progress » because it had no work line.
 			const started =
 				flt(doc.percent_complete) > 0 ||
+				flt(doc.actual_time) > 0 ||
 				lignes.some((r) => r.status && r.status !== "To plan");
 			const done = lignes.length
 				? lignes.every((r) => ["Done", "Cancelled"].includes(r.status))
@@ -655,6 +661,9 @@ const visit_word = (doc) => {
 //// Neoffice — and a third: a Construction site (see Project above). Its words carry a context: « Works » or
 //// « Settled » alone mean something else in other catalogues.
 const construction_site = (doc) => doc.neo_project_kind === "construction_site";
+//// Neoffice — a job whose work is its time (timesheets, no visit — NeoTime's, the office's): neoffice_activity says
+//// so in __onload.neo_time_view (12.10). A site has its own steps above.
+const time_job = (doc) => !!cint((doc.__onload || {}).neo_time_view) && !construction_site(doc);
 const SITE_STEPS = (doc) => [
 	{ label: __("Estimated", null, "Construction site"), when: doc.creation },
 	{ label: __("Works", null, "Construction site"), when: null },
