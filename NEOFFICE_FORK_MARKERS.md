@@ -124,7 +124,7 @@ upstream merge, an edited shipped JSON does not.
 
 | File | Divergence vs `v15.89.0` | Introduced by | Note |
 |---|---|---|---|
-| `frappe/locale/fr.po` | French entries we fixed or added: grid and form strings, the account-enumeration messages of the #353 backport, and `Forgot Password` → « Mot de passe oublié » (the login heading, #365) | fa0221ec33, 84c371c586, 94a6b5b015, 2026-09-12 | Regenerating with `bench update-po-files` keeps these as long as their msgids stay in `main.pot`: re-check them after any upstream merge. The catalogue already failed `msgfmt -c` before these edits, on `Use % for any non empty value.` (a `python-format` flag on a string that is not a format): harmless for frappe's own compiler. |
+| `frappe/locale/fr.po` | French entries we fixed or added: grid and form strings, the account-enumeration messages of the #353 backport, and `Forgot Password` → « Mot de passe oublié » (the login heading, #365); the words of a job's steps by its nature, each with its context (« Construction site », « Workshop repair », « Maintenance », « Intervention ») | fa0221ec33, 84c371c586, 94a6b5b015, 2026-09-12; 3dcacebc7f, 2026-10-08; 2026-10-12 | Regenerating with `bench update-po-files` keeps these as long as their msgids stay in `main.pot`: re-check them after any upstream merge. The catalogue already failed `msgfmt -c` before these edits, on `Use % for any non empty value.` (a `python-format` flag on a string that is not a format): harmless for frappe's own compiler. |
 
 ### Final newline dropped (marked in place, listed here for completeness)
 

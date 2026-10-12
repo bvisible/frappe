@@ -35348,3 +35348,28 @@ msgstr "Situations"
 msgctxt "Construction site"
 msgid "Works"
 msgstr "Travaux"
+
+#: frappe/public/js/frappe/form/form_hero.js:643
+msgctxt "Intervention"
+msgid "Booked"
+msgstr "Planifiée"
+
+#: frappe/public/js/frappe/form/form_hero.js:641
+msgctxt "Maintenance"
+msgid "Contract"
+msgstr "Contrat"
+
+#: frappe/public/js/frappe/form/form_hero.js:637
+msgctxt "Workshop repair"
+msgid "Received"
+msgstr "Reçu"
+
+#: frappe/public/js/frappe/form/form_hero.js:638
+msgctxt "Workshop repair"
+msgid "Under repair"
+msgstr "En réparation"
+
+#: frappe/public/js/frappe/form/form_hero.js:641
+msgctxt "Maintenance"
+msgid "Visits"
+msgstr "Visites"
