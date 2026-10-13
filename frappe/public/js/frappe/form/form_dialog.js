@@ -11,9 +11,17 @@
 //// dashboard: what remains is the document's tabs, fields and tables.
 ////
 //// Entry points: router.js (a click on a link drawn by the Link formatter) and controls/link.js
-//// (the arrow at the end of a Link field). Server side: frappe/desk/form_dialog.py checks access
-//// before anything opens; boot.py sends the switch and the excluded doctypes (hook
-//// link_dialog_exclude).
+//// (the arrow at the end of a Link field).
+////
+//// Creation mode (FormDialog.create): the same dialog, on a NEW document. What a field cannot offer
+//// yet (a variation attribute, a brand, a unit) is created in its own form over the place the person
+//// is in, never by the detour through the full form that left the dialog and lost what was typed in
+//// it. `on_saved(doc)` hands the saved document back (the Link field takes its name). It is
+//// reached from QuickEntryForm.setup (form/quick_entry.js), i.e. from the « Create a new ... » of
+//// every Link field whose doctype has no quick entry.
+////
+//// Server side: frappe/desk/form_dialog.py checks access before anything opens; boot.py sends the
+//// switch and the excluded doctypes (hook link_dialog_exclude).
 
 frappe.provide("frappe.ui.form");
 
@@ -192,7 +200,11 @@ frappe.ui.form.FormDialog = class FormDialog {
 		return promise;
 	}
 
-	static load(doctype, name) {
+	static load(doctype, name, creating) {
+		//// Neoffice — a document being created is only in the browser: no access to ask, nothing to fetch.
+		if (creating) {
+			return frappe.model.with_doctype(doctype).then(() => ({ status: "ok" }));
+		}
 		return FormDialog.access(doctype, name).then((access) => {
 			if (!access || access.status !== "ok") return access || { status: "forbidden" };
 			return Promise.all([
@@ -213,6 +225,39 @@ frappe.ui.form.FormDialog = class FormDialog {
 		const dialog = new FormDialog(doctype, name, opts);
 		FormDialog.stack.push(dialog);
 		return dialog.show().then(() => dialog);
+	}
+
+	// Whether a document of `doctype` can be created in a form dialog: the dialog is on for the site,
+	// the doctype is not excluded (singles, child tables and virtual doctypes never are), the reader
+	// may create it. The doctype's meta must be loaded.
+	static can_create(doctype) {
+		if (!FormDialog.enabled() || FormDialog.excluded(doctype)) return false;
+		if (!frappe.model.can_create(doctype)) return false;
+		const meta = frappe.get_meta(doctype);
+		return !!meta && !meta.issingle && !meta.istable && !meta.is_virtual;
+	}
+
+	// A new document of `doctype`, in its own form, over the place the person is in. `opts.doc` is a
+	// new local document the caller prepared (the quick entry's, with what was typed in the field),
+	// else one is made from `opts.defaults`. `opts.on_saved(doc)` receives the saved document just
+	// before the dialog closes; `opts.from_link` is the Link field waiting for it (frappe._from_link),
+	// released if the dialog is closed without saving. Resolves to the dialog, or to null when the
+	// dialog does not take this doctype: the caller then does it the native way.
+	static create(doctype, opts = {}) {
+		return frappe.model.with_doctype(doctype).then(() => {
+			if (!FormDialog.can_create(doctype)) return null;
+			const doc = opts.doc || frappe.model.get_new_doc(doctype);
+			Object.entries(opts.defaults || {}).forEach(([fieldname, value]) => {
+				if (value !== undefined && value !== null && value !== "") doc[fieldname] = value;
+			});
+			const dialog = new FormDialog(doctype, doc.name, {
+				creating: true,
+				on_saved: opts.on_saved,
+				from_link: opts.from_link,
+			});
+			FormDialog.stack.push(dialog);
+			return dialog.show().then(() => dialog);
+		});
 	}
 
 	static close_all() {
@@ -271,6 +316,10 @@ frappe.ui.form.FormDialog = class FormDialog {
 		this.name = name;
 		this.origin_frm = opts.origin_frm || null;
 		this.click = opts.click || null;
+		// Creation mode (FormDialog.create): a new document, handed back through `on_saved`.
+		this.creating = !!opts.creating;
+		this.on_saved = opts.on_saved || null;
+		this.from_link = opts.from_link || null;
 		this.depth = FormDialog.stack.length;
 		// What the page had before the dialog's form took them.
 		this.prev_cur_frm = window.cur_frm;
@@ -283,7 +332,9 @@ frappe.ui.form.FormDialog = class FormDialog {
 		// document shows no dialog at all, not one that flashes open and shut.
 		let access;
 		try {
-			access = await FormDialog.access(this.doctype, this.name);
+			access = this.creating
+				? { status: "ok" }
+				: await FormDialog.access(this.doctype, this.name);
 		} catch (e) {
 			// The server did not answer: go to the document as before.
 			return this.give_up(() => FormDialog.go(this.doctype, this.name));
@@ -303,10 +354,15 @@ frappe.ui.form.FormDialog = class FormDialog {
 		this.level = level;
 		this.dialog = level.dialog;
 		this.dialog.set_title(
-			`<span class="form-dialog-doctype">${__(
-				this.doctype
-			)}</span> ${frappe.utils.escape_html(this.name)}`
+			this.creating
+				? `<span class="form-dialog-doctype">${__("New {0}", [__(this.doctype)])}</span>`
+				: `<span class="form-dialog-doctype">${__(
+						this.doctype
+				  )}</span> ${frappe.utils.escape_html(this.name)}`
 		);
+		// Creating, the document stays where the person is: « Open full page » would leave the field
+		// that is waiting for it.
+		this.dialog.get_secondary_btn().toggleClass("hide", this.creating);
 		this.dialog.get_primary_btn().addClass("hide");
 		Object.values(level.hosts).forEach((h) => h.$host.addClass("hide"));
 		level.$loading.removeClass("hide");
@@ -324,10 +380,11 @@ frappe.ui.form.FormDialog = class FormDialog {
 		this.hold_open(false);
 
 		try {
-			await FormDialog.load(this.doctype, this.name);
+			await FormDialog.load(this.doctype, this.name, this.creating);
 		} catch (e) {
 			this.close();
-			return FormDialog.go(this.doctype, this.name);
+			// A document that does not exist yet has no page to go to: the caller falls back.
+			return this.creating ? null : FormDialog.go(this.doctype, this.name);
 		}
 		if (this.hidden) return;
 		this.mount();
@@ -378,6 +435,10 @@ frappe.ui.form.FormDialog = class FormDialog {
 
 	title_html() {
 		const doc = this.frm.doc;
+		// A new document has no name yet (« new-item-attribute-abc »): say what is being made.
+		if (this.frm.is_new()) {
+			return `<span class="form-dialog-doctype">${__("New {0}", [__(this.doctype)])}</span>`;
+		}
 		const title = frappe.utils.escape_html(this.frm.get_title() || doc.name);
 		const indicator = frappe.get_indicator(doc, this.doctype);
 		const pill =
@@ -434,14 +495,22 @@ frappe.ui.form.FormDialog = class FormDialog {
 		return frm.save(action, (r) => {
 			if (r && !r.exc) {
 				this.propagate();
+				// The document that was just created, under the name the server gave it.
+				const saved = (r.docs && r.docs[0]) || frm.doc;
+				this.saved = true;
 				this.close();
+				if (this.creating && this.on_saved && saved) this.on_saved(saved);
 			}
 		});
 	}
 
 	request_close() {
 		if (this.frm && this.frm.is_dirty()) {
-			frappe.confirm(__("Discard the changes made to {0}?", [this.frm.get_title()]), () =>
+			// A document being created has only a temporary name (« new-item-attribute-abc »).
+			const title = this.frm.is_new()
+				? __("New {0}", [__(this.doctype)])
+				: this.frm.get_title();
+			frappe.confirm(__("Discard the changes made to {0}?", [title]), () =>
 				this.close({ discard: true })
 			);
 			return;
@@ -479,6 +548,17 @@ frappe.ui.form.FormDialog = class FormDialog {
 			// Dropped changes must not stay in the local copy that a page would show next.
 			if (this.discard && frm.doc && frm.doc.__unsaved) {
 				frappe.model.remove_from_locals(this.doctype, this.name);
+			}
+			// A document being created and not saved is only a local copy: drop it, saved or not it
+			// is not the one the next opening of this doctype should show.
+			if (this.creating && !this.saved) {
+				if (frappe.get_doc(this.doctype, this.name)) {
+					frappe.model.remove_from_locals(this.doctype, this.name);
+				}
+				// The Link field that was waiting for it is not waiting any more: a later save of
+				// another document of this doctype must not land in it.
+				if (this.from_link && frappe._from_link === this.from_link)
+					frappe._from_link = null;
 			}
 		}
 		window.cur_frm = this.prev_cur_frm;

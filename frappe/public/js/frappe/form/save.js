@@ -81,7 +81,9 @@ frappe.ui.form.save = function (frm, action, callback, btn) {
 		}
 
 		// ensure we remove new docs routes ONLY
-		if (frm.is_new()) {
+		//// Neoffice — added `!frm.form_dialog`: a document created in a form dialog (form/form_dialog.js)
+		//// has no route of its own, the one in the history is the page's.
+		if (frm.is_new() && !frm.form_dialog) {
 			frappe.ui.form.remove_old_form_route();
 		}
 		frappe.ui.form.is_saving = true;
@@ -244,6 +246,16 @@ frappe.ui.form.remove_old_form_route = () => {
 	);
 };
 
+//// Neoffice — added. Picking a value in a Link field's list fires a DOM `change` on its input; the
+//// return from a creation (set_value) did not, so whatever listens to the input - a quick entry that
+//// unfolds the next field once this one has a value - never heard that the value had arrived. Said
+//// once set_value has put the value in the input (its answer), so the listeners read the new one.
+function neo_announce_picked_link(control, done) {
+	Promise.resolve(done).then(() => {
+		if (control && control.$input && control.$input.trigger) control.$input.trigger("change");
+	});
+}
+
 frappe.ui.form.update_calling_link = (newdoc) => {
 	if (!frappe._from_link) return;
 	var doc = frappe.get_doc(frappe._from_link.doctype, frappe._from_link.docname);
@@ -274,7 +286,11 @@ frappe.ui.form.update_calling_link = (newdoc) => {
 									newdoc[meta.title_field]
 								);
 							}
-							frappe._from_link.set_value(newdoc.name);
+							//// Neoffice — see neo_announce_picked_link: the input's listeners hear the value too.
+							neo_announce_picked_link(
+								frappe._from_link,
+								frappe._from_link.set_value(newdoc.name)
+							);
 						}
 					}
 				);
@@ -286,7 +302,11 @@ frappe.ui.form.update_calling_link = (newdoc) => {
 						newdoc[meta.title_field]
 					);
 				}
-				frappe._from_link.set_value(newdoc.name);
+				//// Neoffice — see neo_announce_picked_link: the input's listeners hear the value too.
+				neo_announce_picked_link(
+					frappe._from_link,
+					frappe._from_link.set_value(newdoc.name)
+				);
 			}
 
 			// refresh field

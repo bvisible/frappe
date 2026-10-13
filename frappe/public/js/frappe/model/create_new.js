@@ -33,10 +33,8 @@ $.extend(frappe.model, {
 
 		frappe.model.add_to_locals(doc);
 
-		if (with_mandatory_children) {
-			frappe.model.create_mandatory_children(doc);
-		}
-
+		//// Neoffice — the mandatory child rows (with_mandatory_children) are made at the end of this
+		//// function, once the typed name and the route options belong to this document.
 		if (!parent_doc) {
 			doc.__run_link_triggers = 1;
 		}
@@ -65,6 +63,15 @@ $.extend(frappe.model, {
 				}
 			});
 			frappe.route_options = null;
+		}
+
+		//// Neoffice — moved here, after the name typed in a Link field (route_options.name_field) and
+		//// the route options have been given to THIS document. The mandatory child rows are new docs
+		//// too: made first, the first of them took the name for itself (and the route options), and a
+		//// doctype with a mandatory child table (a payment terms template, an attribute's values)
+		//// opened with an empty name field.
+		if (with_mandatory_children) {
+			frappe.model.create_mandatory_children(doc);
 		}
 
 		return doc;

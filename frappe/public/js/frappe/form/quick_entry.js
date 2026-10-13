@@ -41,6 +41,9 @@ frappe.ui.form.QuickEntryForm = class QuickEntryForm {
 				if (this.is_quick_entry() || this.force) {
 					this.render_dialog();
 					resolve(this);
+				} else if (this.create_in_form_dialog()) {
+					//// Neoffice — see create_in_form_dialog(): the person stays where they are.
+					resolve(this);
 				} else {
 					// no quick entry, open full form
 					frappe.quick_entry = null;
@@ -54,6 +57,34 @@ frappe.ui.form.QuickEntryForm = class QuickEntryForm {
 				}
 			});
 		});
+	}
+
+	//// Neoffice — added. A doctype that has no quick entry (its values are a child table, it has
+	//// too many mandatory fields) used to send the person to its full page from a Link field's
+	//// « Create a new … »: the dialog they were filling, and what they had typed in it, were gone.
+	//// Where a result is waited for (a Link field, or a caller's `after_insert`) the document's own
+	//// form opens in the form dialog instead (form/form_dialog.js, the one the little arrow of a Link
+	//// field uses), over the place they are in. The Link field takes the value through the native
+	//// update_calling_link (save.js), a caller's `after_insert` through `on_saved`. A list's « New »,
+	//// which waits for nothing, still goes to the page. Returns whether the dialog took it.
+	create_in_form_dialog() {
+		const FormDialog = frappe.ui.form.FormDialog;
+		if (!FormDialog || !(this.after_insert || frappe._from_link)) return false;
+		if (!FormDialog.can_create(this.doctype)) return false;
+		frappe.quick_entry = null;
+		// For consistency with the full page, which calls it once the document is routed.
+		if (this.init_callback) this.init_callback(this.doc);
+		const after_insert = this.after_insert;
+		FormDialog.create(this.doctype, {
+			doc: this.doc,
+			from_link: frappe._from_link,
+			on_saved: (doc) => {
+				// With a Link field waiting, save.js hands the value over (grid rows and dynamic
+				// links included); `after_insert` alone is the caller's own way back.
+				if (!frappe._from_link && after_insert) after_insert(doc);
+			},
+		});
+		return true;
 	}
 
 	set_meta_and_mandatory_fields() {
