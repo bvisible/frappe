@@ -756,11 +756,38 @@ class File(Document):
 		self.is_private = cint(self.is_private)
 		self.content_type = mimetypes.guess_type(self.file_name)[0]
 
+		# //// Neoffice — hook point `file_content_transformers` (#1526): an app may rewrite the bytes of a
+		# //// file before they are size-checked, hashed and written. Upstream has nothing here but the EXIF
+		# //// strip below; neoffice_theme declares the function that shrinks public images. Each hook is called
+		# //// as hook(content, file_name, content_type, is_private) and returns the new bytes, or None to leave
+		# //// the file alone; one that raises is logged and skipped, so a transformer never fails an upload.
+		# //// It sits BEFORE the EXIF strip: a transformer that rewrites a photograph applies its orientation and
+		# //// leaves its metadata behind, and the strip (a pixel copy saved again at quality 75, orientation lost)
+		# //// would compress it a second time. It sits before the hash: a hook run after the insert (after_insert,
+		# //// doc_events) finds the heavy file already written and hashed, and two uploads of one photograph then
+		# //// make two files where a hash taken on the optimised bytes makes one.
+		# //// Remove when: upstream offers such a hook, or the ERP shrinks its images some other way.
+		transformed = False
+		if isinstance(self._content, bytes):
+			for method in frappe.get_hooks("file_content_transformers"):
+				try:
+					new_content = frappe.get_attr(method)(
+						self._content, self.file_name, self.content_type, self.is_private
+					)
+				except Exception:
+					frappe.log_error("File content transformer failed", f"{method}\n{frappe.get_traceback()}")
+					continue
+				if isinstance(new_content, bytes) and new_content:
+					self._content = new_content
+					transformed = True
+
 		# transform file content based on site settings
 		if (
 			self.content_type
 			and self.content_type == "image/jpeg"
 			and frappe.get_system_settings("strip_exif_metadata_from_uploaded_images")
+			# //// Neoffice — a transformer that rewrote the bytes has left the metadata behind (see above)
+			and not transformed
 		):
 			# //// Neoffice — tolerate unreadable content: content_type comes from
 			# //// the file EXTENSION, so a mislabeled or truncated "jpeg" made
@@ -768,7 +795,13 @@ class File(Document):
 			# //// with a 500. EXIF stripping is best-effort hygiene, not a
 			# //// validation step: keep the original bytes when PIL cannot read.
 			try:
-				self._content = strip_exif_data(self._content, self.content_type)
+				# //// Neoffice — a JPEG that carries no EXIF is left as it is. strip_exif_data copies every pixel
+				# //// into a new image and saves it again at quality 75: a list of every pixel in memory, the
+				# //// progressive encoding of an optimised file lost, and new bytes (a new hash) each time a
+				# //// stored image passes through here, so attaching an existing image to another document
+				# //// wrote another copy of it on the disk.
+				if _carries_exif(self._content):
+					self._content = strip_exif_data(self._content, self.content_type)
 			except Exception:
 				pass
 
@@ -926,6 +959,13 @@ class File(Document):
 			zf.writestr(_file.file_name, _file.get_content())
 		zf.close()
 		return zip_file.getvalue()
+
+
+# //// Neoffice — added function (no upstream equivalent), used by File.save_file (#1526).
+def _carries_exif(content: bytes) -> bool:
+	"""True when the image holds EXIF (or XMP) metadata that strip_exif_data would remove."""
+	info = Image.open(io.BytesIO(content))
+	return bool(info.getexif() or info.info.get("xmp") or info.info.get("XML:com.adobe.xmp"))
 
 
 # //// Neoffice — added function (no upstream equivalent), used by File.validate_file_url.

@@ -1053,3 +1053,160 @@ class TestNeofficeFileNames(FrappeTestCase):
 		).insert(ignore_permissions=True)
 		self.assertFalse(doc.file_name.startswith("."), doc.file_name)
 		self.assertOnDisk(doc)
+
+
+# //// Neoffice — added tests (no upstream equivalent): the `file_content_transformers` hook and the EXIF strip's
+# //// new leniency in File.save_file (#1526).
+def uppercase_transformer(content, file_name, content_type, is_private):
+	"""A transformer for the tests: it rewrites the text it is given."""
+	return content.upper()
+
+
+def declining_transformer(content, file_name, content_type, is_private):
+	return None
+
+
+def failing_transformer(content, file_name, content_type, is_private):
+	raise RuntimeError("transformer broken")
+
+
+TRANSFORMER_CALLS = []
+
+
+def spying_transformer(content, file_name, content_type, is_private):
+	TRANSFORMER_CALLS.append((file_name, content_type, is_private))
+
+
+def reencoding_transformer(content, file_name, content_type, is_private):
+	"""Saves the photograph again, with no metadata and in a way the EXIF strip would not reproduce."""
+	import io
+
+	from PIL import Image
+
+	buffer = io.BytesIO()
+	Image.open(io.BytesIO(content)).save(buffer, "JPEG", quality=80, progressive=True)
+	return buffer.getvalue()
+
+
+def _jpeg_bytes(exif=False):
+	import io
+
+	from PIL import Image
+
+	image = Image.effect_noise((120, 90), 60).convert("RGB")
+	tags = Image.Exif()
+	tags[0x010F] = "Phone Maker"  # Make
+	tags[0x0112] = 6  # Orientation
+	buffer = io.BytesIO()
+	if exif:
+		image.save(buffer, "JPEG", quality=90, exif=tags)
+	else:
+		image.save(buffer, "JPEG", quality=90)
+	return buffer.getvalue()
+
+
+class TestNeofficeFileContentTransformers(FrappeTestCase):
+	HOOK = "file_content_transformers"
+	PATH = "frappe.core.doctype.file.test_file."
+
+	def hooked(self, *functions):
+		"""frappe.get_hooks answering `functions` for the hook under test, and the real answer for the rest."""
+		from unittest import mock
+
+		real = frappe.get_hooks
+
+		def get_hooks(hook=None, *args, **kwargs):
+			if hook == self.HOOK:
+				return [self.PATH + name for name in functions]
+			return real(hook, *args, **kwargs)
+
+		patcher = mock.patch.object(frappe, "get_hooks", get_hooks)
+		patcher.start()
+		self.addCleanup(patcher.stop)
+
+	def stored(self, doc):
+		"""The bytes on the disk: doc.get_content() hands back the content the document was given."""
+		with open(doc.get_full_path(), "rb") as handle:
+			return handle.read()
+
+	def make_file(self, content, name=None, is_private=0):
+		name = name or f"transform-{frappe.generate_hash(length=8)}.txt"
+		return frappe.get_doc(
+			{"doctype": "File", "file_name": name, "content": content, "is_private": is_private}
+		).insert(ignore_permissions=True)
+
+	def test_nothing_declared_nothing_changes(self):
+		doc = self.make_file(b"as received")
+		self.assertEqual(self.stored(doc), b"as received")
+
+	def test_a_transformer_rewrites_the_bytes_before_they_are_hashed(self):
+		from frappe.core.doctype.file.utils import get_content_hash
+
+		self.hooked("uppercase_transformer")
+		doc = self.make_file(b"as received")
+
+		self.assertEqual(self.stored(doc), b"AS RECEIVED")
+		self.assertEqual(doc.content_hash, get_content_hash(b"AS RECEIVED"))
+		self.assertEqual(doc.file_size, len(b"AS RECEIVED"))
+
+	def test_two_uploads_that_come_out_the_same_are_one_file_on_disk(self):
+		self.hooked("uppercase_transformer")
+		first = self.make_file(b"one text")
+		second = self.make_file(b"ONE TEXT")  # another upload, and the same bytes once transformed
+
+		self.assertEqual(first.content_hash, second.content_hash)
+		self.assertEqual(first.file_url, second.file_url)
+
+	def test_a_transformer_may_leave_the_file_alone(self):
+		self.hooked("declining_transformer")
+		self.assertEqual(self.stored(self.make_file(b"kept")), b"kept")
+
+	def test_a_transformer_that_fails_does_not_fail_the_upload(self):
+		self.hooked("failing_transformer", "uppercase_transformer")
+		doc = self.make_file(b"still saved")
+		self.assertEqual(self.stored(doc), b"STILL SAVED")  # the next one still ran
+
+	def test_the_transformers_run_in_order_on_what_the_previous_one_returned(self):
+		self.hooked("uppercase_transformer", "declining_transformer")
+		self.assertEqual(self.stored(self.make_file(b"order")), b"ORDER")
+
+	def test_a_transformer_is_told_the_type_and_the_visibility(self):
+		TRANSFORMER_CALLS.clear()
+		self.hooked("spying_transformer")
+		self.make_file(b"x", name="picture-spy.jpg", is_private=1)
+		self.make_file(b"y", name="picture-spy2.png", is_private=0)
+		self.assertEqual(
+			[call for call in TRANSFORMER_CALLS if call[0].startswith("picture-spy")],
+			[("picture-spy.jpg", "image/jpeg", 1), ("picture-spy2.png", "image/png", 0)],
+		)
+
+	@change_settings("System Settings", {"strip_exif_metadata_from_uploaded_images": 1})
+	def test_a_jpeg_without_exif_is_stored_byte_for_byte(self):
+		clean = _jpeg_bytes(exif=False)
+		doc = self.make_file(clean, name=f"clean-{frappe.generate_hash(length=6)}.jpg")
+		self.assertEqual(self.stored(doc), clean)
+
+	@change_settings("System Settings", {"strip_exif_metadata_from_uploaded_images": 1})
+	def test_a_jpeg_with_exif_still_loses_it(self):
+		import io
+
+		from PIL import Image
+
+		doc = self.make_file(_jpeg_bytes(exif=True), name=f"phone-{frappe.generate_hash(length=6)}.jpg")
+		self.assertFalse(Image.open(io.BytesIO(self.stored(doc))).getexif())
+
+	@change_settings("System Settings", {"strip_exif_metadata_from_uploaded_images": 1})
+	def test_a_stored_jpeg_attached_again_is_not_written_twice(self):
+		first = self.make_file(_jpeg_bytes(exif=True), name=f"again-{frappe.generate_hash(length=6)}.jpg")
+		again = frappe.get_doc(
+			{"doctype": "File", "file_name": first.file_name, "file_url": first.file_url}
+		).insert(ignore_permissions=True)
+		self.assertEqual(again.file_url, first.file_url)
+		self.assertEqual(again.content_hash, first.content_hash)
+
+	@change_settings("System Settings", {"strip_exif_metadata_from_uploaded_images": 1})
+	def test_the_exif_strip_leaves_alone_what_a_transformer_rewrote(self):
+		self.hooked("reencoding_transformer")
+		source = _jpeg_bytes(exif=True)
+		doc = self.make_file(source, name=f"rewritten-{frappe.generate_hash(length=6)}.jpg")
+		self.assertEqual(self.stored(doc), reencoding_transformer(source, "", "", 0))
