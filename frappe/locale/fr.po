@@ -24682,8 +24682,10 @@ msgid "Session Defaults Saved"
 msgstr "Session par défaut enregistrée"
 
 #: frappe/app.py:347
+# //// Neoffice — "La Session a Expiré" read as a title cased by accident next to "déconnecté :"
+# //// in the activity log (activity_log_list.js prints this reason); one sentence-case form.
 msgid "Session Expired"
-msgstr "La Session a Expiré"
+msgstr "Session expirée"
 
 #. Label of a Data field in DocType 'System Settings'
 #: frappe/core/doctype/system_settings/system_settings.json
@@ -35397,3 +35399,22 @@ msgstr "Aucune action de création disponible"
 #: frappe/public/js/frappe/form/form_hero.js:461
 msgid "Sent to employee"
 msgstr "Envoyé à l’employé"
+
+# //// Neoffice — added entries (no upstream equivalent): the reasons Frappe writes in the subject of
+# //// a logout (frappe/sessions.py, frappe/auth.py) are never wrapped in _(), so Crowdin has no
+# //// string for them. activity_log_list.js translates them when the log is read.
+#: frappe/core/doctype/activity_log/activity_log_list.js
+msgid "Logged In From Another Session"
+msgstr "Connexion depuis une autre session"
+
+#: frappe/core/doctype/activity_log/activity_log_list.js
+msgid "User Manually Logged Out"
+msgstr "Déconnexion manuelle par l'utilisateur"
+
+#: frappe/core/doctype/activity_log/activity_log_list.js
+msgid "Force Logged out by the user"
+msgstr "Déconnexion forcée par l'utilisateur"
+
+#: frappe/core/doctype/activity_log/activity_log_list.js
+msgid "Invalid login credentials"
+msgstr "Identifiants de connexion invalides"

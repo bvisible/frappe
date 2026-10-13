@@ -437,14 +437,23 @@ frappe.search.AwesomeBar = class AwesomeBar {
 				const key = `List:${rest[0]}:${qualifier}`;
 				if (seen.has(key)) continue;
 				seen.add(key);
-				label = `${__(rest[0])} ${qualifier !== "List" ? qualifier : ""}`.trim();
+				//// Neoffice — the qualifier was printed raw ("Devis Report", "Client Kanban") in the
+				//// Recently Visited list of a translated desk. It goes through __() like the DocType
+				//// name, and a report takes the catalogue's own word order ("{0} Report").
+				const doctype_label = __(rest[0]);
+				label =
+					qualifier === "Report"
+						? __("{0} Report", [doctype_label])
+						: `${doctype_label} ${qualifier !== "List" ? __(qualifier) : ""}`.trim();
 				icon = "list";
 				rtype = __(qualifier === "Report" ? "Report" : "List");
 			} else if (type === "Workspaces" && rest.length >= 1) {
 				const key = `WS:${rest[0]}`;
 				if (seen.has(key)) continue;
 				seen.add(key);
-				label = rest[0];
+				//// Neoffice — a workspace name is stored in English ("Home"): translated, as the
+				//// sidebar does, instead of printed raw in the Recently Visited list.
+				label = __(rest[0]);
 				icon = "grid";
 				rtype = __("Workspace");
 			} else {

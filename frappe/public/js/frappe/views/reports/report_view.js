@@ -2322,6 +2322,21 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 					doc = row;
 				}
 
+				//// Neoffice — the report view ignores `listview_settings.formatters`, which the list
+				//// view honours. A doctype opts in with `report_formatters`, so a formatter written
+				//// for the list never changes this view by surprise. First user: the subject of the
+				//// Activity Log (activity_log_list.js). A datatable cell is HTML, the formatter
+				//// returns plain text: escaped here.
+				const report_formatters =
+					(frappe.listview_settings[this.doctype] || {}).report_formatters || {};
+				if (column.docfield && report_formatters[column.docfield.fieldname]) {
+					const out = report_formatters[column.docfield.fieldname](
+						value,
+						column.docfield,
+						doc
+					);
+					return out == null ? "" : frappe.utils.escape_html(String(out));
+				}
 				return frappe.format(value, column.docfield, { always_show_decimals: true }, doc);
 			},
 		};
