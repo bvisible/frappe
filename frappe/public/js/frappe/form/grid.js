@@ -630,6 +630,11 @@ export default class Grid {
 		//// with a matching class, for the line styling of the erpnextswiss sales documents. It runs on EVERY
 		//// grid of EVERY doctype, inside the render path. TO REVIEW at the merge.
 		//// added to handle freeline and subtotal
+		//// Neoffice — the classes are first taken off every row, then put back where they belong: the grid reuses
+		//// its row nodes by POSITION (render_result_rows swaps `grid_row.doc` and keeps the node), so a node that
+		//// carried a Freeline or a Subtotal kept the class once another line took its place, and an article was
+		//// drawn as text after a line was inserted in the middle or moved (found 13.10.2026, neoffice-maintenance#1519).
+		this.wrapper.find(".data-row").removeClass("freeline subtotal");
 		this.wrapper.find('[data-name="Freeline"]').parents(".data-row").addClass("freeline");
 		this.wrapper.find('[data-name="Subtotal"]').parents(".data-row").addClass("subtotal");
 		////
