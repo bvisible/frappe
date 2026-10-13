@@ -1210,3 +1210,68 @@ class TestNeofficeFileContentTransformers(FrappeTestCase):
 		source = _jpeg_bytes(exif=True)
 		doc = self.make_file(source, name=f"rewritten-{frappe.generate_hash(length=6)}.jpg")
 		self.assertEqual(self.stored(doc), reencoding_transformer(source, "", "", 0))
+
+
+# //// Neoffice — added tests (no upstream equivalent): the EXIF strip applies the orientation before it drops the
+# //// tag that carries it, and no longer copies the pixels through a Python list (#1540).
+class TestNeofficeStripExifOrientation(FrappeTestCase):
+	def test_a_photo_taken_upright_comes_back_upright(self):
+		import io
+
+		from PIL import Image
+
+		from frappe.utils.image import strip_exif_data
+
+		stripped = strip_exif_data(_jpeg_bytes(exif=True), "image/jpeg")  # 120 x 90 pixels, orientation 6
+
+		image = Image.open(io.BytesIO(stripped))
+		self.assertEqual(image.size, (90, 120))
+		self.assertFalse(image.getexif())
+
+	def test_a_photo_with_no_orientation_keeps_its_size(self):
+		import io
+
+		from PIL import Image
+
+		from frappe.utils.image import strip_exif_data
+
+		image = Image.open(io.BytesIO(strip_exif_data(_jpeg_bytes(exif=False), "image/jpeg")))
+		self.assertEqual(image.size, (120, 90))
+		self.assertFalse(image.getexif())
+
+	def test_other_modes_are_still_read(self):
+		import io
+
+		from PIL import Image
+
+		from frappe.utils.image import strip_exif_data
+
+		cmyk = io.BytesIO()
+		Image.effect_noise((60, 40), 50).convert("CMYK").save(cmyk, "JPEG")
+		transparent = io.BytesIO()
+		Image.new("RGBA", (60, 40), (10, 20, 30, 128)).save(transparent, "PNG")
+		for content, content_type, size in (
+			(cmyk.getvalue(), "image/jpeg", (60, 40)),
+			(transparent.getvalue(), "image/png", (60, 40)),
+		):
+			with self.subTest(content_type=content_type, size=size):
+				self.assertEqual(Image.open(io.BytesIO(strip_exif_data(content, content_type))).size, size)
+
+	@change_settings("System Settings", {"strip_exif_metadata_from_uploaded_images": 1})
+	def test_a_private_photo_taken_upright_is_stored_upright(self):
+		import io
+
+		from PIL import Image
+
+		doc = frappe.get_doc(
+			{
+				"doctype": "File",
+				"file_name": f"upright-{frappe.generate_hash(length=6)}.jpg",
+				"content": _jpeg_bytes(exif=True),
+				"is_private": 1,
+			}
+		).insert(ignore_permissions=True)
+		with open(doc.get_full_path(), "rb") as handle:
+			stored = Image.open(io.BytesIO(handle.read()))
+		self.assertEqual(stored.size, (90, 120))
+		self.assertFalse(stored.getexif())
