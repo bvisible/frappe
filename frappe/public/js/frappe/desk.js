@@ -484,6 +484,70 @@ frappe.Application = class Application {
 		frappe.realtime.on("notification", () => {
 			$(".nc-bell").addClass("has-unseen");
 		});
+
+		//// Neoffice — the bell says how many notifications wait unread, as the trainings icon beside it does (Jérémy,
+		//// 14.10.2026: « une petite pastille 1, 2, 3 »). The dot above came only for a notification heard during the
+		//// session: after a reload the bell said nothing, and on the hub 72 of the 73 notifications of six days were
+		//// never read. Neodesk counts them the same way (neoffice-mobile, hooks/useNotificationLog.ts).
+		this.setup_cockpit_bell_count();
+	}
+
+	//// Neoffice — added (no upstream equivalent): the count on the cockpit's bell, see setup_cockpit_notifications().
+	//// Counted on the person's own rows (`for_user`: our `frappe.client.get_count` applies the row rules, an
+	//// upstream one would not), at load, when one arrives, when one or all are read from the list, when the tab
+	//// comes back into view.
+	setup_cockpit_bell_count() {
+		const refresh = frappe.utils.debounce(() => this.refresh_cockpit_bell_count(), 600);
+		frappe.realtime.on("notification", refresh);
+		$(document).ajaxComplete((_event, _xhr, settings) => {
+			if (/notification_log\.mark_(all_)?as_read/.test(String(settings && settings.url)))
+				refresh();
+		});
+		document.addEventListener("visibilitychange", () => {
+			if (document.visibilityState === "visible") refresh();
+		});
+		// The cockpit draws its bells again when its rail folds or unfolds: the count goes back on them
+		const root = document.getElementById("neoffice-cockpit-root");
+		if (root && window.MutationObserver) {
+			new MutationObserver(() => this.paint_cockpit_bell_count()).observe(root, {
+				childList: true,
+				subtree: true,
+			});
+		}
+		refresh();
+	}
+
+	//// Neoffice — added (no upstream equivalent): see setup_cockpit_bell_count().
+	refresh_cockpit_bell_count() {
+		frappe
+			.xcall("frappe.client.get_count", {
+				doctype: "Notification Log",
+				filters: { for_user: frappe.session.user, read: 0 },
+			})
+			.then((count) => {
+				this.cockpit_bell_count = cint(count);
+				this.paint_cockpit_bell_count();
+			})
+			.catch(() => {});
+	}
+
+	//// Neoffice — added (no upstream equivalent): the count drawn as the trainings icon's (`.nc-count`), on every bell
+	//// the cockpit shows; the dot goes where the count says it.
+	paint_cockpit_bell_count() {
+		const count = this.cockpit_bell_count || 0;
+		const label = count > 99 ? "99+" : count > 0 ? String(count) : "";
+		document.querySelectorAll(".nc-bell").forEach((bell) => {
+			let badge = bell.querySelector(".nc-count");
+			if (!badge && !label) return;
+			if (!badge) {
+				badge = document.createElement("span");
+				badge.className = "nc-count";
+				bell.appendChild(badge);
+			}
+			if (badge.textContent !== label) badge.textContent = label;
+			if (label && bell.classList.contains("has-unseen"))
+				bell.classList.remove("has-unseen");
+		});
 	}
 
 	toggle_cockpit_notifications() {
