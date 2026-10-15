@@ -183,19 +183,35 @@ def init_request(request):
 		else:
 			raise frappe.SessionStopped("Session Stopped")
 
-	if request.path.startswith("/api/method/upload_file"):
+	# //// Neoffice — v16 lets an app name request paths whose body it reads itself (hook `streaming_request_paths`: the
+	# //// Drive's WebDAV PUT, suite/drive/webdav). v15 buffered every body in memory under `max_file_size` (25 MB by
+	# //// default) and refused the rest, which made a big WebDAV upload impossible whatever nginx allowed. For those
+	# //// paths the cap is lifted and the body is left unread: the app streams it, bounded by the owner's quota. With no
+	# //// app naming a path nothing changes. Drop this when the fleet moves to v16.
+	streaming = is_streaming_request(request)
+	if streaming:
+		request.max_content_length = None
+	elif request.path.startswith("/api/method/upload_file"):
 		from frappe.core.api.file import get_max_file_size
 
 		request.max_content_length = get_max_file_size()
 	else:
 		request.max_content_length = cint(frappe.local.conf.get("max_file_size")) or 25 * 1024 * 1024
-	make_form_dict(request)
+	# //// Neoffice — the body of a streaming path is left unread
+	make_form_dict(request, streaming=streaming)
 
 	if request.method != "OPTIONS":
 		frappe.local.http_request = HTTPRequest()
 
 	for before_request_task in frappe.get_hooks("before_request"):
 		frappe.call(before_request_task)
+
+
+def is_streaming_request(request) -> bool:
+	"""Whether an app reads the body of this request itself (hook `streaming_request_paths`)."""
+	# //// Neoffice — added with the hook, see init_request
+	paths = frappe.get_hooks("streaming_request_paths")
+	return bool(paths) and request.path.startswith(tuple(paths))
 
 
 def setup_read_only_mode():
@@ -288,16 +304,19 @@ def set_cors_headers(response):
 	response.headers.extend(cors_headers)
 
 
-def make_form_dict(request: Request):
+# //// Neoffice — `streaming`: see init_request (the hook `streaming_request_paths`)
+def make_form_dict(request: Request, streaming: bool = False):
 	import json
 
-	request_data = request.get_data(as_text=True)
+	# //// Neoffice — a streaming body is the app's to read: only the query string is parsed here (see init_request)
+	request_data = "" if streaming else request.get_data(as_text=True)
 	if request_data and request.is_json:
 		args = json.loads(request_data)
 	else:
 		args = {}
 		args.update(request.args or {})
-		args.update(request.form or {})
+		if not streaming:  # //// Neoffice — reading the form would read the body
+			args.update(request.form or {})
 
 	if isinstance(args, dict):
 		frappe.local.form_dict = frappe._dict(args)
