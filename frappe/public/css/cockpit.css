@@ -1237,11 +1237,71 @@ body.neoffice-cockpit .form-tabs-list .form-tabs .nav-item .nav-link {
 body.neoffice-cockpit .form-tabs-list .form-tabs .nav-item .nav-link.active {
 	color: var(--text-color);
 }
+/* //// Neoffice — 2026-10-15, the strip of tabs. It holds 19 tabs on the company settings and scrolls. Its own
+   scrollbar (arrows and thumb) read as a second control and said nothing about where the reader was, and the bar
+   sat outside the strip, so it stayed where the strip had been before it moved: under another tab, or under none.
+   Now: no native scrollbar; the bar lives inside the strip (form/tab_slider.js), so it scrolls and is clipped with
+   the tabs; an end that still holds tabs fades and carries a chevron (tab_slider.js, make_nav). */
+body.neoffice-cockpit .form-tabs-list .form-tabs {
+	position: relative;
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+	--nc-fade-l: 0px;
+	--nc-fade-r: 0px;
+	-webkit-mask-image: linear-gradient(
+		to right,
+		transparent 0,
+		#000 var(--nc-fade-l),
+		#000 calc(100% - var(--nc-fade-r)),
+		transparent 100%
+	);
+	mask-image: linear-gradient(
+		to right,
+		transparent 0,
+		#000 var(--nc-fade-l),
+		#000 calc(100% - var(--nc-fade-r)),
+		transparent 100%
+	);
+}
+body.neoffice-cockpit .form-tabs-list .form-tabs::-webkit-scrollbar {
+	display: none;
+}
+body.neoffice-cockpit .form-tabs-list.nc-tabs-more-left .form-tabs {
+	--nc-fade-l: 44px;
+}
+body.neoffice-cockpit .form-tabs-list.nc-tabs-more-right .form-tabs {
+	--nc-fade-r: 44px;
+}
+body.neoffice-cockpit .nc-tabs-nav {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	z-index: 3;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	padding: 0;
+	border: 1px solid var(--border-color);
+	border-radius: 50%;
+	background: var(--card-bg, #fff);
+	color: var(--text-color);
+	box-shadow: 0 1px 3px rgba(20, 20, 20, 0.12);
+	cursor: pointer;
+}
+body.neoffice-cockpit .nc-tabs-nav:hover {
+	border-color: var(--text-color);
+}
+body.neoffice-cockpit .form-tabs-list.nc-tabs-more-left .nc-tabs-prev,
+body.neoffice-cockpit .form-tabs-list.nc-tabs-more-right .nc-tabs-next {
+	display: inline-flex;
+}
 body.neoffice-cockpit .nc-tab-indicator {
 	position: absolute;
-	bottom: -2px; /* sits ON the 2px container baseline */
-	height: 2.5px;
-	border-radius: 3px;
+	bottom: 0; /* the strip's own edge: the bar rests on the 2px container baseline */
+	height: 3px;
+	border-radius: 3px 3px 0 0;
 	background: var(--nc-accent);
 	opacity: 0;
 	transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1), width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
