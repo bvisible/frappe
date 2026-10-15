@@ -480,6 +480,17 @@ frappe.Application = class Application {
 		`).appendTo("body");
 		this.cockpit_notifications = new frappe.ui.Notifications();
 
+		//// Neoffice — the list is shown and hidden by hand (toggle_cockpit_notifications), but Bootstrap's own
+		//// dropdown plugin wakes up on the hidden button the first time something in the panel is used (an item
+		//// opens its document). From then on its clearMenus(), run by every click that reaches the document - the
+		//// bell's own included - takes `show` off the list in the very tick the bell put it there: after one
+		//// notification followed, the bell never opened again until the page was reloaded (Jérémy, 15.10.2026:
+		//// « je ne peux plus recliquer dessus »). Bootstrap asks before it hides: it is refused, the cockpit
+		//// closes the list itself (outside click, change of page).
+		this.$cockpit_notif_host
+			.find(".dropdown-notifications")
+			.on("hide.bs.dropdown", (event) => event.preventDefault());
+
 		// realtime unseen indicator on the cockpit bell
 		frappe.realtime.on("notification", () => {
 			$(".nc-bell").addClass("has-unseen");
