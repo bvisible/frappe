@@ -170,7 +170,8 @@ def get_all_translations(lang: str) -> dict[str, str]:
 			all_translations.update(get_user_translations(parent_lang) if parent_lang else {})
 			# Update with child language translations (overriding parent translations)
 			all_translations.update(get_user_translations(lang))
-			all_translations.update(get_translated_countries())
+			# //// Neoffice — the language asked for (see geo/country_info.py), not the one of the process.
+			all_translations.update(get_translated_countries(lang))
 
 		return all_translations
 

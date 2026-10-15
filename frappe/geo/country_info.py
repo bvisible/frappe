@@ -44,11 +44,16 @@ def get_translated_dict():
 	return get_translated_countries()
 
 
-def get_translated_countries():
+# //// Neoffice — `lang`: the language the dictionary is being built for (reason inside).
+def get_translated_countries(lang=None):
 	from babel.dates import Locale
 
 	translated_dict = {}
-	locale = Locale.parse(frappe.local.lang, sep="-")
+	# //// Neoffice — the names are those of the language ASKED FOR, not of the process. get_all_translations(lang)
+	# //// keeps what it builds in the cache under `lang`: a process in another language (an English request, a
+	# //// background job, a CLI) that built it first stored "Switzerland" under "fr", and every French page showed the
+	# //// country in English until the cache was cleared again (osiris, 15.10). Without `lang` it is as it was.
+	locale = Locale.parse(lang or frappe.local.lang, sep="-")
 
 	# country names && currencies
 	for country, info in get_all().items():

@@ -330,6 +330,20 @@ class TestTranslate(FrappeTestCase):
 			args, ("Multiline translation with format replacements and no context {0} {1}", None)
 		)
 
+	# //// Neoffice — added test: the country names of a language are those of THAT language, whatever the process
+	# //// that builds the cached dictionary speaks (a background job or an English request built "fr" with the
+	# //// English names, osiris 15.10).
+	def test_country_names_follow_the_language_asked_for_not_the_one_of_the_process(self):
+		previous = frappe.local.lang
+		frappe.cache.hdel(MERGED_TRANSLATION_KEY, "fr")
+		try:
+			frappe.local.lang = "en"
+			translations = frappe.translate.get_all_translations("fr")
+		finally:
+			frappe.local.lang = previous
+			frappe.cache.hdel(MERGED_TRANSLATION_KEY, "fr")
+		self.assertEqual(translations.get("Switzerland"), "Suisse")
+
 
 def verify_translation_files(app):
 	"""Function to verify translation file syntax in app."""
