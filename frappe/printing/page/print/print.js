@@ -438,7 +438,7 @@ frappe.ui.form.PrintView = class {
 
 		this.setup_additional_settings();
 		//// Neoffice — tell the apps which document the page shows, so they can offer their own way to print it (the
-		//// office's printers through Neodesk: neoffice_activity/public/js/neodesk_printing.js, 16.10.2026). Upstream
+		//// office's printers through Neodesk: neoffice_theme/public/js/neodesk_printing.js, 16.10.2026). Upstream
 		//// has no hook here and keeps its PrintView local to the page; a handler receives this view (its page, frm,
 		//// and the print format, letter head and language chosen in it).
 		$(document).trigger("print-view-show", [this]);
