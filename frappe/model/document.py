@@ -1130,7 +1130,11 @@ class Document(BaseDocument):
 	@frappe.whitelist()
 	def rename(self, name: str, merge=False, force=False, validate_rename=True):
 		"""Rename the document to `name`. This transforms the current object."""
-		return self._rename(name=name, merge=merge, force=force, validate_rename=validate_rename)
+		# //// Neoffice — backport of upstream 22da8e41a3 (develop, 2026-10-07): the whitelisted method no
+		# //// longer passes on the client's `validate_rename`, which let anyone who can read a document rename it
+		# //// past every check (write permission, allow_rename). Code that must skip them calls `_rename`. Drop
+		# //// this at the next rebase onto an upstream version-15 that has it (neoffice-maintenance#1656).
+		return self._rename(name=name, merge=merge, force=force)
 
 	def delete(self, ignore_permissions=False, force=False, *, delete_permanently=False):
 		"""Delete document."""

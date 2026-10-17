@@ -254,6 +254,16 @@ class TestRenameDoc(FrappeTestCase):
 		self.available_documents.append(new_name)
 		self.available_documents.remove(name)
 
+	# //// Neoffice — added test (neoffice-maintenance#1656): the whitelisted `rename` keeps its checks whatever
+	# //// the client asks (backport of upstream 22da8e41a3).
+	def test_whitelisted_rename_keeps_its_checks(self):
+		todo = frappe.get_doc({"doctype": "ToDo", "description": "Rename check"}).insert()
+		self.assertFalse(frappe.get_meta("ToDo").allow_rename)
+		with self.assertRaises(frappe.ValidationError):
+			todo.rename(f"{todo.name}-renamed", validate_rename=False)
+		self.assertTrue(frappe.db.exists("ToDo", todo.name))
+		self.assertFalse(frappe.db.exists("ToDo", f"{todo.name}-renamed"))
+
 	def test_parenttype(self):
 		child = new_doctype(istable=1).insert()
 		table_field = {

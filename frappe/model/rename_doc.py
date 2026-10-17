@@ -88,7 +88,9 @@ def update_document_title(
 
 			doc.queue_action("rename", name=transformed_name, merge=merge, queue=queue, timeout=36000)
 		else:
-			doc.rename(updated_name, merge=merge)
+			# //// Neoffice — backport of upstream 22da8e41a3, with the change in Document.rename: the private
+			# //// method, as upstream does (neoffice-maintenance#1656).
+			doc._rename(updated_name, merge=merge)
 
 	if title_updated:
 		if action_enqueued and name_updated:
