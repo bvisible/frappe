@@ -8,6 +8,10 @@ requires-python = ">=3.10,<3.14"
 readme = "README.md"
 dynamic = ["version"]
 dependencies = [
+    # //// Neoffice — the pins marked maintenance#1679 are ranges every app of the bench can share: pip could
+    # not satisfy upstream's pins together with suite, payments (wallee), nora (mcp), builder (pdfplumber)
+    # and frappe-bench, so each update downgraded these packages for frappe and the next app upgraded them
+    # again. At an upstream merge, take upstream's pin only if `pip check` stays empty on the whole bench.
     # core dependencies
     "Babel~=2.13.1",
     "Click~=8.2.0",
@@ -15,8 +19,8 @@ dependencies = [
     "filetype~=1.2.0",
     "GitPython~=3.1.34",
     "Jinja2~=3.1.2",
-    "Pillow~=11.3.0",
-    "PyJWT~=2.8.0",
+    "Pillow>=11.3.0,<13",  # //// Neoffice — was ~=11.3.0; pdfplumber 0.11.10 (builder, neoffice_theme) needs >=12.2.0 (maintenance#1679)
+    "PyJWT>=2.13.0,<3",  # //// Neoffice — was ~=2.8.0; wallee (payments) and mcp (nora) need >=2.10.1 (maintenance#1679)
     # We depend on internal attributes,
     # do NOT add loose requirements on PyMySQL versions.
     "PyMySQL==1.1.1",
@@ -29,7 +33,7 @@ dependencies = [
     "pydyf==0.10.0",
     "Werkzeug~=3.0.1",
     "Whoosh~=2.7.4",
-    "beautifulsoup4~=4.12.2",
+    "beautifulsoup4>=4.12.2,<5",  # //// Neoffice — was ~=4.12.2; suite needs >=4.13.5 (maintenance#1679)
     "bleach-allowlist~=1.0.3",
     "bleach[css]~=6.0.0",
     "cairocffi==1.5.1",
@@ -57,13 +61,13 @@ dependencies = [
     "pyOpenSSL~=25.0.0",
     "pydantic>=2.10.0,<3.0.0",
     "pyotp~=2.8.0",
-    "python-dateutil~=2.8.2",
+    "python-dateutil~=2.9.0",  # //// Neoffice — was ~=2.8.2, as upstream version-15 has now; wallee and holidays need >=2.9.0.post0 (maintenance#1679)
     "pytz==2023.3",
     "rauth~=0.7.3",
     "redis~=4.5.5",
     "hiredis~=2.2.3",
     "requests-oauthlib~=1.3.1",
-    "requests~=2.32.0",
+    "requests>=2.32.0,<3",  # //// Neoffice — was ~=2.32.0; frappe-bench 5.31, installed in the same env, needs ~=2.33.0 (maintenance#1679)
     "rq==1.15.1",
     "rsa>=4.1",
     "semantic-version~=2.10.0",
@@ -80,7 +84,7 @@ dependencies = [
     "markdownify~=0.14.1",
 
     # integration dependencies
-    "boto3~=1.34.143",
+    "boto3>=1.34.143,<2",  # //// Neoffice — was ~=1.34.143; suite needs ~=1.43.29 (maintenance#1679)
     "dropbox~=11.36.2",
     "google-api-python-client~=2.172.0",
     "google-auth-oauthlib~=1.2.2",
