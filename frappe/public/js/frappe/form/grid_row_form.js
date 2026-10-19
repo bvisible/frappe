@@ -3,7 +3,31 @@ export default class GridRowForm {
 		$.extend(this, opts);
 		this.wrapper = $('<div class="form-in-grid"></div>').appendTo(this.row.wrapper);
 	}
+	//// Neoffice — added wrapper, no upstream equivalent. Upstream builds the row form while it is attached
+	//// to the page: each visible control (a long child doctype such as a Sales Invoice Item has ~100
+	//// controls, ~45 of them shown) interleaves DOM writes and style reads (jQuery show/hide, label and
+	//// description writes) and forces a style recalculation of the page every time. Measured on a draft
+	//// invoice: 610 ms attached, 310 ms in a display:none container, 60 ms detached; the DOM that comes
+	//// out is identical (99 controls, same shown/hidden state, sizes, editors, sections). The form is
+	//// therefore built out of the document and put back where it was, whatever happens in between.
+	//// TO REVIEW at the merge: if upstream builds the layout detached or lazily, drop this wrapper and
+	//// rename render_content() back to render().
 	render() {
+		const wrapper = this.wrapper[0];
+		const parent = wrapper.parentNode;
+		const next_sibling = wrapper.nextSibling;
+		if (parent) parent.removeChild(wrapper);
+		try {
+			this.render_content();
+		} finally {
+			if (parent) parent.insertBefore(wrapper, next_sibling);
+		}
+		// make_form() writes the row number through row.wrapper, which does not contain the form while it
+		// is detached: write it again now that the form is back.
+		this.row.set_row_index();
+	}
+	//// Neoffice — upstream: this method is `render()`, see the wrapper above. Body unchanged.
+	render_content() {
 		var me = this;
 		this.make_form();
 		this.form_area.empty();

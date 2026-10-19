@@ -322,7 +322,14 @@ Object.assign(frappe.utils, {
 	) {
 		if (frappe.flags.disable_auto_scroll) return;
 
-		element_to_be_scrolled = element_to_be_scrolled || $("html, body");
+		//// Neoffice — upstream: `element_to_be_scrolled = element_to_be_scrolled || $("html, body");` and
+		//// get_scroll_position(element, additional_offset). In the cockpit layout the document does not
+		//// scroll: <body> is overflow:hidden and the page scrolls inside .main-section, so every default
+		//// scroll_to (a row form opened low in a long table, a field in error, a section reached from a
+		//// link) was a silent no-op and the user had to scroll by hand. The scroller is found by
+		//// get_page_scroller(); anything outside .main-section (a dialog) keeps the upstream behaviour.
+		const page_scroller = element_to_be_scrolled ? null : this.get_page_scroller(element);
+		element_to_be_scrolled = element_to_be_scrolled || page_scroller || $("html, body");
 		let scroll_top = 0;
 		if (element) {
 			// If a number is passed, just subtract the offset,
@@ -330,7 +337,7 @@ Object.assign(frappe.utils, {
 			scroll_top =
 				typeof element == "number"
 					? element - cint(additional_offset)
-					: this.get_scroll_position(element, additional_offset);
+					: this.get_scroll_position(element, additional_offset, page_scroller); //// Neoffice — 3rd argument added
 		}
 
 		if (scroll_top < 0) {
@@ -368,7 +375,26 @@ Object.assign(frappe.utils, {
 			element_to_be_scrolled.scrollTop(scroll_top);
 		}
 	},
-	get_scroll_position: function (element, additional_offset) {
+	//// Neoffice — added, no upstream equivalent: the element that scrolls the page, as a jQuery object,
+	//// or null when the document itself scrolls (upstream layout) or when `element` is not inside the
+	//// scrolling section (a dialog, the navbar). Remove together with the cockpit layout.
+	get_page_scroller: function (element) {
+		const main = document.querySelector(".main-section");
+		if (!main || getComputedStyle(document.body).overflowY !== "hidden") return null;
+		if (main.scrollHeight <= main.clientHeight) return null;
+		const target = element && typeof element !== "number" ? $(element)[0] : null;
+		if (target && !main.contains(target)) return null;
+		return $(main);
+	},
+	//// Neoffice — `scroller` added (see scroll_to): the sticky .page-head lives inside the scrolling
+	//// section, so the position is measured from the section, not from the document.
+	get_scroll_position: function (element, additional_offset, scroller) {
+		if (scroller && scroller.length) {
+			const head = $(".page-head:visible").height() || 0;
+			const el_top = $(element)[0].getBoundingClientRect().top;
+			const box_top = scroller[0].getBoundingClientRect().top;
+			return scroller.scrollTop() + el_top - box_top - head - cint(additional_offset);
+		}
 		let header_offset =
 			$(".navbar").height() + $(".page-head:visible").height() || $(".navbar").height();
 		return $(element).offset().top - header_offset - cint(additional_offset);

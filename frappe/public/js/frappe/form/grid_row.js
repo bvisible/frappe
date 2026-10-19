@@ -1736,8 +1736,11 @@ export default class GridRow {
 			!frappe.dom.is_element_in_viewport(this.wrapper) &&
 			!frappe.dom.is_element_in_modal(this.wrapper)
 		) {
-			// -15 offset to make form look visually centered
-			frappe.utils.scroll_to(this.wrapper, true, -15);
+			//// Neoffice — upstream: `frappe.utils.scroll_to(this.wrapper, true, -15);` ("-15 offset to make form
+			//// look visually centered"). -15 puts the top of the form 15px UNDER the sticky page head; with the
+			//// cockpit page head that hides the "Editing Row" title. +15 leaves the form 15px below the head,
+			//// which is where hide_form() puts the row when the form closes.
+			frappe.utils.scroll_to(this.wrapper, true, 15); //// frappe.utils.scroll_to(this.wrapper, true, -15);
 		}
 
 		if (this.frm) {
