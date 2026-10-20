@@ -439,12 +439,21 @@ jobs:
               cmd=(bench --site test_site run-tests --module "$mod" --case "$case_name")
             fi
             echo "+ ${cmd[*]}"
+            # a test that calls the served site over HTTP fails on what the SERVER did, and
+            # that lands in /tmp/serve.log, not in the test's traceback (#1762: the implicit
+            # OAuth grant said only "None is not true"). The full mode prints its tail; here,
+            # only what this case made the server write.
+            served=$(wc -l < /tmp/serve.log 2>/dev/null || echo 0)
             if "${cmd[@]}" < /dev/null > /tmp/case.log 2>&1; then
               tail -40 /tmp/case.log
               echo "PASS $entry" >> /tmp/results
             else
               tail -600 /tmp/case.log
               echo "FAIL $entry" >> /tmp/results
+              if [ "$(wc -l < /tmp/serve.log 2>/dev/null || echo 0)" -gt "$served" ]; then
+                echo "--- what the served site wrote during this case"
+                tail -n +"$((served + 1))" /tmp/serve.log | tail -150
+              fi
             fi
             echo "::endgroup::"
           done || true
