@@ -384,12 +384,30 @@ class TestOAuth20(FrappeRequestTestCase):
 
 		session = requests.Session()
 		login(session)
+		# //// Neoffice — TEMPORARY diagnosis of the CI failure (neoffice-maintenance#1762), removed by the next commit.
+		import sys
+
+		_who = session.get(get_full_url("/api/method/frappe.auth.get_logged_user"))
+		print(
+			"DEBUG-1762 base",
+			get_full_url("/"),
+			"conf.host_name",
+			frappe.local.conf.host_name,
+			file=sys.stderr,
+		)
+		print(
+			"DEBUG-1762 who",
+			_who.status_code,
+			_who.text[:300],
+			sorted(session.cookies.keys()),
+			file=sys.stderr,
+		)
 
 		redirect_destination = None
 
 		# Go to Authorize url
 		try:
-			session.get(
+			_resp = session.get(  # //// Neoffice — TEMPORARY (#1762)
 				get_full_url("/api/method/frappe.integrations.oauth2.authorize"),
 				params=encode_params(
 					{
@@ -400,8 +418,20 @@ class TestOAuth20(FrappeRequestTestCase):
 					}
 				),
 			)
+			# //// Neoffice — TEMPORARY diagnosis (neoffice-maintenance#1762), removed by the next commit.
+			print(
+				"DEBUG-1762 authorize",
+				_resp.status_code,
+				_resp.url,
+				[(h.status_code, h.headers.get("Location")) for h in _resp.history],
+				_resp.text[:400],
+				file=sys.stderr,
+			)
 		except requests.exceptions.ConnectionError as ex:
 			redirect_destination = ex.request.url
+			print(
+				"DEBUG-1762 redirected to", redirect_destination[:200], file=sys.stderr
+			)  # //// Neoffice — TEMPORARY (#1762)
 
 		response_dict = parse_qs(urlparse(redirect_destination).fragment)
 
