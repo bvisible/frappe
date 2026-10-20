@@ -98,15 +98,8 @@ frappe.views.CommunicationComposer = class {
 			//// a compact composer head: a labelled CC / BCC toggle, CC and BCC side by side, the
 			//// template beside the schedule"): it now sits beside the template, after
 			//// "send_after_column" below, instead of being stacked under CC/BCC.
-			{
-				label: __("Use HTML"),
-				fieldtype: "Check",
-				fieldname: "use_html",
-				default: 0,
-				onchange: () => {
-					me.on_use_html_toggle();
-				},
-			},
+			//// Neoffice — upstream's "Use HTML" check (b64bc20f7b) follows the schedule, which now sits beside the
+			//// template (see below): it moved with it, out of the CC / BCC section that stays closed.
 			{
 				fieldtype: "Section Break",
 				fieldname: "email_template_section_break",
@@ -134,6 +127,17 @@ frappe.views.CommunicationComposer = class {
 				label: __("Schedule Send At"),
 				fieldtype: "Datetime",
 				fieldname: "send_after",
+			},
+			//// Neoffice — upstream's "Use HTML" check, here so that a draft reopened in HTML mode shows the switch
+			//// back (the CC / BCC section above only opens for a copy).
+			{
+				label: __("Use HTML"),
+				fieldtype: "Check",
+				fieldname: "use_html",
+				default: 0,
+				onchange: () => {
+					me.on_use_html_toggle();
+				},
 			},
 			{ fieldtype: "Section Break" },
 			{

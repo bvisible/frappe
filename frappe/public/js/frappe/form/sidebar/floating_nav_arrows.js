@@ -51,6 +51,9 @@ frappe.ui.form.FloatingNavArrows = class FloatingNavArrows {
 		// nothing to navigate to.
 		//// Neoffice — nor in a form dialog (form/form_dialog.js): it shows one document.
 		if (this.frm.is_new() || this.frm.meta.issingle || this.frm.form_dialog) return;
+		//// Neoffice — nor for a user who turned the navigation buttons off: upstream's per-user desk setting
+		//// `form_navigation_buttons` (v15.1xx, 6c9eefde0b) now governs the native arrows these replace.
+		if (frappe.boot.desk_settings && !frappe.boot.desk_settings.form_navigation_buttons) return;
 
 		const me = this;
 		this.$prev = $(`

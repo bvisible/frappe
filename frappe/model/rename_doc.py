@@ -70,7 +70,15 @@ def update_document_title(
 			current_name = doc.name
 
 			# before_name hook may have DocType specific validations or transformations
-			transformed_name = doc.run_method("before_rename", current_name, updated_name, merge)
+			# //// Neoffice — only the hook's answer (the new name) is kept here; what it writes is rolled back,
+			# //// since the queued job runs it again. Upstream cb897ef920 dropped the validate_rename that used to
+			# //// stop a doomed rename at this point, and ERPNext's Item.before_rename copies the new code into
+			# //// item_name: a rename that then failed in the job left the item labelled with another's code.
+			frappe.db.savepoint("neoffice_before_rename")
+			try:
+				transformed_name = doc.run_method("before_rename", current_name, updated_name, merge)
+			finally:
+				frappe.db.rollback(save_point="neoffice_before_rename")
 			if isinstance(transformed_name, dict):
 				transformed_name = transformed_name.get("new")
 			transformed_name = transformed_name or updated_name

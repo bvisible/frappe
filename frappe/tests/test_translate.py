@@ -161,8 +161,8 @@ class TestTranslate(FrappeTestCase):
 		self.assertEqual(_("Change"), "Changement")
 		self.assertEqual(_("Change", context="Coins"), "la monnaie")
 
-	# //// Neoffice — added test (no upstream equivalent) for the raw-text fallback we added to
-	# //// frappe._(): upstream strips HTML tags before the lookup, the catalog keeps them.
+	# //// Neoffice — added test (no upstream equivalent): an HTML message is found under its catalog key,
+	# //// tags kept. Our fallback (44ed6b9835) did it until upstream's _() stopped stripping tags (674a67839a).
 	def test_html_message_falls_back_on_the_raw_catalog_key(self):
 		frappe.local.lang = "fr"
 		raw = "Creation of <b>{0}</b> successful"
@@ -174,10 +174,10 @@ class TestTranslate(FrappeTestCase):
 		):
 			self.assertEqual(_(raw), "Création de <b>{0}</b> réussie")
 
-		# an entry for the stripped text still wins over the raw one (behaviour unchanged)
+		# the raw entry is the one used: the tags are no longer stripped before the lookup
 		catalog = {raw: "avec balises", stripped: "sans balises"}
 		with patch("frappe.translate.get_all_translations", return_value=catalog):
-			self.assertEqual(_(raw), "sans balises")
+			self.assertEqual(_(raw), "avec balises")
 
 		# the context is honoured on the raw key too
 		catalog = {raw: "sans contexte", f"{raw}:Test context": "avec contexte"}

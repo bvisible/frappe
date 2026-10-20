@@ -892,7 +892,11 @@ class InboundMail(Email):
 			reference_document = self.match_record_by_subject_and_sender(self.email_account.append_to)
 
 		if not reference_document and self.is_reply_to_system_sent_mail():
-			reference_document = parent_communication
+			# //// Neoffice — only a Communication this site SENT: our is_reply_to_system_sent_mail also accepts a
+			# //// Message-ID of the shared @neoemail.ch domain, which another instance's mail carries too, so a
+			# //// received copy of that mail would otherwise become the reply's document (upstream 5ccb1a469c).
+			if parent_communication and parent_communication.sent_or_received == "Sent":
+				reference_document = parent_communication
 
 		self._reference_document = reference_document or ""
 		return self._reference_document

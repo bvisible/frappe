@@ -66,14 +66,16 @@ class DataImport(Document):
 		meta = frappe.get_meta(self.reference_doctype)
 		if not cint(meta.allow_import):
 			frappe.throw(
+				# //// Neoffice — the doctype name is translated before it is injected, as above.
 				_("Data Import is not allowed for {0}. Enable 'Allow Import' in DocType settings.").format(
-					self.reference_doctype
+					_(self.reference_doctype)
 				)
 			)
 
 		if not frappe.has_permission(self.reference_doctype, "import"):
 			frappe.throw(
-				_("You do not have import permission for {0}").format(self.reference_doctype),
+				# //// Neoffice — same: the doctype name is translated before it is injected.
+				_("You do not have import permission for {0}").format(_(self.reference_doctype)),
 				frappe.PermissionError,
 			)
 
