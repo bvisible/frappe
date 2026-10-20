@@ -61,6 +61,15 @@ class TestOAuth20(FrappeRequestTestCase):
 	def setUpClass(cls):
 		super().setUpClass()
 		make_test_records("User")
+		# //// Neoffice — our CI runs test cases one after another on one site, and earlier cases can leave this
+		# //// fixture user altered (roles, password, enabled): put back what these tests sign in with, so the
+		# //// password login of the implicit-grant test is not refused (neoffice-maintenance#1762).
+		from frappe.utils.password import update_password
+
+		frappe.db.set_value("User", "test@example.com", "enabled", 1)
+		frappe.get_doc("User", "test@example.com").add_roles("System Manager")
+		update_password("test@example.com", "Eastern_43A1W")
+		frappe.db.commit()  # nosemgrep: the HTTP tests run in other threads and only see committed rows
 
 		cls.form_header = {"content-type": "application/x-www-form-urlencoded"}
 		cls.scope = "all openid"
