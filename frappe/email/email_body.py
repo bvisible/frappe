@@ -622,17 +622,30 @@ def get_filecontent_from_path(path):
 	if path.startswith("/"):
 		path = path[1:]
 
+	# //// Neoffice — backport of upstream 16e8b41584 (v15.117.0, GHSA-8v98-cfpm-9p67): an image path of an outgoing
+	# //// mail is read only from the assets or the site's files folders. Any other path, an absolute one included,
+	# //// was read from the disk and sent inline: any file the server can read. Drop at the next merge of upstream
+	# //// version-15 (neoffice-maintenance#1748).
 	if path.startswith("assets/"):
 		# from public folder
+		base_path = os.path.abspath("assets")
 		full_path = os.path.abspath(path)
 	elif path.startswith("files/"):
 		# public file
-		full_path = frappe.get_site_path("public", path)
+		# //// Neoffice — confined to the public files folder (see above)
+		base_path = os.path.abspath(frappe.get_site_path("public", "files"))
+		full_path = os.path.abspath(frappe.get_site_path("public", path))
 	elif path.startswith("private/files/"):
 		# private file
-		full_path = frappe.get_site_path(path)
+		# //// Neoffice — confined to the private files folder (see above)
+		base_path = os.path.abspath(frappe.get_site_path("private", "files"))
+		full_path = os.path.abspath(frappe.get_site_path(path))
 	else:
-		full_path = path
+		# //// Neoffice — any other path is not read (see above)
+		return None
+
+	if os.path.commonpath((base_path, full_path)) != base_path:
+		return None
 
 	if os.path.exists(full_path):
 		with open(full_path, "rb") as f:

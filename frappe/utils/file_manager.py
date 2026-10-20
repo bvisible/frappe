@@ -232,6 +232,13 @@ def write_file(content, fname, is_private=0):
 
 	# create directory (if not exists)
 	frappe.create_folder(file_path)
+
+	# //// Neoffice — backport of upstream 5e8cf7082e (v15.121.0, GHSA-9pp9-wgp9-3p3j): the target must resolve to a
+	# //// direct child of the files directory. A name with "../" or an absolute path wrote anywhere the server can
+	# //// write, code included. Drop at the next merge of upstream version-15 (neoffice-maintenance#1748).
+	if os.path.realpath(os.path.dirname(os.path.join(file_path, fname))) != os.path.realpath(file_path):
+		frappe.throw(_("Invalid file name"), title=_("Invalid Upload"))
+
 	# write the file
 	if isinstance(content, str):
 		content = content.encode()
