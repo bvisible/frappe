@@ -2,15 +2,18 @@ import base64
 import datetime
 import hashlib
 import re
-from http import cookies
-from urllib.parse import unquote, urljoin, urlparse
+# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+from urllib.parse import urljoin, urlparse
 
 import jwt
 import pytz
+# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+from oauthlib.common import Request
 from oauthlib.openid import RequestValidator
 
 import frappe
-from frappe.auth import LoginManager
+# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+from frappe.integrations.doctype.oauth_client.oauth_client import OAuthClient
 from frappe.utils.data import cstr, get_system_timezone, now_datetime
 
 
@@ -75,13 +78,13 @@ class OAuthWebRequestValidator(RequestValidator):
 	# Post-authorization
 
 	def save_authorization_code(self, client_id, code, request, *args, **kwargs):
-		cookie_dict = get_cookie_dict_from_headers(request)
-
+		# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
 		oac = frappe.new_doc("OAuth Authorization Code")
 		oac.scopes = get_url_delimiter().join(request.scopes)
 		oac.redirect_uri_bound_to_authorization_code = request.redirect_uri
 		oac.client = client_id
-		oac.user = unquote(cookie_dict["user_id"].value)
+		# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+		oac.user = frappe.session.user
 		oac.authorization_code = code["code"]
 
 		if request.nonce:
@@ -94,43 +97,38 @@ class OAuthWebRequestValidator(RequestValidator):
 		oac.save(ignore_permissions=True)
 		frappe.db.commit()
 
-	def authenticate_client(self, request, *args, **kwargs):
+	# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+	def authenticate_client(self, request: Request, *args, **kwargs) -> bool | None:
+		"""
+		Loads the client based on request parameters and sets in oauth request.
+		Returns True on success, None on error.
+		"""
 		# Get ClientID in URL
 		if request.client_id:
-			oc = frappe.get_doc("OAuth Client", request.client_id)
+			# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+			client_name = request.client_id
 		else:
 			# Extract token, instantiate OAuth Bearer Token and use clientid from there.
 			if "refresh_token" in frappe.form_dict:
-				oc = frappe.get_doc(
-					"OAuth Client",
-					frappe.db.get_value(
-						"OAuth Bearer Token",
-						{"refresh_token": frappe.form_dict["refresh_token"]},
-						"client",
-					),
-				)
+				# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+				token_filters = {"refresh_token": frappe.form_dict["refresh_token"]}
 			elif "token" in frappe.form_dict:
-				oc = frappe.get_doc(
-					"OAuth Client",
-					frappe.db.get_value("OAuth Bearer Token", frappe.form_dict["token"], "client"),
-				)
+				# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+				token_filters = {"name": frappe.form_dict["token"]}
 			else:
-				oc = frappe.get_doc(
-					"OAuth Client",
-					frappe.db.get_value(
-						"OAuth Bearer Token",
-						frappe.get_request_header("Authorization").split(" ")[1],
-						"client",
-					),
-				)
+				# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+				token_filters = {"name": frappe.get_request_header("Authorization").split(" ")[1]}
+
+			client_name = frappe.db.get_value("OAuth Bearer Token", filters=token_filters, fieldname="client")
+
+		oc: OAuthClient = frappe.get_doc("OAuth Client", client_name)
 		try:
 			request.client = request.client or oc.as_dict()
 		except Exception as e:
 			return generate_json_error_response(e)
 
-		cookie_dict = get_cookie_dict_from_headers(request)
-		user_id = unquote(cookie_dict.get("user_id").value) if "user_id" in cookie_dict else "Guest"
-		return frappe.session.user == user_id
+		# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+		return True
 
 	def authenticate_client_id(self, client_id, request, *args, **kwargs):
 		cli_id = frappe.db.get_value("OAuth Client", client_id, "name")
@@ -196,7 +194,18 @@ class OAuthWebRequestValidator(RequestValidator):
 	def validate_grant_type(self, client_id, grant_type, client, request, *args, **kwargs):
 		# Clients should only be allowed to use one type of grant.
 		# In this case, it must be "authorization_code" or "refresh_token"
-		return grant_type in ["authorization_code", "refresh_token", "password"]
+		# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+		return grant_type in ["authorization_code", "refresh_token"]
+
+	def validate_user(self, username, password, client, request, *args, **kwargs):
+		"""Resource Owner Password Credentials Grant is not supported.
+
+		oauthlib's ResourceOwnerPasswordCredentialsGrant handler calls this
+		unconditionally regardless of validate_grant_type, so this must
+		exist and reject cleanly rather than fall through to the base
+		RequestValidator's NotImplementedError.
+		"""
+		return False
 
 	def save_bearer_token(self, token, request, *args, **kwargs):
 		# Remember to associate it with request.scopes, request.user and
@@ -241,7 +250,12 @@ class OAuthWebRequestValidator(RequestValidator):
 	def validate_bearer_token(self, token, scopes, request):
 		# Remember to check expiration and scope membership
 		otoken = frappe.get_doc("OAuth Bearer Token", token)
-		is_token_valid = (now_datetime() < otoken.expiration_time) and otoken.status != "Revoked"
+		# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+		is_token_valid = (
+			now_datetime() < otoken.expiration_time
+			and otoken.status != "Revoked"
+			and frappe.db.exists("User", {"name": otoken.user, "enabled": 1})
+		)
 		client_scopes = frappe.db.get_value("OAuth Client", otoken.client, "scopes").split(
 			get_url_delimiter()
 		)
@@ -249,7 +263,11 @@ class OAuthWebRequestValidator(RequestValidator):
 		for scp in scopes:
 			are_scopes_valid = are_scopes_valid and True if scp in client_scopes else False
 
-		return is_token_valid and are_scopes_valid
+		# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+		if is_token_valid and are_scopes_valid:
+			request.user = otoken.user
+			return True
+		return False
 
 	# Token refresh request
 
@@ -296,11 +314,18 @@ class OAuthWebRequestValidator(RequestValidator):
 		- Refresh Token Grant
 		"""
 
-		otoken = frappe.get_doc("OAuth Bearer Token", {"refresh_token": refresh_token, "status": "Active"})
+		# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+		otoken = frappe.get_doc(
+			"OAuth Bearer Token",
+			{"refresh_token": refresh_token, "status": "Active"},
+		)
 
 		if not otoken:
 			return False
 		else:
+			# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+			# Set request.user to the user associated with the refresh token
+			request.user = otoken.user
 			return True
 
 	# OpenID Connect
@@ -359,7 +384,8 @@ class OAuthWebRequestValidator(RequestValidator):
 		return self.finalize_id_token(id_token, token, token_handler, request)
 
 	def get_userinfo_claims(self, request):
-		user = frappe.get_doc("User", frappe.session.user)
+		# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+		user = frappe.get_doc("User", request.user)
 		return get_userinfo(user)
 
 	def validate_id_token(self, token, scopes, request):
@@ -486,28 +512,7 @@ class OAuthWebRequestValidator(RequestValidator):
 
 		return False
 
-	def validate_user(self, username, password, client, request, *args, **kwargs):
-		"""Ensure the username and password is valid.
-
-		Method is used by:
-		- Resource Owner Password Credentials Grant
-		"""
-		login_manager = LoginManager()
-		login_manager.authenticate(username, password)
-
-		if login_manager.user == "Guest":
-			return False
-
-		request.user = login_manager.user
-		return True
-
-
-def get_cookie_dict_from_headers(r):
-	cookie = cookies.BaseCookie()
-	if r.headers.get("Cookie"):
-		cookie.load(r.headers.get("Cookie"))
-	return cookie
-
+# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
 
 def calculate_at_hash(access_token, hash_alg):
 	"""Helper method for calculating an access token

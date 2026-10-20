@@ -9,6 +9,8 @@ from werkzeug.test import TestResponse
 
 import frappe
 from frappe.integrations.oauth2 import encode_params
+# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+from frappe.oauth import OAuthWebRequestValidator
 from frappe.test_runner import make_test_records
 from frappe.tests.test_api import get_test_client, make_request, suppress_stdout
 from frappe.tests.utils import FrappeTestCase
@@ -98,12 +100,55 @@ class TestOAuth20(FrappeRequestTestCase):
 	def tearDown(self):
 		self.oauth_client.delete(force=True)
 		frappe.db.rollback()
+	# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+
+	def _make_bearer_token(self):
+		access_token = frappe.generate_hash()
+		token = frappe.get_doc(
+			doctype="OAuth Bearer Token",
+			access_token=access_token,
+			client=self.client_id,
+			expires_in=3600,
+			scopes=self.scope,
+			status="Active",
+			user="test@example.com",
+		).insert(ignore_permissions=True)
+		return access_token, token
+
+	def test_bearer_token_rejects_disabled_owner(self):
+		access_token, _token = self._make_bearer_token()
+		frappe.db.set_value("User", "test@example.com", "enabled", 0)
+		request = frappe._dict()
+
+		self.assertFalse(OAuthWebRequestValidator().validate_bearer_token(access_token, ["openid"], request))
+		self.assertNotIn("user", request)
+
+	def test_bearer_token_rejects_missing_owner(self):
+		access_token, token = self._make_bearer_token()
+		frappe.db.set_value("OAuth Bearer Token", token.name, "user", "missing@example.com")
+		request = frappe._dict()
+
+		self.assertFalse(OAuthWebRequestValidator().validate_bearer_token(access_token, ["openid"], request))
+		self.assertNotIn("user", request)
+
+	def test_openid_profile_post_body_token(self):
+		access_token, _token = self._make_bearer_token()
+		# The HTTP request runs in another thread and only sees committed fixtures.
+		frappe.db.commit()  # nosemgrep: frappe-semgrep-rules.rules.frappe-manual-commit
+
+		openid_response = self.post(
+			"/api/method/frappe.integrations.oauth2.openid_profile",
+			headers=self.form_header,
+			data={"access_token": access_token},
+		)
+
+		self.assertEqual(openid_response.status_code, 200)
+		self.assertEqual(openid_response.json.get("email"), "test@example.com")
 
 	def test_invalid_login(self):
 		with suppress_stdout():
 			self.assertFalse(check_valid_openid_response(client=self))
 
-	# //// Neoffice — backport of upstream fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 	def test_authorize_post_preserves_parameters_through_login(self):
 		params = {
 			"client_id": self.client_id,
@@ -289,14 +334,17 @@ class TestOAuth20(FrappeRequestTestCase):
 			check_valid_openid_response(access_token=bearer_token.get("access_token"), client=self)
 		)
 
-	def test_resource_owner_password_credentials_grant(self):
+	# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+	def test_resource_owner_password_credentials_grant_is_rejected(self):
 		client = frappe.get_doc("OAuth Client", self.client_id)
 		client.grant_type = "Authorization Code"
 		client.response_type = "Code"
 		client.save()
 		frappe.db.commit()
 
-		# Request for bearer token
+		# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+		# Resource Owner Password Credentials Grant is not supported: validate_user
+		# always rejects, so no token is issued even with valid client credentials.
 		token_response = self.post(
 			"/api/method/frappe.integrations.oauth2.get_token",
 			data={
@@ -309,13 +357,9 @@ class TestOAuth20(FrappeRequestTestCase):
 			headers=self.form_header,
 		)
 
-		# Parse bearer token json
-		bearer_token = token_response.json
-
-		# Check token for valid response
-		self.assertTrue(
-			check_valid_openid_response(access_token=bearer_token.get("access_token"), client=self)
-		)
+		# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+		self.assertEqual(token_response.status_code, 400)
+		self.assertEqual(token_response.json.get("error"), "invalid_grant")
 
 	def test_login_using_implicit_token(self):
 		oauth_client = frappe.get_doc("OAuth Client", self.client_id)

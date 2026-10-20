@@ -14,7 +14,6 @@ from frappe.oauth import (
 	get_server_url,
 	get_userinfo,
 )
-# //// Neoffice — backport of upstream 6c4b5326ef, d7460769f9, fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 from frappe.sessions import get_csrf_token
 
 
@@ -46,7 +45,6 @@ def encode_params(params):
 	return urlencode(params, quote_via=quote)
 
 
-# //// Neoffice — backport of upstream 6c4b5326ef, d7460769f9, fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 @frappe.whitelist(methods=["POST"])
 def approve(*args, **kwargs):
 	r = frappe.request
@@ -74,10 +72,8 @@ def approve(*args, **kwargs):
 		return generate_json_error_response(e)
 
 
-# //// Neoffice — backport of upstream 6c4b5326ef, d7460769f9, fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 @frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
 def authorize(**kwargs):
-	# //// Neoffice — backport of upstream 6c4b5326ef, d7460769f9, fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 	request_data = frappe.request.get_data(as_text=True) if frappe.request.method == "POST" else ""
 	if request_data and frappe.request.mimetype != "application/x-www-form-urlencoded":
 		frappe.throw(
@@ -90,12 +86,10 @@ def authorize(**kwargs):
 
 	if frappe.session.user == "Guest":
 		# Force login, redirect to preauth again.
-		# //// Neoffice — backport of upstream 6c4b5326ef, d7460769f9, fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 		redirect_to = frappe.request.url
 		if request_data:
 			redirect_to += ("&" if "?" in redirect_to else "?") + request_data
 		frappe.local.response["type"] = "redirect"
-		# //// Neoffice — backport of upstream 6c4b5326ef, d7460769f9, fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 		frappe.local.response["location"] = "/login?" + encode_params({"redirect-to": redirect_to})
 	else:
 		try:
@@ -110,7 +104,6 @@ def authorize(**kwargs):
 				frappe.flags.oauth_credentials["client_id"],
 				"skip_authorization",
 			)
-			# //// Neoffice — backport of upstream 6c4b5326ef, d7460769f9, fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 			unrevoked_tokens = frappe.db.exists(
 				"OAuth Bearer Token",
 				{
@@ -121,7 +114,6 @@ def authorize(**kwargs):
 			)
 
 			if skip_auth or (get_oauth_settings().skip_authorization == "Auto" and unrevoked_tokens):
-				# //// Neoffice — backport of upstream 6c4b5326ef, d7460769f9, fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 				headers, _body, _status = get_oauth_server().create_authorization_response(
 					uri=frappe.flags.oauth_credentials["redirect_uri"],
 					body=r.get_data(),
@@ -130,7 +122,6 @@ def authorize(**kwargs):
 					credentials=frappe.flags.oauth_credentials,
 				)
 				frappe.local.response["type"] = "redirect"
-				# //// Neoffice — backport of upstream 6c4b5326ef, d7460769f9, fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 				frappe.local.response["location"] = headers.get("Location")
 			else:
 				if "openid" in scopes:
@@ -144,7 +135,6 @@ def authorize(**kwargs):
 						"success_url": success_url,
 						"failure_url": failure_url,
 						"details": scopes,
-						# //// Neoffice — backport of upstream 6c4b5326ef, d7460769f9, fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 						"csrf_token": get_csrf_token(),
 					}
 				)
@@ -156,7 +146,8 @@ def authorize(**kwargs):
 			return generate_json_error_response(e)
 
 
-@frappe.whitelist(allow_guest=True)
+# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def get_token(*args, **kwargs):
 	try:
 		r = frappe.request
@@ -177,7 +168,8 @@ def get_token(*args, **kwargs):
 		return generate_json_error_response(e)
 
 
-@frappe.whitelist(allow_guest=True)
+# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def revoke_token(*args, **kwargs):
 	try:
 		r = frappe.request
@@ -196,7 +188,8 @@ def revoke_token(*args, **kwargs):
 	return
 
 
-@frappe.whitelist()
+# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+@frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
 def openid_profile(*args, **kwargs):
 	try:
 		r = frappe.request
@@ -238,8 +231,9 @@ def openid_configuration():
 	)
 
 
-@frappe.whitelist(allow_guest=True)
-def introspect_token(token=None, token_type_hint=None):
+# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def introspect_token(token: str, token_type_hint: str | None = None):
 	if token_type_hint not in ["access_token", "refresh_token"]:
 		token_type_hint = "access_token"
 	try:
