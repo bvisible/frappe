@@ -1585,10 +1585,10 @@ def rename_doc(
 	force: bool = False,
 	merge: bool = False,
 	*,
-	# //// Neoffice — added keyword (7d254db9dc 2025-11-25 "fix: add ignore_permissions parameter to
-	# //// frappe.rename_doc wrapper"): upstream's wrapper does not accept it, although the function it
-	# //// calls (frappe.model.rename_doc.rename_doc) does; ours passes it through. The commit names no caller.
-	ignore_permissions: bool = False,
+	# //// Neoffice — removed again: the ignore_permissions keyword 7d254db9dc had added. This is a
+	# //// whitelisted method; our code that must skip the user's permissions calls
+	# //// frappe.model.rename_doc.rename_doc, which is not (neoffice-maintenance#1758).
+	# //// The signature is upstream's again.
 	ignore_if_exists: bool = False,
 	show_alert: bool = True,
 	rebuild_search: bool = True,
@@ -1607,8 +1607,7 @@ def rename_doc(
 		new=new,
 		force=force,
 		merge=merge,
-		# //// Neoffice — passed through (7d254db9dc), see the keyword marker above
-		ignore_permissions=ignore_permissions,
+		# //// Neoffice — removed again with the keyword above: the endpoint passes no ignore_permissions
 		ignore_if_exists=ignore_if_exists,
 		show_alert=show_alert,
 		rebuild_search=rebuild_search,
