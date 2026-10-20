@@ -844,6 +844,7 @@ class FilterArea {
 							"Small Text",
 							"Text Editor",
 							"HTML Editor",
+							"Markdown Editor",
 							"Data",
 							"Code",
 							"Phone",

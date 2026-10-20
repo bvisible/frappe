@@ -13,6 +13,7 @@ import ssl
 import time
 from contextlib import suppress
 from email.header import decode_header
+from urllib.parse import unquote
 
 import chardet
 from email_reply_parser import EmailReplyParser
@@ -86,7 +87,10 @@ class EmailServer:
 	def __init__(self, args=None):
 		self.retry_limit = 3
 		self.retry_count = 0
+
 		self.settings = args or frappe._dict()
+		self.pop_timeout = self.settings.timeout or frappe.conf.pop_timeout
+		self.imap_timeout = self.settings.timeout or frappe.conf.imap_timeout
 
 	def connect(self):
 		"""Connect to **Email Account**."""
@@ -99,12 +103,12 @@ class EmailServer:
 				self.imap = imaplib.IMAP4_SSL(
 					self.settings.host,
 					self.settings.incoming_port,
-					timeout=frappe.conf.pop_timeout,
+					timeout=self.imap_timeout,
 					ssl_context=ssl.create_default_context(),
 				)
 			else:
 				self.imap = imaplib.IMAP4(
-					self.settings.host, self.settings.incoming_port, timeout=frappe.conf.pop_timeout
+					self.settings.host, self.settings.incoming_port, timeout=self.imap_timeout
 				)
 
 				if cint(self.settings.use_starttls):
@@ -136,12 +140,12 @@ class EmailServer:
 				self.pop = poplib.POP3_SSL(
 					self.settings.host,
 					self.settings.incoming_port,
-					timeout=frappe.conf.pop_timeout,
+					timeout=self.pop_timeout,
 					context=ssl.create_default_context(),
 				)
 			else:
 				self.pop = poplib.POP3(
-					self.settings.host, self.settings.incoming_port, timeout=frappe.conf.pop_timeout
+					self.settings.host, self.settings.incoming_port, timeout=self.pop_timeout
 				)
 
 			if self.settings.use_oauth:
@@ -286,14 +290,29 @@ class EmailServer:
 		else:
 			return None
 
-	def retrieve_message(self, uid, msg_num, folder):
+	def retrieve_message(self, uid, msg_num, folder) -> None:
 		try:
 			if cint(self.settings.use_imap):
-				_status, message = self.imap.uid("fetch", uid, "(BODY.PEEK[] BODY.PEEK[HEADER] FLAGS)")
-				raw = message[0]
+				_status, data = self.imap.uid("fetch", uid, "(BODY.PEEK[] FLAGS)")
 
-				self.get_email_seen_status(uid, raw[0])
-				self.latest_messages.append(raw[1])
+				if _status != "OK" or not data:
+					return
+
+				raw_email = next(
+					(part[1] for part in data if isinstance(part, tuple) and b"BODY[]" in part[0]), None
+				)
+
+				if raw_email is None:
+					return
+
+				flags_line = next(
+					(part for part in data if isinstance(part, bytes) and b"FLAGS" in part), None
+				)
+
+				if flags_line is not None:
+					self.get_email_seen_status(uid, flags_line)
+
+				self.latest_messages.append(raw_email)
 			else:
 				msg = self.pop.retr(msg_num)
 				self.latest_messages.append(b"\n".join(msg[1]))
@@ -443,28 +462,32 @@ class Email:
 
 	def set_subject(self):
 		"""Parse and decode `Subject` header."""
-		_subject = decode_header(self.mail.get("Subject", "No Subject"))
-		self.subject = _subject[0][0] or ""
 
-		if charset := _subject[0][1]:
-			# Encoding is known by decode_header (might also be unknown-8bit)
-			self.subject = safe_decode(self.subject, charset, ALTERNATE_CHARSET_MAP)
-
-		if isinstance(self.subject, bytes):
-			# Fall back to utf-8 if the charset is unknown or decoding fails
-			# Replace invalid characters with '<?>'
-			self.subject = self.subject.decode("utf-8", "replace")
-
-		# Convert non-string (e.g. None)
-		# Truncate to 140 chars (can be used as a document name)
-		self.subject = str(self.subject).strip()[:140]
-
-		if not self.subject:
+		raw_subject = self.mail.get("Subject")
+		if not raw_subject:
 			self.subject = "No Subject"
+			return
+
+		decoded_fragments = []
+		for fragment, charset in decode_header(raw_subject):
+			if isinstance(fragment, bytes):
+				charset = charset or "utf-8"
+				try:
+					fragment = fragment.decode(charset, errors="replace")
+				except LookupError:
+					# Fallback to utf-8 if decoding fails
+					fragment = fragment.decode("utf-8", errors="replace")
+			decoded_fragments.append(fragment)
+
+		subject = "".join(decoded_fragments).strip()
+
+		# Truncate to 140 chars (can be used as a document name)
+		self.subject = subject[:140] if subject else "No Subject"
 
 	def set_from(self):
 		# gmail mailing-list compatibility
 		# use X-Original-Sender if available, as gmail sometimes modifies the 'From'
+		self.from_real_name = None
 		_from_email = self.decode_email(self.mail.get("X-Original-From") or self.mail["From"])
 		_reply_to = self.decode_email(self.mail.get("Reply-To"))
 
@@ -491,12 +514,28 @@ class Email:
 	def decode_email(email):
 		if not email:
 			return
+
+		raw_email = email if isinstance(email, str) else email.decode("utf-8", "replace")
 		decoded = ""
 		for part, encoding in decode_header(frappe.as_unicode(email).replace('"', " ").replace("'", " ")):
 			if encoding:
 				decoded += part.decode(encoding, "replace")
 			else:
 				decoded += safe_decode(part)
+
+		# Reject malformed address headers where decoding synthesizes a bare addr-spec.
+		# Allow valid encoded display-name forms like "=?utf-8?...?= <user@example.com>".
+		if decoded and "@" in decoded and "@" not in raw_email:
+			decoded_addr_spec = parse_addr(decoded)[1]
+			if decoded_addr_spec and decoded.strip() == decoded_addr_spec:
+				frappe.log_error(
+					title=_("Malformed Address Header"),
+					message=_("Rejected malformed encoded address header with synthesized '@': {0}").format(
+						repr(raw_email)
+					),
+				)
+				return None
+
 		return decoded
 
 	def set_content_and_type(self):
@@ -609,7 +648,7 @@ class Email:
 				_file = frappe.get_doc(
 					{
 						"doctype": "File",
-						"file_name": attachment["fname"],
+						"file_name": unquote(attachment["fname"]),
 						"attached_to_doctype": doc.doctype,
 						"attached_to_name": doc.name,
 						"is_private": 1,
@@ -752,7 +791,10 @@ class InboundMail(Email):
 			return
 
 		return Communication.find_one_by_filters(
-			message_id=self.message_id, sent_or_received="Received", order_by="creation DESC"
+			message_id=self.message_id,
+			email_account=self.email_account.name,
+			sent_or_received="Received",
+			order_by="creation DESC",
 		)
 
 	def is_sender_same_as_receiver(self):
@@ -833,14 +875,24 @@ class InboundMail(Email):
 			return self._reference_document
 
 		reference_document = ""
-		parent = self.parent_email_queue() or self.parent_communication()
+		parent_email_queue = self.parent_email_queue()
+		parent_communication = self.parent_communication()
 
-		if parent and parent.reference_doctype:
+		parent = None
+		if parent_email_queue and parent_email_queue.reference_doctype:
+			parent = parent_email_queue
+		elif parent_communication and parent_communication.reference_doctype:
+			parent = parent_communication
+
+		if parent:
 			reference_doctype, reference_name = parent.reference_doctype, parent.reference_name
 			reference_document = self.get_doc(reference_doctype, reference_name, ignore_error=True)
 
 		if not reference_document and self.email_account.append_to:
 			reference_document = self.match_record_by_subject_and_sender(self.email_account.append_to)
+
+		if not reference_document and self.is_reply_to_system_sent_mail():
+			reference_document = parent_communication
 
 		self._reference_document = reference_document or ""
 		return self._reference_document
@@ -873,6 +925,10 @@ class InboundMail(Email):
 		record = self.get_doc(doctype, name, ignore_error=True) if name else None
 
 		if not record:
+			# Subject matching is only possible if the doctype declares a subject_field.
+			if not email_fields.subject_field:
+				return None
+
 			subject = self.clean_subject(self.subject)
 			filters = {
 				email_fields.subject_field: ("like", f"%{subject}%"),
@@ -880,7 +936,7 @@ class InboundMail(Email):
 			}
 
 			# Sender check is not needed incase mail is from system user.
-			if not (len(subject) > 10 and is_system_user(self.from_email)):
+			if email_fields.sender_field and not (len(subject) > 10 and is_system_user(self.from_email)):
 				filters[email_fields.sender_field] = self.from_email
 
 			name = frappe.db.get_value(self.email_account.append_to, filters=filters)

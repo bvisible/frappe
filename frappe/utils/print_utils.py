@@ -101,11 +101,6 @@ def get_print(
 			)
 			# if hook returns a value, assume it was the correct pdf_generator and return it
 			if pdf:
-				# //// Neoffice — added by the Chrome-PDF backport: aa2c9b2775, cherry-picked from frappe
-				# //// develop 255a3e94fa (2026-04-13 "fix(print_utils): fix pdf rendering via chrome by
-				# //// considering bytes"). The chrome generator hook returns raw bytes where wkhtmltopdf
-				# //// returns a PdfWriter, so the bytes are re-read into the caller's writer instead of being
-				# //// returned as-is and breaking a multi-document merge.
 				if output and isinstance(pdf, bytes):
 					from io import BytesIO
 

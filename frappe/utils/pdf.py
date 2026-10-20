@@ -13,6 +13,21 @@ from urllib.parse import parse_qs, urlparse
 
 import cssutils
 import pdfkit
+import pdfkit.api
+from bs4 import BeautifulSoup
+from packaging.version import Version
+from pdfkit.pdfkit import PDFKit as OriginalPDFKit
+from pypdf import PdfReader, PdfWriter, errors
+
+import frappe
+from frappe import _
+from frappe.core.doctype.file.utils import find_file_by_url
+from frappe.utils import cstr, scrub_urls
+from frappe.utils.caching import redis_cache
+# //// Neoffice — added with get_host_url() at the end of this file (7382ae6ee5, cherry-picked
+# //// from develop cb8ac9b14f).
+from frappe.utils.data import get_url
+from frappe.utils.jinja_globals import bundled_asset, is_rtl
 
 # //// Neoffice — added by the Chrome-PDF backport (c64ffb849d, cherry-picked from frappe
 # //// develop 964dd6c034). Upstream version-15 does NOT have this line (checked at v15.120.0);
@@ -33,19 +48,6 @@ pdfkit.source.unicode = str  # NOTE: upstream bug; PYTHONOPTIMIZE=1 optimized th
 # //// also quiets the same complaints from e-mail CSS inlining — same noise, same non-value.
 # //// Drop when upstream stops using cssutils (v16 still does).
 cssutils.log.setLevel(logging.CRITICAL)
-from bs4 import BeautifulSoup
-from packaging.version import Version
-from pypdf import PdfReader, PdfWriter, errors
-
-import frappe
-from frappe import _
-from frappe.core.doctype.file.utils import find_file_by_url
-from frappe.utils import cstr, scrub_urls
-from frappe.utils.caching import redis_cache
-# //// Neoffice — added with get_host_url() at the end of this file (7382ae6ee5, cherry-picked
-# //// from develop cb8ac9b14f).
-from frappe.utils.data import get_url
-from frappe.utils.jinja_globals import bundled_asset, is_rtl
 
 PDF_CONTENT_ERRORS = [
 	"ContentNotFoundError",
@@ -53,6 +55,23 @@ PDF_CONTENT_ERRORS = [
 	"UnknownContentError",
 	"RemoteHostClosedError",
 ]
+
+
+class FrappePDFKit(OriginalPDFKit):
+	def _find_options_in_meta(self, content):
+		"""Override to disable meta tag parsing.
+
+		Returns an empty dict to prevent any wkhtmltopdf options from being
+		extracted from HTML meta tags. Only options passed explicitly to the
+		function should be used.
+		"""
+		return {}
+
+
+# Replace PDFKit in all relevant modules
+pdfkit.PDFKit = FrappePDFKit
+pdfkit.pdfkit.PDFKit = FrappePDFKit
+pdfkit.api.PDFKit = FrappePDFKit
 
 
 def pdf_header_html(soup, head, content, styles, html_id, css, path=None):
@@ -79,7 +98,7 @@ def pdf_body_html(template, args, **kwargs):
 		# Guess line number ?
 		frappe.throw(
 			_("Error in print format on line {0}: {1}").format(
-				_guess_template_error_line_number(template), e
+				_guess_template_error_line_number(template), str(e)
 			),
 			exc=frappe.PrintFormatError,
 			title=_("Print Format Error"),
@@ -105,14 +124,19 @@ def pdf_footer_html(soup, head, content, styles, html_id, css, path=None):
 	)
 
 
-def get_pdf(html, options=None, output: PdfWriter | None = None):
+def get_pdf(html, options=None, output: PdfWriter | None = None, smart_shrinking: bool = False):
+	"""Render `html` to PDF.
+
+	:param smart_shrinking: scale content that is wider than the page down to fit it, instead of
+	        clipping the overflow.
+	"""
 	html = scrub_urls(html)
 	html, options = prepare_options(html, options)
 
 	options.update({"disable-javascript": "", "disable-local-file-access": ""})
 
 	filedata = ""
-	if Version(get_wkhtmltopdf_version()) > Version("0.12.3"):
+	if not smart_shrinking and Version(get_wkhtmltopdf_version()) > Version("0.12.3"):
 		options.update({"disable-smart-shrinking": ""})
 
 	try:

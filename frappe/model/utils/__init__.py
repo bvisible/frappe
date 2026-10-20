@@ -1,6 +1,5 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
-import os  # //// Neoffice — added import, see render_include
 import re
 
 import frappe
@@ -58,6 +57,7 @@ class InvalidIncludePath(frappe.ValidationError):
 
 def render_include(content):
 	"""render {% raw %}{% include "app/path/filename" %}{% endraw %} in js file"""
+	import os
 
 	content = cstr(content)
 
@@ -71,13 +71,10 @@ def render_include(content):
 			for path in paths:
 				app, app_path = path.split("/", 1)
 
-				# //// Neoffice — backport of upstream ccf873ada0 (v15.105.0, GHSA-67rf-pxgh-vfqv): the included file
-				# //// must lie inside its app. "app/../../x" read any file the server can read. Drop at the next
-				# //// merge of upstream version-15 (neoffice-maintenance#1748).
 				resolved_path = os.path.realpath(frappe.get_app_path(app, app_path))
 				app_root = os.path.realpath(frappe.get_app_path(app))
 				if not resolved_path.startswith(app_root + os.sep):
-					frappe.throw(_("Security Error: The Path provided is not safe."))
+					frappe.throw(frappe._("Security Error: The Path provided is not safe."))
 
 				with open(resolved_path, encoding="utf-8") as f:
 					include = f.read()

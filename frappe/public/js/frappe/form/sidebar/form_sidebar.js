@@ -1,7 +1,8 @@
 import "./assign_to";
 import "./attachments";
 import "./share";
-import "./document_follow";
+//// Neoffice — no `import "./review"`: our sidebar redesign (9999364ec6, 2025-10-28) has no review section.
+//// Upstream deleted document_follow.js (dff54f2744, dead code); following lives in our compact_header.js.
 import "./user_image";
 import "./form_sidebar_users";
 //// Neoffice ▼▼▼ form-header-compact: pull the compact header bundle
@@ -21,7 +22,9 @@ frappe.ui.form.Sidebar = class {
 		var sidebar_content = frappe.render_template("form_sidebar", {
 			doctype: this.frm.doctype,
 			frm: this.frm,
-			can_write: frappe.model.can_write(this.frm.doctype, this.frm.docname),
+			can_write:
+				frappe.model.can_write(this.frm.doctype, this.frm.docname) &&
+				!this.frm.fields_dict[this.frm.meta.image_field]?.df.read_only,
 		});
 
 		this.sidebar = $('<div class="form-sidebar overlay-sidebar hidden-xs hidden-sm"></div>')

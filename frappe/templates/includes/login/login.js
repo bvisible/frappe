@@ -216,12 +216,10 @@ login.login_handlers = (function () {
 				}) || []).join('<br>') || default_message;
 			}
 
-			if (message === default_message) {
-				login.set_invalid(message);
-			} else {
+			login.set_invalid(default_message);
+			if (message !== default_message) {
 				login.reset_sections(false);
 			}
-
 		};
 	}
 
@@ -271,17 +269,9 @@ login.login_handlers = (function () {
 					window.location.href = data.home_page;
 				}
 			} else if (window.location.hash === '#forgot') {
-				if (data.message === 'not found') {
-					login.set_status({{ _("Not a valid user") | tojson }}, 'red');
-				} else if (data.message == 'not allowed') {
-					login.set_status({{ _("Not Allowed") | tojson }}, 'red');
-				} else if (data.message == 'disabled') {
-					login.set_status({{ _("Not Allowed: Disabled User") | tojson }}, 'red');
-				} else {
-					login.set_status({{ _("Instructions Emailed") | tojson }}, 'green');
-				}
-
-
+				// Always show the same message regardless of whether the account
+				// exists or not, to prevent username enumeration (CWE-204).
+				login.set_status({{ _("Instructions Emailed") | tojson }}, 'green');
 			} else if (window.location.hash === '#signup') {
 				if (cint(data.message[0]) == 0) {
 					login.set_status(data.message[1], 'red');
@@ -309,12 +299,8 @@ login.login_handlers = (function () {
 		},
 		401: get_error_handler({{ _("Invalid Login. Try again.") | tojson }}),
 		417: get_error_handler({{ _("Oops! Something went wrong.") | tojson }}),
-		//// Neoffice — backport of frappe/frappe version-15 (neoffice-maintenance#353): the
-		//// 404 "User does not exist." handler is gone with the answers that fed it (reset
-		//// password and email-link login no longer tell an unknown account apart), and a
-		//// rate-limited request now says so instead of failing silently.
 		429: get_error_handler({{ _("Too many requests. Please try again later.") | tojson }}),
-		500: get_error_handler({{ _("Something went wrong.") | tojson }})
+		500: get_error_handler({{ _("Something went wrong.") | tojson }}),
 	};
 
 	return login_handlers;

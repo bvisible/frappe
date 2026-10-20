@@ -17,7 +17,7 @@ Example:
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import click
 
@@ -52,7 +52,6 @@ DEFAULT_FIELD_LABELS = {
 	"owner": _lt("Created By"),
 	"_user_tags": _lt("Tags"),
 	"_liked_by": _lt("Liked By"),
-	"_comments": _lt("Comments"),
 	"_assign": _lt("Assigned To"),
 }
 
@@ -153,7 +152,7 @@ class Meta(Document):
 
 	def as_dict(self, no_nulls=False):
 		def serialize(doc):
-			out = {}
+			out = frappe._dict()
 			for key, value in doc.__dict__.items():
 				if isinstance(value, list | tuple):
 					if not value or not isinstance(value[0], BaseDocument):
@@ -235,7 +234,8 @@ class Meta(Document):
 		if not hasattr(self, "_valid_columns"):
 			table_exists = frappe.db.table_exists(self.name)
 			if self.name in self.special_doctypes and table_exists:
-				self._valid_columns = get_table_columns(self.name)
+				# `_comments` is a cache column, never a readable field
+				self._valid_columns = [c for c in get_table_columns(self.name) if c != "_comments"]
 			else:
 				self._valid_columns = self.default_fields + [
 					df.fieldname for df in self.get("fields") if df.fieldtype in data_fieldtypes
@@ -267,6 +267,13 @@ class Meta(Document):
 			return str(DEFAULT_FIELD_LABELS[fieldname])
 
 		return "No Label"
+
+	def get_translated_label(self, fieldname):
+		"""Return the translated label of the given fieldname."""
+		if fieldname in DEFAULT_FIELD_LABELS:
+			return str(DEFAULT_FIELD_LABELS[fieldname])
+
+		return _(self.get_label(fieldname), context=self.name)
 
 	def get_options(self, fieldname):
 		return self.get_field(fieldname).options
@@ -459,8 +466,14 @@ class Meta(Document):
 			return
 
 		if frappe.db.estimate_count(self.name) > LARGE_TABLE_SIZE_THRESHOLD:
-			recent_change = frappe.db.get_value(self.name, {}, "modified", order_by="modified desc")
-			if get_datetime(recent_change) > add_to_date(None, days=-1 * LARGE_TABLE_RECENCY_THRESHOLD):
+			# Raw SQL to prevent querying meta when already in meta
+			recent_change = frappe.db.sql(  # nosemgrep
+				f"SELECT `modified` FROM `tab{self.name}` ORDER BY `modified` DESC LIMIT 1"
+			)
+			# NOTE: should not require use of zone -information, minimal comparison, to prevent querying meta when in meta.
+			if recent_change and get_datetime(recent_change[0][0]) > (
+				datetime.now() + timedelta(days=(-1 * LARGE_TABLE_RECENCY_THRESHOLD))
+			):
 				self.is_large_table = True
 
 	def init_field_caches(self):
@@ -592,7 +605,7 @@ class Meta(Document):
 	def get_high_permlevel_fields(self):
 		"""Build list of fields with high perm level and all the higher perm levels defined."""
 		if not hasattr(self, "high_permlevel_fields"):
-			self.high_permlevel_fields = [df for df in self.fields if df.permlevel > 0]
+			self.high_permlevel_fields = [df for df in self.fields if (df.permlevel or 0) > 0]
 		return self.high_permlevel_fields
 
 	def get_permitted_fieldnames(
@@ -626,7 +639,6 @@ class Meta(Document):
 		)
 
 		if 0 not in permlevel_access and permission_type in ("read", "select"):
-			# //// Neoffice — backport of upstream 83c201fcdd (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 			check_doctype = parenttype if self.istable and parenttype else self.name
 			if frappe.share.get_shared(check_doctype, user, rights=["read"], limit=1):
 				permlevel_access.add(0)
@@ -827,20 +839,29 @@ def get_field_currency(df, doc=None):
 
 def get_field_precision(df, doc=None, currency=None):
 	"""get precision based on DocField options and fieldvalue in doc"""
-	from frappe.utils import get_number_format_info
-
 	if df.precision:
 		precision = cint(df.precision)
 
 	elif df.fieldtype == "Currency":
 		precision = cint(frappe.db.get_default("currency_precision"))
 		if not precision:
-			number_format = frappe.db.get_default("number_format") or "#,###.##"
-			_decimal_str, _comma_str, precision = get_number_format_info(number_format)
+			precision = get_precision_from_currency_format(currency or get_field_currency(df, doc))
 	else:
 		precision = cint(frappe.db.get_default("float_precision")) or 3
 
 	return precision
+
+
+def get_precision_from_currency_format(currency: str) -> int:
+	"""Get precision from currency format string if applicable."""
+	from frappe.utils import get_number_format_info
+
+	number_format = None
+	if currency and frappe.get_system_settings("use_number_format_from_currency"):
+		number_format = frappe.db.get_value("Currency", currency, "number_format", cache=True)
+
+	number_format = number_format or frappe.db.get_default("number_format") or "#,###.##"
+	return get_number_format_info(number_format)[2]
 
 
 def get_default_df(fieldname):

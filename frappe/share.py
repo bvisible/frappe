@@ -18,7 +18,18 @@ if TYPE_CHECKING:
 
 
 @frappe.whitelist()
-def add(doctype, name, user=None, read=1, write=0, submit=0, share=0, everyone=0, notify=0):
+def add(
+	doctype: str,
+	name: str | int,
+	user: str | None = None,
+	read: str | bool | int = 1,
+	write: str | bool | int = 0,
+	submit: str | bool | int = 0,
+	share: str | bool | int = 0,
+	everyone: str | bool | int = 0,
+	notify: str | bool | int = 0,
+	**kwargs,
+):
 	"""Expose function without flags to the client-side"""
 	return add_docshare(
 		doctype,
@@ -40,7 +51,6 @@ def add_docshare(
 	if not user:
 		user = frappe.session.user
 
-	# //// Neoffice — backport of upstream 1fcd8b4e4f, e85833b771 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 	share_perms = {
 		# always add read, since you are adding!
 		"read": 1,
@@ -49,11 +59,9 @@ def add_docshare(
 		"share": cint(share),
 	}
 
-	# //// Neoffice — backport of upstream 1fcd8b4e4f, e85833b771 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 	if not (flags or {}).get("ignore_share_permission"):
 		check_share_permission(doctype, name, share_perms)
 
-	# //// Neoffice — backport of upstream 1fcd8b4e4f, e85833b771 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 	if share_name := get_share_name(doctype, name, user, everyone):
 		doc = frappe.get_doc("DocShare", share_name)
 	else:
@@ -63,12 +71,13 @@ def add_docshare(
 	if flags:
 		doc.flags.update(flags)
 
-	# //// Neoffice — backport of upstream 1fcd8b4e4f, e85833b771 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 	doc.update(share_perms)
 	doc.save(ignore_permissions=True)
 	notify_assignment(user, doctype, name, everyone, notify=notify)
 
-	if frappe.get_cached_value("User", user, "follow_shared_documents"):
+	if (user != name or doctype != "User") and frappe.get_cached_value(
+		"User", user, "follow_shared_documents"
+	):
 		follow_document(doctype, name, user)
 
 	return doc
@@ -82,7 +91,14 @@ def remove(doctype, name, user, flags=None):
 
 
 @frappe.whitelist()
-def set_permission(doctype, name, user, permission_to, value=1, everyone=0):
+def set_permission(
+	doctype: str,
+	name: str | int,
+	user: str | None,
+	permission_to: str,
+	value: str | bool | int = 1,
+	everyone: str | bool | int = 0,
+):
 	"""Expose function without flags to the client-side"""
 	return set_docshare_permission(doctype, name, user, permission_to, value=value, everyone=everyone)
 
@@ -90,7 +106,6 @@ def set_permission(doctype, name, user, permission_to, value=1, everyone=0):
 def set_docshare_permission(doctype, name, user, permission_to, value=1, everyone=0, flags=None):
 	"""Set share permission."""
 	if not (flags or {}).get("ignore_share_permission"):
-		# //// Neoffice — backport of upstream 1fcd8b4e4f, e85833b771 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 		permissions = {permission_to: value} if cint(value) else None
 		check_share_permission(doctype, name, permissions)
 
@@ -216,7 +231,6 @@ def get_share_name(doctype, name, user, everyone):
 	return share_name
 
 
-# //// Neoffice — backport of upstream 1fcd8b4e4f, e85833b771 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 def check_share_permission(doctype, name, permissions=None):
 	"""Check if the user can share with other users and has the permissions they are trying to grant.
 
@@ -229,7 +243,6 @@ def check_share_permission(doctype, name, permissions=None):
 			_("No permission to {0} {1} {2}").format("share", _(doctype), name), frappe.PermissionError
 		)
 
-	# //// Neoffice — backport of upstream 1fcd8b4e4f, e85833b771 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 	# If permissions specified, validate that the user has those permissions
 	if not permissions:
 		return
@@ -250,7 +263,7 @@ def check_share_permission(doctype, name, permissions=None):
 
 
 def notify_assignment(shared_by, doctype, doc_name, everyone, notify=0):
-	if not (shared_by and doctype and doc_name) or everyone or not notify:
+	if not (shared_by and doctype and doc_name) or cint(everyone) or not cint(notify):
 		return
 
 	from frappe.utils import get_fullname

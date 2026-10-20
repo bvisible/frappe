@@ -29,7 +29,7 @@ from frappe.database.utils import (
 	is_query_type,
 )
 from frappe.exceptions import DoesNotExistError, ImplicitCommitError
-from frappe.monitor import get_trace_id
+from frappe.monitor import TRACE_ID_PATTERN, get_trace_id
 from frappe.query_builder import Case
 from frappe.query_builder.functions import Count
 from frappe.utils import CallbackManager, cint, get_datetime, get_table_name, getdate, now, sbool
@@ -223,7 +223,7 @@ class Database:
 
 		query, values = self._transform_query(query, values)
 
-		if trace_id := get_trace_id():
+		if (trace_id := get_trace_id()) and TRACE_ID_PATTERN.fullmatch(trace_id):
 			query += f" /* FRAPPE_TRACE_ID: {trace_id} */"
 
 		try:
@@ -422,6 +422,9 @@ class Database:
 
 		if query.lstrip()[:6].lower() in ("update", "insert", "delete"):
 			self.transaction_writes += 1
+			if frappe.conf.get("max_writes_per_transaction"):
+				self.MAX_WRITES_PER_TRANSACTION = cint(frappe.conf.max_writes_per_transaction)
+
 			if self.transaction_writes > self.MAX_WRITES_PER_TRANSACTION:
 				if self.auto_commit_on_many_writes:
 					self.commit()
@@ -582,6 +585,9 @@ class Database:
 		        user = frappe.db.get_values("User", "test@example.com", "*")[0]
 		"""
 		out = None
+		if isinstance(fieldname, list):
+			fieldname = tuple(fieldname)
+
 		if cache and isinstance(filters, str) and (doctype, filters, fieldname) in self.value_cache:
 			return self.value_cache[(doctype, filters, fieldname)]
 
@@ -1078,22 +1084,22 @@ class Database:
 
 		Query will be built as:
 		```sql
-		UPDATE `tabItem`
+		UPDATE `tabTask`
 		SET `status` = CASE
-		    WHEN `name` = 'Item-1' THEN 'Close'
-		    WHEN `name` = 'Item-2' THEN 'Open'
-		    WHEN `name` = 'Item-3' THEN 'Close'
-		    WHEN `name` = 'Item-4' THEN 'Cancelled'
+		    WHEN `name` = 'TASK-0001' THEN 'Closed'
+		    WHEN `name` = 'TASK-0002' THEN 'Open'
+		    WHEN `name` = 'TASK-0003' THEN 'Closed'
+		    WHEN `name` = 'TASK-0004' THEN 'Cancelled'
 		    ELSE `status`
-		end,
+		END,
 		`description` = CASE
-		    WHEN `name` = 'Item-1' THEN 'This is the first task'
-		    WHEN `name` = 'Item-2' THEN 'This is the second task'
-		    WHEN `name` = 'Item-3' THEN 'This is the third task'
-		    WHEN `name` = 'Item-4' THEN 'This is the fourth task'
+		    WHEN `name` = 'TASK-0001' THEN 'This is the first task'
+		    WHEN `name` = 'TASK-0002' THEN 'This is the second task'
+		    WHEN `name` = 'TASK-0003' THEN 'This is the third task'
+		    WHEN `name` = 'TASK-0004' THEN 'This is the fourth task'
 		    ELSE `description`
-		end
-		WHERE  `name` IN ( 'Item-1', 'Item-2', 'Item-3', 'Item-4' )
+		END
+		WHERE `name` IN ('TASK-0001', 'TASK-0002', 'TASK-0003', 'TASK-0004');
 		```
 		"""
 		if not doc_updates:
@@ -1312,11 +1318,17 @@ class Database:
 		columns = frappe.cache.hget("table_columns", table)
 		if columns is None:
 			information_schema = frappe.qb.Schema("information_schema")
+			table_schema = (
+				frappe.conf.get("db_schema", "public") if self.db_type == "postgres" else self.cur_db_name
+			)
 
 			columns = (
 				frappe.qb.from_(information_schema.columns)
 				.select(information_schema.columns.column_name)
-				.where(information_schema.columns.table_name == table)
+				.where(
+					(information_schema.columns.table_name == table)
+					& (information_schema.columns.table_schema == table_schema)
+				)
 				.run(pluck=True)
 			)
 

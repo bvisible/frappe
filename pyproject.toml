@@ -4,7 +4,7 @@ authors = [
     { name = "Frappe Technologies Pvt Ltd", email = "developers@frappe.io"}
 ]
 description = "Metadata driven, full-stack low code web framework"
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.10,<3.15"
 readme = "README.md"
 dynamic = ["version"]
 dependencies = [
@@ -14,66 +14,69 @@ dependencies = [
     # again. At an upstream merge, take upstream's pin only if `pip check` stays empty on the whole bench.
     # core dependencies
     "Babel~=2.13.1",
-    "Click~=8.2.0",
-    "filelock~=3.13.1",
+    "Click~=8.4.1",
+    "filelock~=3.20.1",
     "filetype~=1.2.0",
     "GitPython~=3.1.34",
     "Jinja2~=3.1.2",
-    "Pillow>=11.3.0,<13",  # //// Neoffice — was ~=11.3.0; pdfplumber 0.11.10 (builder, neoffice_theme) needs >=12.2.0 (maintenance#1679)
-    "PyJWT>=2.13.0,<3",  # //// Neoffice — was ~=2.8.0; wallee (payments) and mcp (nora) need >=2.10.1 (maintenance#1679)
+    "Pillow~=12.3.0",
+    "PyJWT~=2.13.0",
+    "duckdb~=1.4.3",
+    "pyarrow~=25.0.0",
     # We depend on internal attributes,
     # do NOT add loose requirements on PyMySQL versions.
     "PyMySQL==1.1.1",
-    "pypdf~=6.1.3",
-    "PyPika==0.48.9",
+    "pypdf==6.15.0",
+    "PyPika @ git+https://github.com/frappe/pypika@7ef6e40215d46cd531e8c4e58650b84c11abbd04",
     "PyQRCode~=1.2.1",
     "PyYAML~=6.0.2",
-    "RestrictedPython~=8.0",
-    "WeasyPrint==59.0",
-    "pydyf==0.10.0",
-    "Werkzeug~=3.0.1",
+    "RestrictedPython~=8.5",
+    "WeasyPrint==69.0",
+    "pydyf==0.12.1",
+    "Werkzeug==3.1.6",
     "Whoosh~=2.7.4",
     "beautifulsoup4>=4.12.2,<5",  # //// Neoffice — was ~=4.12.2; suite needs >=4.13.5 (maintenance#1679)
     "bleach-allowlist~=1.0.3",
-    "bleach[css]~=6.0.0",
+    "bleach~=6.4.0",
+    "tinycss2==1.5.1",
     "cairocffi==1.5.1",
-    "chardet~=5.1.0",
-    "croniter~=2.0.1",
-    "cryptography~=44.0.1",
-    "cssutils~=2.9.0",
+    "chardet~=5.2.0",
+    "croniter~=6.0.0",
+    "cryptography~=50.0.0",
+    "cssutils~=2.11.1",
     "email-reply-parser~=0.5.12",
     "gunicorn @ git+https://github.com/frappe/gunicorn@bb554053bb87218120d76ab6676af7015680e8b6",
     "html5lib~=1.1",
     "ipython~=8.15.0",
     "ldap3~=2.9",
-    "markdown2~=2.4.8",
-    "MarkupSafe>=2.1.0,<3",
+    "markdown2~=2.5.3",
+    "MarkupSafe~=3.0.2",
     "maxminddb-geolite2==2018.703",
-    "num2words~=0.5.12",
-    "oauthlib~=3.2.2",
-    "openpyxl~=3.1.2",
+    "num2words~=0.5.14",
+    "oauthlib~=3.3.1",
+    "openpyxl~=3.1.5",
     "passlib~=1.7.4",
     "pdfkit~=1.0.0",
-    "phonenumbers==8.13.55",
+    "phonenumbers~=9.0.23",
     "premailer~=3.10.0",
     "psutil~=5.9.5",
     "psycopg2-binary~=2.9.1",
-    "pyOpenSSL~=25.0.0",
-    "pydantic>=2.10.0,<3.0.0",
-    "pyotp~=2.8.0",
-    "python-dateutil~=2.9.0",  # //// Neoffice — was ~=2.8.2, as upstream version-15 has now; wallee and holidays need >=2.9.0.post0 (maintenance#1679)
-    "pytz==2023.3",
+    "pyOpenSSL~=26.4.0",
+    "pydantic>=2.12.0,<3.0.0",  # //// Neoffice — upstream: ~=2.12.0 (2.12.* only); the benches already run 2.13 for our other apps (nora's mcp), a pin would downgrade it (maintenance#1679)
+    "pyotp~=2.9.0",
+    "python-dateutil~=2.9.0",
+    "pytz==2025.2",
     "rauth~=0.7.3",
     "redis~=4.5.5",
     "hiredis~=2.2.3",
     "requests-oauthlib~=1.3.1",
-    "requests>=2.32.0,<3",  # //// Neoffice — was ~=2.32.0; frappe-bench 5.31, installed in the same env, needs ~=2.33.0 (maintenance#1679)
+    "requests>=2.32.0,<3",  # //// Neoffice — upstream: ~=2.33.0; the frappe-bench of a bench pins requests too (5.29: ~=2.32.5, 5.31: ~=2.33.0), so the range covers both (maintenance#1679)
     "rq==1.15.1",
     "rsa>=4.1",
     "semantic-version~=2.10.0",
     "sentry-sdk~=1.45.1",
-    "sqlparse~=0.5.0",
-    "sql_metadata~=2.11.0",
+    "sqlparse~=0.6.0",
+    "sql_metadata~=3.0.1",
     "tenacity~=8.2.2",
     "terminaltables~=3.1.10",
     "traceback-with-variables~=2.0.4",
@@ -84,11 +87,11 @@ dependencies = [
     "markdownify~=0.14.1",
 
     # integration dependencies
-    "boto3>=1.34.143,<2",  # //// Neoffice — was ~=1.34.143; suite needs ~=1.43.29 (maintenance#1679)
-    "dropbox~=11.36.2",
-    "google-api-python-client~=2.172.0",
-    "google-auth-oauthlib~=1.2.2",
-    "google-auth~=2.40.3",
+    "boto3>=1.34.143,<2",  # //// Neoffice — was ~=1.34.143 (upstream still is); suite needs ~=1.43.29 (maintenance#1679)
+    "dropbox~=12.0.2",
+    "google-api-python-client~=2.188.0",
+    "google-auth-oauthlib~=1.2.4",
+    "google-auth~=2.48.0",
     "posthog~=3.21.0",
     "vobject~=0.9.7",
 
@@ -97,8 +100,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://frappeframework.com/"
+Homepage = "https://frappe.io/framework"
 Repository = "https://github.com/frappe/frappe.git"
+Documentation = "https://docs.frappe.io/framework"
 "Bug Reports" = "https://github.com/frappe/frappe/issues"
 
 [build-system]
@@ -108,7 +112,7 @@ build-backend = "flit_core.buildapi"
 [tool.bench.dev-dependencies]
 coverage = "~=6.5.0"
 Faker = "~=18.10.1"
-pyngrok = "~=6.0.0"
+pyngrok = "~=7.5.0"
 unittest-xml-reporting = "~=3.2.0"
 watchdog = "~=3.0.0"
 hypothesis = "~=6.77.0"

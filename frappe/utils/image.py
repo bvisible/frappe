@@ -3,7 +3,7 @@
 import io
 import os
 
-from PIL import Image, ImageOps  # //// Neoffice — ImageOps: strip_exif_data turns a photo upright (#1540)
+from PIL import Image, ImageOps
 
 import frappe
 
@@ -33,24 +33,17 @@ def strip_exif_data(content, content_type):
 	"""
 
 	original_image = Image.open(io.BytesIO(content))
-	output = io.BytesIO()
-	# //// Neoffice — the orientation the EXIF carries is applied BEFORE the EXIF is dropped (#1540). The tag
-	# //// is the only thing that says a phone photo taken upright is stored sideways: copied without it, the
-	# //// picture came back lying down (and the OCR reads a lying page badly). A picture with no orientation
-	# //// tag comes back as it was.
+	if not original_image.getexif():
+		return content
+	# Apply EXIF orientation to pixels before stripping the tag.
 	original_image = ImageOps.exif_transpose(original_image)
+	output = io.BytesIO()
 	# ref: https://stackoverflow.com/a/48248432
 	if content_type == "image/jpeg" and original_image.mode in ("RGBA", "P"):
 		original_image = original_image.convert("RGB")
 
-	# //// Neoffice — the pixels are copied as raw bytes (a 24 megapixel photo: 70 MB). Upstream built a list of
-	# //// every pixel (`putdata(list(getdata()))`): more than 1 GB for the same photo, enough to kill a worker.
-	new_image = Image.frombytes(original_image.mode, original_image.size, original_image.tobytes())
-	new_image.save(output, format=content_type.split("/")[1])
-
-	content = output.getvalue()
-
-	return content
+	original_image.save(output, format=content_type.split("/")[1], exif=b"")
+	return output.getvalue()
 
 
 def optimize_image(content, content_type, max_width=1024, max_height=768, optimize=True, quality=85):

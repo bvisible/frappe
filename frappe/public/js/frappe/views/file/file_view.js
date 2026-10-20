@@ -2,16 +2,6 @@ frappe.provide("frappe.views");
 
 frappe.views.FileView = class FileView extends frappe.views.ListView {
 	static load_last_view() {
-		const route = frappe.get_route();
-		if (route.length === 2) {
-			const view_user_settings = frappe.get_user_settings("File", "File");
-			frappe.set_route(
-				"List",
-				"File",
-				view_user_settings.last_folder || frappe.boot.home_folder
-			);
-			return true;
-		}
 		return redirect_to_home_if_invalid_route();
 	}
 
@@ -57,15 +47,13 @@ frappe.views.FileView = class FileView extends frappe.views.ListView {
 	}
 
 	set_breadcrumbs() {
-		const route = frappe.get_route();
-		route.splice(-1);
-		const last_folder = route[route.length - 1];
-		if (last_folder === "File") return;
+		const route = frappe.get_route().slice(0, -1);
+		const at_home_folder = route[route.length - 1] === "File";
 
 		frappe.breadcrumbs.add({
 			type: "Custom",
-			label: __("Home"),
-			route: "/app/List/File/Home",
+			label: at_home_folder ? this.page_title : __("Home"),
+			route: "/app/file",
 		});
 	}
 
@@ -79,6 +67,12 @@ frappe.views.FileView = class FileView extends frappe.views.ListView {
 			this.order_by = this.view_user_settings.order_by || "file_name asc";
 
 			this.menu_items = this.menu_items.concat(this.file_menu_items());
+		});
+	}
+
+	make_new_doc() {
+		new frappe.ui.FileUploader({
+			folder: this.current_folder,
 		});
 	}
 
@@ -191,6 +185,8 @@ frappe.views.FileView = class FileView extends frappe.views.ListView {
 	prepare_datum(d) {
 		let icon_class = "";
 		let type = "";
+		let title;
+
 		if (d.is_folder) {
 			icon_class = "folder-normal";
 			type = "folder";
@@ -202,7 +198,11 @@ frappe.views.FileView = class FileView extends frappe.views.ListView {
 			type = "file";
 		}
 
-		let title = d.file_name || d.file_url;
+		if (type === "folder") {
+			title = this.get_folder_title(d.file_name);
+		} else {
+			title = d.file_name || d.file_url;
+		}
 		title = frappe.utils.escape_html(title);
 		title = title.slice(0, 60);
 		d._title = title;
@@ -217,12 +217,19 @@ frappe.views.FileView = class FileView extends frappe.views.ListView {
 		return d;
 	}
 
+	get_folder_title(folder_name) {
+		// "Home" and "Attachments" are default folders that are always created in english.
+		// So we can and should translate them to the user's language.
+		if (["Home", "Attachments"].includes(folder_name)) {
+			return __(folder_name);
+		} else {
+			return folder_name;
+		}
+	}
+
 	before_render() {
 		super.before_render();
 		frappe.model.user_settings.save("File", "grid_view", frappe.views.FileView.grid_view);
-		this.save_view_user_settings({
-			last_folder: this.current_folder,
-		});
 	}
 
 	render() {
@@ -291,8 +298,10 @@ frappe.views.FileView = class FileView extends frappe.views.ListView {
 
 		return folders
 			.map((folder, i) => {
+				const title = frappe.utils.escape_html(this.get_folder_title(folder));
+
 				if (i === folders.length - 1) {
-					return `<span>${folder}</span>`;
+					return `<span>${title}</span>`;
 				}
 				const route = folders.reduce((acc, curr, j) => {
 					if (j <= i) {
@@ -301,7 +310,7 @@ frappe.views.FileView = class FileView extends frappe.views.ListView {
 					return acc;
 				}, "/app/file/view");
 
-				return `<a href="${route}">${folder}</a>`;
+				return `<a href="${frappe.utils.escape_html(route)}">${title}</a>`;
 			})
 			.join("&nbsp;/&nbsp;");
 	}
@@ -339,7 +348,10 @@ frappe.views.FileView = class FileView extends frappe.views.ListView {
 	}
 
 	get_route_url(file) {
-		return file.is_folder ? "/app/List/File/" + file.name : this.get_form_link(file);
+		if (!file.is_folder) return this.get_form_link(file);
+
+		const folder_path = file.name.split("/").map(encodeURIComponent).join("/");
+		return "/app/file/view/" + folder_path;
 	}
 
 	get_creation_date(file) {

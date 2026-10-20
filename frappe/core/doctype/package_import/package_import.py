@@ -3,12 +3,10 @@
 
 import json
 import os
-# //// Neoffice — backport of upstream 3d3b184341, 9a851244af, c0ba850e5a, cfcb85d8fe, d144a0b617 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 import re
 import tarfile
 
 import frappe
-# //// Neoffice — backport of upstream 3d3b184341, 9a851244af, c0ba850e5a, cfcb85d8fe, d144a0b617 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 from frappe.core.doctype.file.utils import check_path_safety
 from frappe.desk.form.load import get_attachments
 from frappe.model.document import Document
@@ -45,7 +43,6 @@ class PackageImport(Document):
 		attachment = attachment[0]
 
 		# get package_name from file (package_name-0.0.0.tar.gz)
-		# //// Neoffice — backport of upstream 3d3b184341, 9a851244af, c0ba850e5a, cfcb85d8fe, d144a0b617 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 		raw_name = attachment.file_name.split(".", 1)[0].rsplit("-", 1)[0]
 		package_name = re.sub(r"[^a-zA-Z0-9_-]", "", raw_name)
 		if not package_name:
@@ -55,7 +52,6 @@ class PackageImport(Document):
 			os.makedirs(frappe.get_site_path("packages"))
 
 		# extract
-		# //// Neoffice — backport of upstream 3d3b184341, 9a851244af, c0ba850e5a, cfcb85d8fe, d144a0b617 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 		extract_path = frappe.get_site_path("packages")
 		archive_path = get_files_path(attachment.file_name, is_private=attachment.is_private)
 		with tarfile.open(archive_path, "r:gz") as tar:

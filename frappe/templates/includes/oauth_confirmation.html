@@ -5,13 +5,12 @@
     <p class="panel-subtitle">{{ _("wants to access the following details from your account") }}</p>
   </div>
   <div class="panel-body">
-      <ul>
+    <ul>
       {% for dtl in details %}
         <li>{{ _(dtl.title()) }}</li>
       {% endfor %}
-      </ul>
+    </ul>
     <div class="action-buttons d-flex">
-      {# //// Neoffice — backport of upstream d7460769f9 and 6c4b5326ef (GHSA-2ph8-x773-8p2x), see neoffice-maintenance#1748: the oauth approve endpoint is POST-only and asks for a CSRF token, so Allow is a form. Drop at the next merge of upstream version-15. #}
       <a href="{{ failure_url | string }}" class="btn btn-sm btn-light btn-block mr-3">{{ _("Deny") }}</a>
       <form method="POST" action="{{ success_url | string }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -20,7 +19,6 @@
     </div>
   </div>
 </div>
-{# //// Neoffice — the inline script that sent a GET to the approve endpoint is gone with the form above (upstream d7460769f9, 6c4b5326ef). #}
 {% else %}
 <div class="panel panel-danger">
   <div class="panel-heading">

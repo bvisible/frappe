@@ -173,7 +173,7 @@ def import_file_by_path(
 def read_doc_from_file(path):
 	doc = None
 	if os.path.exists(path):
-		with open(path) as f:
+		with open(path, encoding="utf-8") as f:
 			try:
 				doc = json.loads(f.read())
 			except ValueError:
@@ -249,7 +249,7 @@ def load_code_properties(doc, path):
 		if hasattr(doc, "get_code_fields"):
 			dirname, filename = os.path.split(path)
 			for key, extn in doc.get_code_fields().items():
-				codefile = os.path.join(dirname, filename.split(".", 1)[0] + "." + extn)
+				codefile = os.path.join(dirname, filename[: filename.rfind(".")] + "." + extn)
 				if os.path.exists(codefile):
 					with open(codefile) as txtfile:
 						doc.set(key, txtfile.read())

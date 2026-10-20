@@ -114,6 +114,7 @@ frappe.router = {
 		image: "Image",
 		inbox: "Inbox",
 		file: "Home",
+		home: "Home",
 		map: "Map",
 	},
 	layout_mapped: {},
@@ -466,6 +467,11 @@ frappe.router = {
 		if (route && ["desk", "app"].includes(route[0])) {
 			// we only need subpath, remove "app" (or "desk")
 			route.shift();
+		}
+
+		// Handle cases where "/" is part of the name
+		if (route[0] === "Form" && route.length > 3) {
+			route = [route[0], route[1], route.slice(2).join("/")];
 		}
 
 		return route;

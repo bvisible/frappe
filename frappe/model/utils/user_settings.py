@@ -63,10 +63,10 @@ def sync_user_settings():
 		)
 
 
-# //// Neoffice — upstream: `def save(doctype, user_settings):`. Added parameter (c3b448ae32) —
+# //// Neoffice — upstream: `def save(doctype: str, user_settings: str):`. Added parameter (c3b448ae32) —
 # //// see the marker inside the function.
 @frappe.whitelist()
-def save(doctype, user_settings, sync_immediately=False):
+def save(doctype: str, user_settings: str, sync_immediately=False):
 	user_settings = json.loads(user_settings or "{}")
 	update_user_settings(doctype, user_settings)
 
@@ -106,7 +106,7 @@ def sync_user_settings_for_doctype(doctype, user):
 
 
 @frappe.whitelist()
-def get(doctype):
+def get(doctype: str):
 	return get_user_settings(doctype)
 
 

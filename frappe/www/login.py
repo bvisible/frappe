@@ -163,11 +163,6 @@ def send_login_link(email: str):
 	if not frappe.get_system_settings("login_with_email_link"):
 		return
 
-	# //// Neoffice — backport of frappe/frappe version-15 (neoffice-maintenance#353): an
-	# //// unknown address raised DoesNotExistError, which the login page shows as a 404
-	# //// "User does not exist." — the same account enumeration as reset_password, on the
-	# //// email-link login. Upstream answers alike in every case and logs send failures.
-	# //// Drop at #138, once the fork is rebased on upstream v15.
 	try:
 		expiry = frappe.get_system_settings("login_with_email_link_expiry") or 10
 		link = _generate_temporary_login_link(email, expiry)
@@ -176,7 +171,6 @@ def send_login_link(email: str):
 			frappe.get_website_settings("app_name") or frappe.get_system_settings("app_name") or _("Frappe")
 		)
 
-		# //// Neoffice — the #353 backport continues here (see the block above the try).
 		subject = _("Login To {0}").format(app_name)
 
 		frappe.sendmail(
@@ -204,7 +198,6 @@ def _generate_temporary_login_link(email: str, expiry: int):
 	key = frappe.generate_hash()
 	frappe.cache.set_value(f"one_time_login_key:{key}", email, expires_in_sec=expiry * 60)
 
-	# //// Neoffice — backport of upstream c39dab2f46 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 	return get_url(f"/api/method/frappe.www.login.login_via_key?key={key}", allow_header_override=False)
 
 

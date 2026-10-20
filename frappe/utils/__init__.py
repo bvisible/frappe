@@ -27,10 +27,10 @@ from collections.abc import (
 from email.header import decode_header, make_header
 from email.utils import formataddr, parseaddr
 # //// Neoffice — upstream: `from typing import TypedDict` only, and no urllib import here.
-# //// 7446c62c35 added Any / Literal / quote / urlparse. TO REVIEW: the four names were already
-# //// reachable through `from frappe.utils.data import *` below, which is where upstream gets
-# //// them — these lines are redundant, not load-bearing.
-from typing import Any, Literal, TypedDict
+# //// 7446c62c35 added Any / quote / urlparse (and Literal, unused since upstream's
+# //// get_gravatar_url lost it). TO REVIEW: the three names are also reachable through
+# //// `from frappe.utils.data import *` below, which is where upstream gets them.
+from typing import Any, TypedDict
 from urllib.parse import quote, urlparse
 
 from werkzeug.test import Client
@@ -325,41 +325,36 @@ def is_valid_iban(iban: str) -> bool:
 
 def random_string(length: int) -> str:
 	"""generate a random string"""
+	import secrets
 	import string
-	from random import choice
 
-	return "".join(choice(string.ascii_letters + string.digits) for i in range(length))
+	alphabet = string.ascii_letters + string.digits
+	return "".join(secrets.choice(alphabet) for i in range(length))
 
 
+@deprecated
 def has_gravatar(email: str) -> str:
-	"""Returns gravatar url if user has set an avatar at gravatar.com"""
-	import requests
-
-	if frappe.flags.in_import or frappe.flags.in_install or frappe.flags.in_test:
-		# no gravatar if via upload
-		# since querying gravatar for every item will be slow
-		return ""
-
-	gravatar_url = get_gravatar_url(email, "404")
-	try:
-		res = requests.get(gravatar_url, timeout=5)
-		if res.status_code == 200:
-			return gravatar_url
-		else:
-			return ""
-	except requests.exceptions.RequestException:
-		return ""
+	"""Deprecated: Gravatar integration has been removed. Always returns empty string."""
+	return ""
 
 
-def get_gravatar_url(email: str, default: Literal["mm", "404"] = "mm") -> str:
-	hexdigest = hashlib.md5(frappe.as_unicode(email).encode("utf-8"), usedforsecurity=False).hexdigest()
-	return f"https://secure.gravatar.com/avatar/{hexdigest}?d={default}&s=200"
+@deprecated
+def get_gravatar_url(email: str, default: str = "mm") -> str:
+	"""Deprecated: Gravatar integration has been removed. Always returns empty string."""
+	return ""
 
 
+@deprecated
 def get_gravatar(email: str) -> str:
+	"""Return an identicon image (base64) for the given email."""
+	return get_identicon(email)
+
+
+def get_identicon(email: str) -> str:
+	"""Return an identicon image (base64) for the given email."""
 	from frappe.utils.identicon import Identicon
 
-	return has_gravatar(email) or Identicon(email).base64()
+	return Identicon(email).base64()
 
 
 def get_traceback(with_context=False) -> str:
@@ -372,6 +367,9 @@ def get_traceback(with_context=False) -> str:
 
 	if not any([exc_type, exc_value, exc_tb]):
 		return ""
+
+	if with_context and not frappe.conf.developer_mode:
+		with_context = False
 
 	if with_context:
 		trace_list = iter_exc_lines(fmt=_get_traceback_sanitizer())
@@ -386,26 +384,36 @@ def get_traceback(with_context=False) -> str:
 
 @functools.lru_cache(maxsize=1)
 def _get_traceback_sanitizer():
+	import re
+
 	from traceback_with_variables import Format
 
 	blocklist = [
 		"password",
 		"passwd",
+		"pwd",
 		"secret",
 		"token",
 		"key",
-		"pwd",
+		"authorization",
+		"cookie",
 	]
+
+	exact_blocklist = ["sid"]
 
 	placeholder = "********"
 
-	def dict_printer(v: dict) -> str:
-		from copy import deepcopy
+	name_pattern = re.compile("|".join(f"(?i:{re.escape(word)})" for word in blocklist))
+	exact_pattern = re.compile("|".join(f"(?i:^{re.escape(word)}$)" for word in exact_blocklist))
 
-		v = deepcopy(v)
-		for key in blocklist:
-			if key in v:
-				v[key] = placeholder
+	def is_sensitive_name(name) -> bool:
+		return isinstance(name, str) and bool(name_pattern.search(name) or exact_pattern.search(name))
+
+	def dict_printer(v: dict) -> str:
+		v = v.copy()
+		for k in list(v):
+			if is_sensitive_name(k):
+				v[k] = placeholder
 
 		return str(v)
 
@@ -415,7 +423,7 @@ def _get_traceback_sanitizer():
 	return Format(
 		custom_var_printers=[
 			# redact variables
-			*[(variable_name, lambda *a, **kw: placeholder) for variable_name in blocklist],
+			(lambda name, *a, **kw: is_sensitive_name(name), lambda *a, **kw: placeholder),
 			# redact dictionary keys
 			(["_secret", dict, lambda *a, **kw: False], dict_printer),
 			(["_secret", frappe._dict, lambda *a, **kw: False], dict_printer),
@@ -984,16 +992,15 @@ def gzip_decompress(data):
 
 def get_safe_filters(filters):
 	try:
-		filters = json.loads(filters)
-
-		if isinstance(filters, int | float):
-			filters = frappe.as_unicode(filters)
-
+		parsed = json.loads(filters)
 	except (TypeError, ValueError):
 		# filters are not passed, not json
-		pass
-
-	return filters
+		return filters
+	# numeric JSON is ambiguous: docnames like "3E002" parse as floats and
+	# would be corrupted by stringifying back, so keep the original string
+	if isinstance(parsed, int | float) and not isinstance(parsed, bool):
+		return filters
+	return parsed
 
 
 def create_batch(iterable: Iterable, size: int) -> Generator[Iterable, None, None]:
@@ -1247,3 +1254,14 @@ class CallbackManager:
 
 	def reset(self):
 		self._functions.clear()
+
+
+def get_frappe_version() -> str:
+	return getattr(frappe, "__version__", "unknown")
+
+
+def get_app_version(app_name: str) -> str:
+	try:
+		return frappe.get_attr(app_name + ".__version__")
+	except Exception:
+		return "0.0.1"

@@ -122,6 +122,7 @@ class BaseDocument:
 			"_doc_before_save",
 			"_table_fieldnames",
 			"_reserved_keywords",
+			"_action",
 			"permitted_fieldnames",
 			"dont_update_if_missing",
 		)
@@ -403,6 +404,9 @@ class BaseDocument:
 				elif df.fieldtype in float_like_fields and not isinstance(value, float):
 					value = flt(value)
 
+				elif df.fieldtype == "Read Only" and not isinstance(value, str):
+					value = cstr(value)
+
 				elif (df.fieldtype in datetime_fields and value == "") or (
 					getattr(df, "unique", False) and cstr(value).strip() == ""
 				):
@@ -459,7 +463,7 @@ class BaseDocument:
 		return frappe.local.valid_columns[self.doctype]
 
 	def is_new(self) -> bool:
-		return self.get("__islocal")
+		return bool(self.get("__islocal"))
 
 	@property
 	def docstatus(self) -> DocStatus:
@@ -1026,8 +1030,11 @@ class BaseDocument:
 		autoname = self.meta.autoname or ""
 		_empty, _field_specifier, fieldname = autoname.partition("field:")
 
-		if fieldname and self.name and self.name != self.get(fieldname):
-			self.set(fieldname, self.name)
+		if fieldname and self.name:
+			df = self.meta.get_field(fieldname)
+			name = self.cast(self.name, df) if df else self.name
+			if name != self.get(fieldname):
+				self.set(fieldname, name)
 
 	def throw_length_exceeded_error(self, df, max_length, value):
 		# check if parentfield exists (only applicable for child table doctype)
@@ -1052,7 +1059,7 @@ class BaseDocument:
 			df = self.meta.get_field(key)
 			db_value = db_values.get(key)
 
-			if df and not df.allow_on_submit and (self.get(key) or db_value):
+			if df and not df.allow_on_submit and not df.is_virtual and (self.get(key) or db_value):
 				if df.fieldtype in table_fields:
 					# just check if the table size has changed
 					# individual fields will be checked in the loop for children

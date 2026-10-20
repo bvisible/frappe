@@ -8,7 +8,7 @@ from collections import namedtuple
 import frappe
 from frappe import _
 from frappe.core.doctype.role.role import get_info_based_on_role, get_user_info
-from frappe.core.doctype.sms_settings.sms_settings import send_sms
+from frappe.core.doctype.sms_settings.sms_settings import _send_sms as send_via_sms_gateway
 from frappe.desk.doctype.notification_log.notification_log import enqueue_create_notification
 from frappe.integrations.doctype.slack_webhook_url.slack_webhook_url import send_slack_message
 from frappe.model.document import Document
@@ -32,6 +32,7 @@ class Notification(Document):
 		from frappe.email.doctype.notification_recipient.notification_recipient import NotificationRecipient
 		from frappe.types import DF
 
+		attach_files: DF.Literal["", "From Field", "All"]
 		attach_print: DF.Check
 		channel: DF.Literal["Email", "Slack", "System Notification", "SMS"]
 		condition: DF.Code | None
@@ -51,11 +52,15 @@ class Notification(Document):
 			"Method",
 			"Custom",
 		]
+		from_attach_field: DF.Literal[None]
 		is_standard: DF.Check
 		message: DF.Code | None
 		message_type: DF.Literal["Markdown", "HTML", "Plain Text"]
 		method: DF.Data | None
 		module: DF.Link | None
+		notification_message: DF.SmallText | None
+		notification_title: DF.Data | None
+		notification_type: DF.Link | None
 		print_format: DF.Link | None
 		property_value: DF.Data | None
 		recipients: DF.Table[NotificationRecipient]
@@ -76,7 +81,8 @@ class Notification(Document):
 
 	def autoname(self):
 		if not self.name:
-			self.name = self.subject
+			# Subject is optional for System Notification rules; fall back to the headline.
+			self.name = self.subject or self.notification_title
 
 	def validate(self):
 		if self.channel in ("Email", "Slack", "System Notification"):
@@ -84,11 +90,19 @@ class Notification(Document):
 
 		validate_template(self.message)
 
+		if self.notification_title:
+			validate_template(self.notification_title)
+		if self.notification_message:
+			validate_template(self.notification_message)
+
 		if self.event in ("Days Before", "Days After") and not self.date_changed:
 			frappe.throw(_("Please specify which date field must be checked"))
 
 		if self.event == "Value Change" and not self.value_changed:
 			frappe.throw(_("Please specify which value field must be checked"))
+
+		if self.attach_files == "From Field" and not self.from_attach_field:
+			frappe.throw(_("Please specify the field from which to attach files"))
 
 		self.validate_forbidden_document_types()
 		self.validate_condition()
@@ -176,27 +190,12 @@ def get_context(context):
 		"""Build recipients and send Notification"""
 
 		context = get_context(doc)
-		context = {"doc": doc, "alert": self, "comments": None}
-		if doc.get("_comments"):
-			context["comments"] = json.loads(doc.get("_comments"))
+		context = {"doc": doc, "alert": self, "comments": get_comments_for_context(doc)}
 
 		if self.is_standard:
 			self.load_standard_properties(context)
-		try:
-			if self.channel == "Email":
-				self.send_an_email(doc, context)
 
-			if self.channel == "Slack":
-				self.send_a_slack_msg(doc, context)
-
-			if self.channel == "SMS":
-				self.send_sms(doc, context)
-
-			if self.channel == "System Notification" or self.send_system_notification:
-				self.create_system_notification(doc, context)
-
-		except Exception:
-			self.log_error("Failed to send Notification")
+		self.send_notification_by_channel(doc, context)
 
 		if self.set_property_after_alert:
 			allow_update = True
@@ -225,10 +224,44 @@ def get_context(context):
 			except Exception:
 				self.log_error("Document update failed")
 
+	def send_notification_by_channel(self, doc, context):
+		"""Send notification based on the specified channel."""
+		try:
+			if self.channel == "Email":
+				self.send_an_email(doc, context)
+			elif self.channel == "Slack":
+				self.send_a_slack_msg(doc, context)
+			elif self.channel == "SMS":
+				self.send_sms(doc, context)
+			elif self.channel == "System Notification":
+				self.create_system_notification(doc, context)
+
+			# Additionally, if explicitly enabled, create a system notification
+			# even when the primary channel is not "System Notification".
+			if self.send_system_notification and self.channel != "System Notification":
+				self.create_system_notification(doc, context)
+		except Exception:
+			self.log_error("Failed to send Notification")
+
 	def create_system_notification(self, doc, context):
-		subject = self.subject
-		if "{" in subject:
-			subject = frappe.render_template(self.subject, context)
+		def _render(template):
+			# Templates (subject / notification_title / notification_message) come from the
+			# System Notification rule, authored by System Managers — the same trusted source as
+			# the other render_template calls in this controller.
+			if not (template and "{" in template):
+				return template
+			return frappe.render_template(  # nosemgrep: frappe-semgrep-rules.rules.security.frappe-ssti
+				template, context
+			)
+
+		# Title falls back to the email Subject so existing rules keep their headline.
+		# Description, however, comes ONLY from the dedicated Notification Message — we do not
+		# fall back to the email Message, whose default placeholder ("Add your message here")
+		# would otherwise leak into the panel. This matches the older behaviour where the bell
+		# showed just the headline when there was no body.
+		subject = _render(self.subject)
+		title = _render(self.notification_title) or subject
+		description = _render(self.notification_message)
 
 		attachments = self.get_attachment(doc)
 
@@ -240,13 +273,23 @@ def get_context(context):
 			return
 
 		notification_doc = {
-			"type": "Alert",
+			"type": self.notification_type or "Alert",
 			"document_type": get_reference_doctype(doc),
 			"document_name": get_reference_name(doc),
+			# Scope the in-app notification to the rule's own app so it appears in that app's panel
+			# even when the reference document belongs to a different app (or there is none).
+			# Falls through to NotificationLog.before_insert's document_type derivation when unset.
+			"app": frappe.db.get_value("Module Def", self.module, "app_name") if self.module else None,
+			"title": title,
 			"subject": subject,
+			"description": description,
+			# Email body comes from the rule's Message field (its dedicated purpose), not the
+			# in-app Description: a non-skip notification_type can make the log email itself
+			# (NotificationLog.after_insert), and a blank Notification Message must not produce a
+			# body-less email. This restores the pre-split behaviour (email_content <- self.message).
+			"email_content": _render(self.message),
 			"from_user": doc.modified_by or doc.owner,
-			"email_content": frappe.render_template(self.message, context),
-			"attached_file": attachments and json.dumps(attachments[0]),
+			"attached_file": json.dumps(attachments) if attachments else None,
 		}
 		enqueue_create_notification(users, notification_doc)
 
@@ -288,6 +331,13 @@ def get_context(context):
 				communication_type="Automated Message",
 			).get("name")
 
+		# We expect at most one print format attachment, but we don't know where it is.
+		print_letterhead = any(
+			attachment.get("print_letterhead")
+			for attachment in attachments
+			if attachment.get("print_format_attachment") == 1
+		)
+
 		frappe.sendmail(
 			recipients=recipients,
 			subject=subject,
@@ -299,7 +349,7 @@ def get_context(context):
 			reference_name=get_reference_name(doc),
 			attachments=attachments,
 			expose_recipients="header",
-			print_letterhead=((attachments and attachments[0].get("print_letterhead")) or False),
+			print_letterhead=print_letterhead,
 			communication=communication,
 		)
 
@@ -312,7 +362,7 @@ def get_context(context):
 		)
 
 	def send_sms(self, doc, context):
-		send_sms(
+		send_via_sms_gateway(
 			receiver_list=self.get_receiver_list(doc, context),
 			msg=frappe.render_template(self.message, context),
 		)
@@ -378,10 +428,28 @@ def get_context(context):
 
 		return receiver_list
 
-	def get_attachment(self, doc):
-		"""check print settings are attach the pdf"""
-		if not self.attach_print:
-			return None
+	def get_attachment(self, doc) -> list[dict]:
+		"""Check Attachment Settings and return attachments accordingly"""
+		attachments = []
+
+		if self.attach_print:
+			attachments.append(self.get_print(doc))
+
+		if self.attach_files == "From Field" and self.from_attach_field:
+			attachments.append({"file_url": doc.get(self.from_attach_field)})
+		elif self.attach_files == "All":
+			attachments.extend(
+				frappe.get_all(
+					"File",
+					fields=["file_url"],
+					filters={"attached_to_doctype": self.document_type, "attached_to_name": doc.name},
+				)
+			)
+
+		return attachments
+
+	def get_print(self, doc):
+		"""check print settings and return dict with print info"""
 
 		print_settings = frappe.get_doc("Print Settings", "Print Settings")
 		if (doc.docstatus == 0 and not print_settings.allow_print_for_draft) or (
@@ -398,18 +466,17 @@ def get_context(context):
 				title=_("Error in Notification"),
 			)
 		else:
-			return [
-				{
-					"print_format_attachment": 1,
-					"doctype": doc.doctype,
-					"name": doc.name,
-					"print_format": self.print_format,
-					"print_letterhead": print_settings.with_letterhead,
-					"lang": frappe.db.get_value("Print Format", self.print_format, "default_print_language")
-					if self.print_format
-					else "en",
-				}
-			]
+			return {
+				"print_format_attachment": 1,
+				"doctype": doc.doctype,
+				"name": doc.name,
+				"print_format": self.print_format,
+				"print_letterhead": print_settings.with_letterhead,
+				"lang": doc.get("language")
+				or frappe.db.get_value("Print Format", self.print_format, "default_print_language")
+				if self.print_format
+				else "en",
+			}
 
 	def get_template(self, md_as_html=False):
 		module = get_doc_module(self.module, self.doctype, self.name)
@@ -448,7 +515,7 @@ def get_context(context):
 
 
 @frappe.whitelist()
-def get_documents_for_today(notification):
+def get_documents_for_today(notification: str):
 	notification = frappe.get_doc("Notification", notification)
 	notification.check_permission("read")
 	return [d.name for d in notification.get_documents_for_today()]
@@ -518,6 +585,37 @@ def evaluate_alert(doc: Document, alert, event):
 		frappe.log_error(title=title, message=message)
 		msg = f"<details><summary>{title}</summary>{message}</details>"
 		frappe.throw(msg, title=_("Error in Notification"))
+
+
+def get_comments_for_context(doc):
+	"""`{{ comments }}` for notification templates, in the shape the `_comments` cache had."""
+	if not doc.get("name"):
+		return None
+
+	reference = {"reference_doctype": doc.doctype, "reference_name": doc.name}
+	comments = frappe.get_all(
+		"Comment",
+		fields=["name", "content", "comment_email as author", "owner", "creation"],
+		filters=reference | {"comment_type": "Comment"},
+		order_by="creation desc",
+		limit=100,
+	) + frappe.get_all(
+		"Communication",
+		fields=["name", "content", "sender as author", "owner", "creation"],
+		filters=reference,
+		order_by="creation desc",
+		limit=100,
+	)
+	comments.sort(key=lambda c: c.creation)
+	return [
+		{"comment": truncate(c.content), "by": c.author or c.owner, "name": c.name} for c in comments[-100:]
+	] or None
+
+
+def truncate(content):
+	"""Preview length the `_comments` cache used to hand templates."""
+	content = content or ""
+	return (content[:97] + "...") if len(content) > 100 else content
 
 
 def get_context(doc):

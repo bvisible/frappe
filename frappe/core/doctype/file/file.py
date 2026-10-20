@@ -17,9 +17,17 @@ import frappe
 from frappe import _
 from frappe.database.schema import SPECIAL_CHAR_PATTERN
 from frappe.exceptions import DoesNotExistError
+from frappe.model.db_query import requires_owner_constraint
 from frappe.model.document import Document
-from frappe.permissions import SYSTEM_USER_ROLE, get_doctypes_with_read
-from frappe.utils import call_hook_method, cint, get_files_path, get_hook_method, get_url
+from frappe.permissions import SYSTEM_USER_ROLE, get_doctypes_with_read, get_role_permissions
+from frappe.utils import (
+	call_hook_method,
+	cint,
+	get_files_path,
+	get_hook_method,
+	get_table_name,
+	get_url,
+)
 from frappe.utils.file_manager import is_safe_path
 from frappe.utils.html_utils import escape_html
 from frappe.utils.image import optimize_image, strip_exif_data
@@ -34,11 +42,7 @@ from .exceptions import (
 from .utils import *
 
 exclude_from_linked_with = True
-ImageFile.LOAD_TRUNCATED_IMAGES = True
-
 ImageFile.LOAD_TRUNCATED_IMAGES = True  # nosemgrep
-
-
 URL_PREFIXES = ("http://", "https://", "/api/method/")
 
 
@@ -97,20 +101,34 @@ class File(Document):
 			self.name = frappe.generate_hash(length=10)
 
 	def before_insert(self):
+		# Ensure correct formatting and type
+		self.file_url = unquote(self.file_url) if self.file_url else ""
+
 		self.set_folder_name()
 		self.set_is_private()
 		self.set_file_name()
 		self.validate_attachment_limit()
 		self.set_file_type()
 		self.validate_file_extension()
-		# //// Neoffice — backport of upstream 972ccf61b7 (v15.121.2, GHSA-gvg7-4p32-j648): a new File whose
-		# //// URL names a private file already on record is refused unless the user may read one of those
-		# //// records. Without it any desk user could create a record pointing at a colleague's private file
-		# //// and download it as their own (neoffice-maintenance#1738). Drop this call at the next rebase onto
-		# //// an upstream version-15 that has it, keeping our additions inside the method.
+		# //// Neoffice — our check runs first, next to upstream's validate_private_file_access below: it
+		# //// compares every spelling of the URL that lands on the same private file, where upstream compares
+		# //// the string only (neoffice-maintenance#1738; see _validate_private_file_access_in_every_spelling).
+		self._validate_private_file_access_in_every_spelling()
 		self.validate_private_file_access()
 
 		if self.is_folder:
+			if self.file_url:
+				frappe.throw(_("A folder cannot have a File URL"))
+			return
+
+		if self.flags.copy_from_existing_file:
+			# Preserve the normal insert lifecycle for hooks and validations, but skip
+			# reprocessing an existing blob that is already referenced by `file_url`.
+			if not self.file_url:
+				frappe.throw(
+					_("File URL is required when copying an existing attachment."),
+					exc=frappe.MandatoryError,
+				)
 			return
 
 		# //// added if
@@ -143,7 +161,9 @@ class File(Document):
 					extension = "png"
 				if img.mode == "P":
 					transparent = img.info.get("transparency", -1)
-					for _, index in img.getcolors():
+					# //// Neoffice — `_count`, not `_`: a `_` bound here makes `_` local to all of before_insert, and
+					# //// upstream's own `_("A folder cannot have a File URL")` above then raised UnboundLocalError.
+					for _count, index in img.getcolors():
 						if index == transparent:
 							extension = "png"
 				elif img.mode == "RGBA":
@@ -161,6 +181,8 @@ class File(Document):
 		# ////
 
 		if self.is_remote_file:
+			# a remote file has no local blob to hash
+			self.content_hash = None
 			self.validate_remote_file()
 		else:
 			# //// Neoffice — get_content() below reads the file at this URL before validate() ever runs, and our
@@ -170,7 +192,7 @@ class File(Document):
 			if self.file_url and not self.get("content"):
 				self.validate_file_url()
 				self.validate_file_path()
-				self.validate_private_file_access()
+				self._validate_private_file_access_in_every_spelling()
 			self.save_file(content=self.get_content())
 			self.flags.new_file = True
 			frappe.db.after_rollback.add(self.on_rollback)
@@ -178,20 +200,47 @@ class File(Document):
 		# //// Neoffice — before_save() checks a new File only when this method did not: save_file may since have
 		# //// pointed the record at an older copy of the same content, which is the uploader's own content.
 		self.flags.private_file_access_checked = True
-		self.validate_duplicate_entry()  # Hash is generated in save_file
+		if not self.is_remote_file:
+			self.validate_duplicate_entry()  # Hash is generated in save_file
 
 	def after_insert(self):
 		if not self.is_folder:
 			self.create_attachment_record()
 
+	def create_attachment_copy(
+		self,
+		attached_to_doctype: str,
+		attached_to_name: str,
+		attached_to_field: str | None = None,
+		ignore_permissions: bool = False,
+	):
+		"""Efficiently copy an attachment from one document to another by reusing `file_url`."""
+		if self.is_folder:
+			frappe.throw(_("Cannot attach a folder to a document"))
+
+		attachment = frappe.copy_doc(self)
+		attachment.update(
+			{
+				"attached_to_doctype": attached_to_doctype,
+				"attached_to_name": attached_to_name,
+				"attached_to_field": attached_to_field,
+			}
+		)
+		attachment.folder = None
+		attachment.flags.copy_from_existing_file = True
+		return attachment.insert(ignore_permissions=ignore_permissions)
+
 	def validate(self):
 		if self.is_folder:
+			if self.file_url:
+				frappe.throw(_("A folder cannot have a File URL"))
 			return
 
-		# Ensure correct formatting and type
-		self.file_url = unquote(self.file_url) if self.file_url else ""
+		if self.is_remote_file:
+			self.content_hash = None
 
 		self.validate_attachment_references()
+		self.enforce_public_file_restrictions()
 
 		# when dict is passed to get_doc for creation of new_doc, is_new returns None
 		# this case is handled inside handle_is_private_changed
@@ -224,24 +273,68 @@ class File(Document):
 
 		if self.is_new():
 			if not self.flags.private_file_access_checked:
-				self.validate_private_file_access()
+				self._validate_private_file_access_in_every_spelling()
 			return
 
 		if self.has_value_changed("file_url") and self.file_url != self.flags.file_url_set_by_privacy_change:
-			self.validate_private_file_access()
+			self._validate_private_file_access_in_every_spelling()
+
+	def enforce_public_file_restrictions(self):
+		if not self.is_private and frappe.get_system_settings(
+			"only_allow_system_managers_to_upload_public_files"
+		):
+			try:
+				frappe.only_for("System Manager")
+			except PermissionError:
+				frappe.throw(_("Only System Managers can make this file public."))
 
 	def validate_private_file_access(self):
-		"""Validate that the user has permission to access an existing private file.
+		"""Validate that the user has permission to access an existing private file."""
+		if not self.file_url:
+			return
 
-		//// Neoffice — backport of upstream 972ccf61b7 (v15.121.2) in its develop form (#43876): every private
-		record sharing the URL is considered, reading any one of them is enough, and a saved record does not
-		vouch for itself. Our additions (neoffice-maintenance#1738):
+		existing_files = frappe.get_all(
+			"File",
+			filters={"file_url": self.file_url},
+			fields=["name", "owner", "is_private"],
+			limit=1,
+		)
+
+		if not existing_files:
+			return
+
+		existing_file = existing_files[0]
+
+		if existing_file.is_private:
+			user = frappe.session.user
+
+			if user == existing_file.owner or user == "Administrator":
+				return
+
+			existing_doc = frappe.get_doc("File", existing_file.name)
+			if not has_permission(existing_doc, "read", user=user):
+				frappe.throw(
+					_("You do not have permission to access this file"),
+					frappe.PermissionError,
+				)
+
+	def _validate_private_file_access_in_every_spelling(self):
+		"""//// Neoffice — added method, run next to upstream's validate_private_file_access (kept as upstream
+		wrote it): the user must be able to read an existing private file their new record names.
+
+		Upstream's check (972ccf61b7, v15.121.2, GHSA-gvg7-4p32-j648) looks the URL up as a string and reads
+		the first record only. This one is its develop form (#43876): every private record sharing the URL is
+		considered, reading any one of them is enough, and a saved record does not vouch for itself. Our
+		additions (neoffice-maintenance#1738):
 		- the URL is compared in every spelling that lands on the same private file (`_private_file_urls`):
-		  upstream compares the string only, so "/private/files/./a.pdf", an encoded name or a full URL of this
-		  site reached the file past it;
+		  upstream compares the string only, so "/private/files/./a.pdf", "/private/files//a.pdf" or a full URL
+		  of this site reached the file past it (still true of upstream 15.123.1 and develop);
 		- a Guest is never the owner of a Guest's upload (the rule of `has_permission` below; upstream
 		  accepts the owner match for Guest too);
-		- Administrator returns first, so system flows never resolve a path here."""
+		- Administrator returns first, so system flows never resolve a path here;
+		- it also runs where upstream's does not: in before_save() and after our validate_file_url() pointed
+		  the record at another file (see there).
+		Drop it, and its two helpers, when upstream's check resolves the path itself."""
 		if not self.file_url:
 			return
 
@@ -277,9 +370,9 @@ class File(Document):
 		)
 
 	def _private_file_urls(self) -> set[str]:
-		"""//// Neoffice — added method (see validate_private_file_access): the spellings of this record's URL
-		under which a private file can be on record. The URL as given and unquoted (validate() unquotes it
-		later), and the canonical URL of the file the URL lands on, once dot segments, doubled slashes and links
+		"""//// Neoffice — added method (see _validate_private_file_access_in_every_spelling): the spellings
+		of this record's URL under which a private file can be on record. The URL as given and unquoted
+		(validate() unquotes it later), and the canonical URL of the file the URL lands on, once dot segments, doubled slashes and links
 		are resolved — with and without its leading slash: Drive (the Suite) records its files as
 		"private/files/Users/…". A URL of another site names no file here."""
 		urls = set()
@@ -327,6 +420,13 @@ class File(Document):
 
 		if self.attached_to_field and SPECIAL_CHAR_PATTERN.search(self.attached_to_field):
 			frappe.throw(_("The fieldname you've specified in Attached To Field is invalid"))
+
+		if self.flags.ignore_permissions or frappe.flags.in_install:
+			return
+
+		from frappe.handler import check_write_permission
+
+		check_write_permission(self.attached_to_doctype, self.attached_to_name)
 
 	def after_rename(self, *args, **kwargs):
 		for successor in self.get_successors():
@@ -390,20 +490,16 @@ class File(Document):
 		# //// override), was read outside the files folder by get_content() (neoffice-maintenance#1742).
 		if self.is_remote_file and not self._url_read_from_disk():
 			return
-		full_path = self.get_full_path()
 
-		# //// Neoffice — backport of upstream ab3dad6edf (v15.121.1, PR #43069): a ".." segment is refused, and
-		# //// commonpath replaces startswith, which let a sibling folder whose name starts with the files
-		# //// folder's pass (neoffice-maintenance#1742). Drop at the next rebase onto an upstream version-15
-		# //// that has it, keeping the site-URL case above.
 		if self.file_url and ".." in self.file_url.split("/"):
 			frappe.throw(_("The File URL you've entered is incorrect"), title=_("Invalid File URL"))
 
+		# //// Neoffice — a full URL of this site may name either files folder (see the marker above).
 		if self.is_remote_file:
 			base_paths = (get_files_path(), get_files_path(is_private=1))
 		else:
 			base_paths = (get_files_path(is_private=self.is_private),)
-		file_path = os.path.realpath(full_path)
+		file_path = os.path.realpath(self.get_full_path())
 		if not any(
 			os.path.commonpath((base_path, file_path)) == base_path
 			for base_path in map(os.path.realpath, base_paths)
@@ -606,15 +702,16 @@ class File(Document):
 
 	def validate_file_extension(self):
 		# Only validate uploaded files, not generated by code/integrations.
-		if not self.file_type or not frappe.request:
+		if self.is_folder or not frappe.request:
 			return
 
 		allowed_extensions = frappe.get_system_settings("allowed_file_extensions")
 		if not allowed_extensions:
 			return
 
-		if self.file_type not in allowed_extensions.splitlines():
-			frappe.throw(_("File type of {0} is not allowed").format(self.file_type), exc=FileTypeNotAllowed)
+		file_extension = os.path.splitext(self.file_name)[1].lstrip(".").upper()
+		if file_extension not in allowed_extensions.splitlines():
+			frappe.throw(_("File type of {0} is not allowed").format(file_extension), exc=FileTypeNotAllowed)
 
 	def check_content(self):
 		if self.file_type == "PDF" and self._content and pdf_contains_js(self._content):
@@ -656,7 +753,7 @@ class File(Document):
 				_("Fields `file_name` or `file_url` must be set for File"), exc=frappe.MandatoryError
 			)
 		elif not self.file_name and self.file_url:
-			self.file_name = self.file_url.split("/")[-1]
+			self.file_name = self.file_url.split("/")[-1].split("?")[0]
 		else:
 			self.file_name = re.sub(r"/", "", self.file_name)
 
@@ -766,35 +863,68 @@ class File(Document):
 
 	def unzip(self) -> list["File"]:
 		"""Unzip current file and replace it by its children"""
+		from frappe.core.api.file import get_max_extract_size
+
 		if not self.file_url.endswith(".zip"):
 			frappe.throw(_("{0} is not a zip file").format(self.file_name))
 
+		self.check_permission("read")
+
 		zip_path = self.get_full_path()
+		max_extracted_size = get_max_extract_size()
 
 		files = []
+		total_extracted_size = 0
 		with zipfile.ZipFile(zip_path) as z:
-			for file in z.filelist:
-				if file.is_dir() or file.filename.startswith("__MACOSX/"):
-					# skip directories and macos hidden directory
-					continue
+			# skip directories, macos hidden directory & hidden files
+			members = [
+				file
+				for file in z.filelist
+				if not (file.is_dir() or file.filename.startswith("__MACOSX/"))
+				and not os.path.basename(file.filename).startswith(".")
+			]
 
-				filename = os.path.basename(file.filename)
-				if filename.startswith("."):
-					# skip hidden files
-					continue
+			# Reject on declared (central directory) sizes before reading any member,
+			# so a small, highly compressible archive can't force large reads/writes.
+			declared_total_size = sum(file.file_size for file in members)
+			if declared_total_size > max_extracted_size:
+				frappe.throw(
+					_("Zip file extracts to more than the maximum allowed size of {0} MB").format(
+						max_extracted_size // 1048576
+					)
+				)
 
-				file_doc = frappe.new_doc("File")
-				try:
-					file_doc.content = z.read(file.filename)
-				except zipfile.BadZipFile:
-					frappe.throw(_("{0} is a not a valid zip file").format(self.file_name))
-				file_doc.file_name = filename
-				file_doc.folder = self.folder
-				file_doc.is_private = self.is_private
-				file_doc.attached_to_doctype = self.attached_to_doctype
-				file_doc.attached_to_name = self.attached_to_name
-				file_doc.save()
-				files.append(file_doc)
+			try:
+				for file in members:
+					filename = os.path.basename(file.filename)
+
+					file_doc = frappe.new_doc("File")
+					try:
+						content = z.read(file.filename)
+					except zipfile.BadZipFile:
+						frappe.throw(_("{0} is a not a valid zip file").format(self.file_name))
+
+					total_extracted_size += len(content)
+					if total_extracted_size > max_extracted_size:
+						frappe.throw(
+							_("Zip file extracts to more than the maximum allowed size of {0} MB").format(
+								max_extracted_size // 1048576
+							)
+						)
+
+					file_doc.content = content
+					file_doc.file_name = filename
+					file_doc.folder = self.folder
+					file_doc.is_private = self.is_private
+					file_doc.attached_to_doctype = self.attached_to_doctype
+					file_doc.attached_to_name = self.attached_to_name
+					file_doc.save()
+					files.append(file_doc)
+			except Exception:
+				# roll back any children already persisted before the failure
+				for file_doc in files:
+					frappe.delete_doc("File", file_doc.name, ignore_permissions=True, force=True)
+				raise
 
 		frappe.delete_doc("File", self.name)
 		return files
@@ -806,9 +936,6 @@ class File(Document):
 		if self.is_folder:
 			frappe.throw(_("Cannot get file contents of a Folder"))
 
-		# //// Neoffice — backport of upstream 1d32c6f743 (v15.117.0): the path is validated again before
-		# //// reading, whoever calls (neoffice-maintenance#1742). Drop at the next rebase onto an upstream
-		# //// version-15 that has it, keeping the second check below.
 		self.validate_file_path()
 		if self.get("content"):
 			self._content = self.content
@@ -1072,10 +1199,21 @@ class File(Document):
 		if self.file_url:
 			self.is_private = cint(self.file_url.startswith("/private"))
 
+	def validate_file_url_matches_record(self):
+		"""Ensure file_url actually resolves back to an existing File record with this name."""
+		if not self.file_url:
+			return
+
+		actual_file_url = frappe.db.get_value("File", self.name, "file_url") if self.name else None
+		if actual_file_url != self.file_url:
+			frappe.throw(_("The File URL does not belong to this File record"), frappe.PermissionError)
+
 	@frappe.whitelist()
 	def optimize_file(self):
 		if self.is_folder:
 			raise TypeError("Folders cannot be optimized")
+
+		self.validate_file_url_matches_record()
 
 		content_type = mimetypes.guess_type(self.file_name)[0]
 		is_local_image = content_type.startswith("image/") and self.file_size > 0
@@ -1092,6 +1230,10 @@ class File(Document):
 			content=original_content,
 			content_type=content_type,
 		)
+
+		if original_content == optimized_content:
+			# optimization failed, don't resave it
+			return
 
 		self.save_file(content=optimized_content, overwrite=True)
 		self.save()
@@ -1150,7 +1292,6 @@ def has_permission(doc, ptype=None, user=None, debug=False):
 
 	if user == "Administrator":
 		return True
-
 	if ptype == "create":
 		return frappe.has_permission("File", "create", user=user, debug=debug)
 
@@ -1159,6 +1300,14 @@ def has_permission(doc, ptype=None, user=None, debug=False):
 
 	if user != "Guest" and doc.owner == user:
 		return True
+	if (
+		user != "Guest"
+		and ptype in ["read", "write", "share", "submit"]
+		and frappe.share.get_shared(
+			"File", filters=[["share_name", "=", doc.name]], rights=[ptype], user=user
+		)
+	):
+		return True
 
 	if doc.attached_to_doctype and doc.attached_to_name:
 		attached_to_doctype = doc.attached_to_doctype
@@ -1166,7 +1315,7 @@ def has_permission(doc, ptype=None, user=None, debug=False):
 
 		try:
 			ref_doc = frappe.get_doc(attached_to_doctype, attached_to_name)
-		except ModuleNotFoundError:
+		except (ModuleNotFoundError, ImportError):
 			return False
 		except frappe.DoesNotExistError:
 			frappe.clear_last_message()
@@ -1188,12 +1337,148 @@ def get_permission_query_conditions(user: str | None = None) -> str:
 	if SYSTEM_USER_ROLE not in frappe.get_roles(user):
 		return f""" `tabFile`.`owner` = {frappe.db.escape(user)} """
 
-	readable_doctypes = ", ".join(repr(dt) for dt in get_doctypes_with_read())
-	return f"""
-		(`tabFile`.`is_private` = 0)
-		OR (`tabFile`.`attached_to_doctype` IS NULL AND `tabFile`.`owner` = {frappe.db.escape(user)})
-		OR (`tabFile`.`attached_to_doctype` IN ({readable_doctypes}))
+	# Custom DocPerm rows can outlive their DocType, drop those
+	# before frappe.get_meta() below assumes the doctype still exists.
+	candidate_doctypes = get_doctypes_with_read(user)
+	existing_doctypes = set(
+		frappe.get_all("DocType", filters={"name": ["in", candidate_doctypes]}, pluck="name")
+	)
+	readable_doctypes = [dt for dt in candidate_doctypes if dt in existing_doctypes]
+
+	openly_readable_doctypes, owner_restricted_doctypes = _split_doctypes_by_owner_constraint(
+		readable_doctypes, user
+	)
+	# a doctype that requires an owner constraint is never additionally scoped by User
+	# Permissions here - same "if_owner takes priority, else check user permissions" rule
+	# used for normal list queries (see database/query.py::get_permission_conditions)
+	openly_readable_doctypes, user_perm_restricted_doctypes = _split_doctypes_by_user_permissions(
+		openly_readable_doctypes, user
+	)
+
+	conditions = [
+		"(`tabFile`.`is_private` = 0)",
+		f"(`tabFile`.`attached_to_doctype` IS NULL AND `tabFile`.`owner` = {frappe.db.escape(user)})",
+	]
+
+	if openly_readable_doctypes:
+		readable_doctypes = ", ".join(repr(dt) for dt in openly_readable_doctypes)
+		conditions.append(f"(`tabFile`.`attached_to_doctype` IN ({readable_doctypes}))")
+
+	# these doctypes only grant "read" to their owner (if_owner), so a File attached to one
+	# of them may only be listed if the requesting user owns the referenced document or it
+	# was individually shared with them.
+	for doctype in owner_restricted_doctypes:
+		table = get_table_name(doctype, wrap_in_backticks=True)
+		conditions.append(
+			_scoped_attachment_condition(doctype, user, f"{table}.`owner` = {frappe.db.escape(user)}")
+		)
+
+	# these doctypes grant unconditional role-level read, but this user is scoped by one or
+	# more User Permissions (e.g. restricted to a specific Company) - only list a file if the
+	# referenced record falls within that scope, or it was individually shared with them
+	for doctype, field_conditions in user_perm_restricted_doctypes.items():
+		conditions.append(_scoped_attachment_condition(doctype, user, " AND ".join(field_conditions)))
+
+	return "(" + " OR ".join(conditions) + ")"
+
+
+def _scoped_attachment_condition(doctype: str, user: str, exists_condition: str) -> str:
+	"""Build `(attached_to_doctype = X AND (EXISTS(...) OR individually shared))`."""
+	table = get_table_name(doctype, wrap_in_backticks=True)
+	shared_names = frappe.share.get_shared(doctype, user)
+	shared_condition = ""
+	if shared_names:
+		shared_list = ", ".join(frappe.db.escape(name, percent=False) for name in shared_names)
+		shared_condition = f" OR `tabFile`.`attached_to_name` IN ({shared_list})"
+
+	return f"""(`tabFile`.`attached_to_doctype` = {frappe.db.escape(doctype)}
+		AND (
+			EXISTS (
+				SELECT 1 FROM {table}
+				WHERE {table}.`name` = `tabFile`.`attached_to_name`
+				AND {exists_condition}
+			){shared_condition}
+		))"""
+
+
+def _split_doctypes_by_owner_constraint(doctypes, user):
+	"""Split doctypes into those the user can read unconditionally vs. only as owner ("if_owner").
+
+	Single doctypes have no per-record table (their fields live in `tabSingles`), so they can't
+	be scoped with a `SELECT ... FROM tab<Doctype>` check and are always treated as openly readable.
 	"""
+	openly_readable, owner_restricted = [], []
+	for doctype in doctypes:
+		if frappe.get_meta(doctype).issingle:
+			openly_readable.append(doctype)
+			continue
+		role_permissions = get_role_permissions(doctype, user=user)
+		if requires_owner_constraint(role_permissions):
+			owner_restricted.append(doctype)
+		else:
+			openly_readable.append(doctype)
+	return openly_readable, owner_restricted
+
+
+def _split_doctypes_by_user_permissions(doctypes, user):
+	"""Split doctypes into those unaffected by User Permissions vs. those scoped by them.
+
+	Mirrors the simplified, non-recursive semantics list queries already use for their own
+	doctype (db_query.py::add_user_permissions / database/query.py::get_user_permission_conditions)
+	- not the full has_user_permission() used for single-document checks, which additionally
+	does tree traversal and isn't expressible as a flat SQL condition.
+	"""
+	user_permissions = frappe.permissions.get_user_permissions(user)
+	if not user_permissions:
+		return doctypes, {}
+
+	strict_user_permissions = frappe.get_system_settings("apply_strict_user_permissions")
+
+	unrestricted, restricted = [], {}
+	for doctype in doctypes:
+		if frappe.get_meta(doctype).issingle:
+			unrestricted.append(doctype)
+			continue
+		field_conditions = _get_user_permission_field_conditions(
+			doctype, user_permissions, strict_user_permissions
+		)
+		if field_conditions:
+			restricted[doctype] = field_conditions
+		else:
+			unrestricted.append(doctype)
+	return unrestricted, restricted
+
+
+def _get_user_permission_field_conditions(doctype, user_permissions, strict_user_permissions) -> list[str]:
+	"""SQL conditions (to be AND'd) restricting `doctype` rows to those permitted by `user_permissions`."""
+	link_fields = [{"options": doctype, "fieldname": "name"}, *frappe.get_meta(doctype).get_link_fields()]
+	table = get_table_name(doctype, wrap_in_backticks=True)
+
+	conditions = []
+	for df in link_fields:
+		if df.get("ignore_user_permissions"):
+			continue
+
+		permitted = user_permissions.get(df.get("options"))
+		if not permitted:
+			continue
+
+		docs = [
+			p.get("doc")
+			for p in permitted
+			if not p.get("applicable_for") or p.get("applicable_for") == doctype
+		]
+		if not docs:
+			continue
+
+		field = f"{table}.`{df.get('fieldname')}`"
+		docs_list = ", ".join(frappe.db.escape(doc, percent=False) for doc in docs)
+		if strict_user_permissions:
+			conditions.append(f"{field} IN ({docs_list})")
+		else:
+			conditions.append(f"(ifnull({field}, '') = '' OR {field} IN ({docs_list}))")
+
+	return conditions
 
 
 # Note: kept at the end to not cause circular, partial imports & maintain backwards compatibility

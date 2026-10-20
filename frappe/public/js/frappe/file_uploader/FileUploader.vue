@@ -163,30 +163,23 @@
 						</svg>
 						<div class="mt-1">{{ __("Google Drive") }}</div>
 					</button>
-					<!-- //// Neoffice — added (ec5475a774, 2026-08-05 "fix(file uploader): give apps the UploadOptions
-					     //// extension point they expect"): suite/drive registers its Drive picker by pushing onto
-					     //// frappe.ui.FileUploader.UploadOptions, an array upstream never exposed. The registration threw
-					     //// on every desk page and the stock Library button stayed hidden with no replacement, so
-					     //// attaching a file offered only My Device / Camera / Link on the whole fleet. One button per
-					     //// registered source, appended after the built-in ones. -->
-					<!-- Sources registered by apps through FileUploader.UploadOptions.
-					     Appended last so the built-in buttons keep their order. -->
-					<button
-						v-for="option in upload_options"
-						:key="option.label"
-						class="btn btn-file-upload"
-						@click="run_upload_option(option)"
-					>
-						<svg
-							width="30"
-							height="30"
-							viewBox="0 0 30 30"
-							fill="none"
-							xmlns="http://www.w3.org/2000/svg"
-							v-html="option.icon"
-						></svg>
-						<div class="mt-1">{{ option.label }}</div>
-					</button>
+					<template v-for="option in additional_upload_handlers">
+						<button class="btn btn-file-upload" @click="option.wrappedAction">
+							<svg
+								v-if="typeof option.icon === 'string'"
+								v-html="option.icon"
+								width="30"
+								height="30"
+							/>
+							<component
+								v-else-if="option.icon"
+								:is="option.icon"
+								width="30"
+								height="30"
+							/>
+							<div class="mt-1">{{ option.label }}</div>
+						</button>
+					</template>
 				</div>
 				<div class="mt-3 text-center" v-if="upload_notes">
 					{{ upload_notes }}
@@ -251,16 +244,11 @@
 
 <script setup>
 import { computed, ref, watch } from "vue";
-//// Neoffice — the import block below was re-sorted by path (bd41f1e7a5, 2025-02-26 "Update neov2";
-//// no rationale — the signature of an editor's organize-imports). Upstream order: FilePreview,
-//// FileBrowser, WebLink, GoogleDrivePicker, ImageCropper. Nothing else differs: take upstream's order
-//// at the merge. Same file, elsewhere: the final newline after </style> was dropped (whitespace only,
-//// listed in NEOFFICE_FORK_MARKERS.md because a comment cannot be placed there).
-import GoogleDrivePicker from "../../integrations/google_drive_picker";
-import FileBrowser from "./FileBrowser.vue";
 import FilePreview from "./FilePreview.vue";
-import ImageCropper from "./ImageCropper.vue";
+import FileBrowser from "./FileBrowser.vue";
 import WebLink from "./WebLink.vue";
+import GoogleDrivePicker from "../../integrations/google_drive_picker";
+import ImageCropper from "./ImageCropper.vue";
 
 // props
 const props = defineProps({
@@ -326,15 +314,8 @@ const props = defineProps({
 	allow_google_drive: {
 		default: true,
 	},
-	// Extra sources contributed by apps — see FileUploader.UploadOptions.
-	upload_options: {
-		type: Array,
-		default: () => [],
-	},
-	// Runs an entry's action with the context it needs (dialog + uploader).
-	run_upload_option: {
-		type: Function,
-		default: () => {},
+	additional_upload_handlers: {
+		default: [],
 	},
 });
 
@@ -643,30 +624,26 @@ function upload_file(file, i) {
 					}
 				} else if (xhr.status === 403) {
 					file.failed = true;
-					let response = JSON.parse(xhr.responseText);
-					file.error_message = `Not permitted. ${response._error_message || ""}.`;
-
-					try {
-						// Append server messages which are useful hint for perm issues
-						let server_messages = JSON.parse(response._server_messages);
-
-						server_messages.forEach((m) => {
-							m = JSON.parse(m);
-							file.error_message += `\n ${m.message} `;
-						});
-					} catch (e) {
-						console.warning("Failed to parse server message", e);
+					let response = parse_error_response(xhr.responseText);
+					file.error_message = __("Not permitted. {0}.", [response.error_message || ""]);
+					if (response.server_messages.length) {
+						file.error_message += `\n${response.server_messages.join("\n")}`;
 					}
 				} else if (xhr.status === 413) {
 					file.failed = true;
-					file.error_message = "Size exceeds the maximum allowed file size.";
-				} 
+					file.error_message = __("Size exceeds the maximum allowed file size.");
+				} else if (xhr.status === 417) {
+					// regular frappe.throw() in backend
+					file.failed = true;
+					let response = parse_error_response(xhr.responseText);
+					file.error_message = response.server_messages.length
+						? response.server_messages.join("\n")
+						: __("File upload failed.");
+				}
 				//// Neoffice — added else-if (4c842a98fc, 2023-10-30 "First change v15", carried over by bd41f1e7a5;
 				//// neither commit gives a rationale): upstream sends HTTP 500 to the generic branch below, which
 				//// shows the bare status text. Ours surfaces the server's _error_message when the response body
-				//// parsed, and "File not supported." otherwise. Upstream's `} else {` was split in two by this block
-				//// (the `}` above lost its `else`).
-				//// added else if
+				//// parsed, and "File not supported." otherwise.
 				else if (xhr.status === 500) {
 					file.failed = true;
 					if (typeof response !== 'undefined') {
@@ -675,13 +652,15 @@ function upload_file(file, i) {
 						file.error_message = __('File not supported.');
 					}
 				}
-				////
 				else {
 					file.failed = true;
+					let detail =
+						xhr.statusText ||
+						__("Server error during upload. The file might be corrupted.");
 					file.error_message =
 						xhr.status === 0
-							? "XMLHttpRequest Error"
-							: `${xhr.status} : ${xhr.statusText}`;
+							? __("XMLHttpRequest Error")
+							: `${xhr.status} : ${detail}`;
 
 					let error = null;
 					try {
@@ -707,7 +686,9 @@ function upload_file(file, i) {
 		if (file.file_url) {
 			form_data.append("file_url", file.file_url);
 		}
-
+		if (file.file_size) {
+			form_data.append("file_size", file.file_size);
+		}
 		if (file.file_name) {
 			form_data.append("file_name", file.file_name);
 		}
@@ -739,6 +720,33 @@ function upload_file(file, i) {
 
 		xhr.send(form_data);
 	});
+}
+function parse_error_response(response_text) {
+	let error_message = "";
+	let server_messages = [];
+
+	try {
+		let response = JSON.parse(response_text);
+		error_message = response._error_message || "";
+
+		try {
+			server_messages.push(
+				...JSON.parse(response._server_messages).map((m) => {
+					let parsed = JSON.parse(m);
+					return parsed.message;
+				})
+			);
+		} catch (e) {
+			console.warning("Failed to parse server message", e);
+		}
+	} catch (e) {
+		console.warning("Failed to parse error response", e);
+	}
+
+	return {
+		error_message,
+		server_messages,
+	};
 }
 function capture_image() {
 	const capture = new frappe.ui.Capture({
@@ -801,6 +809,7 @@ watch(
 defineExpose({
 	files,
 	add_files,
+	upload_file,
 	upload_files,
 	toggle_all_private,
 	wrapper_ready,

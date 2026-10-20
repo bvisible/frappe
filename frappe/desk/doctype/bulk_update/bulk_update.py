@@ -1,6 +1,8 @@
 # Copyright (c) 2015, Frappe Technologies and contributors
 # License: MIT. See LICENSE
 
+from typing import Any
+
 import frappe
 from frappe import _
 from frappe.core.doctype.submission_queue.submission_queue import queue_submission
@@ -31,10 +33,8 @@ class BulkUpdate(Document):
 	def bulk_update(self):
 		self.check_permission("write")
 		limit = self.limit if self.limit and cint(self.limit) < 500 else 500
-		# //// Neoffice — backport of upstream dc17cb413c (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 		query_args = {"doctype": self.document_type, "limit": limit, "pluck": "name"}
 		if self.condition:
-			# //// Neoffice — backport of upstream dc17cb413c (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 			try:
 				filters = frappe.parse_json(self.condition)
 				if isinstance(filters, dict):
@@ -50,8 +50,14 @@ class BulkUpdate(Document):
 		)
 
 
-@frappe.whitelist()
-def submit_cancel_or_update_docs(doctype, docnames, action="submit", data=None, task_id=None):
+@frappe.whitelist(methods=["POST"])
+def submit_cancel_or_update_docs(
+	doctype: str,
+	docnames: str | list[str],
+	action: str = "submit",
+	data: str | dict[str, Any] | None = None,
+	task_id: str | None = None,
+):
 	if isinstance(docnames, str):
 		docnames = frappe.parse_json(docnames)
 
@@ -109,6 +115,7 @@ def _bulk_action(doctype, docnames, action, data, task_id=None):
 			)
 
 		except Exception:
+			frappe.log_error("Bulk action failed")
 			failed.append(docname)
 			frappe.db.rollback()
 

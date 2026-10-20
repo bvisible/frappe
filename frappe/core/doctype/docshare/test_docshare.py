@@ -224,7 +224,6 @@ class TestDocShare(FrappeTestCase):
 			add,
 			{"doctype": "Event", "name": self.event.name, "assign_to": ["test1@example.com"]},
 		)
-# //// Neoffice — backport of upstream 1fcd8b4e4f (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
 
 	def test_cannot_share_without_permission(self):
 		"""Test that users cannot share permissions they don't have."""

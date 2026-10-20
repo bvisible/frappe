@@ -107,6 +107,7 @@ def get_bootinfo():
 	bootinfo.error_report_email = frappe.conf.error_report_email
 	bootinfo.calendars = sorted(frappe.get_hooks("calendars"))
 	bootinfo.treeviews = frappe.get_hooks("treeviews") or []
+	bootinfo.has_awesomebar_search = bool(hooks.awesomebar_search)
 	bootinfo.lang_dict = get_lang_dict()
 	bootinfo.success_action = get_success_action()
 	bootinfo.update(get_email_accounts(user=frappe.session.user))
@@ -525,7 +526,7 @@ def get_allowed_report_names(cache=False) -> set[str]:
 def get_user_pages_or_reports(parent, cache=False):
 	if cache:
 		has_role = frappe.cache.get_value("has_role:" + parent, user=frappe.session.user)
-		if has_role:
+		if has_role is not None:
 			return has_role
 
 	roles = frappe.get_roles()
@@ -536,12 +537,6 @@ def get_user_pages_or_reports(parent, cache=False):
 
 	is_report = parent == "Report"
 
-	# //// Neoffice — `module` travels with every page and report. Upstream sends
-	# //// only title + modified, so the cockpit cannot tell which application a
-	# //// desk PAGE belongs to: opening Fitness → Members left "Commercial" as the
-	# //// active module, because only a workspace route could be resolved to an
-	# //// app. A doctype resolves through its meta on the client; a page has no
-	# //// client-side meta at all, so its module has to come from here.
 	if is_report:
 		columns = (report.name.as_("title"), report.ref_doctype, report.report_type, report.module)
 	else:
@@ -551,8 +546,11 @@ def get_user_pages_or_reports(parent, cache=False):
 	hasRole = DocType("Has Role")
 	parentTable = DocType(parent)
 
+	def exclude_disabled_reports(query):
+		return query.where(report.disabled == 0) if is_report else query
+
 	# get pages or reports set on custom role
-	pages_with_custom_roles = (
+	pages_with_custom_roles = exclude_disabled_reports(
 		frappe.qb.from_(customRole)
 		.from_(hasRole)
 		.from_(parentTable)
@@ -570,7 +568,7 @@ def get_user_pages_or_reports(parent, cache=False):
 			"modified": p.modified,
 			"title": p.title,
 			"ref_doctype": p.ref_doctype,
-			"module": p.module,  # //// Neoffice — see `columns` above
+			"module": p.module,
 		}
 
 	subq = (
@@ -579,7 +577,7 @@ def get_user_pages_or_reports(parent, cache=False):
 		.where(customRole[parent.lower()].isnotnull())
 	)
 
-	pages_with_standard_roles = (
+	pages_with_standard_roles = exclude_disabled_reports(
 		frappe.qb.from_(hasRole)
 		.from_(parentTable)
 		.select(parentTable.name.as_("name"), parentTable.modified, *columns)
@@ -587,16 +585,11 @@ def get_user_pages_or_reports(parent, cache=False):
 			(hasRole.role.isin(roles)) & (hasRole.parent == parentTable.name) & (parentTable.name.notin(subq))
 		)
 		.distinct()
-	)
-
-	if is_report:
-		pages_with_standard_roles = pages_with_standard_roles.where(report.disabled == 0)
-
-	pages_with_standard_roles = pages_with_standard_roles.run(as_dict=True)
+	).run(as_dict=True)
 
 	for p in pages_with_standard_roles:
 		if p.name not in has_role:
-			has_role[p.name] = {"modified": p.modified, "title": p.title, "module": p.module}  # //// Neoffice
+			has_role[p.name] = {"modified": p.modified, "title": p.title, "module": p.module}
 			if parent == "Report":
 				has_role[p.name].update({"ref_doctype": p.ref_doctype})
 
@@ -605,7 +598,7 @@ def get_user_pages_or_reports(parent, cache=False):
 	)
 
 	# pages and reports with no role are allowed
-	rows_with_no_roles = (
+	rows_with_no_roles = exclude_disabled_reports(
 		frappe.qb.from_(parentTable)
 		.select(parentTable.name, parentTable.modified, *columns)
 		.where(no_of_roles == 0)
@@ -613,13 +606,15 @@ def get_user_pages_or_reports(parent, cache=False):
 
 	for r in rows_with_no_roles:
 		if r.name not in has_role:
-			has_role[r.name] = {"modified": r.modified, "title": r.title, "module": r.module}  # //// Neoffice
+			has_role[r.name] = {"modified": r.modified, "title": r.title, "module": r.module}
 			if is_report:
 				has_role[r.name] |= {"ref_doctype": r.ref_doctype}
 
 	if is_report:
 		if not has_permission("Report", raise_exception=False):
-			return {}
+			has_role = {}
+			frappe.cache.set_value("has_role:" + parent, has_role, frappe.session.user, 21600)
+			return has_role
 
 		reports = frappe.get_list(
 			"Report",

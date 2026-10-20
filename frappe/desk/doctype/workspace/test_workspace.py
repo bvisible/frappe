@@ -13,6 +13,34 @@ class TestWorkspace(FrappeTestCase):
 		frappe.db.delete("DocType", {"module": "Test Module"})
 		frappe.delete_doc("Module Def", "Test Module")
 
+	def test_workspace_conflicts_with_existing_doctype(self):
+		"""Workspace name should not conflict with existing DocType names."""
+
+		create_doctype("Test", "Test Module")
+		workspace = create_workspace(name="Test", label="Test", public=1, title="Test")
+
+		with self.assertRaises(frappe.NameError):
+			workspace.insert()
+
+	def test_update_page_on_public_workspace_needs_workspace_manager(self):
+		from frappe.desk.doctype.workspace.workspace import update_page
+
+		workspace = frappe.get_doc(
+			{
+				"doctype": "Workspace",
+				"label": "Test Public",
+				"title": "Test Public",
+				"public": 1,
+				"content": "[]",
+			}
+		).insert()
+		self.addCleanup(frappe.delete_doc, "Workspace", workspace.name, force=True)
+
+		with self.set_user("test1@example.com"), self.assertRaises(frappe.PermissionError):
+			update_page(workspace.name, "Stolen", "", "", "", 0)
+
+		self.assertEqual(frappe.db.get_value("Workspace", workspace.name, "public"), 1)
+
 	# TODO: FIX ME - flaky test!!!
 	# def test_workspace_with_cards_specific_to_a_country(self):
 	# 	workspace = create_workspace()
@@ -45,6 +73,8 @@ def create_workspace(**args):
 	workspace.category = args.category or "Modules"
 	workspace.is_standard = args.is_standard or 1
 	workspace.module = "Test Module"
+	workspace.public = args.public or 0
+	workspace.title = args.title or "Test Workspace"
 
 	return workspace
 

@@ -474,7 +474,7 @@ ENTITY_PRIORITY = [
 
 
 @frappe.whitelist()
-def search(text, start=0, limit=20, doctype=""):
+def search(text: str, start: int = 0, limit: int = 20, doctype: str = ""):
 	"""
 	Search for given text in __global_search
 	:param text: phrase to be searched

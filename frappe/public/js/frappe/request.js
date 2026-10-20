@@ -47,9 +47,9 @@ frappe.xcall = function (method, params) {
 
 // generic server call (call page, object)
 frappe.call = function (opts) {
-	//// Neoffice — the call goes out even when navigator.onLine is false. Upstream returned an empty request with
-	//// « Connection Lost » as soon as the browser said it was offline, and the browser can be wrong while every
-	//// request still goes through: an Android phone on a Wi-Fi marked "connected, no internet" (2026-10-07: the
+	//// Neoffice — no « Connection Lost » alert from navigator.onLine. Upstream first returned an empty request with
+	//// that alert as soon as the browser said it was offline; it now lets the call go out but still shows the alert
+	//// on every call. The browser can be wrong while every request still goes through: an Android phone on a Wi-Fi marked "connected, no internet" (2026-10-07: the
 	//// whole desk unusable, every click a « Connection Lost »), a Mac after sleep or a VPN switch. A call that
 	//// reaches no server now says so in the fail handler of frappe.request.call (connection_lost).
 	if (typeof arguments[0] === "string") {

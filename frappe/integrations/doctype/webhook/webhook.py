@@ -87,7 +87,7 @@ class Webhook(Document):
 			try:
 				frappe.safe_eval(self.condition, eval_locals=get_context(temp_doc))
 			except Exception as e:
-				frappe.throw(_("Invalid Condition: {}").format(e))
+				frappe.throw(_("Invalid Condition: {}").format(str(e)))
 
 	def validate_request_url(self):
 		try:
@@ -136,7 +136,7 @@ class Webhook(Document):
 			doc = frappe.get_cached_doc(self.webhook_doctype, self.preview_document)
 			met_condition = frappe.safe_eval(self.condition, eval_locals=get_context(doc))
 		except Exception as e:
-			return _("Failed to evaluate conditions: {}").format(e)
+			return _("Failed to evaluate conditions: {}").format(str(e))
 		return _("Yes") if met_condition else _("No")
 
 	@property
@@ -148,7 +148,7 @@ class Webhook(Document):
 			doc = frappe.get_cached_doc(self.webhook_doctype, self.preview_document)
 			return frappe.as_json(get_webhook_data(doc, self))
 		except Exception as e:
-			return _("Failed to compute request body: {}").format(e)
+			return _("Failed to compute request body: {}").format(str(e))
 
 
 def get_context(doc):
@@ -162,8 +162,8 @@ def enqueue_webhook(doc, webhook) -> None:
 		request_url = webhook.request_url
 		if webhook.is_dynamic_url:
 			request_url = frappe.render_template(webhook.request_url, get_context(doc))
-		headers = get_webhook_headers(doc, webhook)
 		data = get_webhook_data(doc, webhook)
+		headers = get_webhook_headers(doc, webhook, data=data)
 
 	except Exception as e:
 		frappe.logger().debug({"enqueue_webhook_error": e})
@@ -175,7 +175,7 @@ def enqueue_webhook(doc, webhook) -> None:
 			r = requests.request(
 				method=webhook.request_method,
 				url=request_url,
-				data=json.dumps(data, default=str),
+				data=frappe.as_json(data),
 				headers=headers,
 				timeout=webhook.timeout or 5,
 			)
@@ -221,15 +221,16 @@ def log_request(
 	request_log.save(ignore_permissions=True)
 
 
-def get_webhook_headers(doc, webhook):
+def get_webhook_headers(doc, webhook, data=None):
 	headers = {}
 
 	if webhook.enable_security:
-		data = get_webhook_data(doc, webhook)
+		if data is None:
+			data = get_webhook_data(doc, webhook)
 		signature = base64.b64encode(
 			hmac.new(
 				webhook.get_password("webhook_secret").encode("utf8"),
-				json.dumps(data).encode("utf8"),
+				frappe.as_json(data).encode("utf8"),
 				hashlib.sha256,
 			).digest()
 		)

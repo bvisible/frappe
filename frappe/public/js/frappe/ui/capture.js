@@ -30,6 +30,7 @@ function get_file_input() {
 	input.setAttribute("type", "file");
 	input.setAttribute("accept", "image/*");
 	input.setAttribute("multiple", "");
+	input.setAttribute("capture", "");
 
 	return input;
 }
@@ -74,7 +75,7 @@ frappe.ui.Capture = class {
 	show() {
 		this.build_dialog();
 
-		if (cint(frappe.boot.sysdefaults.force_web_capture_mode_for_uploads)) {
+		if (frappe.defaults.is_enabled("force_web_capture_mode_for_uploads")) {
 			this.show_for_desktop();
 		} else if (frappe.is_mobile()) {
 			this.show_for_mobile();

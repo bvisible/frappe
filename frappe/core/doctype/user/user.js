@@ -69,8 +69,9 @@ frappe.ui.form.on("User", {
 						let d = frm.add_child("block_modules");
 						d.module = v.module;
 					});
-					//// Neoffice — backport of upstream version-15: the editor only exists for
-					//// who may edit roles, and this line threw for everyone else.
+
+					// if I am able to edit module profile,
+					// module editor should always be available, but just in case
 					if (frm.module_editor) {
 						frm.module_editor.disable = 1;
 						frm.module_editor.show();
@@ -86,6 +87,8 @@ frappe.ui.form.on("User", {
 		if (frm.is_new() && frm.roles_editor) {
 			frm.roles_editor.reset();
 		}
+
+		frm.fields_dict.new_password?.$input?.attr("autocomplete", "new-password");
 
 		if (
 			frm.can_edit_roles &&
@@ -121,7 +124,7 @@ frappe.ui.form.on("User", {
 
 		frappe.xcall("frappe.apps.get_apps").then((r) => {
 			let apps = r?.map((r) => r.name) || [];
-			frm.set_df_property("default_app", "options", [" ", ...apps]);
+			frm.set_df_property("default_app", "options", ["", ...apps]);
 		});
 
 		if (frm.is_new()) {
@@ -230,7 +233,7 @@ frappe.ui.form.on("User", {
 			}
 
 			if (
-				cint(frappe.boot.sysdefaults.enable_two_factor_auth) &&
+				frappe.defaults.is_enabled("enable_two_factor_auth") &&
 				(frappe.session.user == doc.name || frappe.user.has_role("System Manager"))
 			) {
 				frm.add_custom_button(
@@ -254,10 +257,6 @@ frappe.ui.form.on("User", {
 				frm.roles_editor.show();
 			}
 
-			//// Neoffice — backport of upstream version-15. The module editor is only
-			//// built for who may edit roles; for anyone else opening their own User
-			//// record this line threw, and the rest of refresh never ran (no "Create
-			//// User Email", no time-zone note). Drop at the upstream merge (#138).
 			if (frm.module_editor) {
 				frm.module_editor.disable = frm.doc.module_profile ? 1 : 0;
 				frm.module_editor.show();

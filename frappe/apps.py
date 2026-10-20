@@ -266,7 +266,10 @@ def get_default_path(apps=None):
 
 
 @frappe.whitelist()
-def set_app_as_default(app_name):
+def set_app_as_default(app_name: str):
+	if app_name not in frappe.get_installed_apps():
+		frappe.throw(_("App {} is not installed").format(frappe.bold(app_name)))
+
 	if frappe.db.get_value("User", frappe.session.user, "default_app") == app_name:
 		frappe.db.set_value("User", frappe.session.user, "default_app", "")
 	else:
@@ -274,7 +277,7 @@ def set_app_as_default(app_name):
 
 
 @frappe.whitelist()
-def get_incomplete_setup_route(current_app, app_route):
+def get_incomplete_setup_route(current_app: str, app_route: str):
 	# Validate that current_app is a real installed app
 	installed_apps = frappe.get_installed_apps()
 

@@ -1,14 +1,3 @@
-# //// Neoffice — added file: 13ee6ad869 (2026-07-06 "feat(types): backport frappe.types.filter
-# //// from develop"), to provide FilterTuple / FilterSignature to the version-15 fork of the
-# //// `suite` app. It is byte-identical to frappe develop at 83d265a379 (2026-03-21). Nothing
-# //// in frappe itself imports it, so it is inert without suite installed.
-# //// 🔴 TO REVIEW BEFORE THE UPSTREAM MERGE — this file must be REPLACED by upstream's, not
-# //// kept: upstream version-15 shipped its own backport in v15.103.3 (after our base
-# //// v15.89.0), deliberately made Python 3.10-compatible (c2cf937a3a, 555ee22526, 8111a4d631
-# //// "make types/filter.py compatible with Python 3.10", 46962b696f). Our develop copy uses
-# //// PEP 695 syntax that only parses on Python 3.12+ — `def is_unspecified[T](...)`,
-# //// `type FilterSignature = ...`, `typing.Self`, `typing.override` — so on a 3.10/3.11 bench
-# //// importing this module is a SyntaxError. Expect an add/add conflict here: take upstream.
 import json
 import textwrap
 from collections import defaultdict
@@ -16,9 +5,10 @@ from collections.abc import Generator, Iterable, Mapping, Sequence
 from datetime import date, datetime
 from itertools import groupby
 from operator import attrgetter
-from typing import Any, NamedTuple, Self, TypeAlias, TypeGuard, TypeVar, cast, override
+from typing import Any, NamedTuple, TypeAlias, TypeGuard, TypeVar, cast
 
 from pypika import Column
+from typing_extensions import Self, override
 
 Doct: TypeAlias = str
 Fld: TypeAlias = str
@@ -47,8 +37,10 @@ class Sentinel:
 
 UNSPECIFIED = Sentinel()
 
+T = TypeVar("T")
 
-def is_unspecified[T](value: T | Sentinel) -> TypeGuard[Sentinel]:
+
+def is_unspecified(value: T | Sentinel) -> TypeGuard[Sentinel]:
 	return value is UNSPECIFIED
 
 
@@ -267,7 +259,7 @@ class Filters(list[FilterTuple]):
 				optimized.extend(filters)
 			else:
 
-				def _values() -> Generator[_Value]:
+				def _values() -> Generator[_Value, None, None]:
 					for f in filters:
 						# f.value is already narrowed to Val when we optimize over fully initialized FilterTuple
 						yield cast(_Value, f.value)  # = operator only is allowed to have _Value
@@ -294,4 +286,4 @@ class Filters(list[FilterTuple]):
 		return f"Filters(\n{filters_str}\n)"
 
 
-type FilterSignature = Filters | FilterTuple | FilterMappingSpec | FilterTupleSpec
+FilterSignature: TypeAlias = Filters | FilterTuple | FilterMappingSpec | FilterTupleSpec

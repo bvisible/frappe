@@ -104,6 +104,7 @@ def extract_javascript(code, keywords=None, options=None, lineno=1):
 	closing_operators = {"]", "}"}
 	all_container_operators = opening_operators.union(closing_operators)
 	dotted = any("." in kw for kw in keywords)
+	outer_calls = []
 
 	for token in tokenize(
 		code,
@@ -128,7 +129,26 @@ def extract_javascript(code, keywords=None, options=None, lineno=1):
 			yield from parse_template_string(token.value, keywords, options, token.lineno)
 
 		if token.type == "operator" and token.value == "(":
-			if funcname:
+			if call_stack >= 0 and last_token.type == "name" and last_token.value in keywords:
+				outer_calls.append(
+					(
+						funcname,
+						message_lineno,
+						messages,
+						last_argument,
+						concatenate_next,
+						call_stack,
+						tree_level,
+					)
+				)
+				funcname = last_token.value
+				message_lineno = token.lineno
+				messages = []
+				last_argument = None
+				concatenate_next = False
+				call_stack = 0
+				tree_level = 0
+			elif funcname:
 				message_lineno = token.lineno
 				call_stack += 1
 
@@ -155,11 +175,22 @@ def extract_javascript(code, keywords=None, options=None, lineno=1):
 				if messages is not None:
 					yield (message_lineno, funcname, messages)
 
-				funcname = message_lineno = last_argument = None
-				concatenate_next = False
-				messages = []
-				call_stack = -1
-				tree_level = 0
+				if outer_calls:
+					(
+						funcname,
+						message_lineno,
+						messages,
+						last_argument,
+						concatenate_next,
+						call_stack,
+						tree_level,
+					) = outer_calls.pop()
+				else:
+					funcname = message_lineno = last_argument = None
+					concatenate_next = False
+					messages = []
+					call_stack = -1
+					tree_level = 0
 
 			elif token.type in ("string", "template_string"):
 				new_value = unquote_string(token.value)
@@ -217,32 +248,40 @@ def parse_template_string(
 	:param options: a dictionary of additional options (optional)
 	:param lineno: starting line number (optional)
 	"""
-	from babel.messages.jslexer import line_re
-
 	prev_character = None
+	current_lineno = lineno
 	level = 0
-	inside_str = False
+	inside_expression_str = False
+	expression_lineno = lineno
 	expression_contents = ""
 	for character in template_string[1:-1]:
-		# //// Neoffice — quotes delimit strings only inside a ${…} expression. Upstream
-		# //// tracked them in the template's own text too, so a call sitting in an HTML
-		# //// attribute (placeholder="${__("Search a role")}") was taken for the inside of
-		# //// a string and never extracted, and the nightly PO regeneration dropped its
-		# //// translation (maintenance#866). An upstream candidate.
-		if level:
-			if not inside_str and character in ('"', "'", "`"):
-				inside_str = character
-			elif inside_str == character and prev_character != r"\\":
-				inside_str = False
-			expression_contents += character
-		if not inside_str:
+		if not level:
 			if character == "{" and prev_character == "$":
+				expression_lineno = current_lineno
 				level += 1
-			elif level and character == "}":
-				level -= 1
-				if level == 0 and expression_contents:
-					expression_contents = expression_contents[:-1]
-					yield from extract_javascript(expression_contents, keywords, options, lineno)
-					lineno += len(line_re.findall(expression_contents))
-					expression_contents = ""
+		else:
+			expression_contents += character
+
+			if inside_expression_str:
+				if inside_expression_str == character and prev_character != r"\\":
+					inside_expression_str = False
+			else:
+				if character in ('"', "'", "`"):
+					inside_expression_str = character
+				elif character == "{":
+					level += 1
+				elif character == "}":
+					level -= 1
+					if level == 0 and expression_contents:
+						expression_contents = expression_contents[:-1]
+						yield from extract_javascript(
+							expression_contents,
+							keywords,
+							options,
+							expression_lineno,
+						)
+						expression_contents = ""
+						inside_expression_str = False
+		if character == "\n":
+			current_lineno += 1
 		prev_character = character
