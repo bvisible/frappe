@@ -4,9 +4,9 @@
 ////
 //// Rewritten by 9999364ec6 (2025-10-28 "Refonte de l'interface utilisateur avec nouvelle
 //// sidebar et apps switcher", 28 files): new global sidebar (frappe/ui/sidebar.js) with the
-//// apps switcher (frappe/ui/apps_switcher.js, boot.app_data). About 60% of the rewritten
-//// lines are verbatim from frappe develop (v16) sidebar.scss at 6bf7d45e6e (2025-09-02
-//// "refactor: Sidebar") — an adapted backport, not a from-scratch design. Later commits are
+//// apps switcher (frappe/ui/apps_switcher.js, boot.app_data). The file is frappe develop's (v16)
+//// sidebar.scss as of 40823fd23f (2025-08-26), changed in three places only (sidebar background
+//// and shadow, where `height: 30px` sits, one comment line dropped). Later commits are
 //// marked inline: cc297ec402 (2025-11-03 sidebar to the right + mobile toggle), 4a7a95c48b
 //// (2025-12-15 xs breakpoint), a2d9d31c6e (2026-04-02), aa4938f2f0 / e995a72fc6 / 3767414d40
 //// (2026-04-24 "All Modules" section, "Active Module" subtitle, fade-in).
@@ -44,6 +44,8 @@
 
 body[data-route=""] .main-menu,
 body[data-route="desk"] .main-menu {
+	// //// Neoffice — upstream also forces .desk-sidebar (the workspace's own sidebar) visible here; frappe develop
+	// //// (40823fd23f, copied by 9999364ec6) dropped it: the global body-sidebar replaces that sidebar.
 	@extend .hide-form-sidebar;
 }
 
@@ -63,6 +65,10 @@ body[data-route^="Module"] .main-menu {
 	@extend .hide-form-sidebar;
 }
 
+// //// Neoffice ▼▼▼ from here to the end of the file: frappe develop's (v16) sidebar.scss as of 40823fd23f (2025-08-26
+// //// "fix: make icons subtle"), copied by 9999364ec6 (2025-10-28) for the global sidebar + apps switcher. Upstream v15
+// //// styles the old per-page sidebars here (.sidebar-menu, .form-sidebar, .layout-side-section, .list-sidebar, buttons,
+// //// popovers): those rules moved to form_sidebar.scss / list_sidebar.scss in the same commit. Local deltas marked inline.
 body {
 	display: flex;
 	flex-direction: row;
@@ -72,6 +78,7 @@ body {
 	position: relative;
 }
 
+// //// Neoffice — see the block marker above: the page scrolls inside .main-section, beside the sidebar column.
 .main-section {
 	width: 100%;
 	height: 100vh;
@@ -81,21 +88,28 @@ body {
 	scrollbar-gutter: stable;
 }
 
+// //// Neoffice — see the block marker above: the sidebar column, with a placeholder that keeps the page still when the
+// //// sidebar expands over it.
 .body-sidebar-container {
 	display: flex;
 	flex-direction: column;
 	height: fit-content;
 	width: fit-content;
 
+	// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 	.body-sidebar-placeholder {
 		display: none;
 		width: 50px;
 		height: 100vh;
 	}
+// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 }
 
+// //// Neoffice — see the block marker above: the collapsed sidebar, a 50 px icon rail (labels and controls hidden).
 .body-sidebar {
 	width: 50px;
+	// //// Neoffice — 9999364ec6's own delta from frappe develop: background var(--fg-color) and no shadow, where develop
+	// //// has var(--subtle-accent) and a 1px border-right (no rationale in the commit).
 	background: var(--fg-color);
 	box-shadow: none;
 
@@ -124,6 +138,7 @@ body {
 		// transition: width 200ms;
 	}
 
+	// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 	.body-sidebar-bottom {
 		overflow: hidden;
 		padding: 7px;
@@ -136,29 +151,35 @@ body {
 		font-weight: 500;
 		line-height: 16.1px;
 	}
+	// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 	.app-logo {
 		width: 32px;
 		height: 32px;
 	}
 
+	// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 	.divider {
 		margin: var(--margin-xs) 0;
 		border-top: 1px solid var(--divider-color);
 	}
 
+	// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 	.standard-sidebar-section {
 		margin-bottom: var(--margin-xl);
 		display: flex;
 		flex-direction: column;
 
+		// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 		&:last-of-type {
 			margin-bottom: var(--margin-sm);
 		}
 
+		// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 		&:first-child {
 			margin-top: 24px;
 		}
 
+		// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 		.sidebar-item-container {
 			width: 30px;
 			margin-bottom: 2px;
@@ -174,6 +195,7 @@ body {
 	// is collapsed; revealed by the body-sidebar-expanded mixin.
 	.standard-sidebar-label {
 		display: none;
+		// //// Neoffice — see the 2026-04-24 marker above ("All Modules" section, "Active Module" subtitle).
 		font-size: 10px;
 		font-weight: 600;
 		letter-spacing: 0.5px;
@@ -183,6 +205,7 @@ body {
 		margin-bottom: 8px;
 	}
 
+	// //// Neoffice — see the 2026-04-24 marker above ("All Modules" section, "Active Module" subtitle).
 	// The module mirror section only makes sense in the expanded sidebar.
 	// Hidden entirely when collapsed — the app-switcher dropdown already
 	// offers module switching in that state.
@@ -190,12 +213,14 @@ body {
 		display: none;
 	}
 
+	// //// Neoffice — see the 2026-04-24 marker above ("All Modules" section, "Active Module" subtitle).
 	.modules-section .app-logo {
 		width: 16px;
 		height: 16px;
 		object-fit: contain;
 	}
 
+	// //// Neoffice — see the 2026-04-24 marker above ("All Modules" section, "Active Module" subtitle).
 	// Two-line header inside the app-switcher: module title + "Active module"
 	// subtitle. Always anchored to the left edge, independent of the
 	// expanded-state flex rules that would otherwise center the children.
@@ -221,6 +246,8 @@ body {
 		line-height: 14px;
 		color: var(--text-muted);
 	}
+	// //// Neoffice — removed here (9999364ec6): upstream's .layout-side-section .sidebar-label .icon rule, part of the
+	// //// old per-page sidebar; now in form_sidebar.scss.
 
 	.standard-sidebar-item {
 		display: flex;
@@ -229,23 +256,27 @@ body {
 		.sidebar-item-control {
 			display: none;
 
+			// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 			> * {
 				align-self: center;
 				// margin-left: 3px;
 				// box-shadow: none;
 			}
 
+			// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 			.drop-icon {
 				width: 28px;
 				height: 28px;
 				padding: 6px;
 			}
 
+			// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 			svg {
 				margin: -4px;
 			}
 		}
 
+		// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 		.sidebar-item-label {
 			display: none;
 			font-size: var(--text-md);
@@ -262,16 +293,22 @@ body {
 			// padding: 3px 0px 3px 11px;
 			flex: 1;
 
+			// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 			&:hover {
 				text-decoration: none !important;
 			}
+			// //// Neoffice — removed here (9999364ec6): upstream's .layout-side-section div.close-sidebar backdrop, now in
+			// //// form_sidebar.scss.
 
 			.sidebar-item-icon {
 				padding: 7px;
 
+				// //// Neoffice — 9999364ec6's own delta from frappe develop: height: 30px moved here from .item-anchor, so the
+				// //// anchor is no longer fixed at 30 px (no rationale in the commit).
 				width: 30px;
 				height: 30px;
 
+				// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 				svg {
 					width: 16px;
 					height: 16px;
@@ -280,6 +317,7 @@ body {
 		}
 	}
 
+	// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 	.collapse-sidebar-link {
 		width: 2px;
 		height: 12px;
@@ -292,10 +330,12 @@ body {
 		}
 	}
 
+	// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 	.collapse-sidebar-link svg {
 		visibility: visible;
 	}
 
+	// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 	.sidebar-item-container {
 		width: 30px;
 		position: relative;
@@ -314,6 +354,7 @@ body {
 			}
 		}
 	}
+// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 }
 
 @mixin body-sidebar-expanded {
@@ -336,6 +377,7 @@ body {
 		}
 		.sidebar-item-label {
 			display: flex;
+			// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 			align-items: center;
 		}
 		//// Neoffice — expanded-state counterparts of the 2026-04-24 additions: section labels
@@ -349,6 +391,8 @@ body {
 		.sidebar-item-control {
 			display: block;
 		}
+		// //// Neoffice — removed here (9999364ec6): the end of upstream's .list-sidebar .dropdown-menu rules, now in
+		// //// list_sidebar.scss.
 
 		.sidebar-items {
 			padding: 0px;
@@ -363,11 +407,13 @@ body {
 		}
 	}
 
+	// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 	// show placeholder so that main section remains static
 	.body-sidebar-placeholder {
 		display: flex;
 		width: var(--left-sidebar-width);
 	}
+// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 }
 
 .body-sidebar-container.expanded {
@@ -390,6 +436,7 @@ body {
 		opacity: 1;
 		transform: translateX(0);
 	}
+// //// Neoffice — see the 3767414d40 marker above (fade-in of the expanded sidebar's labels).
 }
 
 .body-sidebar-container.expanded .body-sidebar .sidebar-item-label,
@@ -409,10 +456,13 @@ body {
 			width: 0px;
 			overflow: hidden;
 		}
+		// //// Neoffice — same commit 4a7a95c48b: the placeholder is hidden as well below xs (frappe develop keeps it).
 		.body-sidebar-placeholder {
 			display: none !important;
 		}
 	}
+	// //// Neoffice — removed here (9999364ec6): the closing brace of upstream's .list-sidebar block, whose rules are now
+	// //// in list_sidebar.scss.
 
 	// expands when navbar-brand is clicked
 	.body-sidebar-container.expanded {
@@ -436,6 +486,7 @@ body {
 			background-color: rgba(128, 128, 128, 0.5);
 		}
 
+		// //// Neoffice — see the 4a7a95c48b marker above; the rules themselves are frappe develop's (via 9999364ec6).
 		// acts a overlay when in mobile view
 		.body-sidebar-placeholder {
 			display: flex;
@@ -444,6 +495,9 @@ body {
 	}
 }
 
+// //// Neoffice ▼▼▼ apps switcher, down to .app-item: verbatim from frappe develop's sidebar.scss at 40823fd23f (copied
+// //// by 9999364ec6); develop moved these rules out of this file two days later (789804adb2 "refactor: Sidebar
+// //// Header"). Upstream v15 has no apps switcher.
 .app-switcher-dropdown {
 	position: relative;
 	text-decoration: none;
@@ -464,6 +518,8 @@ body {
 		margin-right: 0px;
 	}
 }
+// //// Neoffice — removed here (9999364ec6): upstream's .form-tag-row display and .explore-link rules, now in
+// //// form_sidebar.scss.
 
 .app-switcher-menu {
 	position: absolute;
@@ -477,22 +533,28 @@ body {
 	z-index: 1;
 }
 
+// //// Neoffice — see the apps-switcher block marker above.
 .app-item {
 	// padding: var(--padding-xs);
 	border-radius: var(--border-radius-tiny);
 	opacity: 0px;
 	&:hover {
+		// //// Neoffice — see the apps-switcher block marker above.
 		background-color: var(--sidebar-hover-color);
 	}
+	// //// Neoffice — removed here (9999364ec6): upstream's &:focus rule of the form-sidebar buttons (assignment,
+	// //// attachment, tags, share), now in form_sidebar.scss.
 
 	a {
 		width: 208px;
 		height: 28px;
+		// //// Neoffice — see the apps-switcher block marker above.
 		padding: 6px 8px 6px 8px;
 		gap: 8px;
 		text-decoration: none;
 		display: flex;
 		align-items: center;
+		// //// Neoffice — see the apps-switcher block marker above.
 		gap: var(--margin-sm);
 		.sidebar-item-icon {
 			line-height: 0px;
@@ -502,6 +564,8 @@ body {
 			}
 		}
 	}
+	// //// Neoffice — removed here (9999364ec6): upstream's .form-reviews and .review-popover rules, not carried over:
+	// //// the redesigned form sidebar has no review section (form_sidebar.js no longer imports review.js).
 
 	.app-item-title {
 		text-overflow: ellipsis;
@@ -509,12 +573,15 @@ body {
 		overflow: hidden;
 	}
 }
+// //// Neoffice — see the block marker above (frappe develop 40823fd23f, via 9999364ec6): hover / active states of
+// //// the sidebar items and the mobile .overlay; upstream v15 has review / liked-by popovers and tags rules here.
 // sidebar-item states
 @mixin hover-mixin {
 	background-color: var(--sidebar-hover-color);
 	border-radius: 8px;
 }
 
+// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 .hover {
 	@include hover-mixin();
 }
@@ -527,6 +594,7 @@ body {
 	box-shadow: var(--shadow-sm);
 	border-radius: 8px;
 }
+// //// Neoffice — see the block marker above (frappe develop's sidebar.scss at 40823fd23f, via 9999364ec6).
 .overlay {
 	display: none;
 }

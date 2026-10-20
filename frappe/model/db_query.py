@@ -952,6 +952,8 @@ from {tables}
 
 		to_remove = []
 		for fld in self.fields:
+			# //// Neoffice — whole-name match instead of upstream's `f in fld` (44d65e5eaa 2026-09-04
+			# //// "fix(db_query): optional columns are matched by whole name, not substring"), see above
 			to_remove.extend(
 				fld for f in optional_fields if _names_optional_column(fld, f) and f not in self.columns
 			)

@@ -161,6 +161,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this.input = this.$input.get(0);
 		this.options = [];
 		this.global_results = [];
+		//// Neoffice — panel state (417d4f52cf, request id 25562da1fa): keyboard selection, typed text,
+		//// analytics profile (dba8b1fd89). Upstream keeps only options / global_results.
 		this._search_id = 0;
 		this._search_pending = false;
 		this._selected = -1;
@@ -176,6 +178,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		frappe.search.AwesomeBar._instances.push(this);
 	}
 
+	//// Neoffice — the mega panel, appended to <body> (417d4f52cf); upstream renders an Awesomplete list.
 	// ── Panel creation ─────────────────────────────────────
 	_create_panel() {
 		this.$panel = $(`<div class="search-mega-panel"></div>`);
@@ -199,6 +202,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		const rect = this.$input.get(0).getBoundingClientRect();
 		const vw = window.innerWidth;
 
+		//// Neoffice — responsive widths (d39cf14bf1), see the marker above _position_panel().
 		// Responsive width: larger on wide screens
 		let panel_width;
 		if (vw >= 1400) {
@@ -211,10 +215,12 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			panel_width = vw - 24; // Mobile: full width with margin
 		}
 
+		//// Neoffice — centred under the input, kept 12px inside the viewport (dba8b1fd89 / d39cf14bf1).
 		// Center under search bar
 		let left = rect.left + rect.width / 2 - panel_width / 2;
 		left = Math.max(12, Math.min(left, vw - panel_width - 12));
 
+		//// Neoffice — fixed under the input, 18px gap for the floating input (b73d9fe958).
 		this.$panel.css({
 			top: rect.bottom + 18,
 			left: left,
@@ -228,6 +234,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 	_bind_events() {
 		const me = this;
 
+		//// Neoffice — input → _handle_input, 150 ms debounce (417d4f52cf); upstream (100 ms) rebuilt the
+		//// Awesomplete options inline here.
 		this.$input.on(
 			"input",
 			frappe.utils.debounce(function (e) {
@@ -235,6 +243,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			}, 150)
 		);
 
+		//// Neoffice — focus: home state on an empty input, else reopen the panel (dba8b1fd89, b54cc07267).
+		//// Replaces upstream's open_recent + awesomplete-open / -close / -select / -selectcomplete handlers:
+		//// the panel selects (_select_item) and closes (_close) itself.
 		this.$input.on("focus", () => {
 			const val = this.$input.val().trim();
 			if (!val) {
@@ -246,6 +257,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			}
 		});
 
+		//// Neoffice — keydown → _handle_keydown (417d4f52cf); upstream's Awesomplete open / close / select
+		//// handlers that stood here are gone, see the focus marker above.
 		this.$input.on("keydown", (e) => this._handle_keydown(e));
 
 		//// Neoffice — dba8b1fd89 (outside-click close), fcd1372a1e (2026-04-07 keep open on preview-dialog
@@ -265,6 +278,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 				this._close();
 			}
 		});
+		//// Neoffice — end of _bind_events (417d4f52cf), see the markers above.
 	}
 
 	//// Neoffice — 417d4f52cf: replaces the upstream input handler (set_specifics / add_defaults /
@@ -456,10 +470,12 @@ frappe.search.AwesomeBar = class AwesomeBar {
 				label = __(rest[0]);
 				icon = "grid";
 				rtype = __("Workspace");
+				//// Neoffice — see the _get_route_history marker above (37d3dffb79): any other route is skipped.
 			} else {
 				continue;
 			}
 
+			//// Neoffice — eight entries at most (37d3dffb79).
 			results.push({ label, icon, type: rtype, route });
 			if (results.length >= 8) break;
 		}
@@ -588,6 +604,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			} catch (e) {
 				console.warn("Search provider error:", e);
 			}
+			//// Neoffice — see the _run_providers marker above (maintenance#822).
 		}
 		return out;
 	}
@@ -669,6 +686,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			return;
 		}
 
+		//// Neoffice — request id, loading flag and closed / changed-query guards (25562da1fa, 6645876a0b);
+		//// limit 50 (e9da79644d). See the marker above _search_global().
 		const search_id = ++this._search_id;
 		this._search_pending = true;
 
@@ -1387,6 +1406,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 				) {
 					option.route.splice(2);
 				}
+				//// Neoffice — upstream's test, line-wrapped (417d4f52cf); the blank line above it dropped.
 				var str_route =
 					typeof option.route === "string"
 						? option.route
@@ -1418,6 +1438,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		// Plain numbers like "12.00" are amount searches, not calculations
 		if (!this._is_math_expression(txt)) return;
 
+		//// Neoffice — upstream strips "=" from `txt` itself; ours works on a copy (f131a66b4a), then the
+		//// same eval + msgprint, one level less indented (no enclosing first-character test).
 		let expr = txt;
 		if (expr.charAt(0) === "=") {
 			expr = expr.substr(1);
@@ -1477,6 +1499,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 					frappe.utils.xss_sanitise(txt).bold(),
 					__(route[1]).bold(),
 				]),
+				//// Neoffice — upstream's value, line-wrapped (417d4f52cf).
 				value: __("Find {0} in {1}", [
 					frappe.utils.xss_sanitise(txt),
 					__(route[1]),
@@ -1528,13 +1551,18 @@ frappe.search.AwesomeBar = class AwesomeBar {
 				score = 55;
 			}
 
+			//// Neoffice — see the DocType action block marker above: the best score wins (8822b0ef36), an
+			//// exact name stops the scan (6077ad4203).
 			if (score > best_score) { best_match = dt; best_score = score; }
 			if (best_score === 100) break;
 		}
 
+		//// Neoffice — threshold 50 (6077ad4203): below it no DocType action is offered.
 		return best_score >= 50 ? best_match : null;
 	}
 
+	//// Neoffice — added (f9980ea85c 2026-06-15 "'Create X' action opens the Quick Entry"): a create verb
+	//// (FR + EN) followed by a DocType name offers "Create <DocType>" when the user may create it.
 	// ── Create action (type "créer client" / "new customer" → Quick Entry) ──
 	_make_create_action(txt) {
 		if (!txt || txt.length < 5) return;
@@ -1545,6 +1573,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		for (const v of verbs) {
 			if (txt_lower.startsWith(v)) { rest = txt_lower.slice(v.length).trim(); break; }
 		}
+		//// Neoffice — see the _make_create_action marker above (f9980ea85c).
 		if (!rest || rest.length < 2) return;
 
 		const doctype = this._best_doctype_match(rest);
@@ -1566,6 +1595,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		});
 	}
 
+	//// Neoffice — added: "View all <DocType>" first in the panel (8822b0ef36 / 2fb7b98d18). The diff
+	//// pairs this with the end of upstream's class and its route helpers (first_route, is_in_app_path…),
+	//// which this file does not carry; see the file header.
 	_make_doctype_action(txt) {
 		const doctype = this._best_doctype_match(txt);
 		if (!doctype) return;
@@ -1579,14 +1611,18 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			default: "DocTypeAction",
 		});
 
+		//// Neoffice — help for the searched DocType (8622b76fa3 2026-04-05).
 		// Load help context for the MATCHED DocType (not just the current page)
 		this._load_help_for_doctype(doctype);
 
+		//// Neoffice — recent records of the matched DocType (b73d9fe958 2026-06-15).
 		// Load recent records of the matched DocType so the user sees actual
 		// entries (e.g. typing "document scan" surfaces the latest Document Scans)
 		this._load_doctype_records(doctype);
 	}
 
+	//// Neoffice — added (b73d9fe958 2026-06-15): the five latest records of the matched DocType, fetched
+	//// once per DocType, the panel re-rendered when they arrive.
 	// ── Load recent records of the matched DocType ─────────
 	_load_doctype_records(doctype) {
 		// Skip if already loading or already loaded for this DocType
@@ -1618,6 +1654,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		});
 	}
 
+	//// Neoffice — added (8622b76fa3, own cache e72cb6ad20 2026-04-05): help for the searched DocType,
+	//// through neoffice_theme.api.get_help_context (call caught: optional app).
 	// ── Load help for a specific DocType (used by DocType action) ──
 	// ── Load help for SEARCHED DocType (left column) ──────
 	_load_help_for_doctype(doctype) {
@@ -1644,6 +1682,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			return;
 		}
 
+		//// Neoffice — see the _make_document_link marker above (b6f135ea30, 6645876a0b).
 		const me = this;
 		const request_id = ++frappe.search.AwesomeBar._resolve_request_id;
 

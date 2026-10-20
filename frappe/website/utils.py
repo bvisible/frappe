@@ -531,6 +531,8 @@ def cache_html(func):
 		if can_cache():
 			html = None
 			page_cache = frappe.cache.hget("website_page", args[0].path)
+			# //// Neoffice — read under cache_sub_key, upstream under frappe.local.lang (7e662a90ec 2026-07-08
+			# //// "feat(multi-site): website_page cache keyed by website profile + per-profile robots.txt")
 			if page_cache and cache_sub_key in page_cache:
 				html = page_cache[cache_sub_key]
 			if html:
@@ -540,6 +542,7 @@ def cache_html(func):
 		context = args[0].context
 		if can_cache(context.no_cache):
 			page_cache = frappe.cache.hget("website_page", args[0].path) or {}
+			# //// Neoffice — written under cache_sub_key, upstream under frappe.local.lang (7e662a90ec, see above)
 			page_cache[cache_sub_key] = html
 			frappe.cache.hset("website_page", args[0].path, page_cache)
 

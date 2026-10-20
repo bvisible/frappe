@@ -1,3 +1,8 @@
+# //// Neoffice — added file (no upstream equivalent): a one-off DEBUG script, not a test (11b57094e7
+# //// 2025-11-14 "feat: Support icon name resolution in App Customization", which does not mention it). It
+# //// prints how get_workspace_sidebar_items() would pick and sort the App Customization workspaces of
+# //// "Selling", asserts nothing, and calls frappe.connect() without frappe.init(). Nothing imports it.
+# //// TO REVIEW: delete it.
 import frappe
 
 def test_sidebar_sorting():

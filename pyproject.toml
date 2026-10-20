@@ -95,6 +95,9 @@ dependencies = [
     "posthog~=3.21.0",
     "vobject~=0.9.7",
 
+    # //// Neoffice — added dependency, absent from upstream version-15 (c64ffb849d 2025-09-25 "feat: Chrome PDF
+    # //// generator", cherry-picked from frappe develop 964dd6c034): utils/pdf_generator/cdp_connection.py
+    # //// drives headless Chrome over its DevTools websocket.
     # PDF generation (Chrome PDF generator backport from v16)
     "websockets~=15.0.1",
 ]

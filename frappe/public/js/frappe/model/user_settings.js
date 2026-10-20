@@ -49,11 +49,13 @@ $.extend(frappe.model.user_settings, {
 			args: {
 				doctype: doctype,
 				user_settings: user_settings,
+				//// Neoffice — added argument (c3b448ae32): see the marker above update().
 				sync_immediately: sync_immediately,
 			},
 			callback: function (r) {
 				frappe.model.user_settings[doctype] = r.message;
 			},
+			//// Neoffice — added callback (c3b448ae32): upstream has none, a failed save went unnoticed.
 			error: function (r) {
 				console.error("Failed to save user settings:", r);
 				frappe.show_alert({

@@ -316,12 +316,17 @@ class EMail:
 			message_id = "<" + message_id + ">"
 		else:
 			message_id = get_message_id()
+			# //// Neoffice — upstream sets the non-standard `isnotification: <notification>` header here and
+			# //// below; ours sets the RFC 3834 `Auto-Submitted` and Exchange's `X-Auto-Response-Suppress`
+			# //// (6c17f3c478 2026-02-03 "fix: Use RFC 3834 Auto-Submitted header instead of custom
+			# //// Isnotification"). receive.py reads both the new and the legacy header.
 			# RFC 3834: Mark auto-generated emails to prevent mail loops
 			self.set_header("Auto-Submitted", "auto-generated")
 			# Microsoft Exchange: Suppress out-of-office replies
 			self.set_header("X-Auto-Response-Suppress", "All")
 
 		if is_notification:
+			# //// Neoffice — same two headers instead of `isnotification` (6c17f3c478, see above)
 			# RFC 3834: Mark auto-generated emails to prevent mail loops
 			self.set_header("Auto-Submitted", "auto-generated")
 			# Microsoft Exchange: Suppress out-of-office replies
@@ -669,10 +674,6 @@ def get_filecontent_from_path(path):
 	if path.startswith("/"):
 		path = path[1:]
 
-	# //// Neoffice — backport of upstream 16e8b41584 (v15.117.0, GHSA-8v98-cfpm-9p67): an image path of an outgoing
-	# //// mail is read only from the assets or the site's files folders. Any other path, an absolute one included,
-	# //// was read from the disk and sent inline: any file the server can read. Drop at the next merge of upstream
-	# //// version-15 (neoffice-maintenance#1748).
 	if path.startswith("assets/"):
 		# from public folder
 		base_path = os.path.abspath("assets")

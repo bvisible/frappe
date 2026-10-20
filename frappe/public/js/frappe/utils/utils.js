@@ -550,6 +550,7 @@ Object.assign(frappe.utils, {
 			) {
 				style = "danger";
 				colour = "red";
+			//// Neoffice — see the guess_style block marker above: warning now comes after danger, EN + FR.
 			// Orange/Warning statuses (English + French)
 			} else if (has_words(["Pending", "Review", "Medium", "Not Approved",
 				"Unpaid", "To Deliver", "To Bill", "To Deliver and Bill", "To Receive", "To Receive and Bill",
@@ -566,6 +567,7 @@ Object.assign(frappe.utils, {
 			} else if (
 				has_words(
 					[
+						//// Neoffice — upstream's twelve words (one per line), plus transaction states, FR and Submitted.
 						"Closed", "Finished", "Converted", "Completed", "Complete",
 						"Confirmed", "Approved", "Yes", "Active", "Available",
 						"Paid", "Success", "Ordered", "Delivered", "Invoiced",
@@ -579,11 +581,13 @@ Object.assign(frappe.utils, {
 			) {
 				style = "success";
 				colour = "green";
+			//// Neoffice — upstream's blue branch held only "Submitted" (now green, 6dd4d68b40); see above.
 			// Blue/Info statuses (English + French)
 			} else if (has_words(["In Payment Run", "In Progress",
 				"En cours de paiement", "En cours"], text)) {
 				style = "info";
 				colour = "blue";
+			//// Neoffice — added gray branch (1e5d61ef19, Draft moved here by 6dd4d68b40); see above.
 			// Gray statuses (English + French)
 			} else if (has_words(["Return", "Credit Note Issued", "Debit Note Issued", "Lost", "On Hold", "Draft",
 				"Retour", "Note de crédit émise", "Note de débit émise", "Perdu", "En attente", "Brouillon"], text)) {
@@ -1024,17 +1028,21 @@ Object.assign(frappe.utils, {
 		if (column.column.disable_total) {
 			return "";
 		} else if (values.length > 0) {
+			//// Neoffice — `fieldtype` instead of column.column.fieldtype in the tests below (05fa2cfeb7).
 			if (fieldtype == "Percent" || type === "mean") {
 				return values.reduce((a, b) => flt(a) + flt(b)) / values.length;
 			} else if (fieldtype == "Int") {
 				return values.reduce((a, b) => cint(a) + cint(b));
+				//// Neoffice — `fieldtype` instead of column.column.fieldtype (05fa2cfeb7).
 			} else if (frappe.model.is_numeric_field(fieldtype)) {
 				return values.reduce((a, b) => flt(a) + flt(b));
 			} else {
+				//// Neoffice — upstream: `return null;` for a non-numeric column (56eec2a31f).
 				// Return empty string for non-numeric fields (e.g., Status, Select, Link)
 				return "";
 			}
 		} else {
+			//// Neoffice — upstream: `return null;` for an empty dataset (56eec2a31f).
 			return "";
 		}
 	},

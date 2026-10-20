@@ -4,15 +4,15 @@
 //// Upstream v15 frappe.ui.Sidebar is a 70-line generic list helper (wrapper / css_class,
 //// add_item, remove_item, get_section; the leading frappe.provide("frappe.ui") was dropped too).
 //// This file is the v16-style workspace sidebar: an ADAPTED BACKPORT of frappe develop
-//// frappe/public/js/frappe/ui/sidebar/sidebar.js at 6bf7d45e6e (2025-09-02 "refactor: Sidebar" —
-//// 25 of our 33 methods and ~50% of the lines are verbatim from it), brought in by 9999364ec6
+//// frappe/public/js/frappe/ui/sidebar.js at b756fb2803 (2025-08-04, same content as 377e3640af;
+//// the later 6bf7d45e6e "refactor: Sidebar" moved it to ui/sidebar/), brought in by 9999364ec6
 //// (2025-10-28 "Refonte de l'interface utilisateur avec nouvelle sidebar et apps switcher", 28
 //// files) together with sidebar.html, apps_switcher.js and scss/desk/sidebar.scss (all marked).
 //// It renders frappe.boot.sidebar_pages as a collapsible workspace tree (sidebar.html template,
 //// Sortable ordering saved through workspace_settings.set_sequence) and builds the data maps
 //// workspace.js consumes (frappe.workspaces / workspace_list / workspace_map).
-//// Methods with no develop counterpart: setup_route_listener, expand_parent_item, is_nested_item,
-//// get_sidebar_item, close_children_item (9999364ec6); get_app_from_current_route (84b6f7a10b);
+//// Methods with no develop counterpart: setup_route_listener (9999364ec6; expand_parent_item,
+//// is_nested_item, get_sidebar_item, close_children_item are develop's); get_app_from_current_route (84b6f7a10b);
 //// build_modules_section / append_module_item (aa4938f2f0). Neoffice-only layers, marked inline:
 ////   - set_default_app / frappe.current_app + apps switcher + neoffice_theme logo (9999364ec6),
 ////     app resolved from the route via boot.workspace_to_app_map (84b6f7a10b, 2025-11-09),
@@ -34,6 +34,9 @@ frappe.ui.Sidebar = class Sidebar {
 	constructor({ headless = false } = {}) {
 		this.headless = headless;
 		this.items = {};
+		//// Neoffice — constructor body: frappe develop's ui/sidebar.js (b756fb2803, 2025-08-04, brought in by
+		//// 9999364ec6) plus the headless guards (d0268ef91a) and setup_route_listener() (ours, 9999364ec6: it
+		//// re-highlights the active workspace on every route change). Upstream v15 only calls make_dom().
 		this.parent_items = [];
 		this.sidebar_expanded = false;
 
@@ -166,6 +169,7 @@ frappe.ui.Sidebar = class Sidebar {
 		frappe.frappe_toolbar.set_app_logo("/assets/neoffice_theme/images/neoffice_logo.svg");
 	}
 
+	//// Neoffice — set_active_workspace_item: develop's (b756fb2803, via 9999364ec6); no v15 equivalent.
 	set_active_workspace_item() {
 		if (!frappe.get_route()) return;
 		let current_route = frappe.get_route();
@@ -192,10 +196,12 @@ frappe.ui.Sidebar = class Sidebar {
 		}
 		if (!this.sidebar_expanded) this.close_children_item();
 	}
+	//// Neoffice — expand_parent_item, is_nested_item, get_sidebar_item: develop's (b756fb2803, via 9999364ec6).
 	expand_parent_item(item) {
 		let parent_title = item.attr("item-parent");
 		if (!parent_title) return;
 
+		//// Neoffice — develop's code, see the marker above expand_parent_item.
 		let parent = this.get_sidebar_item(parent_title);
 		if (parent) {
 			let $drop_icon = $(parent).find(".drop-icon");
@@ -385,12 +391,14 @@ frappe.ui.Sidebar = class Sidebar {
 
 		if (!apps.length) return;
 
+		//// Neoffice — the "All Modules" section and its heading (ours, aa4938f2f0, see the marker above the method).
 		const $section = $(
 			`<div class="standard-sidebar-section modules-section" data-title="Modules">
 				<div class="standard-sidebar-label">${__("All Modules")}</div>
 			</div>`
 		);
 
+		//// Neoffice — one entry per app, in the sort order above (aa4938f2f0).
 		for (const app of apps) {
 			this.append_module_item(app, $section);
 		}
@@ -398,6 +406,8 @@ frappe.ui.Sidebar = class Sidebar {
 		$section.appendTo($items_container);
 	}
 
+	//// Neoffice — added (aa4938f2f0): one module entry (app logo, translated title); a click goes through
+	//// apps_switcher.set_current_app, then to the app's route.
 	append_module_item(app, $section) {
 		const is_active = app.app_name === frappe.current_app;
 		const route = app.app_route || "/app";
@@ -434,6 +444,7 @@ frappe.ui.Sidebar = class Sidebar {
 		$item.appendTo($section);
 	}
 
+	//// Neoffice — prepare_sidebar, toggle_sidebar, expand_sidebar: develop's (b756fb2803, via 9999364ec6).
 	prepare_sidebar(items, child_container, item_container) {
 		let last_item = null;
 		for (let item of items) {
@@ -467,6 +478,8 @@ frappe.ui.Sidebar = class Sidebar {
 			// this.sidebar_expanded = true
 			direction = "right";
 		}
+		//// Neoffice — es-line-arrow-* below instead of develop's icon-arrow-*-to-line, which v15's icon sprites lack
+		//// (9999364ec6).
 		localStorage.setItem("sidebar-expanded", this.sidebar_expanded);
 		this.wrapper
 			.find(".body-sidebar .collapse-sidebar-link")
@@ -474,6 +487,7 @@ frappe.ui.Sidebar = class Sidebar {
 			.attr("href", `#es-line-arrow-${direction}`);
 	}
 
+	//// Neoffice — append_item: develop's (b756fb2803, via 9999364ec6).
 	append_item(item, container) {
 		let is_current_page = false;
 
@@ -508,8 +522,10 @@ frappe.ui.Sidebar = class Sidebar {
 		if (child_items.length > 0) {
 			$item_container.find(".drop-icon").first().addClass("show-in-edit-mode");
 		}
+		//// Neoffice — end of develop's append_item (b756fb2803).
 	}
 
+	//// Neoffice — sidebar_item_container: develop's (b756fb2803, via 9999364ec6).
 	sidebar_item_container(item) {
 		item.indicator_color =
 			item.indicator_color || this.indicator_colors[Math.floor(Math.random() * 12)];
@@ -535,6 +551,7 @@ frappe.ui.Sidebar = class Sidebar {
 			}
 		}
 
+		//// Neoffice — develop's item template (b756fb2803, via 9999364ec6), unchanged.
 		return $(`
 			<div
 				class="sidebar-item-container ${item.is_editable ? "is-draggable" : ""}"
@@ -566,6 +583,8 @@ frappe.ui.Sidebar = class Sidebar {
 		`);
 	}
 
+	//// Neoffice — add_toggle_children, toggle_sorting, setup_sorting, close_sidebar, open_sidebar: develop's
+	//// (b756fb2803, via 9999364ec6).
 	add_toggle_children(item, sidebar_control, item_container) {
 		let drop_icon = "es-line-down";
 		if (
@@ -655,6 +674,8 @@ frappe.ui.Sidebar = class Sidebar {
 		this.set_active_workspace_item();
 	}
 
+	//// Neoffice — close_children_item, reload, set_height, handle_outside_click, prevent_scroll: develop's
+	//// (b756fb2803, via 9999364ec6).
 	close_children_item() {
 		this.parent_items.forEach((i) => {
 			if (!$($(i).children()[1]).hasClass("hidden")) $(i).find(".drop-icon").click();

@@ -1,12 +1,17 @@
 const path = require("path");
 const fs = require("fs");
 const chalk = require("chalk");
+//// Neoffice — upstream sets bench_path to FRAPPE_BENCH_ROOT or else two levels above the frappe app.
+//// Ours (9999364ec6 2025-10-28 "Refonte de l'interface utilisateur…", item "improve the bench path
+//// detection for symlinked apps"): same two sources first, then the frappe repo's sibling directories and
+//// up to five parents, keeping the first one that holds sites/apps.txt; falls back to upstream's path.
 function find_bench_path() {
 	// First check environment variable
 	if (process.env.FRAPPE_BENCH_ROOT) {
 		return process.env.FRAPPE_BENCH_ROOT;
 	}
 
+	//// Neoffice — see the marker above find_bench_path(): upstream's default path, now checked for sites/apps.txt.
 	// Try default path from frappe location
 	const frappe_path = path.resolve(__dirname, "..");
 	let test_path = path.resolve(frappe_path, "..", "..");
@@ -49,6 +54,7 @@ function find_bench_path() {
 	return test_path;
 }
 
+//// Neoffice — upstream: `let bench_path;` assigned by an if/else; see find_bench_path() above.
 const bench_path = find_bench_path();
 const apps_path = path.resolve(bench_path, "apps");
 const sites_path = path.resolve(bench_path, "sites");

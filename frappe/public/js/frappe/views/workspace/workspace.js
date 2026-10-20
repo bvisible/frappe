@@ -174,6 +174,7 @@ frappe.views.Workspace = class Workspace {
 				</svg>
 				<span class="hidden-xs" data-label="New">${__("New")}</span>
 			</button>
+			<!-- //// Neoffice — Edit button: upstream's mr-2 dropped (the header bar's flex gap spaces the buttons) and the double space in the svg class collapsed (388383af3a) -->
 			<button class="btn btn-default btn-sm btn-edit-workspace" data-label="Edit">
 				<svg class="es-icon es-line icon-xs" style="" aria-hidden="true">
 					<use class="" href="#es-line-edit"></use>
@@ -181,6 +182,7 @@ frappe.views.Workspace = class Workspace {
 				<span class="hidden-xs" data-label="Edit">${__("Edit")}</span>
 			</button>
 		</div>
+		<!-- //// Neoffice — the editor container now comes after the header bar; upstream renders it first, above the footer (388383af3a) -->
 		<div class="editor-js-container"></div>
 	`).appendTo(this.body);
 
@@ -275,6 +277,7 @@ frappe.views.Workspace = class Workspace {
 				item-is-hidden="${item.is_hidden || 0}"
 			>
 				<div class="desk-sidebar-item standard-sidebar-item ${item.selected ? "selected" : ""}">
+					<!-- //// Neoffice — the href below reads the link const built above (item.custom_link, 755884e049) -->
 					<a
 						href="/app/${link}"
 						class="item-anchor ${item.is_editable ? "" : "block-click"}" title="${__(item.title)}"
@@ -330,6 +333,7 @@ frappe.views.Workspace = class Workspace {
 		});
 
 		// Scroll sidebar to selected page if it is not in viewport.
+		//// Neoffice — $sidebar, not upstream's this.sidebar: see the top of make_sidebar (9999364ec6).
 		$sidebar.find(".selected").length &&
 			!frappe.dom.is_element_in_viewport($sidebar.find(".selected")) &&
 			$sidebar.find(".selected")[0].scrollIntoView();
@@ -482,6 +486,7 @@ frappe.views.Workspace = class Workspace {
 		}
 
 		$drop_icon.on("click", () => {
+			//// Neoffice — re-read on each click to save the open/closed state (c3a2678c23, see the marker above).
 			let existingArray = JSON.parse(localStorage.getItem("list_sidebar_open") || '[]');
 			let icon =
 				$drop_icon.find("use").attr("href") === "#es-line-down"
@@ -605,6 +610,7 @@ frappe.views.Workspace = class Workspace {
 			};
 		} else if (
 			localStorage.current_page &&
+			//// Neoffice — by NAME in the global sidebar's pages; upstream: this.all_pages by title (0634af137c, see above).
 			this.sidebar.all_pages.filter((page) => page.name == localStorage.current_page)
 				.length != 0
 		) {
@@ -613,6 +619,7 @@ frappe.views.Workspace = class Workspace {
 				public: localStorage.is_current_page_public != "false",
 			};
 		} else if (Object.keys(this.sidebar.all_pages).length !== 0) {
+			//// Neoffice — the global sidebar's first page, by name; upstream: this.all_pages[0].title (0634af137c).
 			default_page = {
 				name: this.sidebar.all_pages[0].name,
 				public: this.sidebar.all_pages[0].public,
@@ -646,6 +653,7 @@ frappe.views.Workspace = class Workspace {
 		if (this.sidebar.all_pages.length) {
 			this.create_page_skeleton();
 
+			//// Neoffice — by NAME in the global sidebar's all_pages; upstream: public_pages / private_pages by title.
 			let current_page = this.sidebar.all_pages.find((p) => p.name == page.name);
 			this._page = current_page;
 
@@ -1426,11 +1434,13 @@ frappe.views.Workspace = class Workspace {
 		let pages = is_public ? this.public_pages : this.private_pages;
 		if (is_public) {
 			this.sorted_public_items = this.sort_sidebar(
+				//// Neoffice — $sidebar, not upstream's this.sidebar (see the marker above the method).
 				$sidebar.find(".standard-sidebar-section").last(),
 				pages
 			);
 		} else {
 			this.sorted_private_items = this.sort_sidebar(
+				//// Neoffice — $sidebar, as above.
 				$sidebar.find(".standard-sidebar-section").first(),
 				pages
 			);
@@ -1840,6 +1850,7 @@ frappe.views.Workspace = class Workspace {
 						public: page.public || 0,
 						new_widgets: new_widgets,
 						blocks: JSON.stringify(blocks),
+						//// Neoffice — deleted_widgets: added by 07ee48dd37, see the marker at the top of args.
 						deleted_widgets: JSON.stringify(frappe.workspace_deleted_widgets || {}),
 					},
 					callback: function (res) {
@@ -1870,8 +1881,10 @@ frappe.views.Workspace = class Workspace {
 		frappe.workspace_deleted_widgets = {};
 		this.sorted_public_items = [];
 		this.sorted_private_items = [];
+		//// Neoffice — moved up from after setup_pages (0634af137c): see the marker at the top of reload().
 		this.discard = false;  // IMPORTANT: Set discard to false BEFORE setup_pages() so get_pages() is called
 		this.setup_pages(true);
+		//// Neoffice — upstream's `this.discard = false;` stood here, after setup_pages; moved above it (0634af137c).
 		this.undo.readOnly = true;
 	}
 
@@ -1894,6 +1907,7 @@ frappe.views.Workspace = class Workspace {
 		if (this.sidebar?.headless) return;
 		if ($(".workspace-sidebar-skeleton").length) return;
 
+		//// Neoffice — $sidebar, not upstream's this.sidebar (see the marker above).
 		const $sidebar = this.sidebar.$sidebar || this.sidebar;
 		$(frappe.render_template("workspace_sidebar_loading_skeleton")).insertBefore($sidebar);
 		$sidebar.addClass("hidden");

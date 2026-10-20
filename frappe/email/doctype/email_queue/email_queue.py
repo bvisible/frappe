@@ -231,7 +231,7 @@ class EmailQueue(Document):
 
 				message = ctx.build_message(recipient.recipient)
 				# //// Neoffice — upstream: `if method := get_hook_method("override_email_send"):` evaluated per
-				# //// recipient, and it does NOT mark the recipient as sent on the hook path. Ours reuses the
+				# //// recipient, then update_recipient_status_to_sent() once for both paths. Ours reuses the
 				# //// api_method resolved once above and calls ctx.add_to_sent_list(recipient) on both paths
 				# //// (e755f88696, 2026-04-14 "feat(email): support override_email_send hook for NeoMail API"),
 				# //// so an API send leaves the same trace as an SMTP send.
@@ -248,6 +248,10 @@ class EmailQueue(Document):
 						ctx.smtp_server.session.sendmail(
 							from_addr=self.sender, to_addrs=recipient.recipient, msg=message
 						)
+					# //// Neoffice — change (3) of the block marker above. Upstream calls
+					# //// ctx.update_recipient_status_to_sent(recipient) ONCE after the if/else, for the hook path and
+					# //// the SMTP path alike; ours calls add_to_sent_list() in each branch (7446c62c35, 12249186f3),
+					# //// which never sets sent_to_atleast_one_recipient (see the TO REVIEW at add_to_sent_list).
 					ctx.add_to_sent_list(recipient)
 
 			if frappe.flags.in_test and not frappe.flags.testing_email:

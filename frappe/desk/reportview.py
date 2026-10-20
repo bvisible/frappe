@@ -932,8 +932,8 @@ def get_filters_cond(doctype, filters, conditions, ignore_permissions=None, with
 # ////     reads the `_comments` field (both kinds) in ONE query instead of one per document.
 # //// TO REVIEW before the v15.120 merge: the two bulk commits carry no message, so only the
 # //// third reason above is recorded; export_query/sanitize_title/delete_file_after_download
-# //// are indented with SPACES in a tab-indented file; and this file also lost its final
-# //// newline in the same pass (an accident — restore it).
+# //// are indented with SPACES in a tab-indented file (its lost final newline was restored at the
+# //// v15.123 merge).
 # //// Nothing upstream sits here, so the merge should append cleanly.
 # ////
 @frappe.whitelist()

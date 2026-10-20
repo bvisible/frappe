@@ -25,6 +25,8 @@
 {%- set _oslo = oslo_generic_skin(doc) if (oslo_generic_skin is defined) else None -%}
 {%- if _oslo %}<style>{{ _oslo.css | safe }}</style>{% endif -%}
 
+{#- //// Neoffice — see the ▼▼▼ block marker above: an item-bearing document gets the Oslo header + items body
+    //// only, no layout loop at all (e40e42e97f 2026-06-18). Upstream starts its page loop here. -#}
 {%- if _oslo and _oslo.body_html -%}
 	{#- Item-bearing document: branded header + real Oslo items table + totals,
 	    replacing Frappe's plain field/table dump entirely. -#}
@@ -32,6 +34,8 @@
 		{{ _oslo.header_html | safe }}
 		{{ _oslo.body_html | safe }}
 	</div>
+	{#- //// Neoffice — see the ▼▼▼ block marker above: otherwise upstream's page loop, one level deeper; with a skin,
+	    //// the Oslo header replaces add_header() on page 1 (fb36415234 2026-06-18). -#}
 {%- else -%}
 	{% for page in layout %}
 	<div class="page-break{% if _oslo %} oslo-generic{% endif %}">
@@ -42,6 +46,8 @@
 				{{ add_header(loop.index, layout|len, doc, letter_head, no_letterhead, footer, print_settings, print_heading_template) }}
 			</div>
 		{%- endif -%}
+		{#- //// Neoffice — see the ▼▼▼ block marker above: upstream's section/column/field loop, unchanged but
+		    //// re-indented one level (it now sits inside the `else` branch). -#}
 
 		{% for section in page %}
 		<div class="row section-break" data-label="{{ section.label or '' | e }}">
@@ -57,9 +63,14 @@
 				{% endfor %}
 				</div>
 			{% endfor %}
+			{#- //// Neoffice — see the ▼▼▼ block marker above: same loop, re-indented one level. -#}
 		</div>
 		{% endfor %}
 
+		{#- //// Neoffice — the letter-head footer is skipped when the Oslo skin is on (fb36415234: the skin replaces the
+		    //// stock header/footer), and upstream's "Page {0} of {1}" counter is gone (commented out since 4c842a98fc
+		    //// 2023-10-30 "First change v15", deleted by 4639b6e45f 2025-03-15 "remove page number pdf"; no rationale
+		    //// in either message — pdf_header_footer.html hides .page-number as well). -#}
 		{%- if not _oslo -%}
 		<div {% if print_settings.repeat_header_footer %} id="footer-html" class="visible-pdf" {% endif %}>
 			{% if not no_letterhead and footer %}
@@ -68,6 +79,7 @@
 			</div>
 			{% endif %}
 		</div>
+		{#- //// Neoffice — see the ▼▼▼ block marker above: closes the `not _oslo` guard, the page loop and the `else` branch. -#}
 		{%- endif -%}
 	</div>
 	{% endfor %}

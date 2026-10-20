@@ -398,11 +398,11 @@ class User(Document):
 
 		return link
 
-	# //// Neoffice — the pre-40ce7e36c0 name, kept as an alias. Our own callers (the welcome
-	# //// mail, auth.py, user invitations) and our other forks (erpnext's request for
-	# //// quotation, a crm fallback) still say `reset_password()`. It delegates, so an app that
-	# //// overrides `_reset_password` is honoured through either name. Until #353 the real
-	# //// method was this one and `_reset_password` the alias (#351). Drop at #138.
+	# //// Neoffice — the pre-40ce7e36c0 name, kept as an alias. Since the v15.123 merge frappe's own
+	# //// callers use `_reset_password`, but our erpnext fork (request for quotation) still says
+	# //// `reset_password()` until it is merged with upstream too. It delegates, so an app that
+	# //// overrides `_reset_password` is honoured through either name (#351, #353). Drop once no
+	# //// app of the bench calls `reset_password()`.
 	def reset_password(self, send_email=False, password_expired=False):
 		return self._reset_password(send_email=send_email, password_expired=password_expired)
 

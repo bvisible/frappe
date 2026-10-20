@@ -7,24 +7,19 @@ A few divergences cannot carry a comment: whitespace at a place where no comment
 (a dropped final newline), binary files, and pure-data files with no comment syntax (`.json`).
 They are recorded here instead, so the map stays complete.
 
-Baseline for everything below: `git diff v15.89.0 version-15` (the merge base of this fork with
-upstream is exactly the tag `v15.89.0`).
+Baseline for everything below: `git diff v15.123.1 version-15`. The fork was based on `v15.89.0`
+until the merge of upstream `v15.123.1` (2026-10-20); the rows below were written against `v15.89.0`
+and re-checked at that merge (lot M at the end lists what the merge changed here). Since the merge,
+`python3 neoffice-ci/scripts/fork_markers.py check --base v15.123.1 --head version-15
+--upstream-base v15.123.1` answers 0 unmarked hunks.
 
 ## Lot F1 — frappe/public/js
 
-### Final newline dropped (whitespace only, no code difference)
+### Final newline dropped — restored at the v15.123.1 merge
 
-Upstream ends these files with a newline; ours does not. It shows up as a one-line
-`-`/`+` pair at the end of the diff plus `\ No newline at end of file`. Nothing else differs on
-those lines — take upstream's version at the merge.
-
-| File | Last line | Introduced by |
-|---|---|---|
-| `frappe/public/js/frappe/file_uploader/FileUploader.vue` | `</style>` | bd41f1e7a5 (2025-02-26 "Update neov2") |
-| `frappe/public/js/frappe/form/form.js` | `frappe.validated = 0;` | bd41f1e7a5 (2025-02-26 "Update neov2") |
-| `frappe/public/js/frappe/model/indicator.js` | `};` | bd41f1e7a5 (2025-02-26 "Update neov2") |
-
-Each of the three files carries a `//// Neoffice` marker elsewhere that points here.
+`FileUploader.vue`, `form/form.js` and `model/indicator.js` had lost the final newline upstream ends
+them with (bd41f1e7a5, 2025-02-26 "Update neov2"). It was put back at the merge, with upstream's
+import order in `FileUploader.vue`; nothing is left to record.
 
 `frappe/public/js/frappe/ui/apps_switcher.html` has no final newline either, but it is a file we
 added (no upstream equivalent), so it is not a divergence — see its header marker.
@@ -82,15 +77,10 @@ entry needs the `?v=` cache-bust — bump it in **both** templates at a re-vendo
 they can only be lost by someone deleting the directory. If a merge ever drops them, the two
 templates 404 on the player and every Lottie animation silently stops rendering.
 
-### Final newline dropped (marked in place, listed here for completeness)
+### Final newline dropped — restored at the v15.123.1 merge
 
-Same whitespace-only divergence as lot F1. Both files DO carry a `//// Neoffice` marker above
-their last line, so `grep -rn "////"` finds them; take upstream's newline at the merge.
-
-| File | Last line | Introduced by |
-|---|---|---|
-| `frappe/public/js/frappe/views/reports/report_view.js` | `};` | 4e23539603 (2024-09-23 "last updates") |
-| `frappe/public/js/frappe/views/translation_manager.js` | `};` | bd41f1e7a5 (2025-02-26 "Update neov2") |
+`views/reports/report_view.js` and `views/translation_manager.js` (whose only divergence it was) end
+with a newline again; their markers about it are gone.
 
 ## Lot F3 — frappe (reste)
 
@@ -118,19 +108,20 @@ upstream merge, an edited shipped JSON does not.
 | `frappe/printing/doctype/print_settings/print_settings.json` | **field added**: `use_chrome_for_standard_format` (+ `field_order`) | 40b4e486bb, cherry-picked from frappe develop `8649c18125` | same backport, same fate. |
 | `frappe/custom/doctype/custom_field/custom_field.json` | `is_system_generated`: `in_list_view` → `1` | 4304bba972 (2026-03-18 "feat(columns): apply child table column config to DocType JSON") | pure display property → Property Setter candidate, not a fork edit. |
 | `frappe/desk/doctype/workspace/workspace.json` | `title`, `parent_page`, `sequence_id`: `in_list_view` → `1` | 4304bba972 | idem. |
-| `frappe/desk/doctype/todo/todo.json` | **none — reverted to upstream on 2026-09-04** (was: `status` options `Open\nClosed\nCancelled` → `test\nClosed\nCancelled\nOpen`) | 4e23539603 (2024-09-23 "last updates", empty message), reverted for #205 | The accident is undone — the list is upstream's again, `Open` first. The fleet *did* store `test` (one ToDo on Osiris), so the revert ships with `frappe/patches/v15_0/neoffice_todo_status_test_to_open.py`, which carries those rows to `Open`. Nothing left to reconcile at the merge. |
+| `frappe/desk/doctype/todo/todo.json` | **none — reverted to upstream on 2026-09-04** (was: `status` options `Open\nClosed\nCancelled` → `test\nClosed\nCancelled\nOpen`) | 4e23539603 (2024-09-23 "last updates", empty message), reverted for #205 | The accident is undone — the list is upstream's again, `Open` first. The fleet *did* store `test` (one ToDo on Osiris), so the revert ships with `frappe/patches/v15_0/neoffice_todo_status_test_to_open.py`, which carries those rows to `Open`. Nothing left to reconcile at the merge. At the v15.123.1 merge the file itself went back to upstream's bytes (the revert had re-serialised it with four-space indents and a new `modified`). |
 
 ### Translation catalogue — a `.po` cannot carry a marker the guard accepts
 
 | File | Divergence vs `v15.89.0` | Introduced by | Note |
 |---|---|---|---|
-| `frappe/locale/fr.po` | French entries we fixed or added: grid and form strings, the account-enumeration messages of the #353 backport, and `Forgot Password` → « Mot de passe oublié » (the login heading, #365); the words of a job's steps by its nature, each with its context (« Construction site », « Workshop repair », « Maintenance », « Intervention », « Time job ») | fa0221ec33, 84c371c586, 94a6b5b015, 2026-09-12; 3dcacebc7f, 2026-10-08; 2026-10-12 | Regenerating with `bench update-po-files` keeps these as long as their msgids stay in `main.pot`: re-check them after any upstream merge. The catalogue already failed `msgfmt -c` before these edits, on `Use % for any non empty value.` (a `python-format` flag on a string that is not a format): harmless for frappe's own compiler. |
+| `frappe/locale/fr.po` | French entries we fixed or added: grid and form strings, the account-enumeration messages of the #353 backport, and `Forgot Password` → « Mot de passe oublié » (the login heading, #365); the words of a job's steps by its nature, each with its context (« Construction site », « Workshop repair », « Maintenance », « Intervention », « Time job ») | fa0221ec33, 84c371c586, 94a6b5b015, 2026-09-12; 3dcacebc7f, 2026-10-08; 2026-10-12 | Never regenerate it with `bench update-po-files` (it rewrites and loses entries). At the v15.123.1 merge the catalogue was merged entry by entry on upstream's text: our msgstr wins wherever we had changed it (1 448 entries) or added the same msgid with another text (53), upstream's everywhere else, and the 161 entries only we have sit at the end of the file. Do the same at the next merge. The catalogue already failed `msgfmt -c` before these edits, on `Use % for any non empty value.` (a `python-format` flag on a string that is not a format): harmless for frappe's own compiler. |
 
-### Final newline dropped (marked in place, listed here for completeness)
+### Final newline dropped — restored at the v15.123.1 merge
 
-Same whitespace-only divergence as lots F1 and F2: upstream ends the file with a newline, ours does
-not, which shows as a `-`/`+` pair plus `\ No newline at end of file`. Every one of these files
-carries a `//// Neoffice` marker that says so — take upstream's newline at the merge.
+The nine files below had lost their final newline; it was put back at the merge and the markers that
+said so are gone. `communication/email.py`, `translate.py` (save for one marked line) and
+`templates/print_format/print_format.css` are back to upstream's bytes; `www/login.html` still has
+its marked b2b and « Forgot Password » blocks.
 
 | File | Last line | Introduced by |
 |---|---|---|
@@ -144,14 +135,16 @@ carries a `//// Neoffice` marker that says so — take upstream's newline at the
 | `frappe/www/404.html` | `{% endblock %}` | bd41f1e7a5 |
 | `frappe/www/login.html` | `{% block sidebar %}{% endblock %}` | 5d5ae8cec8 (2025-03-06 "Remove old login page") |
 
-For four of them — `communication/email.py`, `translate.py`, `templates/print_format/print_format.css`
-and `www/login.html` — the missing newline is the **only** difference from upstream v15: restoring it
-takes those files back to zero divergence.
 
 `frappe/templates/print_formats/chrome_pdf_header_footer.html` has no final newline either, but it is
 a file we added (byte-identical to frappe develop at `4f365bfbf5`), so it is not a divergence.
 
 ### Defects found while marking lot F3 (marked in place, repeated here for the merge)
+
+Status at the v15.123.1 merge: `image.py` and `types/filter.py` are upstream's again, `attach_print()`
+was removed (#205), the crossed margins were fixed (2026-09-03), the `/mnt/neoffice` widening was
+removed (e6f13ac8dc) and `redis.exceptions.ConnectionError` is no longer imported. Still open:
+`utils/user.py` (`view_interface`) and the module-level `import frappe` of `utils/__init__.py`.
 
 | Where | What |
 |---|---|
@@ -192,3 +185,21 @@ from PyPI. It was removed rather than declared.
 
 - `babel_extractors.csv` — added the row `**.ts,frappe.gettext.extractors.javascript.extract` — TypeScript files were never extracted into the POT: the CSV mapped `**.py`, `**.js`, `**.html` and `**.vue` but no `**.ts`, so every `__()` call in a `.ts` file was invisible to `bench generate-pot-file` in every app (0955ff3001 "fix(i18n): TypeScript files were never extracted into the POT")
 - `frappe/public/js/lib/neocockpit.global.js` — re-vendored bundle v=80 then v=81 (frappe-sidebar-react `cf2878682`, `c763e62af`) — minified build artefact overwritten wholesale by the cockpit release script; any inline marker would land inside a JS template literal spanning these bundled lines and would not survive the next rebuild anyway, see Lot F2 above (e39dac47d1 "feat(cockpit): re-vendor bundle v=80 (frappe-sidebar-react cf2878682)", 78c21bdc50 "feat(cockpit): re-vendor bundle v=81 (frappe-sidebar-react c763e62af)")
+
+## Lot M — the merge of upstream v15.123.1 (2026-10-20): files with no comment syntax
+
+These still differ from upstream after the merge and cannot carry a marker (JSON, a minified
+stylesheet, a `.bundle.js` the check does not mark). Every row is an old divergence the merge kept;
+none of it was introduced by the merge. "TO REVIEW" rows are candidates to go back to upstream's file.
+
+| File | Divergence vs `v15.123.1` | Introduced by |
+|---|---|---|
+| `package.json` | `frappe-datatable` comes from our fork `github:bvisible/datatable` (upstream v1.21.2, which this frappe asks for, plus our styling fix `c77eddabd7`) instead of the npm release | our datatable fork; last re-merged with upstream on 2026-09-29 |
+| `frappe/public/js/desk.bundle.js` | three imports: the sidebar template and the apps switcher (script + template) of our sidebar redesign; marked in place, but the check does not read `.bundle.js` files | 9999364ec6 (2025-10-28 "Refonte de l'interface utilisateur avec nouvelle sidebar et apps switcher") |
+| `frappe/public/js/frappe/views/kanban/kanban_board.bundle.js` | a branch that turns a new ToDo kanban column into an option of the ToDo status field (`neoffice_custom_fields.events.add_status_options`); marked in place | 4c842a98fc (2023-10-30 "First change v15"), 12249186f3 |
+| `frappe/public/css/animate.min.css` | added file: animate.css 4.1.1, vendored as published (MIT) | bd41f1e7a5 (2025-02-26 "Update neov2") |
+| `frappe/public/lottie/animation-404.json` | added file: the Lottie animation of our 404 page (`www/404.html`) | bd41f1e7a5 |
+| `frappe/core/page/dashboard_view/dashboard_view.json`, `frappe/core/page/permission_manager/permission_manager.json`, `frappe/desk/page/backups/backups.json`, `frappe/desk/page/leaderboard/leaderboard.json`, `frappe/desk/page/setup_wizard/setup_wizard.json`, `frappe/desk/page/user_profile/user_profile.json`, `frappe/printing/page/print/print.json`, `frappe/printing/page/print_format_builder/print_format_builder.json`, `frappe/printing/page/print_format_builder_beta/print_format_builder_beta.json` | Pages re-exported from a developer-mode site: `restrict_to_domain` set to `Core`, trailing spaces dropped, `creation`/`modified` moved. TO REVIEW: the domain restriction is the only functional part | 7446c62c35 (2023-11-15 "updates for v15 / restrict domains", no rationale) |
+| `frappe/automation/workspace/tools/tools.json`, `frappe/core/workspace/users/users.json`, `frappe/core/workspace/welcome_workspace/welcome_workspace.json`, `frappe/website/workspace/website/website.json` | Workspaces trimmed (shortcuts and cards removed) and restricted to the `Core` domain, for our own workspace layout | 4e23539603 (2024-09-23 "last updates", no message), 7446c62c35 |
+| `frappe/core/form_tour/doctype/doctype.json`, `frappe/custom/form_tour/custom_field/custom_field.json`, `frappe/printing/form_tour/letter_head/letter_head.json`, `frappe/printing/form_tour/print_format/print_format.json` | Form tours re-exported with the keys of a newer Form Tour schema (`hide_buttons`, `offset_x`…). TO REVIEW: no functional change identified | 4e23539603 |
+| `frappe/custom/module_onboarding/customization/customization.json`, `frappe/website/module_onboarding/website/website.json`, `frappe/website/onboarding_step/add_blog_category/add_blog_category.json`, `frappe/website/onboarding_step/create_blogger/create_blogger.json`, `frappe/website/onboarding_step/enable_website_tracking/enable_website_tracking.json`, `frappe/website/onboarding_step/introduction_to_website/introduction_to_website.json`, `frappe/website/onboarding_step/web_page_tour/web_page_tour.json` | Onboarding: our help address instead of the ERPNext documentation link, form tours switched off on the website steps | 7446c62c35, 4e23539603 |

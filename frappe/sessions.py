@@ -494,8 +494,11 @@ class Session:
 			frappe.qb.from_(sessions)
 			.select(sessions.user, sessions.sessiondata, sessions.lastupdate)
 			.where(sessions.sid == self.sid)
+			# //// Neoffice — upstream's `.where(sessions.lastupdate > get_expired_threshold())` removed here
+			# //// (19aadb658b 2026-08-28 "fix(sessions): a per-session expiry was honoured in one code path out of three")
 		).run()
 
+		# //// Neoffice — the expiry test moved out of SQL into has_session_expired() (19aadb658b, see above)
 		if record and not has_session_expired(record[0][2], record[0][1]):
 			data = frappe._dict(frappe.safe_eval((record and record[0][1]) or "{}"))
 			data.user = record[0][0]

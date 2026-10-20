@@ -258,6 +258,7 @@ frappe.views.ListSidebar = class ListSidebar {
 			<div class="empty-state">
 				${__("Loading...")}
 			</div>
+			<!-- //// Neoffice — the closing tag below was upstream's closing li: see the marker above the method -->
 		</div>`);
 	}
 

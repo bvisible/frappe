@@ -20,6 +20,7 @@ export default class ListFilter {
 			<div class="input-area"></div>
 			<div class="sidebar-action">
 				<a class="saved-filters-preview">${__("Show Saved")}</a>
+				<!-- //// Neoffice — the closing tag below was upstream's closing li: see the marker above the literal -->
 			</div>
 			<div class="saved-filters"></div>
 		`);

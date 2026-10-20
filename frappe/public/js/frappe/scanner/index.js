@@ -45,6 +45,7 @@ frappe.ui.Scanner = class Scanner {
 					console.error(error);
 				}
 			}
+			//// Neoffice — upstream's success callback, unchanged, moved out of the start() call (167333aa9d).
 			if (!this.options.multiple) {
 				this.stop_scan();
 				this.hide_dialog();
@@ -63,6 +64,7 @@ frappe.ui.Scanner = class Scanner {
 			.catch(() => this.handler.start({ facingMode: "user" }, config, on_success, on_parse_error))
 			.catch((err) => {
 				this.is_alive = false;
+				//// Neoffice — upstream: this.hide_dialog(), which closed the dialog without a word (167333aa9d).
 				this.show_camera_error(err);
 				console.error(err);
 			});

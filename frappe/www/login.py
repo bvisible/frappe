@@ -8,7 +8,7 @@ import frappe
 import frappe.utils
 from frappe import _
 from frappe.apps import get_default_path
-from frappe.auth import LoginManager
+from frappe.auth import LoginManager  # //// Neoffice — get_app_logo dropped (2bbbac40c0)
 from frappe.rate_limiter import rate_limit
 from frappe.utils import cint, get_url
 from frappe.utils.data import escape_html
@@ -60,6 +60,9 @@ def get_context(context):
 	context["disable_signup"] = cint(frappe.get_website_settings("disable_signup"))
 	context["show_footer_on_login"] = cint(frappe.get_website_settings("show_footer_on_login"))
 	context["disable_user_pass_login"] = cint(frappe.get_system_settings("disable_user_pass_login"))
+	# //// Neoffice — upstream: `get_app_logo()` (Navbar/Website Settings, then the apps' logos), imported from
+	# //// navbar_settings. Ours always shows /files/logo-default.png (2bbbac40c0 2026-04-10 "fix(login):
+	# //// hardcode logo path and use company name on login page"); the commit gives no other reason.
 	context["logo"] = "/files/logo-default.png"
 	# //// Neoffice — the login page is titled with the default company; guarded because
 	# //// Global Defaults is an erpnext doctype and a bench without erpnext has no such single.
@@ -67,6 +70,7 @@ def get_context(context):
 	if frappe.db.exists("DocType", "Global Defaults"):
 		default_company = frappe.db.get_single_value("Global Defaults", "default_company")
 	context["app_name"] = (
+		# //// Neoffice — the default company comes first, before upstream's chain (2bbbac40c0)
 		default_company or frappe.get_website_settings("app_name") or frappe.get_system_settings("app_name") or _("Frappe")
 	)
 

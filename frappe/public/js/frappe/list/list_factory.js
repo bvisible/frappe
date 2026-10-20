@@ -36,6 +36,7 @@ frappe.views.ListFactory = class ListFactory extends frappe.views.Factory {
 
 		frappe.views.list_view[me.page_name] = new view_class({
 			doctype: doctype,
+			//// Neoffice — sidebar_position, not upstream's hide_sidebar: see the marker above (cc297ec402).
 			parent: me.make_page(true, me.page_name, sidebar_position),
 		});
 

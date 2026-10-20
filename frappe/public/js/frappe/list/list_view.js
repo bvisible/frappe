@@ -1098,6 +1098,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 					count_str = `${format_number(this.total_count - 1, null, 0)}+`;
 				} else {
 					count_str = format_number(this.total_count, null, 0);
+				//// Neoffice — the next line ends this block comment (upstream's branch, commented out in f1656d6600).
 				}*/
 
 				let str = __("{0} of {1}", [format_number(current_count, null, 0), count_str]);

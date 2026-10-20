@@ -116,6 +116,8 @@ frappe.ui.Page = class Page {
 			//// develop (v16) page.js; sidebar_position comes from frappe.make_page (views/factory.js, same
 			//// commit) and page.scss lays the flex row out (marked there).
 			this.add_view(
+				//// Neoffice — the template below is the flex .layout-two-column of develop (v16), not upstream's
+				//// Bootstrap row: see the marker above (cc297ec402).
 				"main",
 				`
 				<div class="layout-main layout-two-column">
@@ -128,6 +130,8 @@ frappe.ui.Page = class Page {
 			`
 			);
 
+			//// Neoffice — added (cc297ec402, 2025-11-03): sidebar_position "Right" moves the main section
+			//// before the side section and tags the side section .right; upstream always keeps it on the left.
 			if (this.sidebar_position === "Right") {
 				this.wrapper
 					.find(".layout-main-section-wrapper")
@@ -240,6 +244,8 @@ frappe.ui.Page = class Page {
 				if (window.innerWidth < 992) {
 					this.setup_overlay_sidebar();
 				} else {
+					//// Neoffice — replaces upstream's `sidebar_wrapper.toggle();` (f28ac55bc3, 903060daff, 18c533ab42):
+					//// see the marker at the top of this handler.
 					// Use cur_list.toggle_side_bar() if available (handles datatable refresh)
 					if (cur_list && cur_list.toggle_side_bar) {
 						cur_list.toggle_side_bar();

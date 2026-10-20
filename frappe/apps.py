@@ -278,6 +278,10 @@ def set_app_as_default(app_name: str):
 
 @frappe.whitelist()
 def get_incomplete_setup_route(current_app: str, app_route: str):
+	# //// Neoffice — guard added (0634af137c 2025-11-13 "Enhance workspace and app customization logic").
+	# //// /apps now lists App Customization entries, and a VIRTUAL app's name is no installed app: upstream
+	# //// calls get_apps_with_incomplete_dependencies() on it unguarded and the click raised. Ours returns
+	# //// the app's own route for an unknown app, or when its dependencies cannot be read.
 	# Validate that current_app is a real installed app
 	installed_apps = frappe.get_installed_apps()
 
@@ -298,11 +302,14 @@ def get_incomplete_setup_route(current_app: str, app_route: str):
 		if app == "frappe":
 			return "app"
 
+		# //// Neoffice — upstream's add_to_apps_screen lookup, wrapped in try (0634af137c): an app whose
+		# //// hooks cannot be loaded is skipped instead of failing the whole route lookup.
 		try:
 			app_details = frappe.get_hooks("add_to_apps_screen", app_name=app)
 			if not app_details:
 				continue
 
+			# //// Neoffice — same lookup as upstream, one level deeper (see the try marker above)
 			if route := app_details[0].get("route"):
 				return route
 		except Exception:

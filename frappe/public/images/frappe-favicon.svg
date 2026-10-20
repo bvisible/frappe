@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- //// Neoffice — upstream's Frappe "F" favicon replaced by the Neoffice wordmark (c2b7ad6ad8 2025-03-16 "change logo and centre preview"): the default favicon of the desk and the website (templates/base.html, www/app.html, website_settings.py). Keep ours at the merge. -->
 <!-- Generator: Adobe Illustrator 28.1.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
 <svg version="1.1" id="Calque_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
 	 viewBox="0 0 400 400" style="enable-background:new 0 0 400 400;" xml:space="preserve">

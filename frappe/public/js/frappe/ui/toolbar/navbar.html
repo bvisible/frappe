@@ -29,6 +29,7 @@
 					</span>
 					{% } %}
 					{% if (frappe.boot.user.impersonated_by) { %}
+					<!-- //// Neoffice — see the marker above: same whitespace-only re-indent (b1d77644c6), take upstream at the merge. -->
 					<span class="indicator-pill red no-indicator-dot" title="{%= __("You are impersonating as another user.") %}">
 					{%= __("Impersonating {0}", [frappe.boot.user.name]) %}
 					</span>

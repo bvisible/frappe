@@ -858,10 +858,12 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 		if (this.datatable && !force) {
 			this.datatable.refresh(this.get_data(this.data), this.columns);
+			//// Neoffice — re-style the totals data row after a refresh (8b00ad979c 2025-11-26; see the marker above fetch_comment_counts).
 			this.style_totals_row();
 			return;
 		}
 		this.setup_datatable(this.data);
+		//// Neoffice — same after the first draw (8b00ad979c 2025-11-26).
 		this.style_totals_row();
 	}
 
@@ -1818,6 +1820,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				{
 					label: __("Status"),
 					fieldname: "docstatus",
+					//// Neoffice — Select with the collected options instead of upstream's Data (dd8c7155b6; see the marker above).
 					fieldtype: "Select",
 					options: Array.from(statusOptions).join("\n"),
 					is_virtual_status: true,
@@ -1962,12 +1965,15 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 						settings = response.message;
 					}
 				}
+				//// Neoffice — setup_columns rewrite (see the block marker above): the saved order rebuilds this.fields.
 	
 				if (settings.order) {
 					this.fields = settings.order.map(field => {
 						const [parenttype, fieldname] = field.split(":");
 						return [fieldname, parenttype];
 					});
+					//// Neoffice — upstream's `if (column) { column.width = … }` no longer sits here: it moved into
+					//// the loop below, which reads the saved settings.widths (see the block marker above).
 
 				}
 				if (settings.widths) {
@@ -2459,6 +2465,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		if (!$btn.length) return;
 
 		if (this.add_totals_row) {
+			//// Neoffice — part of the added totals methods (see the block marker above style_totals_row).
 			$btn.addClass('btn-primary-light').attr('title', __('Hide Totals'));
 		} else {
 			$btn.removeClass('btn-primary-light').attr('title', __('Show Totals'));
@@ -2508,6 +2515,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				}
 
 				return {
+					//// Neoffice — part of the added totals methods (see the block marker above style_totals_row).
 					content: cellData,
 					html: formattedContent || cellData,
 					rowIndex: rowIndex,
@@ -2528,6 +2536,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 						'data-is-total-row': 'true',
 						'tabindex': 0
 					},
+					//// Neoffice — part of the added totals methods (see the block marker above style_totals_row).
 					contentAttributes: {
 						class: contentClass,
 						title: cellData ? cellData.toString() : ''
@@ -2535,6 +2544,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				};
 			});
 
+		//// Neoffice — part of the added totals methods (see the block marker above style_totals_row).
 		// Add meta to totals row
 		totalsRow.meta = {
 			rowIndex: rowIndex,
@@ -2847,8 +2857,10 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			}
 
 			const totals = data.reduce((totals, d) => {
+				//// Neoffice — upstream also tests is_numeric_field here; hoisted out above (e0501e814e).
 				if (col.id in d) {
 					totals += flt(d[col.id]);
+					//// Neoffice — upstream returns the accumulator only here; ours returns it on every path, below (e0501e814e).
 				}
 				return totals;
 			}, 0);
@@ -3041,6 +3053,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 									args,
 								});
 							} else {
+								//// Neoffice — frappe.call instead of upstream's open_url_post (e5382efca3; see the marker above).
 								frappe.call({
 									method: args.cmd,
 									args: args,
@@ -3164,6 +3177,4 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 		return super.parse_filters_from_route_options();
 	}
-//// Neoffice — the newline at end of file was dropped below (4e23539603, 2024-09-23). Whitespace
-//// only; upstream v15.120 and develop both still end with one. TO REVIEW: restore it.
 };

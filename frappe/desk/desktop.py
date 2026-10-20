@@ -439,6 +439,9 @@ def get_desktop_page(page: str):
 		return {}
 
 
+# //// Neoffice — upstream takes no argument. `current_workspace` (0634af137c 2025-11-13 "Enhance workspace and
+# //// app customization logic") limits the list to the workspaces of the App Customization app holding it,
+# //// so the redesigned sidebar shows one app at a time; the whole function is reworked below.
 @frappe.whitelist()
 def get_workspace_sidebar_items(current_workspace=None):
 	"""Get list of sidebar items for desk"""
@@ -472,6 +475,7 @@ def get_workspace_sidebar_items(current_workspace=None):
 		"icon",
 		"indicator_color",
 		"is_hidden",
+		# //// Neoffice — added field (0634af137c): the App Customization sort below falls back on it
 		"sequence_id",
 	]
 	all_pages = frappe.get_all(
@@ -479,6 +483,10 @@ def get_workspace_sidebar_items(current_workspace=None):
 	)
 
 	# ////
+	# //// Neoffice ▼▼▼ — upstream keeps every permitted page. Ours, down to the sort below: neoffice_theme's
+	# //// excluded_menus.json hides or relinks workspaces per view interface (1b0ca23b5a 2024-01-17 "Hide and
+	# //// change menu by view_interface", cc10a1d937); App Customization keeps its apps' workspaces (fb2a5ef11e),
+	# //// limits the list to the app of `current_workspace` and orders it by sort_order (0634af137c).
 	import json
 	# Get the path to the JSON file
 	# //// Neoffice — neoffice_theme is absent on a bare bench (CI of the product forks): guard the access
@@ -706,6 +714,9 @@ def get_custom_report_list(module):
 	]
 
 
+# //// Neoffice — added function, no upstream equivalent (4abeaf2c69 2026-06-23 "fix(workspace): persist edits
+# //// to existing widgets in the editor"): save_new_widget() below calls it where upstream only extends the
+# //// child tables, so an edited widget updates its row instead of being dropped as a duplicate.
 def _upsert_widgets(doc, parentfield, configs, doctype):
 	"""Edit-aware widget save: update the existing child row when the editor
 	re-saves a widget with the same label, otherwise append a new one.
@@ -737,23 +748,33 @@ def _upsert_widgets(doc, parentfield, configs, doctype):
 		doc.get(parentfield).extend(new_widget(to_add, doctype, parentfield))
 
 
+# //// Neoffice — `deleted_widgets` added (07ee48dd37 2026-06-16 "fix(workspace): allow deleting shortcuts/widgets
+# //// from the UI"): the labels the editor's Delete removed, forwarded by workspace.save_page (see below).
 def save_new_widget(doc, page, blocks, new_widgets, deleted_widgets=None):
 	if loads(new_widgets):
 		widgets = _dict(loads(new_widgets))
 
+		# //// Neoffice — upstream: `doc.<field>.extend(new_widget(...))` for each kind; ours upserts by label
+		# //// (_upsert_widgets above, 4abeaf2c69), here and in the four branches below.
 		if widgets.chart:
 			_upsert_widgets(doc, "charts", widgets.chart, "Workspace Chart")
 		if widgets.shortcut:
+			# //// Neoffice — upsert, not extend (see above)
 			_upsert_widgets(doc, "shortcuts", widgets.shortcut, "Workspace Shortcut")
 		if widgets.quick_list:
+			# //// Neoffice — upsert, not extend (see above)
 			_upsert_widgets(doc, "quick_lists", widgets.quick_list, "Workspace Quick List")
 		if widgets.custom_block:
+			# //// Neoffice — upsert, not extend (see above)
 			_upsert_widgets(doc, "custom_blocks", widgets.custom_block, "Workspace Custom Block")
 		if widgets.number_card:
+			# //// Neoffice — upsert, not extend (see above)
 			_upsert_widgets(doc, "number_cards", widgets.number_card, "Workspace Number Card")
 		if widgets.card:
 			doc.build_links_table_from_card(widgets.card)
 
+	# //// Neoffice — added block, no upstream equivalent (07ee48dd37): upstream deletes a widget through
+	# //// clean_up(), which ours made keep rows missing from the content (00e69dcfa7, below).
 	# Apply explicit user deletions (editor "Delete" action) BEFORE clean_up, which
 	# would otherwise re-add child rows missing from content (the anti widget-loss
 	# guard from 00e69dc) -- that re-add is what made shortcuts impossible to delete.
@@ -788,22 +809,30 @@ def save_new_widget(doc, page, blocks, new_widgets, deleted_widgets=None):
 
 def clean_up(original_page, blocks):
 	page_widgets = {}
+	# //// Neoffice ▼▼▼ — clean_up() no longer drops widgets (00e69dcfa7 2026-03-12 "fix(workspace): prevent
+	# //// widget loss on workspace edit"): upstream keeps only the rows whose label is in the content, so an
+	# //// editor that lost a block silently deleted its widget. The content is parsed once, to be appended to.
 	parsed_blocks = loads(blocks)
 
 	for wid in ["shortcut", "card", "chart", "quick_list", "number_card", "custom_block"]:
 		# get list of widget's name from blocks
+		# //// Neoffice — reads parsed_blocks (see the block marker above)
 		page_widgets[wid] = [x["data"][wid + "_name"] for x in parsed_blocks if x["type"] == wid]
 
 	# shortcut, chart, quick_list, number_card & custom_block cleanup
+	# //// Neoffice — see the block marker above (00e69dcfa7)
 	# Only remove duplicates; preserve widgets missing from content by adding them back
 	for wid in ["shortcut", "chart", "quick_list", "number_card", "custom_block"]:
 		seen = set()
 		updated_widgets = []
+		# //// Neoffice — upstream reversed the rows here and kept the LAST one per label, only if the label is
+		# //// in the content; ours keeps the FIRST row per label, whatever the content (00e69dcfa7).
 		for w in original_page.get(wid + "s"):
 			if w.label not in seen:
 				seen.add(w.label)
 				updated_widgets.append(w)
 
+		# //// Neoffice — added: a row the content lacks gets its block back (00e69dcfa7)
 		# Add content blocks for widgets in child table but missing from content JSON
 		for w in updated_widgets:
 			if w.label not in page_widgets[wid]:
@@ -811,6 +840,7 @@ def clean_up(original_page, blocks):
 
 		original_page.set(wid + "s", updated_widgets)
 
+	# //// Neoffice — added: the restored blocks are written back to the content (00e69dcfa7) ▲▲▲
 	# Update content with any restored widget references
 	original_page.content = dumps(parsed_blocks)
 

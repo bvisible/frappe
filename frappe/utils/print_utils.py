@@ -6,6 +6,7 @@ import os
 import re
 from typing import Literal
 
+# //// Neoffice — added import (c64ffb849d, see above): setup_chromium() and its helpers report through click
 import click
 
 import frappe

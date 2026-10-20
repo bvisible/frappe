@@ -99,6 +99,7 @@ export default class Grid {
 								>
 								${__("No Data")}
 							</div>
+							<!-- //// Neoffice — added: the cockpit's in-table "+ Add Row" CTA (64f4614afc 2026-06-10 "feat(cockpit): grid redesign"; see the marker above make()) -->
 							<button type="button" class="grid-append-row hidden">
 								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
 									stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>${__("Add Row")}
@@ -119,10 +120,12 @@ export default class Grid {
 							</button>
 							<!-- hack to allow firefox include this in tabs -->
 							<button type="button" class="btn btn-xs btn-secondary grid-add-row">
+								<!-- //// Neoffice — inline icon before the label (64f4614afc 2026-06-10, cockpit grid redesign); upstream shows the label only -->
 								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
 									stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>${__("Add Row")}
 							</button>
 							<button type="button" class="grid-add-multiple-rows btn btn-xs btn-secondary hidden">
+								<!-- //// Neoffice — inline icon before the label (64f4614afc 2026-06-10, cockpit grid redesign); upstream shows the label only -->
 								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
 									stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>${__(
 				"Add Multiple"
@@ -132,11 +135,13 @@ export default class Grid {
 						<div class="grid-pagination">
 						</div>
 						<div class="grid-bulk-actions text-right">
+							<!-- //// Neoffice — icon-only Download button, the label kept as title / aria-label (64f4614afc 2026-06-10, cockpit grid redesign) -->
 							<button type="button" class="grid-download btn btn-xs btn-secondary grid-icon-btn hidden"
 								title="${__("Download")}" aria-label="${__("Download")}">
 								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
 									stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
 							</button>
+							<!-- //// Neoffice — icon-only Upload button, the label kept as title / aria-label (64f4614afc 2026-06-10, cockpit grid redesign) -->
 							<button type="button" class="grid-upload btn btn-xs btn-secondary grid-icon-btn hidden"
 								title="${__("Upload")}" aria-label="${__("Upload")}">
 								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"

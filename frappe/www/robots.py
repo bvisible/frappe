@@ -13,6 +13,8 @@ def get_context(context):
 
 	profile_robots = (profile or {}).get("robots_txt")
 
+	# //// Neoffice — the profile's own robots.txt wins over Website Settings and the site config (7e662a90ec
+	# //// 2026-07-08 "feat(multi-site): website_page cache keyed by website profile + per-profile robots.txt")
 	robots_txt = (
 		profile_robots
 		or frappe.db.get_single_value("Website Settings", "robots_txt")

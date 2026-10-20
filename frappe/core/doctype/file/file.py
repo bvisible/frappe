@@ -500,6 +500,8 @@ class File(Document):
 		else:
 			base_paths = (get_files_path(is_private=self.is_private),)
 		file_path = os.path.realpath(self.get_full_path())
+		# //// Neoffice — upstream tests one base_path; the file must sit in one of base_paths (04b01b6e1a
+		# //// 2026-10-20 "fix(file): no File reaches a private file its creator may not read, nor a path outside files").
 		if not any(
 			os.path.commonpath((base_path, file_path)) == base_path
 			for base_path in map(os.path.realpath, base_paths)

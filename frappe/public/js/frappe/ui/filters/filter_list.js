@@ -83,8 +83,8 @@ frappe.ui.FilterGroup = class {
 			}
 		});
 
-	//// Neoffice — b807db2347 (2025-11-04 "fix(filters): setTimeout fallback for the popover init after
-	//// the sidebar move"): upstream wires the popover wrapper (this.wrapper = $(".filter-popover"),
+	//// Neoffice — b807db2347 (2025-11-04 "fix: Corrections multiples pour sidebar et navigation tabs"; its
+	//// body: a setTimeout fallback for the popover init after the sidebar move): upstream wires the popover wrapper (this.wrapper = $(".filter-popover"),
 	//// set_filter_events, empty-filter toggle) inline in the shown.bs.popover handler. With the list
 	//// filter-section moved into the overlay sidebar (cc297ec402 / list.js), that event could fire
 	//// before the popover DOM was in place and the popover stayed without its events. The init now
@@ -100,13 +100,18 @@ frappe.ui.FilterGroup = class {
 			if ($(".filter-popover").is(":visible") && !this.wrapper) {
 				this.initialize_wrapper_and_events();
 			}
+		//// Neoffice — see the block marker above (b807db2347): the 100 ms fallback ends here.
 		}, 100);
 	});
 
+	//// Neoffice — upstream's shown.bs.popover handler held the wrapper init inline; it now calls
+	//// initialize_wrapper_and_events() (b807db2347, see the block marker above).
 	this.filter_button.on("shown.bs.popover", () => {
 		this.initialize_wrapper_and_events();
 	});
 
+	//// Neoffice — the hidden / router handlers and the closing brace below are upstream's, one
+	//// indentation level out since b807db2347 (cosmetic only).
 	this.filter_button.on("hidden.bs.popover", () => {
 		this.apply();
 	});

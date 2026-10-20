@@ -36,6 +36,9 @@ frappe.Application = class Application {
 
 		this.load_bootinfo();
 		this.load_user_permissions();
+		//// Neoffice — upstream calls this.make_nav_bar() here. make_chrome() mounts the NeoCockpit sidebar
+		//// instead and keeps the navbar + sidebar only behind the kill-switch (d0268ef91a 2026-06-10
+		//// "feat(cockpit): NeoCockpit is the default desk chrome — single menu, no navbar").
 		this.make_chrome();
 		this.set_favicon();
 		this.set_fullwidth_if_enabled();
@@ -75,6 +78,9 @@ frappe.Application = class Application {
 
 		// page container
 		this.make_page_container();
+		//// Neoffice — removed upstream's onboarding-tour block (load onboarding_tours.bundle.js and
+		//// frappe.ui.init_onboarding_tour() when a tour is pending) (1014eb4426 2026-04-25
+		//// "feat(onboarding): disable Frappe legacy onboarding tours"). The tour code still ships.
 		// Onboarding tours intentionally disabled for Neoffice — the new
 		// home workspace already provides a guided welcome (hero + tinted
 		// applications), so the legacy "Awesomebar / Form basics / ..."
@@ -716,6 +722,9 @@ frappe.Application = class Application {
 		}
 	}
 
+	//// Neoffice — added (9999364ec6 2025-10-28 "Refonte de l'interface utilisateur avec nouvelle sidebar
+	//// et apps switcher"): the legacy desk sidebar, now built only by make_chrome() when the cockpit is
+	//// disabled or during the setup wizard (d0268ef91a 2026-06-10).
 	make_sidebar() {
 		this.sidebar = new frappe.ui.Sidebar({});
 	}

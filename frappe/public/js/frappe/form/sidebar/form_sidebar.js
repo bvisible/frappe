@@ -31,14 +31,19 @@ frappe.ui.form.Sidebar = class {
 			.html(sidebar_content)
 			.appendTo(this.page.sidebar.empty());
 
+		//// Neoffice — sidebar redesign (9999364ec6, 2025-10-28), ported from upstream develop's sidebar rework
+		//// (1d678146a9 2024-08-13 "fix(styles): cleaner sidebars for list and form"): no comment counter, likes,
+		//// follow or review here, nor their bind_events(); follow lives in our compact header (compact_header.js).
 		this.user_actions = this.sidebar.find(".user-actions");
 		this.image_section = this.sidebar.find(".sidebar-image-section");
 		this.image_wrapper = this.image_section.find(".sidebar-image-wrapper");
 		this.make_assignments();
 		this.make_attachments();
+		//// Neoffice — upstream's make_review() removed (see the marker above).
 		this.make_shared();
 
 		this.make_tags();
+		//// Neoffice — upstream's make_like(), make_follow() and bind_events() removed (see the marker above).
 
 		this.setup_keyboard_shortcuts();
 		this.show_auto_repeat_status();
@@ -95,6 +100,9 @@ frappe.ui.form.Sidebar = class {
 
 			this.frm.tags && this.frm.tags.refresh(this.frm.get_docinfo().tags);
 
+			//// Neoffice — sidebar redesign (9999364ec6, ported from upstream develop 1d678146a9): upstream v15 fills
+			//// .pageview-count / .modified-by / .created-by inline and refreshes likes, follow and the comment count;
+			//// ours calls the two methods below (page views, then an avatar group with creation/modification popovers).
 			this.refresh_web_view_count();
 			this.refresh_creation_modified();
 			frappe.ui.form.set_user_image(this.frm);
@@ -107,6 +115,9 @@ frappe.ui.form.Sidebar = class {
 		//// Neoffice ▲▲▲ floating-nav-arrows
 	}
 
+	//// Neoffice — added methods (9999364ec6, 2025-10-28), taken from upstream develop's sidebar rework (1d678146a9,
+	//// 2d4ea4bf23 "fix(minor): show only one avatar in form sidebar if created and updated by the same user").
+	//// TO REVIEW: our form_sidebar.html is still upstream v15's — it has no .created-modified-section.
 	refresh_web_view_count() {
 		if (this.frm.doc.route && cint(frappe.boot.website_tracking_enabled)) {
 			let route = this.frm.doc.route;
@@ -132,6 +143,9 @@ frappe.ui.form.Sidebar = class {
 
 		this.sidebar.find(".created-modified-section").append(avatar_group);
 
+		//// Neoffice — TO REVIEW: the cint(…) || cint(…) test is not parenthesised, so the ternary's condition is the
+		//// whole "message · 0" string (always truthy): both messages reduce to the bare date. Upstream develop
+		//// parenthesises it (d90034f10e 2025-06-05, 063d3000d5 2026-05-10).
 		let creation_message =
 			get_user_message(
 				this.frm.doc.owner,
@@ -191,6 +205,9 @@ frappe.ui.form.Sidebar = class {
 					fieldname: ["frequency"],
 				},
 				callback: function (res) {
+					//// Neoffice — sidebar redesign (9999364ec6): the frequency goes in the status's <span> and its
+					//// .sidebar-section is revealed; upstream v15 writes the <li> itself. TO REVIEW: our template is
+					//// still upstream's (no <span>, no .sidebar-section), so the text is never shown.
 					let el = me.sidebar.find(".auto-repeat-status");
 					el.find("span").html(__("Repeats {0}", [__(res.message.frequency)]));
 					el.closest(".sidebar-section").removeClass("hidden");
@@ -246,6 +263,8 @@ frappe.ui.form.Sidebar = class {
 	add_user_action(label, click) {
 		return $("<a>")
 			.html(label)
+			//// Neoffice — sidebar redesign (9999364ec6): a <div> row where upstream v15 appends an <li> to the
+			//// .user-actions <ul> (as in upstream develop's sidebar rework, 77b11dd1ce 2024-08-26).
 			.appendTo(
 				$('<div class="user-action-row"></div>').appendTo(
 					this.user_actions.removeClass("hidden")
@@ -259,8 +278,11 @@ frappe.ui.form.Sidebar = class {
 		this.user_actions.find(".user-action-row").remove();
 	}
 
+	//// Neoffice — upstream's make_like, make_follow, refresh_follow, refresh_like and refresh_comments_count are
+	//// removed with the redesigned sidebar (9999364ec6; see the marker in make()).
 	refresh_image() {}
 
+	//// Neoffice — upstream's make_review removed: the redesigned sidebar has no review section (9999364ec6).
 	reload_docinfo(callback) {
 		frappe.call({
 			method: "frappe.desk.form.load.get_docinfo",

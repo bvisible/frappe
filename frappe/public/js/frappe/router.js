@@ -189,6 +189,9 @@ frappe.router = {
 
 		if (frappe.workspaces[route[0]]) {
 			// public workspace
+			//// Neoffice — upstream routes by `.title`. Our sidebar (9999364ec6 2025-10-28 "Refonte de
+			//// l'interface utilisateur…") fills frappe.workspaces with {name, public} only, and the workspace
+			//// view looks pages up by NAME (a name may differ from its title); same change for private below.
 			route = ["Workspaces", frappe.workspaces[route[0]].name];
 		} else if (route[0] == "private") {
 			// private workspace
@@ -207,6 +210,7 @@ frappe.router = {
 				);
 				return ["Workspaces"];
 			}
+			//// Neoffice — upstream: `.title`; by NAME as for the public workspace above (9999364ec6).
 			route = ["Workspaces", "private", frappe.workspaces[private_workspace].name];
 		} else if (this.routes[route[0]]) {
 			// route
@@ -235,12 +239,16 @@ frappe.router = {
 		return frappe.model.with_doctype(doctype_route.doctype).then(() => {
 			// doctype route
 			let meta = frappe.get_meta(doctype_route.doctype);
+			//// Neoffice — list→report re-routing, see the method marker above (4e23539603 2024-09-23 "bvisible
+			//// last updates", no rationale in the commit): a bare /app/<doctype> is treated as /view/list.
 			let default_view_load = "Report";
 
 			if (route.length === 1) {
 				route.push('view', 'list');
 			}
 
+			//// Neoffice — upstream goes straight to `if (route[1] && route[1] === "view" && route[2])`. Ours turns
+			//// /view/list into ["List", doctype, "Report"]; another view keeps upstream's choice (forced default_view).
 			if (route[2] === "list") {
 				default_view_load = "Report";
 				route = ['List', doctype_route.doctype, default_view_load];
@@ -254,8 +262,11 @@ frappe.router = {
 				route = this.get_standard_route_for_list(
 					route,
 					doctype_route,
+					//// Neoffice — upstream passes the forced default_view or null; same result (4e23539603).
 					default_view_load
 				);
+				//// Neoffice — `route[2] !== "Report"` added (4e23539603): the rewritten ["List", doctype, "Report"]
+				//// must not be read as a form route for a document named "<doctype>/Report".
 			} else if (route[1] && route[1] !== "view" && route[2] !== "Report") {
 				let docname = route[1];
 				if (route.length > 2) {
@@ -299,6 +310,9 @@ frappe.router = {
 				route = ["List", doctype_route.doctype, "Report"];
 			}
 			
+			//// Neoffice — added (4e23539603 2024-09-23, no rationale in the commit; upstream has no such case):
+			//// ToDo opens on the Kanban board named "ToDo" and Event on its default Calendar instead of a
+			//// list or report. Assumes that board exists on the site (see kanban_board.bundle.js). TO REVIEW.
 			if (doctype_route.doctype === "ToDo" && (route[2] === "List" || route[2] === "Report")) {
 				route = ['List', 'ToDo', 'Kanban', 'ToDo'];
 			} else if (doctype_route.doctype === "Event" && (route[2] === "List" || route[2] === "Report")) {

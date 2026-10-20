@@ -47,6 +47,7 @@ frappe.ui.form.PrintView = class {
 		<div class="preview-beta-wrapper">
 			<iframe width="100%" height="0" frameBorder="0"></iframe>
 		</div>
+		<!-- //// Neoffice — added: the embedded PDF.js viewer (preview_pdfjs) that shows the server-rendered PDF, with its loader (e1a3fd4e35 2026-06-12, d05d858045 2026-06-13). -->
 		<div class="pdfjs-preview-wrapper" style="display:none">
 			<div class="pdfjs-loader" style="display:none">
 				<div class="pdfjs-spinner"></div>
@@ -62,6 +63,8 @@ frappe.ui.form.PrintView = class {
 		this.setup_menu();
 		this.setup_toolbar();
 		this.setup_sidebar();
+		//// Neoffice — the language selector keeps only the languages enabled on the site; upstream lists every
+		//// Language record (4c842a98fc 2023-10-30 "First change v15", no rationale given).
 		//// added
 		frappe.db.get_list('Language', {filters: {"enabled":1}, fields: ['language_code']}).then(r => {
 			let array_code = []
@@ -96,10 +99,14 @@ frappe.ui.form.PrintView = class {
 			icon: "full-page",
 		});
 
+		//// Neoffice — upstream's "PDF" button (render_pdf, opens the PDF in a new tab) is removed: "Download PDF" above
+		//// replaces it and falls back to render_pdf when the viewer has no document (e1a3fd4e35 2026-06-12).
 		this.page.add_button(__("Refresh"), () => this.refresh_print_format(), {
 			icon: "refresh",
 		});
 
+		//// Neoffice — upstream adds a "Form" button on mobile and an unlabeled Form icon on desktop; one labeled
+		//// "Back to form" button everywhere instead (1ef01abd26 2026-06-12 "…labeled Back-to-form button…").
 		this.page.add_button(__("Back to form"), () => this.go_to_form_view(), {
 			icon: "es-line-filetype",
 		});
@@ -195,6 +202,7 @@ frappe.ui.form.PrintView = class {
 		if (iframe.getAttribute("data-viewer-booted")) {
 			open_in_viewer();
 		} else {
+			//// Neoffice — PDF.js block (see ▼▼▼ above): boot the vendored viewer once, then open() each PDF.
 			iframe.addEventListener(
 				"load",
 				() => {
@@ -203,6 +211,7 @@ frappe.ui.form.PrintView = class {
 				},
 				{ once: true }
 			);
+			//// Neoffice — PDF.js block continues (see ▼▼▼ above).
 			// explicit empty file → the generic viewer skips its default doc
 			iframe.setAttribute("src", "/assets/frappe/pdfjs/web/viewer.html?file=");
 		}
@@ -308,6 +317,7 @@ frappe.ui.form.PrintView = class {
 		if (app && app.pdfDocument) {
 			return app.eventBus.dispatch("download", { source: this });
 		}
+		//// Neoffice — no document in the viewer yet: fall back to upstream's PDF download (render_pdf).
 		this.render_pdf();
 	}
 	//// Neoffice ▲▲▲ embedded PDF.js preview
@@ -412,6 +422,8 @@ frappe.ui.form.PrintView = class {
 		this.set_breadcrumbs();
 		this.setup_customize_dialog();
 
+		//// Neoffice — upstream's "Try the new Print Designer" link (and its Frappe Cloud marketplace link) is commented
+		//// out below (284de7ffe5 2023-12-09 "Remove try builder", no rationale given).
 		// print designer link
 		//// 
 		/* 
@@ -619,6 +631,8 @@ frappe.ui.form.PrintView = class {
 	preview() {
 		let print_format = this.get_print_format();
 		if (print_format.print_format_builder_beta) {
+			//// Neoffice — the builder-beta preview also hides the PDF.js viewer (e1a3fd4e35 2026-06-12), and its iframe
+			//// is set to 100vh before preview_beta() sizes it (4c842a98fc 2023-10-30 "First change v15", no rationale).
 			this.print_wrapper.find(".print-preview-wrapper").hide();
 			this.print_wrapper.find(".pdfjs-preview-wrapper").hide(); //// added
 			this.print_wrapper.find(".preview-beta-wrapper").show();
@@ -887,6 +901,9 @@ frappe.ui.form.PrintView = class {
 				return;
 			}
 		} else {
+			//// Neoffice — backport of upstream develop's Chrome PDF generator, cherry-picked 2026-05-26 (upstream
+			//// version-15 has no pdf_generator): the wkhtmltopdf check runs only when wkhtmltopdf renders (c64ffb849d
+			//// 2025-09-25 "feat: Chrome PDF generator", f8f1531f29 2026-02-25 "fix: remove is_wkhtmltopdf_valid check…").
 			let pdf_generator = this.get_pdf_generator(print_format?.pdf_generator);
 			if (pdf_generator === "wkhtmltopdf") {
 				this.is_wkhtmltopdf_valid();
@@ -898,6 +915,9 @@ frappe.ui.form.PrintView = class {
 			);
 		}
 	}
+	//// Neoffice — Chrome PDF backport (see render_pdf): the format's own generator, else Print Settings'
+	//// use_chrome_for_standard_format (40b4e486bb 2026-01-10 "feat: allow use of chrome pdf generator for
+	//// standard print format"); render_page forwards it to download_pdf.
 	get_pdf_generator(pdf_generator) {
 		if (!pdf_generator) {
 			pdf_generator = cint(this.print_settings.use_chrome_for_standard_format)
@@ -924,6 +944,7 @@ frappe.ui.form.PrintView = class {
 					encodeURIComponent(this.get_letterhead()) +
 					"&settings=" +
 					encodeURIComponent(JSON.stringify(this.additional_settings)) +
+					//// Neoffice — Chrome PDF backport (see render_pdf): tell download_pdf which generator to use.
 					(this.lang_code ? "&_lang=" + this.lang_code : "") +
 					"&pdf_generator=" +
 					encodeURIComponent(pdf_generator)

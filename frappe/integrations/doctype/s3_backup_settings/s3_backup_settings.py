@@ -428,6 +428,7 @@ def backup_to_s3(wizard=False, manual=False, demo=False, force_no_files=False):
 		if private_files and os.path.exists(private_files):
 			upload_file_to_s3(private_files, folder, conn, bucket)
 
+		# //// Neoffice — same existence check as just above (68d7f3a760)
 		if files_filename and os.path.exists(files_filename):
 			upload_file_to_s3(files_filename, folder, conn, bucket)
 

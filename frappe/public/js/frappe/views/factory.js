@@ -54,6 +54,7 @@ frappe.make_page = function (double_column, page_name, sidebar_position) {
 	frappe.ui.make_app_page({
 		parent: page,
 		single_column: !double_column,
+		//// Neoffice — see the marker above frappe.make_page: upstream passes disable_sidebar_toggle through.
 		sidebar_position: sidebar_position,
 		disable_sidebar_toggle: !sidebar_position,
 	});

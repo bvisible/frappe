@@ -275,9 +275,14 @@ def check_permission_and_not_submitted(doc):
 	# check if submitted
 	if doc.meta.is_submittable and doc.docstatus.is_submitted():
 		frappe.msgprint(
+			# //// Neoffice — upstream wraps "Cancel" in a link to the ERPNext documentation; ours drops the link
+			# //// (82cacdadb7 2026-02-27 "fix: remove dead erpnext.com link from submitted record deletion
+			# //// message") and names the action in bold (585e632ea2 2026-02-27 "fix: use {2}{3} placeholders for
+			# //// bold in submitted record message": the tags stay out of the msgid so the catalogs match it).
 			_("{0} {1}: Submitted Record cannot be deleted. {2}You must Cancel it first.{3}").format(
 				_(doc.doctype),
 				doc.name,
+				# //// Neoffice — bold tags instead of upstream's <a href=…docs.frappe.io…> / </a> (see above)
 				"<b>",
 				"</b>",
 			),

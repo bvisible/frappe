@@ -11,6 +11,8 @@
 	<table class="body-table {% if header or with_container %} with-container {% endif %}" cellpadding="0" cellspacing="0">
 		<tr>
 			<td class="body-content" align="center" valign="top">
+				{#- //// Neoffice — the container is 800 wide when a header is set, upstream 600 (b6b5118538 2026-04-15
+				    //// "feat(email): increase email container width from 600px to 800px": more readable on modern screens). -#}
 				<table class="email-container" border="0" cellpadding="0" cellspacing="0"
 					width="{% if header %} 800 {% else %} 100% {% endif %}">
 					{% if brand_logo %}
@@ -18,6 +20,9 @@
 					<tr>
 						<td align="center" valign="middle" style="padding: 12px 0 4px;">
 							<a href="{{ site_url or 'https://frappeframework.com' }}">
+								{#- //// Neoffice — logo height 50 (upstream 40) plus an inline style capping it at 50 px high and 220 px wide
+								    //// (2a1af720db 2026-07-08 "fix(email): center the brand logo … and constrain its size", then
+								    //// f17f66b7df 2026-07-08 "fix(email): bump brand logo to 50px in standard template"). -#}
 								<img
 									src="{{ brand_logo or '/assets/frappe/images/frappe-framework-logo.png' }}"
 									height="50"

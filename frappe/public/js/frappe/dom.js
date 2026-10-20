@@ -34,6 +34,8 @@ frappe.dom = {
 	},
 	remove_script_and_style: function (txt) {
 		const evil_tags = ["script", "style", "noscript", "title", "meta", "base", "head"];
+		//// Neoffice — added (0642910c2f 2026-07-25 "perf(grid): backport frappe#22862 - skip DOMParser in
+		//// remove_script_and_style unless unsafe tags present"): upstream v15 always parses; see below.
 		const unsafe_tags = ["link"];
 
 		// Backport of frappe/frappe#22862 (perf): skip the expensive DOMParser
@@ -156,6 +158,8 @@ frappe.dom = {
 				})
 				.appendTo("#body");
 
+			//// Neoffice — upstream shows only the message; ours adds an animated dotLottie loader above it
+			//// (bfd6894b1d 2025-03-26 "Changer loader", no rationale; player served by frappe/www/app.html).
 			freeze.html(
 				repl(
 					'<div class="freeze-message-container"><dotlottie-player src="/assets/frappe/lottie/loader.lottie" background="transparent" speed="1" style="width: 300px; height: 300px" loop autoplay></dotlottie-player><div class="freeze-message"><p class="lead">%(msg)s</p></div></div>',

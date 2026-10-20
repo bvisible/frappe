@@ -6,15 +6,16 @@ frappe.provide("frappe.model.docinfo");
 //// were added: ./form_hero (36d9015d6f), ./tab_slider (885fefba8d) and ./grid_totals (64f4614afc),
 //// all 2026-06-10, instantiated from form/toolbar.js refresh_hero() (marked there). These are
 //// side-effect imports, so the re-order is NOT provably inert: TO REVIEW at the merge — restore
-//// upstream's order and keep only the three added lines. Same file: the final newline after
-//// `frappe.validated = 0;` was dropped (whitespace only, see NEOFFICE_FORK_MARKERS.md).
+//// upstream's order and keep only the three added lines.
 import "./dashboard";
 import "./footer/footer";
 import "./form_tour";
 import "./print_utils";
+//// Neoffice — re-sorted imports (see the block marker above).
 import "./quick_entry";
 import "./save";
 import "./script_helpers";
+//// Neoffice — re-sorted imports (see the block marker above).
 import "./script_manager";
 import "./sidebar/form_sidebar";
 import "./success_action";

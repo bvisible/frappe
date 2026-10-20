@@ -200,6 +200,7 @@ def resolve_redirect(path, query_string=None):
 
 	for rule in redirects:
 		pattern = rule["source"].strip("/ ") + "$"
+		# //// Neoffice — a profile owning its home skips the root redirects (79adeb931a, see above)
 		if skip_root_redirects and rule["source"].strip("/ ") == "":
 			continue
 		path_to_match = path
@@ -216,6 +217,8 @@ def resolve_redirect(path, query_string=None):
 			frappe.flags.redirect_location = redirect_to
 			status_code = rule.get("redirect_http_status") or 301
 			frappe.cache.hset(
+				# //// Neoffice — cached per Website Profile, upstream keys by path only (79adeb931a 2026-07-08
+				# //// "feat(multi-site): root redirects skipped for profiles owning their home + per-profile redirect cache")
 				"website_redirects", cache_scope + path_to_match, {"path": redirect_to, "status_code": status_code}
 			)
 			raise frappe.Redirect(status_code)

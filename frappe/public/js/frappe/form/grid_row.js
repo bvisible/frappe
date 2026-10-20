@@ -270,6 +270,8 @@ export default class GridRow {
 			if (this.header_row) {
 				this.row_check_html = $(this.row_check_html).attr("tabindex", -1).get(0).outerHTML;
 			}
+			//// Neoffice — upstream's unconditional .row-check append stood here; it moved above, behind the
+			//// read_only test (see the marker above the `if (!this.parent_df.read_only)` block).
 
 			this.row_index = $(
 				`<div class="row-index sortable-handle col">
@@ -586,12 +588,15 @@ export default class GridRow {
 			<div class='form-group'>
 				<div class='row' style='margin-bottom:10px;'>
 					<div class='col-1'></div>
+					<!-- //// Neoffice — sticky columns (051206fa6b 2025-11-08): upstream's col-6 narrowed to col-5 (see the marker above prepare_wrapper_for_columns) -->
 					<div class='col-5' style='padding-left:20px;'>
 						${__("Fieldname").bold()}
 					</div>
+					<!-- //// Neoffice — sticky columns (051206fa6b 2025-11-08): upstream's col-4 narrowed to col-3 -->
 					<div class='col-3'>
 						${__("Column Width").bold()}
 					</div>
+					<!-- //// Neoffice — sticky columns (051206fa6b 2025-11-08): added "Sticky" header column -->
 					<div class='col-2'>
 						${__("Sticky").bold()}
 					</div>
@@ -735,15 +740,18 @@ export default class GridRow {
 							<div class='col-1' style='padding-top: 4px;'>
 								<a style='cursor: grabbing;'>${frappe.utils.icon("drag", "xs")}</a>
 							</div>
+							<!-- //// Neoffice — sticky columns (051206fa6b 2025-11-08): upstream's col-6 narrowed to col-5 (see the marker above render_selected_columns) -->
 							<div class='col-5' style='padding-top: 5px;'>
 								${__(docfield.label, null, docfield.parent)}
 							</div>
+							<!-- //// Neoffice — sticky columns (051206fa6b 2025-11-08): upstream's col-4 narrowed to col-3 -->
 							<div class='col-3' style='padding-top: 2px; margin-top:-2px;' title='${__("Columns")}'>
 								<input class='form-control column-width my-1 input-xs text-right'
 								style='height: 24px; max-width: 80px; background: var(--bg-color);'
 									value='${cint(d.columns) || docfield.columns}'
 									data-fieldname='${docfield.fieldname}' style='background-color: var(--modal-bg); display: inline'>
 							</div>
+							<!-- //// Neoffice — sticky columns (051206fa6b 2025-11-08): added per-column sticky checkbox (update_sticky_column) -->
 							<div class='col-2' title='${__("Sticky")}'>
 								<input type='checkbox' class='sticky-column'
 									style='margin-top: 8px'
@@ -920,6 +928,7 @@ export default class GridRow {
 			this.set_dependant_property(df);
 
 			let colsize = col[1];
+			//// Neoffice — horizontal-scroll switch (051206fa6b, 2025-11-08): sum the column sizes, read after the loop.
 			total_colsize += colsize;
 
 			let txt = this.doc
@@ -945,6 +954,7 @@ export default class GridRow {
 			} else {
 				column = this.columns[df.fieldname];
 				this.refresh_field(df.fieldname, txt);
+				//// Neoffice — sticky columns (051206fa6b): advance the offset for an already-rendered column too.
 
 				// Track sticky position for existing columns too
 				if (df.sticky) {
@@ -1206,15 +1216,18 @@ export default class GridRow {
 		function on_input_focus(el) {
 			input_in_focus = true;
 
+			//// Neoffice — on_input_focus rewrite (see the marker above): scroll only in horizontal-scroll mode.
 			// Check if we're in column-limit-reached mode
 			let is_scroll_mode = $(grid_container).hasClass("column-limit-reached");
 			if (!is_scroll_mode) return;
 
 			let container_width = grid_container.getBoundingClientRect().width;
 			let container_left = grid_container.getBoundingClientRect().left;
+			//// Neoffice — `|| 0`: style.left is empty (NaN) before the first scroll (051206fa6b).
 			let grid_left = parseFloat(grid.style.left) || 0;
 			let element_left = el.offset().left;
 			let fieldtype = el.data("fieldtype");
+			//// Neoffice — el.width() hoisted into element_width, used just below (051206fa6b; same value as upstream).
 			let element_width = el.width();
 
 			let offset_right = container_width - (element_left + element_width);

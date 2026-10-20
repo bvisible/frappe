@@ -135,6 +135,9 @@ on_logout = "frappe.core.doctype.session_default_settings.session_default_settin
 pdf_header_html = "frappe.utils.pdf.pdf_header_html"
 pdf_body_html = "frappe.utils.pdf.pdf_body_html"
 pdf_footer_html = "frappe.utils.pdf.pdf_footer_html"
+# //// Neoffice — added hook, absent from upstream version-15: the Chrome-PDF backport (c64ffb849d 2025-09-25
+# //// "feat: Chrome PDF generator", cherry-picked from frappe develop 964dd6c034). get_chrome_pdf() renders
+# //// only when a print format asks for pdf_generator="chrome"; wkhtmltopdf stays the default.
 pdf_generator = "frappe.utils.pdf.get_chrome_pdf"
 # permissions
 
@@ -262,13 +265,12 @@ scheduler_events = {
 		],
 		# 10 minutes
 		"0/10 * * * *": [],
-		# //// Neoffice — relève ramenée de 10 min à 2 min (upstream: "0/10").
-		# //// Un mail de client pouvait attendre 10 minutes avant de devenir un
-		# //// ticket : inacceptable pour un support, et c'est le premier reproche
-		# //// remonté à l'usage (2026-08-13). L'attente moyenne passe de ~5 min à
-		# //// ~1 min. Sans risque d'empilement : ScheduledJobType.enqueue() ne
-		# //// ré-enfile pas tant que le job précédent est dans la file
-		# //// (is_job_in_queue), donc un pull lent ne se cumule pas.
+		# //// Neoffice — mail pulled every 2 min instead of 10 (upstream: "0/10"). A
+		# //// customer's mail could wait 10 minutes before becoming a ticket: not
+		# //// acceptable for support, and the first complaint heard in use
+		# //// (2026-08-13). The average wait drops from ~5 min to ~1 min. No pile-up:
+		# //// ScheduledJobType.enqueue() does not queue the job again while the
+		# //// previous run is still queued (is_job_in_queue), so a slow pull never stacks.
 		"0/2 * * * *": [
 			"frappe.email.doctype.email_account.email_account.pull",
 			# //// Neoffice — moved off the 15-minute group (upstream). A reminder

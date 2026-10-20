@@ -129,6 +129,8 @@ frappe.ui.toolbar.Toolbar = class {
 			}
 		});
 
+		//// Neoffice — upstream: `function ()`. The `e` parameter is unused, added with the help dropdown
+		//// rework marked below (b1d77644c6, 2024-09-27 "update", no rationale in the commit).
 		$(document).on("page-change", function (e) {
 			var $help_links = $(".dropdown-help #help-links");
 			$help_links.html("");

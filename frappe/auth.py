@@ -234,6 +234,10 @@ class LoginManager:
 				self.make_session(resume=True)
 				self.get_user_info()
 				self.set_user_info(resume=True)
+			# //// Neoffice — upstream catches AttributeError only (009d71425d 2026-03-21 "fix: stale cookies
+			# //// fallback to Guest, session coexistence"). A stale sid cookie whose user is gone or disabled
+			# //// raises a ValidationError (DoesNotExistError is one) on resume: the request now goes on as
+			# //// Guest instead of failing.
 			except (AttributeError, frappe.ValidationError):
 				self.user = "Guest"
 				self.get_user_info()
@@ -297,6 +301,9 @@ class LoginManager:
 			frappe.local.cookie_manager.set_cookie("system_user", "no")
 			if not resume:
 				frappe.local.response["message"] = "No App"
+				# //// Neoffice — upstream: `get_default_path() or "/" + get_home_page()`. get_default_path() can
+				# //// answer "/app", which a Website User cannot open (c8ee64ea64 2026-01-05 "fix: Website Users
+				# //// always use website home page, not get_default_path()").
 				# Website Users don't have desk access, always use website home page
 				frappe.local.response["home_page"] = "/" + get_home_page()
 		else:
@@ -345,6 +352,9 @@ class LoginManager:
 		# reset user if changed to Guest
 		self.user = frappe.local.session_obj.user
 		frappe.local.session = frappe.local.session_obj.data
+		# //// Neoffice — upstream calls self.clear_active_sessions() here on EVERY request, a resumed one
+		# //// included; ours only when a session is created, under `if not resume` (9cec338a2c 2026-03-21
+		# //// "fix: mobile app sessions coexist with browser sessions").
 		if not resume:
 			self.clear_active_sessions()
 			self.run_trigger("on_session_creation")
@@ -869,6 +879,9 @@ def validate_oauth(authorization_header):
 		if valid:
 			frappe.set_user(frappe.db.get_value("OAuth Bearer Token", token, "user"))
 			frappe.local.form_dict = form_dict
+	# //// Neoffice — upstream catches AttributeError only; widened like LoginManager.__init__ (009d71425d
+	# //// 2026-03-21 "fix: stale cookies fallback to Guest, session coexistence"), so a bearer token that
+	# //// fails validation leaves the request as it was. The commit does not name the error met here.
 	except (AttributeError, frappe.ValidationError):
 		pass
 

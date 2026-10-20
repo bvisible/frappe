@@ -339,6 +339,7 @@ def save_page(title: str, public: str | int, new_widgets: str, blocks: str, dele
 	doc.content = blocks
 	doc.save(ignore_permissions=True)
 
+	# //// Neoffice — forwards `deleted_widgets` (07ee48dd37, see the signature marker above)
 	save_new_widget(doc, title, blocks, new_widgets, deleted_widgets)
 
 	return {"name": title, "public": public, "label": doc.label}

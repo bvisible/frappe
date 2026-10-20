@@ -37,6 +37,7 @@
 			<a class="view-action"></a>
 		</div>
 	</div>
+<!-- //// Neoffice — see the header marker (9999364ec6): every section is a top-level <div>, not a child of the upstream <ul>; "Filter By" gets an es-line chevron. -->
 </div>
 
 <div class="sidebar-section filter-section">
@@ -47,10 +48,12 @@
 		{{ __("Filter By") }}
 	</div>
 
+	<!-- //// Neoffice — see the header marker: .filter-section now holds only the group-by list; the tags moved to .tags-section below. -->
 	<div class="list-group-by">
 	</div>
 </div>
 
+<!-- //// Neoffice — see the header marker: Tags get their own collapsible section (chevron label, body .hide by default); upstream keeps them inside .filter-section. -->
 <div class="sidebar-section tags-section">
 	<div class="sidebar-label">
 		<svg class="es-icon es-line icon-xs" aria-hidden="true">
@@ -86,9 +89,11 @@
 		<div class="sidebar-label">
 			<div class="sidebar-action show-tags">
 				<a class="list-tag-preview">{{ __("Show Tags") }}</a>
+				<!-- //// Neoffice — see the header marker: the upstream <li class="sidebar-action show-tags">, re-tagged as a <div> inside a .sidebar-label. -->
 			</div>
 		</div>
 	</div>
+<!-- //// Neoffice — see the header marker: closes .tags-section; the upstream "Save Filter" <li> becomes a collapsible "Saved Filters" section, body .hide by default. -->
 </div>
 
 <div class="sidebar-section save-filter-section">

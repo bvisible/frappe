@@ -197,6 +197,9 @@ def load_conf_settings(bootinfo):
 def load_desktop_data(bootinfo):
 	from frappe.desk.desktop import get_workspace_sidebar_items
 
+	# //// Neoffice — upstream sets only `allowed_workspaces = get_workspace_sidebar_items().get("pages")`.
+	# //// Ours keeps the whole answer as `sidebar_pages` for the redesigned sidebar and apps switcher, and the
+	# //// page names for the app data below (9999364ec6 2025-10-28, sidebar and apps switcher redesign).
 	# New sidebar system
 	bootinfo.sidebar_pages = get_workspace_sidebar_items()
 	allowed_pages = [d.name for d in bootinfo.sidebar_pages.get("pages")]
@@ -207,6 +210,11 @@ def load_desktop_data(bootinfo):
 	bootinfo.module_wise_workspaces = get_controller("Workspace").get_module_wise_workspaces()
 	bootinfo.dashboards = frappe.get_all("Dashboard")
 
+	# //// Neoffice ▼▼▼ — added block and helper functions down to generate_app_data_default(), no upstream
+	# //// equivalent: the apps switcher's app_data comes from neoffice_theme's App Customization doctype
+	# //// (virtual apps, own order, own workspaces), with the redesign's default app data as fallback (9999364ec6;
+	# //// 038cd157a7 2025-11-09 "feat: Add App Customization support for app switcher", then 84b6f7a10b,
+	# //// 0634af137c, 64f3f34390).
 	# Generate app_data for apps switcher
 	# Check if App Customization exists (custom app switcher management)
 	if frappe.db.table_exists("App Customization") and frappe.db.count("App Customization") > 0:
