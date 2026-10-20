@@ -1121,7 +1121,9 @@ def sanitize_title(title):
     return title
 	
 
-@frappe.whitelist()
+# //// Neoffice — not an endpoint (maintenance#1740): only export_query's own background job calls it, with the
+# //// path of the file it wrote. Whitelisted, it removed whatever path the caller named ("../" included), for any
+# //// signed-in user, portal accounts too. neoffice_theme's twin was fixed the same way (#853, #883).
 def delete_file_after_download(file_url, file_name):
     try:
         file_doc = frappe.get_doc("File", file_name)
