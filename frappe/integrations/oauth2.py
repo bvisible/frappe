@@ -14,6 +14,8 @@ from frappe.oauth import (
 	get_server_url,
 	get_userinfo,
 )
+# //// Neoffice — backport of upstream 6c4b5326ef, d7460769f9, fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
+from frappe.sessions import get_csrf_token
 
 
 def get_oauth_server():
@@ -44,7 +46,8 @@ def encode_params(params):
 	return urlencode(params, quote_via=quote)
 
 
-@frappe.whitelist()
+# //// Neoffice — backport of upstream 6c4b5326ef, d7460769f9, fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
+@frappe.whitelist(methods=["POST"])
 def approve(*args, **kwargs):
 	r = frappe.request
 
@@ -71,15 +74,29 @@ def approve(*args, **kwargs):
 		return generate_json_error_response(e)
 
 
-@frappe.whitelist(allow_guest=True)
+# //// Neoffice — backport of upstream 6c4b5326ef, d7460769f9, fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
+@frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
 def authorize(**kwargs):
+	# //// Neoffice — backport of upstream 6c4b5326ef, d7460769f9, fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
+	request_data = frappe.request.get_data(as_text=True) if frappe.request.method == "POST" else ""
+	if request_data and frappe.request.mimetype != "application/x-www-form-urlencoded":
+		frappe.throw(
+			frappe._("Authorization POST requests must use application/x-www-form-urlencoded"),
+			frappe.UnsupportedMediaType,
+		)
+
 	success_url = "/api/method/frappe.integrations.oauth2.approve?" + encode_params(sanitize_kwargs(kwargs))
 	failure_url = frappe.form_dict["redirect_uri"] + "?error=access_denied"
 
 	if frappe.session.user == "Guest":
 		# Force login, redirect to preauth again.
+		# //// Neoffice — backport of upstream 6c4b5326ef, d7460769f9, fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
+		redirect_to = frappe.request.url
+		if request_data:
+			redirect_to += ("&" if "?" in redirect_to else "?") + request_data
 		frappe.local.response["type"] = "redirect"
-		frappe.local.response["location"] = "/login?" + encode_params({"redirect-to": frappe.request.url})
+		# //// Neoffice — backport of upstream 6c4b5326ef, d7460769f9, fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
+		frappe.local.response["location"] = "/login?" + encode_params({"redirect-to": redirect_to})
 	else:
 		try:
 			r = frappe.request
@@ -93,11 +110,28 @@ def authorize(**kwargs):
 				frappe.flags.oauth_credentials["client_id"],
 				"skip_authorization",
 			)
-			unrevoked_tokens = frappe.get_all("OAuth Bearer Token", filters={"status": "Active"})
+			# //// Neoffice — backport of upstream 6c4b5326ef, d7460769f9, fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
+			unrevoked_tokens = frappe.db.exists(
+				"OAuth Bearer Token",
+				{
+					"status": "Active",
+					"user": frappe.session.user,
+					"client": frappe.flags.oauth_credentials["client_id"],
+				},
+			)
 
 			if skip_auth or (get_oauth_settings().skip_authorization == "Auto" and unrevoked_tokens):
+				# //// Neoffice — backport of upstream 6c4b5326ef, d7460769f9, fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
+				headers, _body, _status = get_oauth_server().create_authorization_response(
+					uri=frappe.flags.oauth_credentials["redirect_uri"],
+					body=r.get_data(),
+					headers=r.headers,
+					scopes=scopes,
+					credentials=frappe.flags.oauth_credentials,
+				)
 				frappe.local.response["type"] = "redirect"
-				frappe.local.response["location"] = success_url
+				# //// Neoffice — backport of upstream 6c4b5326ef, d7460769f9, fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
+				frappe.local.response["location"] = headers.get("Location")
 			else:
 				if "openid" in scopes:
 					scopes.remove("openid")
@@ -110,6 +144,8 @@ def authorize(**kwargs):
 						"success_url": success_url,
 						"failure_url": failure_url,
 						"details": scopes,
+						# //// Neoffice — backport of upstream 6c4b5326ef, d7460769f9, fb15243451 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
+						"csrf_token": get_csrf_token(),
 					}
 				)
 				resp_html = frappe.render_template(

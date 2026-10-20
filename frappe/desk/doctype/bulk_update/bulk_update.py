@@ -31,17 +31,20 @@ class BulkUpdate(Document):
 	def bulk_update(self):
 		self.check_permission("write")
 		limit = self.limit if self.limit and cint(self.limit) < 500 else 500
-
-		condition = ""
+		# //// Neoffice — backport of upstream dc17cb413c (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
+		query_args = {"doctype": self.document_type, "limit": limit, "pluck": "name"}
 		if self.condition:
-			if ";" in self.condition:
-				frappe.throw(_("; not allowed in condition"))
+			# //// Neoffice — backport of upstream dc17cb413c (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
+			try:
+				filters = frappe.parse_json(self.condition)
+				if isinstance(filters, dict):
+					if "or_filters" in filters:
+						query_args["or_filters"] = filters.pop("or_filters")
+				query_args["filters"] = filters
+			except Exception as e:
+				frappe.throw(_("The Bulk Update could not happen due to <b>{0}</b>").format(str(e)))
 
-			condition = f" where {self.condition}"
-
-		docnames = frappe.db.sql_list(
-			f"""select name from `tab{self.document_type}`{condition} limit {limit} offset 0"""
-		)
+		docnames = frappe.get_all(**query_args)
 		return submit_cancel_or_update_docs(
 			self.document_type, docnames, "update", {self.field: self.update_value}
 		)

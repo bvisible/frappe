@@ -53,7 +53,9 @@ def get_system_managers():
 
 
 @frappe.whitelist()
-def relink(name, reference_doctype=None, reference_name=None):
+# //// Neoffice — backport of upstream 258cd15544, a5217302d6, c4007019f8 (frappe security fixes): see neoffice-maintenance#1748. Drop at the next merge of upstream version-15.
+def relink(name: str, reference_doctype: str | None = None, reference_name: str | None = None):
+	frappe.has_permission("Communication", "write", name, throw=True)
 	frappe.db.sql(
 		"""update
 			`tabCommunication`
