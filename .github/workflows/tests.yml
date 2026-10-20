@@ -459,6 +459,17 @@ jobs:
               echo "--- the last sign-ins the site recorded"
               echo "SELECT creation, user, operation, status, LEFT(subject, 90) AS subject FROM \`tabActivity Log\` WHERE operation IN ('Login', 'Logout') OR status = 'Failed' ORDER BY creation DESC LIMIT 6;" \
                 | bench --site test_site mariadb 2>&1 | cut -c1-300 | head -10 || true
+              # a server-side exception rolls the request back, sign-in row included: its trace
+              # is in the Error Log
+              echo "--- the last errors the site logged"
+              printf '%s\n' "SELECT creation, method, LEFT(REPLACE(error, '\n', ' | '), 500) AS error FROM \`tabError Log\` ORDER BY creation DESC LIMIT 3;" \
+                | bench --site test_site mariadb 2>&1 | cut -c1-700 | head -6 || true
+              # what the site answers the fixture user the HTTP tests sign in with (upstream's
+              # test records: test@example.com / Eastern_43A1W)
+              echo "--- signing in over HTTP as the fixture user, as the HTTP tests do"
+              curl -s -m 20 -o /tmp/signin.out -w 'HTTP %{http_code}\n' --data-urlencode usr=test@example.com \
+                --data-urlencode pwd=Eastern_43A1W http://test_site:8000/api/method/login || true
+              head -c 500 /tmp/signin.out 2>/dev/null; echo
             fi
             echo "::endgroup::"
           done || true
