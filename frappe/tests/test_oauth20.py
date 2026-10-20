@@ -61,6 +61,9 @@ class TestOAuth20(FrappeRequestTestCase):
 	def setUpClass(cls):
 		super().setUpClass()
 		make_test_records("User")
+		# //// Neoffice — removed the fixture-user restore (set_value enabled, add_roles, update_password) added
+		# //// by b7233007 on the wrong lead: reverted back to upstream's b8e8c18b state (01f1dfe4 "the cases mode
+		# //// names the host the site is served on, as upstream's CI does").
 
 		cls.form_header = {"content-type": "application/x-www-form-urlencoded"}
 		cls.scope = "all openid"
@@ -375,11 +378,17 @@ class TestOAuth20(FrappeRequestTestCase):
 
 		session = requests.Session()
 		login(session)
+		# //// Neoffice — removed the TEMPORARY sign-in diagnosis added by bc959831 (print of who the site sees
+		# //// after login): the root cause (01f1dfe4 "the cases mode names the host the site is served on, as
+		# //// upstream's CI does") is fixed, so this reverts back to upstream's b8e8c18b state.
 
 		redirect_destination = None
 
 		# Go to Authorize url
 		try:
+			# //// Neoffice — back to a plain call: the TEMPORARY `_resp = ` capture added by bc959831 for the
+			# //// diagnosis below is removed (01f1dfe4 "the cases mode names the host the site is served on, as
+			# //// upstream's CI does").
 			session.get(
 				get_full_url("/api/method/frappe.integrations.oauth2.authorize"),
 				params=encode_params(
@@ -391,8 +400,14 @@ class TestOAuth20(FrappeRequestTestCase):
 					}
 				),
 			)
+			# //// Neoffice — removed the TEMPORARY "authorize" response diagnosis added by bc959831, now that the
+			# //// root cause is fixed (01f1dfe4 "the cases mode names the host the site is served on, as
+			# //// upstream's CI does").
 		except requests.exceptions.ConnectionError as ex:
 			redirect_destination = ex.request.url
+			# //// Neoffice — removed the TEMPORARY "redirected to" diagnosis added by bc959831, now that the root
+			# //// cause is fixed (01f1dfe4 "the cases mode names the host the site is served on, as upstream's CI
+			# //// does").
 
 		response_dict = parse_qs(urlparse(redirect_destination).fragment)
 
