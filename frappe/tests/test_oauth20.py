@@ -61,15 +61,6 @@ class TestOAuth20(FrappeRequestTestCase):
 	def setUpClass(cls):
 		super().setUpClass()
 		make_test_records("User")
-		# //// Neoffice — our CI runs test cases one after another on one site, and earlier cases can leave this
-		# //// fixture user altered (roles, password, enabled): put back what these tests sign in with, so the
-		# //// password login of the implicit-grant test is not refused (neoffice-maintenance#1762).
-		from frappe.utils.password import update_password
-
-		frappe.db.set_value("User", "test@example.com", "enabled", 1)
-		frappe.get_doc("User", "test@example.com").add_roles("System Manager")
-		update_password("test@example.com", "Eastern_43A1W")
-		frappe.db.commit()  # nosemgrep: the HTTP tests run in other threads and only see committed rows
 
 		cls.form_header = {"content-type": "application/x-www-form-urlencoded"}
 		cls.scope = "all openid"
@@ -384,30 +375,12 @@ class TestOAuth20(FrappeRequestTestCase):
 
 		session = requests.Session()
 		login(session)
-		# //// Neoffice — TEMPORARY diagnosis of the CI failure (neoffice-maintenance#1762), removed by the next commit.
-		import sys
-
-		_who = session.get(get_full_url("/api/method/frappe.auth.get_logged_user"))
-		print(
-			"DEBUG-1762 base",
-			get_full_url("/"),
-			"conf.host_name",
-			frappe.local.conf.host_name,
-			file=sys.stderr,
-		)
-		print(
-			"DEBUG-1762 who",
-			_who.status_code,
-			_who.text[:300],
-			sorted(session.cookies.keys()),
-			file=sys.stderr,
-		)
 
 		redirect_destination = None
 
 		# Go to Authorize url
 		try:
-			_resp = session.get(  # //// Neoffice — TEMPORARY (#1762)
+			session.get(
 				get_full_url("/api/method/frappe.integrations.oauth2.authorize"),
 				params=encode_params(
 					{
@@ -418,20 +391,8 @@ class TestOAuth20(FrappeRequestTestCase):
 					}
 				),
 			)
-			# //// Neoffice — TEMPORARY diagnosis (neoffice-maintenance#1762), removed by the next commit.
-			print(
-				"DEBUG-1762 authorize",
-				_resp.status_code,
-				_resp.url,
-				[(h.status_code, h.headers.get("Location")) for h in _resp.history],
-				_resp.text[:400],
-				file=sys.stderr,
-			)
 		except requests.exceptions.ConnectionError as ex:
 			redirect_destination = ex.request.url
-			print(
-				"DEBUG-1762 redirected to", redirect_destination[:200], file=sys.stderr
-			)  # //// Neoffice — TEMPORARY (#1762)
 
 		response_dict = parse_qs(urlparse(redirect_destination).fragment)
 

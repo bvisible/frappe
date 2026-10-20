@@ -182,9 +182,14 @@ jobs:
           bench set-config -g redis_socketio redis://127.0.0.1:6379
           bench new-site test_site --db-root-password root --admin-password admin --no-mariadb-socket
           bench --site test_site set-config allow_tests true
+          # Both modes: upstream's CI site config names the host the site is served on. Without it,
+          # get_url() falls back on the host of whatever request the process last set up -- a test's
+          # set_request(path="/") makes it http://localhost:8000, a site that does not exist, and the
+          # HTTP tests then sign in nowhere (the implicit OAuth grant test, neoffice-maintenance#1762).
+          bench --site test_site set-config host_name http://test_site:8000
           if [ "${{ steps.modules.outputs.mode }}" = "full" ]; then
             # The whole suite runs on upstream's own CI site config (.github/helper/db/mariadb.json):
-            # outgoing mail to an SMTP sink on 2525, server scripts on, the host name, the monitor,
+            # outgoing mail to an SMTP sink on 2525, server scripts on, the monitor,
             # and NO developer_mode. Under developer_mode, test_no_delete_doc really deleted the
             # Address DocType, folder included, and later modules died importing it; and every mail
             # test failed on "Please setup default outgoing Email Account" (#392).
@@ -193,7 +198,6 @@ jobs:
             bench --site test_site set-config -p mail_port 2525
             bench --site test_site set-config mail_login test@example.com
             bench --site test_site set-config mail_password test
-            bench --site test_site set-config host_name http://test_site:8000
             bench --site test_site set-config -p monitor 1
             # -p goes through ast.literal_eval: Python's True, not JSON's true (the first try died on it)
             bench --site test_site set-config -p server_script_enabled True
