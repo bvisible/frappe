@@ -103,6 +103,12 @@ class File(Document):
 		self.validate_attachment_limit()
 		self.set_file_type()
 		self.validate_file_extension()
+		# //// Neoffice — backport of upstream 972ccf61b7 (v15.121.2, GHSA-gvg7-4p32-j648): a new File whose
+		# //// URL names a private file already on record is refused unless the user may read one of those
+		# //// records. Without it any desk user could create a record pointing at a colleague's private file
+		# //// and download it as their own (neoffice-maintenance#1738). Drop this call at the next rebase onto
+		# //// an upstream version-15 that has it, keeping our additions inside the method.
+		self.validate_private_file_access()
 
 		if self.is_folder:
 			return
@@ -157,10 +163,21 @@ class File(Document):
 		if self.is_remote_file:
 			self.validate_remote_file()
 		else:
+			# //// Neoffice — get_content() below reads the file at this URL before validate() ever runs, and our
+			# //// validate_file_url may point the record at another file on disk (a "cleaned" name). The path and
+			# //// the access are checked on the URL actually read, before reading it: a URL outside the files
+			# //// folder was read and copied into a record its creator could read (neoffice-maintenance#1742).
+			if self.file_url and not self.get("content"):
+				self.validate_file_url()
+				self.validate_file_path()
+				self.validate_private_file_access()
 			self.save_file(content=self.get_content())
 			self.flags.new_file = True
 			frappe.db.after_rollback.add(self.on_rollback)
 
+		# //// Neoffice — before_save() checks a new File only when this method did not: save_file may since have
+		# //// pointed the record at an older copy of the same content, which is the uploader's own content.
+		self.flags.private_file_access_checked = True
 		self.validate_duplicate_entry()  # Hash is generated in save_file
 
 	def after_insert(self):
@@ -182,9 +199,122 @@ class File(Document):
 			self.handle_is_private_changed()
 
 		self.validate_file_path()
+		# //// Neoffice — validate_file_url may point the record at another file on disk (see there), whose
+		# //// "cleaned" name can hold a ".." segment: that path is checked too (neoffice-maintenance#1742).
+		url_before_cleaning = self.file_url
 		self.validate_file_url()
+		if self.file_url != url_before_cleaning:
+			self.validate_file_path()
 		self.validate_file_on_disk()
 		self.file_size = frappe.form_dict.file_size or self.file_size
+
+	def before_save(self):
+		"""//// Neoffice — added method: the private-file check of before_insert, for the two cases it misses.
+
+		- A saved File that gets a new URL: upstream develop checks it too (#43876; its version-15 backport,
+		  #44347, is still open), but in validate(). The Suite's File override (suite.drive.overrides.file)
+		  never calls this validate() for a saved File, so the check lives here.
+		- A new File that did not go through this before_insert(): the same override skips it for Drive's own
+		  inserts, and one of them, Drive's create_link, takes its URL from the caller.
+
+		A URL that handle_is_private_changed() moved between /files and /private/files is the same file, not
+		a new one: it is not checked (neoffice-maintenance#1738)."""
+		if self.is_folder or not self.file_url:
+			return
+
+		if self.is_new():
+			if not self.flags.private_file_access_checked:
+				self.validate_private_file_access()
+			return
+
+		if self.has_value_changed("file_url") and self.file_url != self.flags.file_url_set_by_privacy_change:
+			self.validate_private_file_access()
+
+	def validate_private_file_access(self):
+		"""Validate that the user has permission to access an existing private file.
+
+		//// Neoffice — backport of upstream 972ccf61b7 (v15.121.2) in its develop form (#43876): every private
+		record sharing the URL is considered, reading any one of them is enough, and a saved record does not
+		vouch for itself. Our additions (neoffice-maintenance#1738):
+		- the URL is compared in every spelling that lands on the same private file (`_private_file_urls`):
+		  upstream compares the string only, so "/private/files/./a.pdf", an encoded name or a full URL of this
+		  site reached the file past it;
+		- a Guest is never the owner of a Guest's upload (the rule of `has_permission` below; upstream
+		  accepts the owner match for Guest too);
+		- Administrator returns first, so system flows never resolve a path here."""
+		if not self.file_url:
+			return
+
+		user = frappe.session.user
+		if user == "Administrator":
+			return
+
+		urls = self._private_file_urls()
+		if not urls:
+			return
+
+		filters = {"file_url": ("in", list(urls)), "is_private": 1}
+		if not self.is_new():
+			filters["name"] = ("!=", self.name)
+
+		private_files = frappe.get_all("File", filters=filters, fields=["name", "owner"])
+		if not private_files:
+			return
+
+		# a file can be attached to multiple documents; access to any one of them is enough
+		for private_file in private_files:
+			if user != "Guest" and user == private_file.owner:
+				return
+
+			if has_permission(frappe.get_doc("File", private_file.name), "read", user=user):
+				return
+
+		frappe.throw(
+			_("You do not have permission to access this file"),
+			frappe.PermissionError,
+		)
+
+	def _private_file_urls(self) -> set[str]:
+		"""//// Neoffice — added method (see validate_private_file_access): the spellings of this record's URL
+		under which a private file can be on record. The URL as given and unquoted (validate() unquotes it
+		later), and the canonical URL of the file the URL lands on, once dot segments, doubled slashes and links
+		are resolved — with and without its leading slash: Drive (the Suite) records its files as
+		"private/files/Users/…". A URL of another site names no file here."""
+		urls = set()
+		if not self.is_remote_file:
+			urls.update((self.file_url, unquote(self.file_url)))
+
+		local_url = self._url_read_from_disk()
+		if not local_url:
+			return urls
+
+		if local_url.startswith("/private/files/"):
+			path = get_files_path(*local_url.split("/private/files/", 1)[1].split("/"), is_private=1)
+		else:
+			path = get_files_path(*local_url.split("/files/", 1)[1].split("/"))
+		private_root = os.path.realpath(get_files_path(is_private=1))
+		real_path = os.path.realpath(path)
+		if real_path != private_root and os.path.commonpath((private_root, real_path)) == private_root:
+			relative_path = os.path.relpath(real_path, private_root)
+			urls.update(("/private/files/" + relative_path, "private/files/" + relative_path))
+
+		return urls
+
+	def _url_read_from_disk(self) -> str | None:
+		"""//// Neoffice — added method: the "/files/…" or "/private/files/…" URL that get_full_path() reads
+		this record from — a bare name goes to the record's files folder, and a full URL of this site's files
+		loses the site (the same tests as there). None for a URL of another site and for anything else, which
+		get_full_path() maps to no files folder. Never raises: a Drive link is any text its creator typed."""
+		url = self.file_url or ""
+		if url.startswith(URL_PREFIXES):
+			site_url = get_url()
+			if not ("/files/" in url and url.startswith(site_url)):
+				return None
+			url = url.split(site_url, 1)[1]
+		elif "/" not in url:
+			url = ("/private/files/" if self.is_private else "/files/") + url
+
+		return url if url.startswith(("/files/", "/private/files/")) else None
 
 	def validate_attachment_references(self):
 		if not self.attached_to_doctype:
@@ -251,11 +381,31 @@ class File(Document):
 		return frappe.get_all("File", filters={"folder": self.name}, pluck="name")
 
 	def validate_file_path(self):
-		if self.is_remote_file:
+		# //// Neoffice — upstream returns here for every remote URL, but get_full_path() reads a full URL of
+		# //// this site ("https://<site>/files/…") from the disk: only a URL it leaves as a URL is skipped, and
+		# //// a URL of this site may name either files folder (its is_private comes from a "/private" prefix it
+		# //// does not have). Without it such a URL, kept by a save that skips validate() (the Suite's File
+		# //// override), was read outside the files folder by get_content() (neoffice-maintenance#1742).
+		if self.is_remote_file and not self._url_read_from_disk():
 			return
+		full_path = self.get_full_path()
 
-		base_path = os.path.realpath(get_files_path(is_private=self.is_private))
-		if not os.path.realpath(self.get_full_path()).startswith(base_path):
+		# //// Neoffice — backport of upstream ab3dad6edf (v15.121.1, PR #43069): a ".." segment is refused, and
+		# //// commonpath replaces startswith, which let a sibling folder whose name starts with the files
+		# //// folder's pass (neoffice-maintenance#1742). Drop at the next rebase onto an upstream version-15
+		# //// that has it, keeping the site-URL case above.
+		if self.file_url and ".." in self.file_url.split("/"):
+			frappe.throw(_("The File URL you've entered is incorrect"), title=_("Invalid File URL"))
+
+		if self.is_remote_file:
+			base_paths = (get_files_path(), get_files_path(is_private=1))
+		else:
+			base_paths = (get_files_path(is_private=self.is_private),)
+		file_path = os.path.realpath(full_path)
+		if not any(
+			os.path.commonpath((base_path, file_path)) == base_path
+			for base_path in map(os.path.realpath, base_paths)
+		):
 			frappe.throw(
 				_("The File URL you've entered is incorrect"),
 				title=_("Invalid File URL"),
@@ -352,6 +502,8 @@ class File(Document):
 		frappe.db.after_rollback.add(self.on_rollback)
 
 		self.file_url = updated_file_url
+		# //// Neoffice — the same file under its new folder: before_save() does not take it for a new URL.
+		self.flags.file_url_set_by_privacy_change = updated_file_url
 		update_existing_file_docs(self)
 
 		if (
@@ -652,6 +804,10 @@ class File(Document):
 		if self.is_folder:
 			frappe.throw(_("Cannot get file contents of a Folder"))
 
+		# //// Neoffice — backport of upstream 1d32c6f743 (v15.117.0): the path is validated again before
+		# //// reading, whoever calls (neoffice-maintenance#1742). Drop at the next rebase onto an upstream
+		# //// version-15 that has it, keeping the second check below.
+		self.validate_file_path()
 		if self.get("content"):
 			self._content = self.content
 			if self.decode:
@@ -661,7 +817,12 @@ class File(Document):
 			return self._content
 
 		if self.file_url:
+			# //// Neoffice — validate_file_url unquotes the URL and may point it at another file on disk: the
+			# //// path read is the one checked (neoffice-maintenance#1742).
+			url_before_cleaning = self.file_url
 			self.validate_file_url()
+			if self.file_url != url_before_cleaning:
+				self.validate_file_path()
 		file_path = self.get_full_path()
 
 		# read the file

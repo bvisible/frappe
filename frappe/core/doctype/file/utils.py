@@ -344,6 +344,11 @@ def attach_files_to_document(doc: "Document", event) -> None:
 				"attached_to_name": None,
 				"attached_to_doctype": None,
 				"attached_to_field": None,
+				# //// Neoffice — backport of upstream cb620dc4ba (develop, 2026-09-07): only the uploader's own
+				# //// unattached File is adopted. Anyone could otherwise attach a colleague's unattached
+				# //// private file to a document of theirs and read it through it; the new File created
+				# //// below instead is refused by File.validate_private_file_access (neoffice-maintenance#1738).
+				"owner": frappe.session.user,
 			},
 		)
 

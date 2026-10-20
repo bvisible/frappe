@@ -811,6 +811,25 @@ class TestFileUtils(FrappeTestCase):
 		folder = create_new_folder("test_folder", "Home")
 		self.assertTrue(folder.is_folder)
 
+	# //// Neoffice — added test, backport of upstream ab3dad6edf (neoffice-maintenance#1742).
+	def test_traversal_file_url_cannot_reach_other_private_file(self):
+		victim = frappe.get_doc(
+			{"doctype": "File", "file_name": "traversal_victim.txt", "content": "secret", "is_private": 1}
+		).insert()
+		try:
+			for is_private in (0, 1):
+				doc = frappe.get_doc(
+					{
+						"doctype": "File",
+						"file_name": "traversal_copy.txt",
+						"file_url": f"/files/../../private/files/{victim.file_name}",
+						"is_private": is_private,
+					}
+				)
+				self.assertRaisesRegex(ValidationError, "File URL", doc.insert)
+		finally:
+			victim.delete()
+
 
 class TestFileOptimization(FrappeTestCase):
 	def test_optimize_file(self):
@@ -1275,3 +1294,169 @@ class TestNeofficeStripExifOrientation(FrappeTestCase):
 			stored = Image.open(io.BytesIO(handle.read()))
 		self.assertEqual(stored.size, (90, 120))
 		self.assertFalse(stored.getexif())
+
+
+# //// Neoffice — added tests (neoffice-maintenance#1738, #1742): a File reaches neither a private file its creator
+# //// may not read nor a path outside the files folder, whatever the spelling of its URL and whichever hook the
+# //// Suite's File override skips. Upstream 972ccf61b7 has no test; the update case is develop's
+# //// test_file_url_change_permission (#43876); the adoption case is cb620dc4ba's test on a version-15 Attach field.
+# //// The two desk users are made here: frappe's test users do not exist on a site restored from production.
+class TestNeofficePrivateFileReferences(FrappeTestCase):
+	OWNER = "neoffice-file-owner@example.com"
+	OTHER = "neoffice-file-other@example.com"
+	PRIVATE_CONTENT = "neoffice private content"
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		frappe.set_user("Administrator")
+		for email in (cls.OWNER, cls.OTHER):
+			if not frappe.db.exists("User", email):
+				user = frappe.get_doc(
+					{
+						"doctype": "User",
+						"email": email,
+						"first_name": "Neoffice File Test",
+						"send_welcome_email": 0,
+					}
+				).insert(ignore_permissions=True)
+				user.add_roles("Blogger")
+		frappe.db.commit()
+
+	@classmethod
+	def tearDownClass(cls):
+		frappe.set_user("Administrator")
+		for email in (cls.OWNER, cls.OTHER):
+			frappe.delete_doc("User", email, force=True, ignore_permissions=True)
+		frappe.db.commit()
+		super().tearDownClass()
+
+	def setUp(self):
+		frappe.set_user(self.OWNER)
+		self.victim = self.upload("neoffice_victim_file.txt", self.PRIVATE_CONTENT)
+		frappe.set_user(self.OTHER)
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		frappe.db.rollback()
+
+	def upload(self, file_name, content, is_private=1):
+		return frappe.get_doc(
+			{"doctype": "File", "file_name": file_name, "content": content, "is_private": is_private}
+		).insert()
+
+	def reference(self, file_url, **fields):
+		return frappe.get_doc(
+			{"doctype": "File", "file_name": "neoffice_reference.txt", "file_url": file_url, **fields}
+		)
+
+	@contextmanager
+	def file_outside_the_files_folder(self):
+		"""A file two levels above the public files folder (the site folder), named relative to it."""
+		files_folder = os.path.realpath(get_files_path())
+		path = os.path.join(os.path.dirname(os.path.dirname(files_folder)), "neoffice_outside_test.txt")
+		with open(path, "w") as f:
+			f.write("outside the files folder")
+		try:
+			yield "/files/../../neoffice_outside_test.txt"
+		finally:
+			os.remove(path)
+
+	def test_another_users_private_file_cannot_be_referenced(self):
+		self.assertRaises(frappe.PermissionError, self.reference(self.victim.file_url).insert)
+
+	def test_other_spellings_of_the_url_cannot_reference_it(self):
+		from frappe.utils import get_url
+
+		name = self.victim.file_url.rsplit("/", 1)[1]
+		stem, extension = name.rsplit(".", 1)
+		for file_url in (
+			f"/private/files/./{name}",
+			f"/private/files//{name}",
+			"/private/files/" + name.replace("_", "%5F"),
+			get_url() + self.victim.file_url,
+			# validate_file_url points a URL that is not on disk at its "cleaned" name when that one is
+			f"/private/files/{stem}-1200x800.{extension}",
+		):
+			with self.subTest(file_url=file_url):
+				self.assertRaises(frappe.PermissionError, self.reference(file_url).insert)
+
+	def test_insert_that_skips_the_core_hooks_is_checked(self):
+		# as the Suite's File override does for Drive's own inserts (create_link takes its URL from the caller)
+		doc = self.reference(self.victim.file_url, is_private=1)
+		doc.before_insert = lambda: None
+		doc.validate = lambda: None
+		self.assertRaises(frappe.PermissionError, doc.insert)
+
+	def test_a_file_drive_records_without_its_leading_slash_cannot_be_referenced(self):
+		# Drive (the Suite) records its files as "private/files/Users/…"; the slash makes it the same file
+		self.victim.db_set("file_url", self.victim.file_url.lstrip("/"))
+		self.assertRaises(frappe.PermissionError, self.reference("/" + self.victim.file_url).insert)
+
+	def test_a_link_typed_without_its_scheme_is_stored(self):
+		# Drive's create_link keeps whatever its creator typed: a text that names no file passes the check
+		doc = self.reference("example.com/neoffice-page", is_private=1)
+		doc.before_insert = lambda: None
+		doc.validate = lambda: None
+		doc.insert()
+		self.assertEqual(doc.file_url, "example.com/neoffice-page")
+
+	def test_new_url_on_a_saved_file_is_checked(self):
+		for skip_core_validate in (False, True):
+			with self.subTest(skip_core_validate=skip_core_validate):
+				mine = self.upload(f"neoffice_mine_{int(skip_core_validate)}.txt", "neoffice mine")
+				mine.file_url = self.victim.file_url
+				if skip_core_validate:
+					# as the Suite's File override does for every saved File
+					mine.validate = lambda: None
+				self.assertRaises(frappe.PermissionError, mine.save)
+
+	def test_another_users_unattached_file_is_not_adopted(self):
+		from unittest import mock
+
+		from frappe.core.doctype.file.utils import attach_files_to_document
+
+		user = frappe.get_doc("User", self.OTHER)
+		user.user_image = self.victim.file_url
+		with mock.patch.object(type(user), "log_error"):
+			attach_files_to_document(user, "on_update")
+
+		self.victim.reload()
+		self.assertIsNone(self.victim.attached_to_doctype)
+		self.assertFalse(
+			frappe.db.exists("File", {"file_url": self.victim.file_url, "attached_to_doctype": "User"})
+		)
+
+	def test_a_path_outside_the_files_folder_is_not_read(self):
+		with self.file_outside_the_files_folder() as file_url:
+			self.assertRaisesRegex(ValidationError, "File URL", self.reference(file_url).insert)
+
+	def test_a_full_url_of_this_site_is_validated_before_reading(self):
+		from frappe.utils import get_url
+
+		mine = frappe.get_doc("File", self.upload("neoffice_mine.txt", "neoffice mine").name)
+		with self.file_outside_the_files_folder() as file_url:
+			# kept by a save that skips validate(), as the Suite's File override does
+			mine.file_url = get_url() + file_url
+			self.assertRaisesRegex(ValidationError, "File URL", mine.get_content)
+
+	def test_the_owner_and_administrator_may_reference_it(self):
+		frappe.set_user(self.OWNER)
+		self.reference(self.victim.file_url).insert()
+		frappe.set_user("Administrator")
+		self.reference(self.victim.file_url).insert()
+
+	def test_the_same_content_uploaded_by_another_user_is_stored(self):
+		# save_file points the new record at the older copy of the same content: the uploader's own content
+		doc = self.upload("neoffice_same_content.txt", self.PRIVATE_CONTENT)
+		self.assertEqual(doc.file_url, self.victim.file_url)
+
+	def test_making_a_shared_file_private_is_not_refused(self):
+		# handle_is_private_changed moves the file and every record sharing it: the same file, not a new URL
+		frappe.set_user("Administrator")
+		self.upload("neoffice_shared.txt", "neoffice shared", is_private=0)
+		frappe.set_user(self.OTHER)
+		mine = self.upload("neoffice_shared.txt", "neoffice shared", is_private=0)
+		mine.is_private = 1
+		mine.save()
+		self.assertTrue(mine.file_url.startswith("/private/files/"))
