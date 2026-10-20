@@ -98,6 +98,10 @@ class TestOAuth20(FrappeRequestTestCase):
 		self.client_secret = self.oauth_client.get("client_secret")
 
 	def tearDown(self):
+		# //// Neoffice — back to Administrator first: the tests sign the session in as test@example.com (the
+		# //// sid property), and on our CI an earlier case leaves that fixture user without System Manager, so
+		# //// deleting the client failed and every later setUp cascaded (neoffice-maintenance#1762).
+		frappe.set_user("Administrator")
 		self.oauth_client.delete(force=True)
 		frappe.db.rollback()
 	# //// Neoffice — upstream version-15 code taken whole to complete the OAuth backport (6b39c54311, 3ee30e05d7, 41abb79219, 8bc4abcdc6; neoffice-maintenance#1762). Drop at the next merge of upstream version-15.
