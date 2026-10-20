@@ -454,6 +454,11 @@ jobs:
                 echo "--- what the served site wrote during this case"
                 tail -n +"$((served + 1))" /tmp/serve.log | tail -150
               fi
+              # under CI=true the served site logs only exceptions: a refused sign-in is not
+              # one, but the site always records it, reason included, and commits it
+              echo "--- the last sign-ins the site recorded"
+              echo "SELECT creation, user, operation, status, LEFT(subject, 90) AS subject FROM \`tabActivity Log\` WHERE operation IN ('Login', 'Logout') OR status = 'Failed' ORDER BY creation DESC LIMIT 6;" \
+                | bench --site test_site mariadb 2>&1 | cut -c1-300 | head -10 || true
             fi
             echo "::endgroup::"
           done || true
