@@ -269,8 +269,10 @@ class File(Document):
 			if has_permission(frappe.get_doc("File", private_file.name), "read", user=user):
 				return
 
+		# //// Neoffice — upstream says "You do not have permission to access this file", a message no
+		# //// catalog translates: the refusal of a download, which says the same, is translated already.
 		frappe.throw(
-			_("You do not have permission to access this file"),
+			_("You don't have permission to access this file"),
 			frappe.PermissionError,
 		)
 
