@@ -604,8 +604,19 @@ class User(Document):
 			# //// "fix: add ignore_permissions when renaming Notification Settings on User rename"):
 			# //// renaming a User also renames its per-user Notification Settings document, and the acting
 			# //// user does not normally hold write permission on that doctype, so the rename aborted
-			# //// half-way and left the two names out of sync.
-			frappe.rename_doc("Notification Settings", old_name, new_name, force=True, show_alert=False, ignore_permissions=True)
+			# //// half-way and left the two names out of sync. Through the model function: the whitelisted
+			# //// frappe.rename_doc keeps upstream's signature, without ignore_permissions
+			# //// (neoffice-maintenance#1758).
+			from frappe.model.rename_doc import rename_doc
+
+			rename_doc(
+				"Notification Settings",
+				old_name,
+				new_name,
+				force=True,
+				show_alert=False,
+				ignore_permissions=True,
+			)
 
 		# set email
 		frappe.db.set_value("User", new_name, "email", new_name)
