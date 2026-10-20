@@ -30,6 +30,10 @@ if TYPE_CHECKING:
 test_content1 = "Hello"
 test_content2 = "Hello World"
 
+# //// Neoffice — TestAttachmentsAccess acts as users of frappe's User test records: make them for every run
+# //// of this module, not only for a whole-suite run that made them earlier (neoffice-maintenance#1744).
+test_dependencies = ["User"]
+
 
 def make_test_doc(ignore_permissions=False):
 	d = frappe.new_doc("ToDo")
@@ -725,6 +729,24 @@ class TestAttachmentsAccess(FrappeTestCase):
 	def tearDown(self) -> None:
 		frappe.set_user("Administrator")
 		frappe.db.rollback()
+
+
+# //// Neoffice — added test class (neoffice-maintenance#1744), no upstream equivalent. The test above acts as
+# //// two users of frappe's User test records: "test@example.com" (System Manager) and "test4@example.com"
+# //// (no role). Upstream's whole-suite CI had made them in an earlier module; a run of File's tests alone
+# //// (our CI's `run-tests --doctype File`, a site restored from production) had not. The "System Manager"
+# //// was then a user without any role, File's list rule rightly showed it its own files only, and
+# //// test_list_private_attachments failed. `test_dependencies` at the top of this module makes the records.
+# //// This subclass runs the upstream test in our CI, which only runs the classes this fork touches, and
+# //// names the cause if the records go missing again.
+class TestNeofficeAttachmentsAccess(TestAttachmentsAccess):
+	def test_frappe_test_users_exist(self):
+		self.assertIn(
+			"System Manager",
+			frappe.get_roles("test@example.com"),
+			"frappe's User test records are missing: test_dependencies of this module was not honoured",
+		)
+		self.assertTrue(frappe.db.exists("User", "test4@example.com"))
 
 
 class TestFileUtils(FrappeTestCase):
