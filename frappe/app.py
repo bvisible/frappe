@@ -177,6 +177,12 @@ def init_request(request):
 		raise NotFound
 
 	frappe.connect(set_admin_as_user=False)
+	# //// Neoffice — a site in maintenance still serves the methods it names in `maintenance_open_methods`
+	# //// (site_config.json, dotted paths). The hub keeps the relays its client instances call at any hour (their
+	# //// mail, SMS, payment and bank bridges) running while its own desk is closed for an update, which is what
+	# //// maintenance mode is for (neoffice-maintenance#1785). Only this request sees it lifted, on a copy of its config.
+	if frappe.local.conf.maintenance_mode and is_open_during_maintenance(request):
+		frappe.local.conf = frappe._dict(frappe.local.conf, maintenance_mode=0)
 	if frappe.local.conf.maintenance_mode:
 		if frappe.local.conf.allow_reads_during_maintenance:
 			setup_read_only_mode()
@@ -205,6 +211,23 @@ def init_request(request):
 
 	for before_request_task in frappe.get_hooks("before_request"):
 		frappe.call(before_request_task)
+
+
+# //// Neoffice — added with the maintenance exception, see init_request (neoffice-maintenance#1785)
+OPEN_METHOD_PREFIXES = ("/api/method/", "/api/v1/method/", "/api/v2/method/")
+
+
+def is_open_during_maintenance(request) -> bool:
+	"""Whether this request calls a method the site keeps open while in maintenance (`maintenance_open_methods`)."""
+	# //// Neoffice — added with the maintenance exception, see init_request
+	open_methods = frappe.local.conf.get("maintenance_open_methods") or ()
+	if isinstance(open_methods, str):
+		open_methods = (open_methods,)
+	path = request.path or ""
+	for prefix in OPEN_METHOD_PREFIXES:
+		if path.startswith(prefix):
+			return path[len(prefix) :].rstrip("/") in set(open_methods)
+	return False
 
 
 def is_streaming_request(request) -> bool:
