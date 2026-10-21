@@ -78,6 +78,20 @@ class TestASiteInMaintenanceServesOnlyItsOpenMethods(FrappeTestCase):
 		self.assertEqual(opened.json.get("message"), "pong")
 		self.assertEqual(self._get(CLOSED).status_code, 503)
 
+	def test_a_cmd_among_the_arguments_does_not_ride_on_an_open_path(self):
+		# application() runs `cmd` before it looks at the path: the open method's path must not carry another method
+		update_site_config("maintenance_open_methods", [OPEN])
+		update_site_config("maintenance_mode", 1)
+
+		for target, args, kwargs in (
+			(self.client.get, (f"/api/method/{OPEN}?cmd={CLOSED}",), {}),
+			(self.client.post, (f"/api/method/{OPEN}",), {"data": {"cmd": CLOSED}}),
+			(self.client.post, (f"/api/method/{OPEN}",), {"json": {"cmd": CLOSED}}),
+		):
+			with self.subTest(target=target.__name__, kwargs=kwargs):
+				answer = make_request(target=target, args=args, kwargs=kwargs, site=frappe.local.site)
+				self.assertEqual(answer.status_code, 503)
+
 	def test_without_open_methods_maintenance_refuses_everything(self):
 		update_site_config("maintenance_mode", 1)
 

@@ -181,7 +181,8 @@ def init_request(request):
 	# //// (site_config.json, dotted paths). The hub keeps the relays its client instances call at any hour (their
 	# //// mail, SMS, payment and bank bridges) running while its own desk is closed for an update, which is what
 	# //// maintenance mode is for (neoffice-maintenance#1785). Only this request sees it lifted, on a copy of its config.
-	if frappe.local.conf.maintenance_mode and is_open_during_maintenance(request):
+	lifted = bool(frappe.local.conf.maintenance_mode and is_open_during_maintenance(request))
+	if lifted:
 		frappe.local.conf = frappe._dict(frappe.local.conf, maintenance_mode=0)
 	if frappe.local.conf.maintenance_mode:
 		if frappe.local.conf.allow_reads_during_maintenance:
@@ -205,6 +206,10 @@ def init_request(request):
 		request.max_content_length = cint(frappe.local.conf.get("max_file_size")) or 25 * 1024 * 1024
 	# //// Neoffice — the body of a streaming path is left unread
 	make_form_dict(request, streaming=streaming)
+	# //// Neoffice — a `cmd` among the arguments makes application() run that method instead of the path's: the
+	# //// maintenance lifted for the path's method does not cover it (neoffice-maintenance#1785)
+	if lifted and frappe.form_dict.cmd:
+		raise frappe.SessionStopped("Session Stopped")
 
 	if request.method != "OPTIONS":
 		frappe.local.http_request = HTTPRequest()
