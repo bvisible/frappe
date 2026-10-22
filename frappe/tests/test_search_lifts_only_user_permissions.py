@@ -1,9 +1,11 @@
 # //// Neoffice — added file (no upstream equivalent): tests for neoffice-maintenance#894, the link
-# //// search lifts a user's User Permissions only for a field set to ignore them, and nothing else
-# //// (frappe.desk.search.may_ignore_user_permissions). Drop at the v16 merge, with that function.
+# //// search lifts a user's User Permissions only for a field set to ignore them that the user can
+# //// fill, and nothing else (upstream's validate_ignore_user_permissions, plus our
+# //// user_can_fill_form and the flag instead of ignore_permissions=True in frappe.desk.search).
+# //// Drop what upstream covers, when it does.
 """A link search that ignores user permissions lifts those, for a field that allows it, and nothing else.
 
-Upstream v15, frappe.desk.search.search_widget took `ignore_user_permissions=1` on trust
+Upstream v15 up to 15.123, frappe.desk.search.search_widget took `ignore_user_permissions=1` on trust
 from any caller who could read the doctype (or the parent of a child table), and then
 listed with ignore_permissions=True: every record, every column the caller picked through
 `filter_fields`, past the permission hooks, if_owner and field-level permissions, and every
@@ -73,7 +75,6 @@ def claim(field, form=FORM):
 	return {
 		"ignore_user_permissions": 1,
 		"reference_doctype": form,
-		"form_doctype": form,
 		"link_fieldname": field,
 	}
 
@@ -200,7 +201,7 @@ class TestSearchLiftsOnlyUserPermissions(FrappeTestCase):
 		for field in (None, "rows"):
 			arguments = {"ignore_user_permissions": 1, "reference_doctype": TARGET}
 			if field:
-				arguments |= {"form_doctype": TARGET, "link_fieldname": field}
+				arguments |= {"link_fieldname": field}
 			with self.assertRaises(frappe.PermissionError):
 				search(WRITER, doctype=TARGET_ROW, **arguments)
 

@@ -7,11 +7,12 @@ A few divergences cannot carry a comment: whitespace at a place where no comment
 (a dropped final newline), binary files, and pure-data files with no comment syntax (`.json`).
 They are recorded here instead, so the map stays complete.
 
-Baseline for everything below: `git diff v15.123.1 version-15`. The fork was based on `v15.89.0`
-until the merge of upstream `v15.123.1` (2026-10-20); the rows below were written against `v15.89.0`
-and re-checked at that merge (lot M at the end lists what the merge changed here). Since the merge,
-`python3 neoffice-ci/scripts/fork_markers.py check --base v15.123.1 --head version-15
---upstream-base v15.123.1` answers 0 unmarked hunks.
+Baseline for everything below: `git diff v15.124.0 version-15`. The fork was based on `v15.89.0`
+until the merge of upstream `v15.123.1` (2026-10-20), then `v15.124.0` (2026-10-22); the rows below
+were written against `v15.89.0` and re-checked at the first merge (lot M at the end lists what the
+merge changed here). Since the merge,
+`python3 neoffice-ci/scripts/fork_markers.py check --base v15.124.0 --head version-15
+--upstream-base v15.124.0` answers 0 unmarked hunks.
 
 ## Lot F1 — frappe/public/js
 
@@ -194,7 +195,7 @@ none of it was introduced by the merge. "TO REVIEW" rows are candidates to go ba
 
 | File | Divergence vs `v15.123.1` | Introduced by |
 |---|---|---|
-| `package.json` | `frappe-datatable` comes from our fork `github:bvisible/datatable` (upstream v1.21.2, which this frappe asks for, plus our styling fix `c77eddabd7`) instead of the npm release | our datatable fork; last re-merged with upstream on 2026-09-29 |
+| `package.json` | `frappe-datatable` comes from our fork `github:bvisible/datatable` (upstream v1.21.2 plus our styling fix `c77eddabd7`; this frappe asks for v1.21.3, whose only change is a tree-sorting fix in `datamanager.js`, not merged into the fork yet) instead of the npm release | our datatable fork; last re-merged with upstream on 2026-09-29 |
 | `frappe/public/js/desk.bundle.js` | three imports: the sidebar template and the apps switcher (script + template) of our sidebar redesign; marked in place, but the check does not read `.bundle.js` files | 9999364ec6 (2025-10-28 "Refonte de l'interface utilisateur avec nouvelle sidebar et apps switcher") |
 | `frappe/public/js/frappe/views/kanban/kanban_board.bundle.js` | a branch that turns a new ToDo kanban column into an option of the ToDo status field (`neoffice_custom_fields.events.add_status_options`); marked in place | 4c842a98fc (2023-10-30 "First change v15"), 12249186f3 |
 | `frappe/public/css/animate.min.css` | added file: animate.css 4.1.1, vendored as published (MIT) | bd41f1e7a5 (2025-02-26 "Update neov2") |
