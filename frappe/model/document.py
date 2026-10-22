@@ -21,7 +21,7 @@ from frappe.model.naming import set_new_name, validate_name
 from frappe.model.utils import is_virtual_doctype
 from frappe.model.workflow import set_workflow_state_on_action, validate_workflow
 from frappe.types import DF
-from frappe.utils import compare, cstr, date_diff, file_lock, flt, get_datetime_str, now
+from frappe.utils import compare, date_diff, file_lock, flt, get_datetime_str, now
 from frappe.utils.data import get_absolute_url, get_datetime, get_timedelta, getdate
 from frappe.utils.global_search import update_global_search
 
@@ -721,6 +721,8 @@ class Document(BaseDocument):
 
 				if field.fieldtype in table_fields:
 					fail = not self.is_child_table_same(field.fieldname)
+				elif field.fieldtype == "Datetime" and value and original_value:
+					fail = get_datetime(value) != get_datetime(original_value)
 				elif field.fieldtype in ("Date", "Datetime", "Time"):
 					fail = str(value) != str(original_value)
 				else:
@@ -880,7 +882,9 @@ class Document(BaseDocument):
 			self.check_docstatus_transition(0)
 			return
 
-		if cstr(previous.modified) != cstr(self._original_modified):
+		previous_modified = get_datetime(previous.modified) if previous.modified else None
+		original_modified = get_datetime(self._original_modified) if self._original_modified else None
+		if previous_modified != original_modified:
 			# //// Neoffice — upstream always raises TimestampMismatchError here ("Document has been
 			# //// modified after you have opened it"). 14e24eef60 (2025-03-12) makes the Shopping Cart
 			# //// Quotation reload silently instead: that document is rewritten by the webshop on every
@@ -1136,10 +1140,6 @@ class Document(BaseDocument):
 	@frappe.whitelist()
 	def rename(self, name: str | int, merge: bool = False, force: bool = False, validate_rename: bool = True):
 		"""Rename the document to `name`. This transforms the current object."""
-		# //// Neoffice — backport of upstream 22da8e41a3 (develop, 2026-10-07): the whitelisted method no
-		# //// longer passes on the client's `validate_rename`, which let anyone who can read a document rename it
-		# //// past every check (write permission, allow_rename). Code that must skip them calls `_rename`. Drop
-		# //// this at the next rebase onto an upstream version-15 that has it (neoffice-maintenance#1656).
 		return self._rename(name=name, merge=merge, force=force)
 
 	def delete(self, ignore_permissions=False, force=False, *, delete_permanently=False):

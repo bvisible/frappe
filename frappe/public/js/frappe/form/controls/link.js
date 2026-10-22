@@ -314,13 +314,8 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 					ignore_user_permissions:
 						me.df?.ignore_user_permissions || meta_df?.ignore_user_permissions,
 					reference_doctype: reference_doctype,
-					//// Neoffice — backport of upstream d48b0d1632 (develop): name the field being
-					//// searched, so the server can check its claim to ignore user permissions
-					//// (frappe.desk.search.may_ignore_user_permissions, neoffice-maintenance#894).
-					//// Without them the claim is refused. Drop at the v16 merge.
-					form_doctype: me.doctype,
-					link_fieldname: me.df.fieldname,
 					page_length: cint(frappe.boot.sysdefaults?.link_field_results_limit) || 10,
+					link_fieldname: me.df.fieldname,
 				};
 
 				me.set_custom_query(args);

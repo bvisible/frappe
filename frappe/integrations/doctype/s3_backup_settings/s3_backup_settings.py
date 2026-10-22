@@ -86,6 +86,8 @@ class S3BackupSettings(Document):
 @frappe.whitelist()
 def take_backup():
 	"""Enqueue longjob for taking backup to s3"""
+	frappe.only_for("System Manager")
+
 	job = enqueue(
 		"frappe.integrations.doctype.s3_backup_settings.s3_backup_settings.take_backups_s3",
 		queue="long",
@@ -112,12 +114,13 @@ def take_backups_if(freq):
 			take_backups_s3()
 
 
-# //// Neoffice — upstream: `take_backups_s3(retry_count=0)`. The three flags (68d7f3a760,
+# //// Neoffice — upstream: `take_backups_s3(retry_count=0)`, no longer whitelisted since 15.124.0
+# //// (51166faecf: any logged-in user could start a backup to S3). The three flags (68d7f3a760,
 # //// 2025-07-03 "Update s3_backup_settings.py", empty message) mark a backup taken by the
 # //// setup wizard, by hand or for a demo; they are forwarded to backup_to_s3() which renames
-# //// and files it apart from the nightly ones. This endpoint is whitelisted, so the flags are
-# //// caller-supplied strings — see how they are compared further down.
-@frappe.whitelist()
+# //// and files it apart from the nightly ones. Not whitelisted, so the flags no longer come from a
+# //// request: neoffice_theme.events.dump_and_import_db calls it, and the setup wizard goes through
+# //// neoffice_wizard's own whitelisted method (neoffice-maintenance#1748).
 def take_backups_s3(retry_count=0, wizard=False, manual=False, demo=False):
 	try:
 		validate_file_size()

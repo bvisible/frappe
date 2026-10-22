@@ -367,7 +367,7 @@ def get_print_format_styles(soup: BeautifulSoup) -> list[cssutils.css.Property]:
 @functools.lru_cache(maxsize=32)
 def _print_format_styles_of(stylesheet: str) -> tuple:
 	# Use css parser to tokenize the classes and their styles
-	parsed_sheet = cssutils.parseString(stylesheet)
+	parsed_sheet = cssutils.CSSParser(fetcher=lambda url: (None, "")).parseString(stylesheet)
 
 	# Get all styles that are only for .print-format
 	valid_styles = []

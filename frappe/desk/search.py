@@ -10,11 +10,11 @@ from typing_extensions import NotRequired  # not required in 3.11+
 import frappe
 
 # Backward compatbility
-from frappe import _, is_whitelisted, validate_and_sanitize_search_inputs
+from frappe import _, bold, is_whitelisted, validate_and_sanitize_search_inputs
 from frappe.database.schema import SPECIAL_CHAR_PATTERN
 from frappe.model.db_query import get_order_by
 from frappe.permissions import has_permission
-from frappe.utils import cint, cstr, unique
+from frappe.utils import cint, cstr, escape_html, unique
 from frappe.utils.data import make_filter_tuple
 
 PAGE_LENGTH_FOR_LINK_VALIDATION = 25_000
@@ -45,11 +45,6 @@ def search_link(
 	searchfield: str | None = None,
 	reference_doctype: str | None = None,
 	ignore_user_permissions: bool = False,
-	# //// Neoffice — backport of upstream d48b0d1632 (develop): the Link control names the field
-	# //// it searches for, so that its claim to ignore user permissions can be checked. See
-	# //// may_ignore_user_permissions. Drop at the v16 merge (upstream has the same arguments).
-	*,
-	form_doctype: str | None = None,
 	link_fieldname: str | None = None,
 ) -> list[LinkSearchResults]:
 	results = search_widget(
@@ -61,7 +56,6 @@ def search_link(
 		filters=filters,
 		reference_doctype=reference_doctype,
 		ignore_user_permissions=ignore_user_permissions,
-		form_doctype=form_doctype,  # //// Neoffice — see the arguments above
 		link_fieldname=link_fieldname,
 	)
 	return build_for_autosuggest(results, doctype=doctype)
@@ -81,11 +75,21 @@ def search_widget(
 	as_dict: bool = False,
 	reference_doctype: str | None = None,
 	ignore_user_permissions: bool = False,
-	# //// Neoffice — see search_link and may_ignore_user_permissions (neoffice-maintenance#894).
-	*,
-	form_doctype: str | None = None,
 	link_fieldname: str | None = None,
 ):
+	if ignore_user_permissions:
+		if reference_doctype and link_fieldname:
+			try:
+				ignore_user_permissions = validate_ignore_user_permissions(
+					reference_doctype, link_fieldname, doctype
+				)
+			except frappe.ValidationError:
+				# v15 never raised for this flag, so keep user permissions instead
+				frappe.clear_last_message()
+				ignore_user_permissions = False
+		else:
+			ignore_user_permissions = False
+
 	start = cint(start)
 	page_length = cint(page_length)
 
@@ -93,14 +97,11 @@ def search_widget(
 	if page_length <= 0:
 		page_length = PAGE_LENGTH_FOR_LINK_VALIDATION
 
-	# //// Neoffice — the caller's claim to ignore user permissions is checked before anything
-	# //// honours it, the custom query below included (neoffice-maintenance#894). Upstream v15
-	# //// took the flag on trust and then listed with ignore_permissions=True, which dropped
-	# //// every rule of the doctype, not only its User Permissions. Drop at the v16 merge,
-	# //// where upstream validates the claim (d48b0d1632).
-	ignore_user_permissions = bool(cint(ignore_user_permissions)) and may_ignore_user_permissions(
-		doctype, form_doctype, link_fieldname
-	)
+	# //// Neoffice — on top of upstream's validation above (15.124.0, d48b0d1632): the user must also be
+	# //// able to fill the field, that is write or create the form (neoffice-maintenance#894). Upstream
+	# //// only refuses a read-only or hidden field, so anyone who can read a form could name one of its
+	# //// fields and lift the User Permissions of the doctype it links to. Drop if upstream asks as much.
+	ignore_user_permissions = bool(cint(ignore_user_permissions)) and user_can_fill_form(reference_doctype)
 
 	if isinstance(filters, str):
 		filters = json.loads(filters)
@@ -237,8 +238,9 @@ def search_widget(
 	# //// every column they picked through filter_fields, past the permission_query_conditions
 	# //// hooks, if_owner and field-level permissions. Measured: an Employee-only account read
 	# //// all 1,408 salary lines and all salary slips of the company. The flag is the one
-	# //// upstream v15 already reads in DatabaseQuery.build_match_conditions. Drop at the v16
-	# //// merge (upstream d48b0d1632 passes ignore_user_permissions to get_list instead).
+	# //// upstream v15 already reads in DatabaseQuery.build_match_conditions. Upstream 15.124.0
+	# //// validates the claim but still lists with ignore_permissions=True once the user can read
+	# //// the doctype. Drop when upstream passes ignore_user_permissions to get_list instead.
 	previous_flag = frappe.flags.get("ignore_user_permissions_for_doctype")
 	frappe.flags.ignore_user_permissions_for_doctype = doctype if ignore_user_permissions else None
 	try:
@@ -285,54 +287,129 @@ def search_widget(
 	return values
 
 
-# //// Neoffice — added (neoffice-maintenance#894), a non-throwing backport of upstream's
-# //// validate_ignore_user_permissions (d48b0d1632, develop) plus one check of ours: the user
-# //// must be able to fill the field. A refused claim only means the User Permissions apply, as
-# //// for any other search, so it neither throws nor logs: a filter or dialog control copies a
-# //// field's flag without naming its form, and an error there (or a log line, which the fleet
-# //// turns into issues) would fire on every keystroke. Drop at the v16 merge, keeping the
-# //// "can fill" check if upstream still lacks it.
-def may_ignore_user_permissions(
-	link_doctype: str, form_doctype: str | None, link_fieldname: str | None
-) -> bool:
-	"""Whether a search of `link_doctype` may skip the user's User Permissions.
+def validate_ignore_user_permissions(form_doctype: str, link_fieldname: str, link_doctype: str) -> bool:
+	"""Return whether the search may ignore user permissions; throw if the field does not allow it."""
 
-	Only for the dropdown of a field that is set to ignore them: `link_fieldname` of
-	`form_doctype` must be such a field and link to `link_doctype` (a Dynamic Link may link
-	to anything, as upstream), and the user must be able to write or create that form, or
-	a parent of it when it is a child table. A read-only user never fills the field: without
-	that check, any submittable doctype's own `amended_from` (a Link to itself that ignores
-	User Permissions) would lift them on that doctype for anyone who reads it.
-	"""
-	if not (form_doctype and link_fieldname and link_doctype):
+	def _throw(message):
+		frappe.throw(message, title=_('Error validating "Ignore User Permissions"'))
+
+	def can_search(*fields):
+		# a read-only or hidden field has no search box, so only a crafted request names it
+		return not any(field.read_only or field.hidden for field in fields)
+
+	meta = frappe.get_meta(form_doctype)
+	matched_child_field = None
+	locked_child_field = False
+	for table_field in meta.get_table_fields():
+		if not frappe.db.exists("DocType", table_field.options):
+			continue
+
+		child_field = frappe.get_meta(table_field.options).get_field(link_fieldname)
+		if not child_field or child_field.fieldtype not in ("Link", "Dynamic Link"):
+			continue
+
+		if child_field.fieldtype == "Link" and child_field.options != link_doctype:
+			continue
+
+		if child_field.ignore_user_permissions:
+			if can_search(table_field, child_field):
+				return True
+			# keep looking, a parent field of the same name may still allow it
+			locked_child_field = True
+			continue
+
+		matched_child_field = child_field
+
+	link_field = meta.get_field(link_fieldname)
+	if link_field and link_field.fieldtype not in ("Link", "Dynamic Link", "Table MultiSelect"):
+		link_field = None  # e.g. a Float named "value", which bulk edit's field name collides with
+	field_doctype = form_doctype
+
+	if locked_child_field and not (link_field and link_field.ignore_user_permissions):
+		return False
+
+	if not link_field and matched_child_field:
+		link_field = matched_child_field
+		field_doctype = matched_child_field.parent
+
+	if not link_field:
+		# bulk edit names its value field "value" instead of the field being set
+		if any(
+			field.fieldtype == "Link"
+			and field.options == link_doctype
+			and field.ignore_user_permissions
+			and can_search(field)
+			for field in meta.fields
+		):
+			return True
+
+		_throw(
+			_("Field <code>{0}</code> not found in {1}").format(
+				escape_html(link_fieldname), bold(_(form_doctype))
+			)
+		)
+
+	if not can_search(link_field):
+		return False
+
+	ignore_user_permissions = link_field.ignore_user_permissions
+	found_doctype = None
+
+	if link_field.fieldtype == "Table MultiSelect":
+		child_meta = frappe.get_meta(link_field.options)
+		child_link_field = next((field for field in child_meta.fields if field.fieldtype == "Link"), None)
+		if not child_link_field:
+			_throw(
+				_(
+					"Table MultiSelect requires a table with at least one Link field, but none was found in {0}"
+				).format(bold(_(link_field.options)))
+			)
+
+		found_doctype = child_link_field.options
+		if not ignore_user_permissions:
+			# ignore user permissions should be set in parent table field
+			# or in child table link field
+			ignore_user_permissions = child_link_field.ignore_user_permissions
+
+	if not ignore_user_permissions:
+		_throw(
+			_("The field {0} in {1} does not allow ignoring user permissions").format(
+				bold(_(link_field.label or link_fieldname, context=field_doctype)), bold(_(field_doctype))
+			)
+		)
+
+	if link_field.fieldtype == "Dynamic Link":
+		return True  # skip doctype check for Dynamic Link fields
+
+	if link_field.fieldtype == "Link":
+		found_doctype = link_field.options
+
+	if found_doctype != link_doctype:
+		_throw(
+			_("The field {0} in {1} links to {2} and not {3}").format(
+				bold(_(link_field.label or link_fieldname, context=field_doctype)),
+				bold(_(field_doctype)),
+				bold(_(found_doctype)),
+				bold(escape_html(link_doctype)),
+			)
+		)
+
+	return True
+
+
+# //// Neoffice — added (neoffice-maintenance#894), see search_widget: the check of ours that
+# //// upstream's validate_ignore_user_permissions lacks. A read-only user never fills the field:
+# //// without it, anyone who can read a form could name one of its fields (a self-link such as
+# //// `amended_from` is read-only, but not every field that ignores User Permissions is) and lift
+# //// the User Permissions of the doctype it links to. Drop if upstream asks as much.
+def user_can_fill_form(form_doctype: str | None) -> bool:
+	"""Whether the user can write or create `form_doctype`, or a parent of it when it is a child table."""
+	if not form_doctype:
 		return False
 
 	try:
 		meta = frappe.get_meta(form_doctype)
 	except frappe.DoesNotExistError:
-		return False
-
-	field = meta.get_field(link_fieldname)
-	if not field:
-		return False
-
-	allowed = field.ignore_user_permissions
-	target = None
-	if field.fieldtype == "Link":
-		target = field.options
-	elif field.fieldtype == "Table MultiSelect":
-		child_link = next(
-			(df for df in frappe.get_meta(field.options).fields if df.fieldtype == "Link"), None
-		)
-		if not child_link:
-			return False
-		target = child_link.options
-		# the flag may sit on the Table MultiSelect field or on the link field of its table
-		allowed = allowed or child_link.ignore_user_permissions
-	elif field.fieldtype != "Dynamic Link":
-		return False
-
-	if not allowed or (field.fieldtype != "Dynamic Link" and target != link_doctype):
 		return False
 
 	from frappe.model.db_query import get_parent_doctypes
