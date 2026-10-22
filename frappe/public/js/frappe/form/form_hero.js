@@ -1364,17 +1364,22 @@ frappe.ui.form.FormHero = class FormHero {
 		}
 
 		const email = (doc.email_id || "").trim();
+		//// Neoffice — the contact line of the detail block (see add_hero_detail) already says the
+		//// customer's e-mail: the chip beside the buttons repeated it (Daniel, 22.10: « ça fait doublon »).
+		//// The chip stays when it tells something the line does not: no e-mail at all, or another one -
+		//// and below 1200 px, where the detail block keeps only its icons (cockpit.css hides it from 1200 px up).
+		const said_above =
+			!!email &&
+			(this.detail_lines || []).some(
+				(line) => line.icon === "user" && line.text.toLowerCase().includes(email.toLowerCase())
+			);
 		const $row = $('<div class="form-hero-stockrow form-hero-custrow"></div>').appendTo(
 			this.$wrapper
 		);
 		$row.html(`
-			<span class="stock-chip email-chip ${email ? "" : "empty"}">
-				${
-					email
-						? frappe.utils.escape_html(email)
-						: __("No email")
-				}
-			</span>
+			<span class="stock-chip email-chip ${email ? "" : "empty"}${
+				said_above ? " is-said-above" : ""
+			}">${email ? frappe.utils.escape_html(email) : __("No email")}</span>
 			<button class="step-cta hero-change-emails">${STEP_ICONS.edit || ""}<span>${__(
 				"Change Emails"
 			)}</span></button>

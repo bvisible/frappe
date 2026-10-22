@@ -2329,3 +2329,11 @@ body.neoffice-cockpit.nf-list .sidebar-toggle-btn {
 		overflow-y: auto;
 	}
 }
+
+/* //// Neoffice — the contact line of the hero's detail block says the customer's e-mail from 1200 px up
+   (below it only its icons stay): the chip beside the buttons would repeat it. */
+@media (min-width: 1200px) {
+	body.neoffice-cockpit .form-hero-custrow .email-chip.is-said-above {
+		display: none;
+	}
+}
