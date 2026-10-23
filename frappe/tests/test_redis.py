@@ -1,4 +1,7 @@
 import functools
+
+# //// Neoffice — for TestExpiringCacheValues below.
+import time
 from unittest.mock import patch
 
 import redis
@@ -75,3 +78,23 @@ class TestRedisAuth(FrappeTestCase):
 
 		frappe.conf.update({"bench_id": bench_id})
 		conn.acl_deluser(username)
+
+
+# //// Neoffice — added test class (no upstream equivalent), see RedisWrapper.set_value().
+class TestExpiringCacheValues(FrappeTestCase):
+	def setUp(self):
+		self.key = f"neoffice_expiring_{frappe.generate_hash(length=8)}"
+		self.addCleanup(frappe.cache.delete_value, self.key)
+
+	def test_an_expired_value_is_not_served_again_by_the_same_process(self):
+		frappe.cache.set_value(self.key, "one-time password", expires_in_sec=1)
+		self.assertEqual(frappe.cache.get_value(self.key, expires=True), "one-time password")
+
+		time.sleep(1.2)
+		self.assertIsNone(frappe.cache.get_value(self.key, expires=True))
+
+	def test_a_value_written_after_a_miss_is_read_back(self):
+		self.assertIsNone(frappe.cache.get_value(self.key))  # the miss is remembered for the request
+
+		frappe.cache.set_value(self.key, "value", expires_in_sec=60)
+		self.assertEqual(frappe.cache.get_value(self.key), "value")

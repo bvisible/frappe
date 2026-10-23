@@ -59,12 +59,16 @@ class RedisWrapper(redis.Redis):
 		"""
 		key = self.make_key(key, user, shared)
 
-		# //// Neoffice — v16 parity (upstream develop sets the local copy unconditionally).
-		# //// Here a value written WITH an expiry skipped frappe.local.cache, while a
-		# //// preceding miss had cached None there: the very next get_value() served that
-		# //// None and every "cache then re-read" path hit the DB twice (suite writer's
-		# //// drive-file meta, and any expiring key read after a miss in the same request).
-		frappe.local.cache[key] = val
+		if not expires_in_sec:
+			frappe.local.cache[key] = val
+		# //// Neoffice — a value written WITH an expiry is never kept in frappe.local (the process would
+		# //// go on serving it after Redis dropped it: the one-time passwords of the two factor login stayed
+		# //// valid, test_confirm_otp_token), but the copy an earlier MISS left there is dropped. That miss had
+		# //// cached None, the very next get_value() served it, and every "cache then re-read" path hit the DB
+		# //// twice (suite writer's drive-file meta, any expiring key read after a miss in the same request).
+		# //// Upstream v15 only skips the local copy; dropping the stale one is the whole difference.
+		else:
+			frappe.local.cache.pop(key, None)
 
 		try:
 			if expires_in_sec:
