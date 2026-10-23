@@ -207,6 +207,15 @@ jobs:
             bench --site test_site set-config -p server_script_enabled True
           else
             bench --site test_site set-config developer_mode 1
+            # //// Neoffice — a sender identity for the cases too: after the v15.124 merge the selection reaches
+            # //// upstream's TestUser.test_signup, which expects the welcome mail to be QUEUED (it answers "check your
+            # //// email"); on a site with no sender, sendmail raised and it answered "ask your administrator".
+            # //// Nothing is sent: the mails stay in the queue, no worker runs here.
+            bench --site test_site set-config auto_email_id test@example.com
+            bench --site test_site set-config mail_server localhost
+            bench --site test_site set-config -p mail_port 2525
+            bench --site test_site set-config mail_login test@example.com
+            bench --site test_site set-config mail_password test
           fi
           # FrappeTestCase reads ADMIN_PASSWORD from the site config (frappe/tests/utils.py), and
           # upstream's CI site config carries it. Ours did not: every test that logs in as
