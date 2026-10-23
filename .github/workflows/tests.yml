@@ -184,8 +184,10 @@ jobs:
           bench --site test_site set-config allow_tests true
           # //// Neoffice — upstream 15.124.0 (bfa38b7df9) throttles User creation again in tests, at 60 a
           # //// minute (throttle_user_creation); the suites that create accounts in bulk need a higher ceiling,
-          # //// as the shared CI of the apps sets it (neoffice-ci frappe-app-ci.yml).
-          bench --site test_site set-config throttle_user_limit 1000 --parse
+          # //// as the shared CI of the apps sets it (neoffice-ci frappe-app-ci.yml). Not as high here: upstream's
+          # //// TestUser.test_signup patches the creation count to 301 and expects "Throttled", so the limit stays
+          # //// under 301.
+          bench --site test_site set-config throttle_user_limit 300 --parse
           # Both modes: upstream's CI site config names the host the site is served on. Without it,
           # get_url() falls back on the host of whatever request the process last set up -- a test's
           # set_request(path="/") makes it http://localhost:8000, a site that does not exist, and the
