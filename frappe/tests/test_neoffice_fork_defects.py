@@ -124,36 +124,45 @@ class TestEmailQueueSurvivesADeletedCommunication(unittest.TestCase):
 		q.communication = communication
 		return q
 
+	# //// Neoffice — upstream took the same guard in 15.123 (`frappe.db.exists` before `frappe.get_doc`),
+	# //// so the property is kept by upstream's code now; the tests say so with `frappe.db.exists`.
 	def test_a_deleted_communication_does_not_raise(self):
 		q = self._entry("gone-forever")
 		with (
 			patch.object(q, "update_db"),
+			patch.object(frappe.db, "exists", return_value=None),
 			patch.object(
 				frappe, "get_doc", side_effect=frappe.DoesNotExistError("Communication gone-forever not found")
-			),
+			) as get_doc,
 		):
 			q.update_status("Sending", commit=True)  # must return, not raise
+		get_doc.assert_not_called()
 
 	def test_it_leaves_no_message_behind(self):
-		"""frappe.get_doc throws through frappe.throw, which queues its message even
-		when the exception is caught — a later screen would show an error for an
-		operation that succeeded."""
+		"""A deleted Communication is looked up with `frappe.db.exists`, so `frappe.get_doc` is never reached:
+		it would queue a message (frappe.throw does, even when the exception is caught) and a later screen
+		would show an error for an operation that succeeded."""
 		q = self._entry("gone-forever")
-		before = list(frappe.message_log)
+		before = list(getattr(frappe.local, "message_log", None) or [])
 
 		def _throwing_get_doc(*a, **kw):
-			frappe.message_log.append({"message": "Communication gone-forever not found"})
+			frappe.local.message_log = [*(getattr(frappe.local, "message_log", None) or []), {"message": "gone"}]
 			raise frappe.DoesNotExistError()
 
-		with patch.object(q, "update_db"), patch.object(frappe, "get_doc", side_effect=_throwing_get_doc):
+		with (
+			patch.object(q, "update_db"),
+			patch.object(frappe.db, "exists", return_value=None),
+			patch.object(frappe, "get_doc", side_effect=_throwing_get_doc),
+		):
 			q.update_status("Sending")
-		self.assertEqual(list(frappe.message_log), before)
+		self.assertEqual(list(getattr(frappe.local, "message_log", None) or []), before)
 
 	def test_the_status_is_still_written(self):
 		"""The entry's own status is the part that must always land."""
 		q = self._entry("gone-forever")
 		with (
 			patch.object(q, "update_db") as db,
+			patch.object(frappe.db, "exists", return_value=None),
 			patch.object(frappe, "get_doc", side_effect=frappe.DoesNotExistError()),
 		):
 			q.update_status("Sending", commit=True)
@@ -164,7 +173,11 @@ class TestEmailQueueSurvivesADeletedCommunication(unittest.TestCase):
 		"""The inverse control: nothing is skipped when the document is there."""
 		q = self._entry("still-here")
 		comm = MagicMock()
-		with patch.object(q, "update_db"), patch.object(frappe, "get_doc", return_value=comm):
+		with (
+			patch.object(q, "update_db"),
+			patch.object(frappe.db, "exists", return_value="still-here"),
+			patch.object(frappe, "get_doc", return_value=comm),
+		):
 			q.update_status("Sent", commit=True)
 		comm.set_delivery_status.assert_called_once_with(commit=True)
 

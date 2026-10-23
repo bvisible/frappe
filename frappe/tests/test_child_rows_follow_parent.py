@@ -154,10 +154,14 @@ class TestChildRowsFollowParent(FrappeTestCase):
 		add_user_permission(CATEGORY, "Mine", READER, ignore_permissions=True)
 		self.addCleanup(clear_user_permissions_for_doctype, CATEGORY, READER)
 		only_categories = {"parenttype": CATEGORY}
-		self.assertEqual(labels(READER, SLIP, filters=only_categories), {"category-mine-1"})
+		# the caller names the parent of the rows it asks for (what the desk does); upstream's own rule (15.10x, a
+		# row's `parent` must be one of the named parent's readable names) keeps the rows of ANOTHER parent type
+		# out when the caller names this one, which is stricter than ours and kept as it is
+		self.assertEqual(labels(READER, CATEGORY, filters=only_categories), {"category-mine-1"})
+		self.assertEqual(labels(READER, SLIP, filters=only_categories), set())
 		# and a parent the user reads in full keeps all its rows: the custom table was found
 		self.assertEqual(
-			labels(STAFF, SLIP, filters=only_categories), {"category-mine-1", "category-other-1"}
+			labels(STAFF, CATEGORY, filters=only_categories), {"category-mine-1", "category-other-1"}
 		)
 
 	def test_rows_of_a_parent_type_the_user_does_not_read_are_left_out(self):
