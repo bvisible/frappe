@@ -58,6 +58,10 @@ class TestASiteInMaintenanceServesOnlyItsOpenMethods(FrappeTestCase):
 
 	def setUp(self):
 		self.client = get_test_client()
+		# The site a CI makes carries allow_reads_during_maintenance: 1, and a site that allows reads answers 200 or 403
+		# in maintenance, never the 503 these cases are about. Closed for the length of each case, put back after.
+		self.reads_were = frappe.local.conf.get("allow_reads_during_maintenance")
+		update_site_config("allow_reads_during_maintenance", 0)
 		self.addCleanup(self._leave_maintenance)
 
 	def _leave_maintenance(self):
@@ -65,6 +69,11 @@ class TestASiteInMaintenanceServesOnlyItsOpenMethods(FrappeTestCase):
 			update_site_config(key, "None")
 			# update_site_config leaves the string "None" in this process's config: a truthy maintenance_mode
 			frappe.local.conf.pop(key, None)
+		if self.reads_were is None:
+			update_site_config("allow_reads_during_maintenance", "None")
+			frappe.local.conf.pop("allow_reads_during_maintenance", None)
+		else:
+			update_site_config("allow_reads_during_maintenance", self.reads_were)
 
 	def _get(self, method):
 		return make_request(target=self.client.get, args=(f"/api/method/{method}",), site=frappe.local.site)
