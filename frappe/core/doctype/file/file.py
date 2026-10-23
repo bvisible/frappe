@@ -296,9 +296,12 @@ class File(Document):
 		existing_files = frappe.get_all(
 			"File",
 			filters={"file_url": self.file_url},
-			fields=["name", "owner", "is_private"],
-			limit=1,
+			# //// Neoffice — "file_url" added and "limit=1" dropped, see below
+			fields=["name", "owner", "is_private", "file_url"],
 		)
+		# //// Neoffice — upstream reads the first record the database matches (limit=1), and the database
+		# //// compares without case or accents: the first of exactly this URL is read (neoffice-maintenance#1828).
+		existing_files = [existing for existing in existing_files if existing.file_url == self.file_url]
 
 		if not existing_files:
 			return
@@ -350,7 +353,10 @@ class File(Document):
 		if not self.is_new():
 			filters["name"] = ("!=", self.name)
 
-		private_files = frappe.get_all("File", filters=filters, fields=["name", "owner"])
+		private_files = frappe.get_all("File", filters=filters, fields=["name", "owner", "file_url"])
+		# //// Neoffice — the database compares without case or accents, the disk byte for byte: a record
+		# //// spelled differently names other bytes and vouches for nothing here (neoffice-maintenance#1828).
+		private_files = [private_file for private_file in private_files if private_file.file_url in urls]
 		if not private_files:
 			return
 

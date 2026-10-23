@@ -2212,3 +2212,48 @@ class TestNeofficePrivateFileReferences(FrappeTestCase):
 		mine.is_private = 1
 		mine.save()
 		self.assertTrue(mine.file_url.startswith("/private/files/"))
+
+	# //// Neoffice — added tests (neoffice-maintenance#1828): the database compares URLs without case or accents
+	# //// (utf8mb4_unicode_ci), the disk byte for byte. A record spelled differently names other bytes.
+	def other_case(self, file_url):
+		folder, name = file_url.rsplit("/", 1)
+		return f"{folder}/{name.upper()}"
+
+	def a_file_of_mine_at(self, file_url, content="neoffice mine"):
+		"""A file of OTHER's at this URL, written as Administrator: before #1828, OTHER could not store it."""
+		frappe.set_user("Administrator")
+		mine = self.upload(file_url.rsplit("/", 1)[1], content)
+		self.assertEqual(mine.file_url, file_url)
+		mine.db_set("owner", self.OTHER)
+		frappe.set_user(self.OTHER)
+		return frappe.get_doc("File", mine.name)
+
+	def test_a_file_of_ones_own_in_another_case_does_not_vouch_for_anothers(self):
+		self.a_file_of_mine_at(self.other_case(self.victim.file_url))
+		doc = self.reference(self.victim.file_url, is_private=1)
+		# upstream's check reads one record only (see the next test): this one is the fork's
+		doc.before_insert = lambda: None
+		doc.validate = lambda: None
+		self.assertRaises(frappe.PermissionError, doc.insert)
+
+	def test_a_file_of_ones_own_can_be_attached_again_next_to_anothers_in_another_case(self):
+		from frappe.utils import add_to_date, now_datetime
+
+		mine = self.a_file_of_mine_at(self.other_case(self.victim.file_url))
+		# upstream's check reads the newest record the database matches
+		self.victim.db_set("modified", add_to_date(now_datetime(), minutes=1), update_modified=False)
+		doc = self.reference(mine.file_url, is_private=1).insert()
+		self.assertEqual(doc.get_content(), "neoffice mine")
+
+	def test_the_private_files_route_does_not_serve_anothers_file_in_another_case(self):
+		from werkzeug.exceptions import Forbidden
+
+		from frappe.core.doctype.file.utils import find_file_by_url
+		from frappe.utils.response import download_private_file
+
+		mine = self.a_file_of_mine_at(self.other_case(self.victim.file_url))
+		self.assertEqual(find_file_by_url(mine.file_url).name, mine.name)
+		self.assertIsNone(find_file_by_url(self.victim.file_url))
+		set_request(path=self.victim.file_url)
+		frappe.local.form_dict = frappe._dict()
+		self.assertRaises(Forbidden, download_private_file, self.victim.file_url)

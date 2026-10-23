@@ -492,6 +492,9 @@ def find_file_by_url(path: str, name: str | None = None) -> Optional["File"]:
 		filters["name"] = str(name)
 
 	files = frappe.get_all("File", filters=filters, fields="*")
+	# //// Neoffice — the database compares without case or accents, the disk byte for byte: only a record
+	# //// of exactly this URL vouches for the file served (neoffice-maintenance#1828).
+	files = [file_data for file_data in files if file_data.file_url == str(path)]
 
 	# this file might be attached to multiple documents
 	# if the file is accessible from any one of those documents
