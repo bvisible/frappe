@@ -409,21 +409,29 @@ class Page:
 
 		from pypdf import PdfReader
 
-		pdf_data = b""
+		# //// Neoffice — backport of upstream frappe develop 7277896261 + 39f02362e0 ("perf(pdf): read the
+		# //// chrome pdf stream in large chunks"). The stream was read 4 KB at a time, one round trip to
+		# //// Chromium each (75 for a 300 KB invoice, 1,400 for a 5.8 MB dunning), and joined with `+=`.
+		# //// Read 1 MB at a time and join once; the bytes are the same. Drops at the v16 merge (upstream's).
+		chunks = []
 		offset = 0
 		while True:
-			chunk_result, error = self.send("IO.read", {"handle": stream_id, "offset": offset, "size": 4096})
+			chunk_result, error = self.send(
+				"IO.read", {"handle": stream_id, "offset": offset, "size": 1024 * 1024}
+			)
 			if error:
 				raise RuntimeError(f"Error reading PDF chunk: {error}")
 			chunk_data = chunk_result["data"]
 			# we don't use base64Encode option but added check anyway as it is one of the valid options.
 			if chunk_result.get("base64Encoded", False):
 				chunk_data = base64.b64decode(chunk_data)
-			pdf_data += chunk_data
+			chunks.append(chunk_data)
 			offset += len(chunk_data)
 			if chunk_result.get("eof", False):
 				break
 
+		pdf_data = b"".join(chunks)
+		chunks.clear()
 		_result, error = self.send("IO.close", {"handle": stream_id})
 		if error:
 			raise RuntimeError(f"Error closing PDF stream: {error}")

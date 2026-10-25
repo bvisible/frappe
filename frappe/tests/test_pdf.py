@@ -236,3 +236,57 @@ class TestChromePdfPrivateImages(FrappeTestCase):
 		self.assertEqual(len(handed), 1)
 		self.assertIn("data:image/", handed[0])
 		self.assertNotIn("/private/files/", handed[0])
+
+
+# //// Neoffice — added test for the backport of upstream 7277896261 (the Chrome PDF stream read in 1 MB chunks).
+class TestChromePdfStreamChunks(FrappeTestCase):
+	"""The PDF Chromium draws is read from its stream in large chunks, whatever size it answers with."""
+
+	def _page_that_answers(self, payload: bytes, at_most: int | None = None):
+		import base64
+		from unittest import mock
+
+		calls = []
+
+		def send(method, params=None):
+			calls.append((method, params))
+			if method == "IO.read":
+				piece = payload[params["offset"] : params["offset"] + params["size"]]
+				if at_most:
+					piece = piece[:at_most]
+				return {
+					"data": base64.b64encode(piece).decode(),
+					"base64Encoded": True,
+					"eof": params["offset"] + len(piece) >= len(payload),
+				}, None
+			return {}, None
+
+		return mock.Mock(send=send), calls
+
+	def _read(self, page):
+		from frappe.utils.pdf_generator.page import Page
+
+		return Page.get_pdf_from_stream(page, "stream-1", raw=True)
+
+	def test_a_document_of_300_kb_is_read_in_one_round_trip(self):
+		payload = bytes(range(256)) * 1200  # 300 KB
+		page, calls = self._page_that_answers(payload)
+		self.assertEqual(self._read(page), payload)
+		reads = [params for method, params in calls if method == "IO.read"]
+		self.assertEqual(len(reads), 1)
+		self.assertEqual(reads[0]["size"], 1024 * 1024)
+		self.assertEqual([m for m, _ in calls].count("IO.close"), 1)
+
+	def test_a_shorter_answer_moves_the_offset_by_what_came_back(self):
+		payload = bytes(range(256)) * 1400  # 350 KB, answered 100 KB at a time
+		page, calls = self._page_that_answers(payload, at_most=100 * 1024)
+		self.assertEqual(self._read(page), payload)
+		offsets = [params["offset"] for method, params in calls if method == "IO.read"]
+		self.assertEqual(offsets, [0, 102400, 204800, 307200])
+
+	def test_an_error_from_chromium_is_raised(self):
+		from unittest import mock
+
+		page = mock.Mock(send=lambda method, params=None: (None, "boom"))
+		with self.assertRaises(RuntimeError):
+			self._read(page)
