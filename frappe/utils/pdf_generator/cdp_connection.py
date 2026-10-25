@@ -7,10 +7,24 @@
 # //// v16 note: upstream moved this module to frappe/utils/chromium/cdp_connection.py
 # //// (182e127732 "refactor: extract generic headless-Chromium stack", 2026-06-18).
 import asyncio
+from urllib.parse import urlparse  # //// Neoffice — for _compression_for()
 
 import websockets
 
 import frappe
+
+# //// Neoffice — added: permessage-deflate is off on the loopback DevTools socket. Chromium accepts the extension, so
+# //// by default every CDP message was deflated by the sender and inflated by the receiver: the print's HTML going
+# //// in, the base64 PDF coming back (a few hundred KB each, zlib on both processes). On a loopback socket nothing is
+# //// saved by it: interleaved A/B on 6 documents of osiris, -12.6 % of the whole render (-0.06 to -0.19 s each), the
+# //// PDF unchanged to the pixel (a transport option, the bytes Chromium draws are the same). A Chromium on another
+# //// machine (chromium_websocket_url) keeps the library default, where the bytes cross a network.
+LOOPBACK_HOSTS = ("localhost", "127.0.0.1", "::1")
+
+
+def _compression_for(websocket_url):
+	"""``None`` (no extension offered) for a Chromium on this machine, the library default for any other."""
+	return None if urlparse(websocket_url).hostname in LOOPBACK_HOSTS else "deflate"
 
 
 class CDPSocketClient:
@@ -36,7 +50,10 @@ class CDPSocketClient:
 
 	async def _connect(self):
 		try:
-			self.connection = await websockets.connect(self.websocket_url)
+			# //// Neoffice — compression chosen by _compression_for(); upstream: websockets.connect(self.websocket_url)
+			self.connection = await websockets.connect(
+				self.websocket_url, compression=_compression_for(self.websocket_url)
+			)
 		except Exception:
 			frappe.log_error(title="Failed to connect to WebSocket:", message=f"{frappe.get_traceback()}")
 			raise

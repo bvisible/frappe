@@ -315,3 +315,58 @@ class TestChromePdfStreamChunks(FrappeTestCase):
 		page = mock.Mock(send=lambda method, params=None: (None, "boom"))
 		with self.assertRaises(RuntimeError):
 			self._read(page)
+
+
+# //// Neoffice — added test for the loopback DevTools socket, which no longer offers permessage-deflate (cdp_connection.py).
+class TestChromePdfSocketCompression(FrappeTestCase):
+	"""Chromium on this machine is talked to without compression, one on another machine as the library does."""
+
+	def test_a_chromium_on_this_machine_gets_no_compression(self):
+		from frappe.utils.pdf_generator.cdp_connection import _compression_for
+
+		for url in (
+			"ws://127.0.0.1:9222/devtools/browser/abc",
+			"ws://localhost:9222/devtools/browser/abc",
+			"ws://[::1]:9222/devtools/browser/abc",
+		):
+			self.assertIsNone(_compression_for(url), url)
+
+	def test_a_chromium_on_another_machine_keeps_the_library_default(self):
+		from frappe.utils.pdf_generator.cdp_connection import _compression_for
+
+		for url in (
+			"ws://chromium.internal:9222/devtools/browser/abc",
+			"wss://10.0.0.12:9222/devtools/browser/abc",
+			"ws://127.0.0.1.example.com:9222/devtools/browser/abc",
+		):
+			self.assertEqual(_compression_for(url), "deflate", url)
+
+	def test_the_client_asks_websockets_for_no_extension_on_loopback(self):
+		"""Through the real library: a server that offers permessage-deflate (the library's default, as Chromium
+		does) ends up with NO extension on the connection of the client."""
+		import websockets
+
+		from frappe.utils.pdf_generator.cdp_connection import CDPSocketClient
+
+		client = CDPSocketClient(
+			"ws://127.0.0.1:1/devtools/browser/x"
+		)  # replaced below, once the port is known
+
+		async def negotiated():
+			async def handler(connection):
+				await connection.wait_closed()
+
+			async with websockets.serve(handler, "127.0.0.1", 0) as server:
+				port = server.sockets[0].getsockname()[1]
+				client.websocket_url = f"ws://127.0.0.1:{port}/devtools/browser/x"
+				await client._connect()
+				try:
+					return [type(extension).__name__ for extension in client.connection.protocol.extensions]
+				finally:
+					await client.connection.close()
+
+		try:
+			self.assertEqual(client.loop.run_until_complete(negotiated()), [])
+		finally:
+			client.loop.close()
+			asyncio.set_event_loop(None)
