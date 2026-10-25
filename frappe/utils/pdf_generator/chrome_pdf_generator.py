@@ -13,6 +13,10 @@
 # ////   4d8cefb1ae 2026-06-13 — fetch_devtools_url() is a polling helper: stay silent on
 # ////     RequestException while the on-demand service cold-starts (it logged one Error Log
 # ////     entry per poll); a single error only if no endpoint after the 15s window (was 8s).
+# ////   (this commit) 2026-10-25 — the shared Chromium is ALWAYS up: no start on demand, no activity
+# ////     file. systemd enables chromium-pdf.service at boot and restarts it when it dies, the idle
+# ////     stopper is gone. _ensure_remote_service()/_touch_activity() are replaced by
+# ////     _wait_for_shared_chromium(), which only waits for a restart in progress.
 # //// v16 note: upstream extracted the Chromium process management into frappe/utils/chromium/
 # //// (182e127732, 2026-06-18) and this module no longer exists there — expect a rename/delete
 # //// conflict, not a clean merge.
@@ -279,13 +283,13 @@ class ChromePDFGenerator:
 		"""
 		if self._remote_mode:
 			if self._remote_port:
-				# On-demand shared Chromium: start the systemd service if it is
-				# down (it auto-stops when idle to free RAM), mark activity, and
-				# always return a freshly-fetched URL (its GUID changes on restart).
-				url = self._ensure_remote_service()
+				# //// Neoffice — the shared Chromium is always up (systemd): wait for a restart in
+				# //// progress, never start it. Always return a freshly-fetched URL (its GUID changes
+				# //// on every restart). Upstream-less code, see the header.
+				url = self._wait_for_shared_chromium()
 				if not url:
 					frappe.throw(
-						_("Chrome PDF: shared Chromium could not be started on the configured debug port.")
+						_("Chrome PDF: the shared Chromium does not answer on the configured debug port.")
 					)
 				self._devtools_url = url
 				return self._devtools_url
@@ -308,56 +312,30 @@ class ChromePDFGenerator:
 			self._set_devtools_url()
 		return self._devtools_url
 
-	# Activity marker read by the chromium-pdf-idle systemd timer to decide when
-	# the shared Chromium has been unused long enough to stop (free its RAM).
-	ACTIVITY_FILE = os.path.expanduser("~/.cache/chromium-pdf/.last-activity")
+	# //// Neoffice — the shared Chromium is ALWAYS up. It used to be stopped after 10 idle minutes and started
+	# //// on the next print through a scoped sudoers rule (an activity file fed the stopper): the first PDF
+	# //// after a pause paid 2.7 s of cold start on a 4 GB instance, to save ~280 MB. systemd now enables the
+	# //// unit at boot and restarts it within 2 s when it dies, so there is nothing to start here: when the
+	# //// endpoint does not answer, Chromium is between a crash and its restart and we wait for it.
+	def _wait_for_shared_chromium(self):
+		"""Return the live DevTools URL of the shared Chromium (systemd ``chromium-pdf.service``).
 
-	def _touch_activity(self):
-		try:
-			from pathlib import Path
-
-			p = Path(self.ACTIVITY_FILE)
-			p.parent.mkdir(parents=True, exist_ok=True)
-			p.touch()
-		except Exception:
-			pass
-
-	def _ensure_remote_service(self):
-		"""Return a live DevTools URL for the shared Chromium, starting the
-		on-demand systemd service if it is currently stopped (idle).
-
-		The service auto-stops after inactivity to free ~300 MB; the first PDF
-		after an idle period transparently restarts it (a scoped sudoers rule
-		lets the worker run `systemctl start chromium-pdf.service`).
+		Waits up to 15 s for a restart in progress (systemd RestartSec=2 plus Chromium's own start). An
+		endpoint still down after that is a genuine failure: one Error Log entry, then None.
 		"""
 		url = self.fetch_devtools_url(self._remote_port)
 		if url:
-			self._touch_activity()
 			return url
-		# Endpoint down → start the service on demand, then poll for it.
-		try:
-			subprocess.run(
-				["sudo", "-n", "/usr/bin/systemctl", "start", "chromium-pdf.service"],
-				timeout=10,
-				check=False,
-				stdout=subprocess.DEVNULL,
-				stderr=subprocess.DEVNULL,
-			)
-		except Exception as e:
-			frappe.log_error("Chrome PDF: failed to start chromium-pdf.service", str(e))
-		deadline = time.time() + 15  # Chromium cold start ~1-2s; extra margin under memory pressure
+		deadline = time.time() + 15
 		while time.time() < deadline:
+			time.sleep(0.25)
 			url = self.fetch_devtools_url(self._remote_port)
 			if url:
-				self._touch_activity()
 				return url
-			time.sleep(0.25)
-		# Auto-start + poll window elapsed and the endpoint is still down: a genuine
-		# failure worth a single Error Log entry (not one per poll).
 		frappe.log_error(
 			"Chrome PDF DevTools unreachable",
-			f"chromium-pdf.service did not expose a DevTools endpoint on "
-			f"127.0.0.1:{self._remote_port} within 15s after an on-demand start.",
+			f"chromium-pdf.service did not expose a DevTools endpoint on 127.0.0.1:{self._remote_port} "
+			"within 15s. Check that the unit is enabled and active (systemctl status chromium-pdf).",
 		)
 		return None
 
@@ -415,8 +393,8 @@ class ChromePDFGenerator:
 		self._chromium_process = None
 		self._devtools_url = None
 
-	# Polling helper used by _ensure_remote_service() to fetch the DevTools
-	# WebSocket URL of the shared on-demand Chromium (re-fetched on each restart).
+	# Polling helper used by _wait_for_shared_chromium() to fetch the DevTools
+	# WebSocket URL of the shared Chromium (re-fetched on each restart).
 	def fetch_devtools_url(self, port):
 		if not port:
 			return None
@@ -428,8 +406,8 @@ class ChromePDFGenerator:
 			return response_data["webSocketDebuggerUrl"].strip()
 		except requests.RequestException:
 			# Polling helper: a refused connection / timeout here is EXPECTED while
-			# the on-demand chromium-pdf service is still starting (cold start). Stay
-			# silent; _ensure_remote_service() logs a single error if it never comes
-			# up. Logging on every poll spammed Error Log with dozens of false
-			# "unreachable" entries per PDF generated after an idle period.
+			# the chromium-pdf service is restarting after a crash. Stay silent;
+			# _wait_for_shared_chromium() logs a single error if it never comes
+			# back. Logging on every poll spammed Error Log with dozens of false
+			# "unreachable" entries per PDF.
 			return None

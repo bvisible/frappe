@@ -370,3 +370,64 @@ class TestChromePdfSocketCompression(FrappeTestCase):
 		finally:
 			client.loop.close()
 			asyncio.set_event_loop(None)
+
+
+# //// Neoffice — added test: the shared Chromium is always up, the generator only waits for a restart and never starts it.
+class TestChromePdfSharedChromiumIsAlwaysUp(FrappeTestCase):
+	def _generator(self):
+		from frappe.utils.pdf_generator.chrome_pdf_generator import ChromePDFGenerator
+
+		generator = object.__new__(ChromePDFGenerator)  # no __init__: it would read the site config
+		generator._remote_port = 9222
+		return generator
+
+	def test_a_live_chromium_answers_at_once_without_sleeping(self):
+		from unittest import mock
+
+		generator = self._generator()
+		with (
+			mock.patch.object(generator, "fetch_devtools_url", return_value="ws://127.0.0.1:9222/x") as fetch,
+			mock.patch("frappe.utils.pdf_generator.chrome_pdf_generator.time.sleep") as sleep,
+		):
+			self.assertEqual(generator._wait_for_shared_chromium(), "ws://127.0.0.1:9222/x")
+		fetch.assert_called_once_with(9222)
+		sleep.assert_not_called()
+
+	def test_a_restart_in_progress_is_waited_for(self):
+		from unittest import mock
+
+		generator = self._generator()
+		answers = [None, None, "ws://127.0.0.1:9222/after-restart"]
+		with (
+			mock.patch.object(generator, "fetch_devtools_url", side_effect=answers),
+			mock.patch("frappe.utils.pdf_generator.chrome_pdf_generator.time.sleep"),
+		):
+			self.assertEqual(generator._wait_for_shared_chromium(), "ws://127.0.0.1:9222/after-restart")
+
+	def test_a_chromium_that_is_down_is_never_started_from_here(self):
+		"""The service used to be started through sudo on the first print after an idle stop. Nothing starts it
+		now: systemd keeps it up, and a dead endpoint after 15 s is reported once."""
+		from unittest import mock
+
+		generator = self._generator()
+		clock = iter(range(0, 1000, 5))  # every call to time.time() is 5 s later: the 15 s window ends fast
+		with (
+			mock.patch.object(generator, "fetch_devtools_url", return_value=None),
+			mock.patch("frappe.utils.pdf_generator.chrome_pdf_generator.time.sleep"),
+			mock.patch(
+				"frappe.utils.pdf_generator.chrome_pdf_generator.time.time", side_effect=lambda: next(clock)
+			),
+			mock.patch("frappe.utils.pdf_generator.chrome_pdf_generator.subprocess.run") as run,
+			mock.patch("frappe.utils.pdf_generator.chrome_pdf_generator.subprocess.Popen") as popen,
+			mock.patch("frappe.log_error") as log_error,
+		):
+			self.assertIsNone(generator._wait_for_shared_chromium())
+		run.assert_not_called()
+		popen.assert_not_called()
+		log_error.assert_called_once()
+
+	def test_no_idle_stop_leftover_remains_in_the_generator(self):
+		from frappe.utils.pdf_generator.chrome_pdf_generator import ChromePDFGenerator
+
+		for gone in ("_touch_activity", "ACTIVITY_FILE", "_ensure_remote_service"):
+			self.assertFalse(hasattr(ChromePDFGenerator, gone), gone)
