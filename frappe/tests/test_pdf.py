@@ -238,9 +238,10 @@ class TestChromePdfPrivateImages(FrappeTestCase):
 		self.assertNotIn("/private/files/", handed[0])
 
 
-# //// Neoffice — added test for the backport of upstream 7277896261 (the Chrome PDF stream read in 1 MB chunks).
+# //// Neoffice — added test for the adaptation of upstream 7277896261 (the Chrome PDF stream read in large chunks).
 class TestChromePdfStreamChunks(FrappeTestCase):
-	"""The PDF Chromium draws is read from its stream in large chunks, whatever size it answers with."""
+	"""The PDF Chromium draws is read from its stream in large chunks, whatever size it answers with, and a chunk
+	always fits the websocket's message limit once Chromium has base64-encoded it."""
 
 	def _page_that_answers(self, payload: bytes, at_most: int | None = None):
 		import base64
@@ -268,14 +269,38 @@ class TestChromePdfStreamChunks(FrappeTestCase):
 
 		return Page.get_pdf_from_stream(page, "stream-1", raw=True)
 
+	# //// Neoffice — added test: a 1 MB chunk closed the websocket on a PDF over 768 KB.
+	def test_a_chunk_fits_the_websocket_message_limit_once_encoded(self):
+		"""The connection is the websockets library's default, 1 MiB a message: an encoded chunk over it closes the
+		connection (1009) and the print never answers (a dunning of 5.8 MB did)."""
+		from frappe.utils.pdf_generator.page import PDF_STREAM_CHUNK
+
+		websocket_limit = 2**20
+		encoded = (PDF_STREAM_CHUNK + 2) // 3 * 4
+		self.assertLess(encoded + 4096, websocket_limit)  # room for the JSON around it
+		self.assertGreaterEqual(PDF_STREAM_CHUNK, 256 * 1024)  # and still far fewer round trips than 4 KB
+
 	def test_a_document_of_300_kb_is_read_in_one_round_trip(self):
 		payload = bytes(range(256)) * 1200  # 300 KB
 		page, calls = self._page_that_answers(payload)
 		self.assertEqual(self._read(page), payload)
 		reads = [params for method, params in calls if method == "IO.read"]
 		self.assertEqual(len(reads), 1)
-		self.assertEqual(reads[0]["size"], 1024 * 1024)
+		# //// Neoffice — the size asked is the module's constant, not a literal.
+		from frappe.utils.pdf_generator.page import PDF_STREAM_CHUNK
+
+		self.assertEqual(reads[0]["size"], PDF_STREAM_CHUNK)
 		self.assertEqual([m for m, _ in calls].count("IO.close"), 1)
+
+	# //// Neoffice — added test: a PDF of several chunks.
+	def test_a_large_document_is_read_chunk_by_chunk(self):
+		from frappe.utils.pdf_generator.page import PDF_STREAM_CHUNK
+
+		payload = bytes(range(256)) * 4800  # 1.2 MB
+		page, calls = self._page_that_answers(payload)
+		self.assertEqual(self._read(page), payload)
+		offsets = [params["offset"] for method, params in calls if method == "IO.read"]
+		self.assertEqual(offsets, [0, PDF_STREAM_CHUNK, 2 * PDF_STREAM_CHUNK])
 
 	def test_a_shorter_answer_moves_the_offset_by_what_came_back(self):
 		payload = bytes(range(256)) * 1400  # 350 KB, answered 100 KB at a time

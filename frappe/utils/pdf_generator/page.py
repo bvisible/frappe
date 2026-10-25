@@ -16,6 +16,10 @@ CDP commands documentation can be found here.
 https://chromedevtools.github.io/devtools-protocol/
 """
 
+# //// Neoffice — added constant (see get_pdf_from_stream): what one IO.read asks Chromium for. In base64 it must
+# //// stay under the websocket library's 1 MiB message limit, which cdp_connection does not lift.
+PDF_STREAM_CHUNK = 512 * 1024
+
 
 class Page:
 	def __init__(self, session, browser_context_id, page_type):
@@ -409,15 +413,18 @@ class Page:
 
 		from pypdf import PdfReader
 
-		# //// Neoffice — backport of upstream frappe develop 7277896261 + 39f02362e0 ("perf(pdf): read the
+		# //// Neoffice — adapted from upstream frappe develop 7277896261 + 39f02362e0 ("perf(pdf): read the
 		# //// chrome pdf stream in large chunks"). The stream was read 4 KB at a time, one round trip to
 		# //// Chromium each (75 for a 300 KB invoice, 1,400 for a 5.8 MB dunning), and joined with `+=`.
-		# //// Read 1 MB at a time and join once; the bytes are the same. Drops at the v16 merge (upstream's).
+		# //// Read 512 KB at a time and join once; the bytes are the same. Upstream reads 1 MB, which only works
+		# //// because it also lifted the websocket's message limit (78ecf11661): ours still has the library's
+		# //// 1 MiB, and a 1 MB chunk is 1.33 MB in base64, so the connection was closed (1009) on any PDF
+		# //// larger than 768 KB. 512 KB is 683 KB encoded. Drops at the v16 merge (upstream's).
 		chunks = []
 		offset = 0
 		while True:
 			chunk_result, error = self.send(
-				"IO.read", {"handle": stream_id, "offset": offset, "size": 1024 * 1024}
+				"IO.read", {"handle": stream_id, "offset": offset, "size": PDF_STREAM_CHUNK}
 			)
 			if error:
 				raise RuntimeError(f"Error reading PDF chunk: {error}")
