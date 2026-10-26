@@ -1,4 +1,4 @@
-# Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and Contributors
+# Copyright (c) 2026, Neoffice and contributors
 # License: MIT. See LICENSE
 
 # //// Neoffice — added file (no upstream equivalent): the global search must not fail on text that holds a
