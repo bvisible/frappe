@@ -42,6 +42,25 @@ class GlobalSearchSettings(Document):
 		# reset cache
 		frappe.cache.hdel("global_search", "search_priorities")
 
+	# //// Neoffice — added hook (maintenance#1893): the name of a document is indexed only for the
+	# //// doctypes of this list (Meta.name_in_global_search), so a doctype that enters the list gets its
+	# //// documents indexed by name, and one that leaves it loses those rows. Upstream indexes no name
+	# //// and has nothing to rebuild here.
+	def on_update(self):
+		frappe.cache.hdel("global_search", "search_priorities")
+		frappe.cache.delete_value("doctypes_with_global_search")
+		before = self.get_doc_before_save()
+		old = {d.document_type for d in before.allowed_in_global_search} if before else set()
+		new = {d.document_type for d in self.allowed_in_global_search}
+		for doctype in sorted(old ^ new):
+			if frappe.db.exists("DocType", doctype):
+				frappe.enqueue(
+					"frappe.utils.global_search.rebuild_for_doctype",
+					queue="long",
+					doctype=doctype,
+					enqueue_after_commit=True,
+				)
+
 
 def get_doctypes_for_global_search():
 	def get_from_db():

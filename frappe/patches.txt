@@ -259,3 +259,7 @@ frappe.patches.v15_0.neoffice_todo_status_test_to_open
 # //// written again by our fork (a session knows which device opened it); this adds
 # //// the column on sites created without it. Reason in the module's header.
 frappe.patches.v15_0.neoffice_sessions_device_column
+# //// Neoffice — added entry (maintenance#1893): __global_search held the name of every document of
+# //// every doctype (logs, versions, comments, ledger rows); this keeps only the rows a search can
+# //// return. Reason in the module's header.
+frappe.patches.v15_0.neoffice_global_search_prune

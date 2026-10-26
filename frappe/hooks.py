@@ -331,6 +331,9 @@ scheduler_events = {
 		"frappe.integrations.doctype.google_contacts.google_contacts.sync",
 		"frappe.automation.doctype.auto_repeat.auto_repeat.make_auto_repeat_entry",
 		"frappe.core.doctype.log_settings.log_settings.run_log_clean_up",
+		# //// Neoffice — added entry (maintenance#1893): the search index keeps what a bulk delete removed,
+		# //// see prune_global_search() in utils/global_search.py.
+		"frappe.utils.global_search.prune_global_search",
 		"frappe.social.doctype.energy_point_settings.energy_point_settings.allocate_review_points",
 		"frappe.core.doctype.user_invitation.user_invitation.mark_expired_invitations",
 	],

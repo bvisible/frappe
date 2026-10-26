@@ -462,6 +462,66 @@ def delete_for_document(doc):
 	frappe.db.delete("__global_search", {"doctype": doc.doctype, "name": doc.name})
 
 
+# //// Neoffice — added functions (maintenance#1893), run daily (hooks.py, daily_maintenance) and by the
+# //// patch v15_0.neoffice_global_search_prune. Upstream removes a row of __global_search only through
+# //// delete_doc(), so the index keeps the documents a bulk delete removed (Log Settings' clean-up of the
+# //// logs, ERPNext's Transaction Deletion Record), the ones a rolled-back request had queued
+# //// (sync_value_in_queue pushes to Redis before the commit) or deleted before the 15-minute sync, and
+# //// the doctypes that index nothing any more: 2.7 M of the 3.7 M rows of osiris pointed to no document.
+# //// Remove if upstream cleans its index.
+def doctype_indexed(doctype: str) -> bool:
+	"""Whether the documents of the doctype have a row in __global_search (Meta.get_global_search_fields)."""
+	if not frappe.db.exists("DocType", doctype):
+		return False
+	return bool(frappe.get_meta(doctype).get_global_search_fields())
+
+
+def prune_global_search(doctypes: list[str] | None = None):
+	"""Remove the rows of __global_search no search returns: those of a doctype that indexes nothing, and
+	those whose document no longer exists. `doctypes` limits it to these doctypes."""
+	if frappe.local.conf.get("disable_global_search"):
+		return
+	if doctypes is None:
+		doctypes = frappe.db.sql_list("select distinct doctype from `__global_search`")
+	for doctype in doctypes:
+		if doctype == "Static Web Page":
+			# The routes of add_route_to_global_search(), no document behind them
+			continue
+		try:
+			indexed = doctype_indexed(doctype)
+			meta = frappe.get_meta(doctype) if indexed else None
+		except Exception:
+			frappe.log_error("Global search prune skipped a doctype", f"{doctype}\n{frappe.get_traceback()}")
+			continue
+		if not indexed:
+			_delete_search_rows(doctype)
+		elif not (meta.issingle or meta.is_virtual):
+			_delete_search_rows(doctype, _missing_documents(doctype))
+
+
+def _missing_documents(doctype: str) -> list[str]:
+	"""The names in the index of the doctype that have no document."""
+	names = frappe.db.sql_list("select name from `__global_search` where doctype = %s", doctype)
+	missing = []
+	for i in range(0, len(names), 1000):
+		chunk = names[i : i + 1000]
+		# Compared case-blind, as the database compares names
+		existing = {
+			cstr(n).casefold() for n in frappe.get_all(doctype, filters={"name": ("in", chunk)}, pluck="name")
+		}
+		missing.extend(n for n in chunk if cstr(n).casefold() not in existing)
+	return missing
+
+
+def _delete_search_rows(doctype: str, names: list[str] | None = None):
+	"""Delete the rows of the doctype (all of them, or those of `names`), committed by batches of 1000."""
+	if names is None:
+		names = frappe.db.sql_list("select name from `__global_search` where doctype = %s", doctype)
+	for i in range(0, len(names), 1000):
+		frappe.db.delete("__global_search", {"doctype": doctype, "name": ("in", names[i : i + 1000])})
+		frappe.db.commit()
+
+
 # //// Neoffice — the entity doctypes of the search (5ca9112574 / 599cca5304 / cfaa702efe), shown
 # //// before the transactional ones; a module constant since maintenance#822, which also gives
 # //// them a pool of their own in search().

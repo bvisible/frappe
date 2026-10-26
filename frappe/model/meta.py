@@ -219,16 +219,38 @@ class Meta(Document):
 
 		# //// Neoffice — upstream adds the `name` pseudo-field to the global-search fields ONLY when
 		# //// the doctype sets show_name_in_global_search. b6f135ea30 (2026-04-02 "feat(search):
-		# //// improve Awesome Bar with direct document navigation and smarter results") always adds it
-		# //// for non-child doctypes (label "ID"), because the Awesome Bar resolves a typed document
-		# //// number straight out of __global_search — see resolve_document() in desk/search.py. Also
-		# //// guards against adding it twice. Cost: every non-child doctype now indexes its name.
-		# Always include document name/ID in global search for non-child doctypes
-		if not getattr(self, "istable", False):
+		# //// improve Awesome Bar with direct document navigation and smarter results") adds it (label
+		# //// "ID") for the doctypes the search reads too, because the Awesome Bar resolves a typed
+		# //// document number straight out of __global_search — see resolve_document() in desk/search.py.
+		# //// Also guards against adding it twice. maintenance#1893: b6f135ea30 added it for EVERY
+		# //// non-child doctype, so every log, version, comment and ledger row went into the index (3.7 M
+		# //// rows on osiris, 98 % of them Scheduled Job Log, Error Log, Comment, Version, GL Entry...) and
+		# //// every MATCH ... AGAINST read their text, while search() and resolve_document() only return
+		# //// the doctypes of the Global Search Settings. Now only those get the name, see
+		# //// name_in_global_search(); the settings rebuild a doctype that enters or leaves the list.
+		if getattr(self, "show_name_in_global_search", None) or self.name_in_global_search():
 			if not any(f.fieldname == "name" for f in fields):
 				fields.append(frappe._dict(fieldtype="Data", fieldname="name", label="ID"))
 
 		return fields
+
+	# //// Neoffice — added method (maintenance#1893), see get_global_search_fields() above.
+	def name_in_global_search(self) -> bool:
+		"""Whether the search reads the documents of this doctype by their name: a doctype of the Global
+		Search Settings with a table of its own."""
+		if self.istable or self.issingle or self.is_virtual:
+			return False
+		from frappe.desk.doctype.global_search_settings.global_search_settings import (
+			get_doctypes_for_global_search,
+		)
+
+		try:
+			return self.name in get_doctypes_for_global_search()
+		except Exception as e:
+			# A site being installed, before the table of the settings exists
+			if frappe.db.is_table_missing(e):
+				return False
+			raise
 
 	def get_valid_columns(self) -> list[str]:
 		if not hasattr(self, "_valid_columns"):
