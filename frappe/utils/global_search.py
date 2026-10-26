@@ -473,6 +473,20 @@ ENTITY_PRIORITY = [
 ]
 
 
+# //// Neoffice — every word goes into MATCH ... AGAINST ('+word*' IN BOOLEAN MODE) (query_builder/custom.py),
+# //// escaped for SQL but not for the boolean parser: « (test) », « <img », « %%%% » or a lone « - » were a
+# //// syntax error (1064) for every caller, the search page included (maintenance#1892). The operators that need
+# //// balancing or never belong in a name ( ) " * ~ < > go; any other mark stays only between two word
+# //// characters (SINV-2026-0001, info@example.com). Remove if upstream sanitises the boolean query.
+BOOLEAN_ONLY = re.compile(r'[()"*~<>]')
+LONE_MARKS = re.compile(r"(?<!\w)[^\w\s]+|[^\w\s]+(?!\w)")
+
+
+def search_words(text: str) -> str:
+	"""The text a boolean full-text query can take: operators without a word around them removed."""
+	return " ".join(LONE_MARKS.sub(" ", BOOLEAN_ONLY.sub(" ", text or "")).split())
+
+
 @frappe.whitelist()
 def search(text: str, start: int = 0, limit: int = 20, doctype: str = ""):
 	"""
@@ -495,7 +509,8 @@ def search(text: str, start: int = 0, limit: int = 20, doctype: str = ""):
 		return []
 
 	for word in set(text.split("&")):
-		word = word.strip()
+		# //// Neoffice — upstream: `word = word.strip()`; see the marker on search_words() (maintenance#1892).
+		word = search_words(word)
 		if not word:
 			continue
 
