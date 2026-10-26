@@ -240,6 +240,11 @@ class Meta(Document):
 		Search Settings with a table of its own."""
 		if self.istable or self.issingle or self.is_virtual:
 			return False
+		if frappe.flags.in_install == "frappe":
+			# //// Neoffice — the table of the settings is created while frappe installs: read before,
+			# //// it raises ProgrammingError("DocType", "Global Search DocType"), which
+			# //// is_table_missing() does not know (a new site failed to install, CI of c187f82caf).
+			return False
 		from frappe.desk.doctype.global_search_settings.global_search_settings import (
 			get_doctypes_for_global_search,
 		)
@@ -247,8 +252,8 @@ class Meta(Document):
 		try:
 			return self.name in get_doctypes_for_global_search()
 		except Exception as e:
-			# A site being installed, before the table of the settings exists
-			if frappe.db.is_table_missing(e):
+			# //// Neoffice — the same error, should a site read the settings before their table exists
+			if frappe.db.is_table_missing(e) or e.args[:2] == ("DocType", "Global Search DocType"):
 				return False
 			raise
 
