@@ -46,6 +46,8 @@ frappe.provide("frappe.tags");
 ////     (default "Ask" / "GoTo" - neoffice_theme's catalogue of places), providers re-drawn alone
 ////     when their data arrives late (refresh / _refresh_providers), on_select hooks (rank, delay),
 ////     on_highlight hooks with the sidebar (the theme's quick card of an item, customer, supplier)
+////   2026-10-26 render hooks (render_hooks) and persistent nodes (.neo-persist): an app draws above
+////     the results and keeps its node across re-renders (neoffice_theme's answering bar)
 //// Server side: frappe/desk/search.py (resolve_document, search_by_amount) and
 //// frappe/utils/global_search.py carry their own markers.
 //// v16 merge note: upstream still ships the Awesomplete version (develop shares < 5% of these
@@ -322,11 +324,34 @@ frappe.search.AwesomeBar = class AwesomeBar {
 	//// appointments (cfaa702efe, 2026-07-07), help context with tips as fallback (c3e92fa0cb /
 	//// e72cb6ad20), "Search Tips" / "Type {0} for a password" msgids (387fcb0da1, 2026-06-15: bare
 	//// "Tips" and "Type" collided with other apps' translations at runtime).
+	//// Neoffice — the answering bar draws its answer at the top of the palette and keeps it across
+	//// re-renders (maintenance, the bar that answers); remove if upstream gains render hooks. Each hook of
+	//// frappe.search.AwesomeBar.render_hooks is called as hook(txt, $main, $sidebar, bar) at the end of
+	//// _render and _show_home, before the results are appended: a node it prepends to bar.$panel sits
+	//// above them. Nodes of the panel marked .neo-persist are detached, not emptied, so that a re-render
+	//// does not destroy what they hold (jQuery's .empty() drops their events and data); they are handed
+	//// back in bar._persisted. Without a hook the palette is exactly as before.
+	_empty_panel() {
+		this._persisted = this.$panel.children(".neo-persist").detach();
+		this.$panel.empty();
+	}
+
+	_run_render_hooks(txt, $main, $sidebar) {
+		for (const hook of frappe.search.AwesomeBar.render_hooks) {
+			try {
+				hook(txt, $main, $sidebar, this);
+			} catch (e) {
+				console.error("awesome bar render hook failed", e);
+			}
+		}
+	}
+
 	// ── Show home state (recent searches + recently visited) ──
 	_show_home() {
 		if (!this._input_visible()) return;
 		this._position_panel();
-		this.$panel.empty();
+		//// Neoffice — render hooks: see the marker on _run_render_hooks().
+		this._empty_panel();
 		this._all_items = [];
 		this._selected = -1;
 
@@ -421,6 +446,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			);
 		}
 
+		//// Neoffice — render hooks: see the marker on _run_render_hooks().
+		this._run_render_hooks("", $main, $sidebar);
 		this.$panel.append($body);
 		this.$panel.addClass("active");
 		this._check_scroll_hint();
@@ -717,7 +744,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 	_render(txt) {
 		if (!this._input_visible()) return;
 		this._position_panel();
-		this.$panel.empty();
+		//// Neoffice — render hooks: see the marker on _run_render_hooks().
+		this._empty_panel();
 		this._all_items = [];
 		this._selected = -1;
 
@@ -926,6 +954,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		// ── RIGHT COLUMN: Sidebar ──
 		this._render_sidebar($sidebar, txt);
 
+		//// Neoffice — render hooks: see the marker on _run_render_hooks().
+		this._run_render_hooks(txt, $main, $sidebar);
 		this.$panel.append($body);
 
 		// Footer
@@ -1926,6 +1956,8 @@ frappe.search.AwesomeBar.custom_providers = [];
 frappe.search.AwesomeBar._instances = [];
 frappe.search.AwesomeBar.on_select = [];
 frappe.search.AwesomeBar.on_highlight = [];
+//// Neoffice — render hooks: see the marker on _run_render_hooks().
+frappe.search.AwesomeBar.render_hooks = [];
 frappe.search.AwesomeBar.refresh = function () {
 	for (const bar of frappe.search.AwesomeBar._instances) {
 		bar._refresh_providers();
