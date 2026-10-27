@@ -390,6 +390,10 @@ frappe.Application = class Application {
 			const has_synk =
 				frappe.boot.show_raven_chat_on_desk && frappe.user.has_role("Raven User");
 			const has_help = !!(frappe.boot.versions && frappe.boot.versions.nora);
+			//// Neoffice — the answering bar (neoffice_theme, M5): with it on, the phone's loupe (the cockpit's strip
+			//// under 768 px) opens the palette in the tap itself, laid out as a sheet; it opened the navigation drawer,
+			//// whose own box opened the palette under the drawer. The bar off: the loupe opens the drawer as before.
+			const bar_on = !!(frappe.boot.neoffice_bar && frappe.boot.neoffice_bar.enabled);
 
 			window.NeoCockpit.mount(root, {
 				env: "desk",
@@ -406,6 +410,10 @@ frappe.Application = class Application {
 						frappe.set_route("nora-chat");
 					}
 				},
+				//// Neoffice — see bar_on above.
+				onSearch: bar_on
+					? () => frappe.search.open_palette && frappe.search.open_palette()
+					: undefined,
 				onBell: () => this.toggle_cockpit_notifications(),
 				onSynk: has_synk ? () => this.toggle_cockpit_synk() : undefined,
 				onHelp: has_help

@@ -201,6 +201,11 @@ frappe.search.AwesomeBar = class AwesomeBar {
 	//// Neoffice — dba8b1fd89 (panel fixed under the input, centred), d39cf14bf1 (2026-04-07 responsive
 	//// 900 / 860 / 680px widths), b73d9fe958 (2026-06-15 18px gap under the floating input).
 	_position_panel() {
+		//// Neoffice — the answering bar (neoffice_theme, M5) places the panel itself on a phone: above its field,
+		//// which sits at the bottom of the screen. A hook that placed it returns true; none, the panel goes under.
+		const hooks = frappe.search.AwesomeBar.place_hooks || [];
+		if (hooks.some((hook) => hook(this) === true)) return;
+
 		const rect = this.$input.get(0).getBoundingClientRect();
 		const vw = window.innerWidth;
 
@@ -1977,6 +1982,8 @@ frappe.search.AwesomeBar.on_highlight = [];
 frappe.search.AwesomeBar.render_hooks = [];
 //// Neoffice — close hooks: hook(bar) when a palette closes (see _close()).
 frappe.search.AwesomeBar.close_hooks = [];
+//// Neoffice — placement hooks: hook(bar) === true when it placed the panel (see _position_panel()).
+frappe.search.AwesomeBar.place_hooks = [];
 frappe.search.AwesomeBar.refresh = function () {
 	for (const bar of frappe.search.AwesomeBar._instances) {
 		bar._refresh_providers();
