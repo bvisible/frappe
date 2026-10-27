@@ -672,6 +672,9 @@ frappe.Application = class Application {
 			// belt: re-assert after the browser settles default focus handling
 			requestAnimationFrame(() => field.focus());
 		};
+		//// Neoffice — the page may open this palette: the answering bar holds the conversation with Nora
+		//// (M4), and frappe.ui.NoraQuickChat.show() / ask() open it here when the bar is on.
+		frappe.search.open_palette = open;
 
 		// Cmd/Ctrl+G opens the overlay directly (the cockpit input doesn't
 		// exist in the collapsed rail, so focusing it can't be the only path).

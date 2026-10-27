@@ -274,6 +274,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 				!$(e.target).closest(".search-bar").length &&
 				!$(e.target).closest(".nc-search").length &&
 				!$(e.target).closest(".search-mega-panel").length &&
+				//// Neoffice — a window the palette's conversation with Nora opens beside it (the document
+				//// she shows) is no click outside (the bar that answers, M4).
+				!$(e.target).closest(".neo-keeps-palette").length &&
 				!$(e.target).closest(".modal").length &&
 				!$(e.target).closest(".modal-backdrop").length
 			) {
@@ -288,6 +291,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 	//// clearing it (7ba725102e), help pre-loaded (1f08f5cdd2), search tracked (dba8b1fd89).
 	// ── Main input handler ─────────────────────────────────
 	_handle_input(raw) {
+		//// Neoffice — while the answering bar talks with Nora (M4), the field is its message box: the palette
+		//// searches nothing and keeps the conversation on screen. Never set without the bar.
+		if (this.neo_talking) return;
 		const txt = raw.trim().replace(/\s\s+/g, " ");
 		this._current_txt = txt;
 
@@ -1410,7 +1416,10 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this.$panel.removeClass("active");
 		setTimeout(() => {
 			if (!this.$panel.hasClass("active")) {
-				this.$panel.empty();
+				//// Neoffice — the answering bar's nodes (.neo-persist: its answer, its conversation with Nora)
+				//// are detached, not destroyed, as a re-render does (_empty_panel): jQuery's .empty() dropped
+				//// the events of a conversation still waiting for its reply (the bar that answers, M4).
+				this._empty_panel();
 			}
 		}, 200);
 		this.$input.val("");
@@ -1419,6 +1428,14 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this._help_search_cache = null; // Clear search-specific help cache
 		// host hook (NeoCockpit centered overlay hides its shell here)
 		if (this.on_close) this.on_close();
+		//// Neoffice — the hooks of close_hooks are told (the answering bar leaves its conversation mode, M4).
+		for (const hook of frappe.search.AwesomeBar.close_hooks) {
+			try {
+				hook(this);
+			} catch (e) {
+				console.error("awesome bar close hook failed", e);
+			}
+		}
 	}
 
 	//// Neoffice — upstream deduplicate(), renamed by 417d4f52cf and only reformatted; the public
@@ -1958,6 +1975,8 @@ frappe.search.AwesomeBar.on_select = [];
 frappe.search.AwesomeBar.on_highlight = [];
 //// Neoffice — render hooks: see the marker on _run_render_hooks().
 frappe.search.AwesomeBar.render_hooks = [];
+//// Neoffice — close hooks: hook(bar) when a palette closes (see _close()).
+frappe.search.AwesomeBar.close_hooks = [];
 frappe.search.AwesomeBar.refresh = function () {
 	for (const bar of frappe.search.AwesomeBar._instances) {
 		bar._refresh_providers();
