@@ -242,6 +242,10 @@ class File(Document):
 		self.validate_attachment_references()
 		self.enforce_public_file_restrictions()
 
+		# must run before handle_is_private_changed, which legitimately rewrites file_url
+		if not self.is_new() and self.has_value_changed("file_url"):
+			self.validate_private_file_access()
+
 		# when dict is passed to get_doc for creation of new_doc, is_new returns None
 		# this case is handled inside handle_is_private_changed
 		if not self.is_new() and self.has_value_changed("is_private"):
@@ -260,8 +264,8 @@ class File(Document):
 	def before_save(self):
 		"""//// Neoffice — added method: the private-file check of before_insert, for the two cases it misses.
 
-		- A saved File that gets a new URL: upstream develop checks it too (#43876; its version-15 backport,
-		  #44347, is still open), but in validate(). The Suite's File override (suite.drive.overrides.file)
+		- A saved File that gets a new URL: upstream checks it too, since 15.125.0 (bb96baf2bc, the version-15
+		  backport of develop #43876), but in validate(). The Suite's File override (suite.drive.overrides.file)
 		  never calls this validate() for a saved File, so the check lives here.
 		- A new File that did not go through this before_insert(): the same override skips it for Drive's own
 		  inserts, and one of them, Drive's create_link, takes its URL from the caller.
@@ -293,45 +297,49 @@ class File(Document):
 		if not self.file_url:
 			return
 
-		existing_files = frappe.get_all(
-			"File",
-			filters={"file_url": self.file_url},
-			# //// Neoffice — "file_url" added and "limit=1" dropped, see below
-			fields=["name", "owner", "is_private", "file_url"],
-		)
-		# //// Neoffice — upstream reads the first record the database matches (limit=1), and the database
-		# //// compares without case or accents: the first of exactly this URL is read (neoffice-maintenance#1828).
-		existing_files = [existing for existing in existing_files if existing.file_url == self.file_url]
+		filters = {"file_url": self.file_url, "is_private": 1}
+		if not self.is_new():
+			filters["name"] = ["!=", self.name]
 
-		if not existing_files:
+		# //// Neoffice — "file_url" is read too (upstream reads name and owner only), see below.
+		private_files = frappe.get_all("File", filters=filters, fields=["name", "owner", "file_url"])
+		# //// Neoffice — the database compares a URL without case or accents, the disk byte for byte: a
+		# //// record spelled differently names other bytes, and must not vouch for this one (a record of
+		# //// the user's own with another spelling passed upstream's owner test), see
+		# //// _validate_private_file_access_in_every_spelling (neoffice-maintenance#1828). Kept through the
+		# //// v15.125.0 merge, which rewrote this method to read every private record of the URL.
+		private_files = [private_file for private_file in private_files if private_file.file_url == self.file_url]
+		if not private_files:
 			return
 
-		existing_file = existing_files[0]
+		user = frappe.session.user
+		if user == "Administrator":
+			return
 
-		if existing_file.is_private:
-			user = frappe.session.user
-
-			if user == existing_file.owner or user == "Administrator":
+		# a file can be attached to multiple documents; access to any one of them is enough
+		for private_file in private_files:
+			if user == private_file.owner:
 				return
 
-			existing_doc = frappe.get_doc("File", existing_file.name)
-			if not has_permission(existing_doc, "read", user=user):
-				frappe.throw(
-					_("You do not have permission to access this file"),
-					frappe.PermissionError,
-				)
+			if has_permission(frappe.get_doc("File", private_file.name), "read", user=user):
+				return
+
+		frappe.throw(
+			_("You do not have permission to access this file"),
+			frappe.PermissionError,
+		)
 
 	def _validate_private_file_access_in_every_spelling(self):
 		"""//// Neoffice — added method, run next to upstream's validate_private_file_access (kept as upstream
 		wrote it): the user must be able to read an existing private file their new record names.
 
-		Upstream's check (972ccf61b7, v15.121.2, GHSA-gvg7-4p32-j648) looks the URL up as a string and reads
-		the first record only. This one is its develop form (#43876): every private record sharing the URL is
-		considered, reading any one of them is enough, and a saved record does not vouch for itself. Our
-		additions (neoffice-maintenance#1738):
+		Upstream's check (972ccf61b7, v15.121.2, GHSA-gvg7-4p32-j648) looked the URL up as a string and read
+		the first record only; since 15.125.0 (bb96baf2bc) it is the develop form (#43876): every private
+		record sharing the URL is considered, reading any one of them is enough, and a saved record does not
+		vouch for itself. This one has always been that, and adds (neoffice-maintenance#1738):
 		- the URL is compared in every spelling that lands on the same private file (`_private_file_urls`):
 		  upstream compares the string only, so "/private/files/./a.pdf", "/private/files//a.pdf" or a full URL
-		  of this site reached the file past it (still true of upstream 15.123.1 and develop);
+		  of this site reach the file past it (still true of upstream 15.125.0);
 		- a Guest is never the owner of a Guest's upload (the rule of `has_permission` below; upstream
 		  accepts the owner match for Guest too);
 		- Administrator returns first, so system flows never resolve a path here;

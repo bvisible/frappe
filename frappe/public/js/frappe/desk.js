@@ -80,7 +80,8 @@ frappe.Application = class Application {
 		this.make_page_container();
 		//// Neoffice — removed upstream's onboarding-tour block (load onboarding_tours.bundle.js and
 		//// frappe.ui.init_onboarding_tour() when a tour is pending) (1014eb4426 2026-04-25
-		//// "feat(onboarding): disable Frappe legacy onboarding tours"). The tour code still ships.
+		//// "feat(onboarding): disable Frappe legacy onboarding tours"). The tour code still ships. Upstream 15.125.0
+		//// only added `!navigator.webdriver` (Playwright) to that block's condition: nothing to take, the block stays out.
 		// Onboarding tours intentionally disabled for Neoffice — the new
 		// home workspace already provides a guided welcome (hero + tinted
 		// applications), so the legacy "Awesomebar / Form basics / ..."
@@ -810,6 +811,7 @@ frappe.Application = class Application {
 			!Array.isArray(change_log) ||
 			!change_log.length ||
 			window.Cypress ||
+			navigator.webdriver ||
 			frappe.defaults.is_enabled("disable_change_log_notification")
 		) {
 			return;
