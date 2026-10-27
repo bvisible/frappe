@@ -393,7 +393,14 @@ frappe.Application = class Application {
 			//// Neoffice — the answering bar (neoffice_theme, M5): with it on, the phone's loupe (the cockpit's strip
 			//// under 768 px) opens the palette in the tap itself, laid out as a sheet; it opened the navigation drawer,
 			//// whose own box opened the palette under the drawer. The bar off: the loupe opens the drawer as before.
-			const bar_on = !!(frappe.boot.neoffice_bar && frappe.boot.neoffice_bar.enabled);
+			//// Neoffice — a reader whose desk settings hide the search gets no palette (setup_cockpit_awesomebar):
+			//// the drawer then (independent review of M5).
+			const bar_on = !!(
+				frappe.boot.neoffice_bar &&
+				frappe.boot.neoffice_bar.enabled &&
+				frappe.boot.desk_settings &&
+				frappe.boot.desk_settings.search_bar
+			);
 
 			window.NeoCockpit.mount(root, {
 				env: "desk",
