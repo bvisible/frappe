@@ -206,6 +206,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		const hooks = frappe.search.AwesomeBar.place_hooks || [];
 		if (hooks.some((hook) => hook(this) === true)) return;
 
+		//// Neoffice — the placement below is ours too (fixed under the input, centred: see the marker above _position_panel()).
 		const rect = this.$input.get(0).getBoundingClientRect();
 		const vw = window.innerWidth;
 
@@ -1898,6 +1899,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 	}
 
 	// ── Upcoming appointments (Suite calendar) for the panel ──
+	//// Neoffice — added method (no upstream equivalent): the next appointments of the Suite calendar, asked of
+	//// neoffice_theme.api.get_upcoming_events and drawn in the panel's home; a one-minute client memo.
 	_load_upcoming_events() {
 		if (this._upcoming_events_loading) return;
 		// Client memo with a short TTL — an empty answer must not stick for the
@@ -1908,6 +1911,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		) {
 			return;
 		}
+		//// Neoffice — part of the added method above (the request to the theme's endpoint).
 		this._upcoming_events_loading = true;
 
 		frappe
