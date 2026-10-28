@@ -168,6 +168,25 @@ frappe.ui.form.Layout = class Layout {
 					this.fields.splice(1, 0, newname_field);
 				}
 			}
+
+			//// Neoffice — a first tab « Overview » (« Aperçu ») on the form of each kind neoffice_theme lists in the
+			//// boot (neoffice_everything.overview; Daniel's screen 4, 28.10): the thing's answer, its figures and the
+			//// linked documents that wait, drawn by the theme (public/js/everything_overview.js) in this HTML field.
+			//// Upstream has no such tab: without the theme's boot key nothing changes. The theme hides the field, so
+			//// the tab, on a new document and on a draft to submit; a form shown in a dialog never gets it.
+			if (!new_fields && this.neo_wants_overview()) {
+				this.fields.splice(
+					0,
+					0,
+					{
+						label: __("Overview", null, "Everything page"),
+						fieldtype: "Tab Break",
+						fieldname: "__neo_overview",
+					},
+					{ fieldtype: "HTML", fieldname: "__neo_overview_html" }
+				);
+			}
+			//// END Neoffice
 		}
 
 		fields.forEach((df) => {
@@ -193,6 +212,18 @@ frappe.ui.form.Layout = class Layout {
 			}
 		});
 	}
+
+	//// Neoffice — the kinds whose form opens on « Overview » (see render): the page's form only, once.
+	neo_wants_overview() {
+		const kinds = frappe.boot?.neoffice_everything?.overview || [];
+		return (
+			!!this.frm &&
+			!this.frm.form_dialog_uid &&
+			kinds.includes(this.doctype) &&
+			!this.fields.some((df) => df.fieldname === "__neo_overview")
+		);
+	}
+	//// END Neoffice
 
 	no_opening_section() {
 		return (
