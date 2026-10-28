@@ -1384,9 +1384,13 @@ frappe.ui.form.FormHero = class FormHero {
 				"Change Emails"
 			)}</span></button>
 			<button class="step-cta accent hero-history">${STEP_ICONS.clock || ""}<span>${__(
-				"History"
+				"See everything",
+				null,
+				"Everything page"
 			)}</span></button>
 		`);
+		//// Neoffice — « Tout voir » (neoffice_theme, page/history, 28.10): the History page became the whole page of
+		//// anything, at the same address; its button says so, as the one the theme adds to every form.
 		$row.find(".hero-change-emails").on("click", (e) => {
 			e.preventDefault();
 			this.trigger_custom_button(__("Change Emails"));
@@ -1401,8 +1405,9 @@ frappe.ui.form.FormHero = class FormHero {
 		// render — so watch the actions area and re-hide on every addition
 		// (childList only: .hide() mutates attributes, no feedback loop).
 		const hide_native = () => {
-			["Change Emails", "History"].forEach((label) => {
-				const $btn = this.frm.custom_buttons && this.frm.custom_buttons[__(label)];
+			//// Neoffice — and the theme's « See everything » (everything_button.js), carried by the hero here
+			[__("Change Emails"), __("History"), __("See everything", null, "Everything page")].forEach((label) => {
+				const $btn = this.frm.custom_buttons && this.frm.custom_buttons[label];
 				if ($btn) $btn.hide();
 			});
 		};
