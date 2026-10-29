@@ -1356,9 +1356,12 @@ def get_permission_query_conditions(user: str | None = None) -> str:
 	# Custom DocPerm rows can outlive their DocType, drop those
 	# before frappe.get_meta() below assumes the doctype still exists.
 	candidate_doctypes = get_doctypes_with_read(user)
-	existing_doctypes = set(
-		frappe.get_all("DocType", filters={"name": ["in", candidate_doctypes]}, pluck="name")
-	)
+	# //// Neoffice — and keep only the doctypes that have a File attached. Upstream read the meta of
+	# //// EVERY doctype the user may read (two loops below), on each File list query: ~1,200 on a full
+	# //// bench, 1 s with a warm cache and over 20 s right after a cache clear or a migrate, the first
+	# //// time a desk user opened anything listing files. A doctype with no File attached adds nothing
+	# //// a File row can match, so the condition selects exactly the same files.
+	existing_doctypes = set(_doctypes_with_attachments(candidate_doctypes))
 	readable_doctypes = [dt for dt in candidate_doctypes if dt in existing_doctypes]
 
 	openly_readable_doctypes, owner_restricted_doctypes = _split_doctypes_by_owner_constraint(
@@ -1396,6 +1399,31 @@ def get_permission_query_conditions(user: str | None = None) -> str:
 		conditions.append(_scoped_attachment_condition(doctype, user, " AND ".join(field_conditions)))
 
 	return "(" + " OR ".join(conditions) + ")"
+
+
+# //// Neoffice — added function (no upstream equivalent), see get_permission_query_conditions.
+def _doctypes_with_attachments(doctypes: list[str]) -> list[str]:
+	"""The existing DocTypes among `doctypes` that have at least one File attached.
+
+	The kinds attached come from a loose scan of the `attached_to_doctype` index (one step per kind,
+	not per file), and the database matches them to the DocTypes with its own collation, as the File
+	condition will. Both reads share the transaction of the File query that uses the result.
+	"""
+	if not doctypes:
+		return []
+	file_table = frappe.qb.DocType("File")
+	attached = (
+		frappe.qb.from_(file_table)
+		.select(file_table.attached_to_doctype)
+		.distinct()
+		.where(file_table.attached_to_doctype.isnotnull())
+		.run(pluck=True)
+	)
+	if not attached:
+		return []
+	return frappe.get_all(
+		"DocType", filters=[["name", "in", doctypes], ["name", "in", attached]], pluck="name"
+	)
 
 
 def _scoped_attachment_condition(doctype: str, user: str, exists_condition: str) -> str:

@@ -1765,6 +1765,87 @@ class TestFilePermissionQuery(FrappeTestCase):
 			get_permission_query_conditions(user="test1@example.com")
 
 
+# //// Neoffice — added tests (no upstream equivalent): the File list condition reads only the kinds
+# //// that have a file attached. Upstream read the meta of EVERY kind the reader may read, on each File
+# //// list query: about 1,200 on a full bench, 1 s with a warm cache and over 20 s after a cache clear.
+class TestFilePermissionQueryReadsOnlyAttachedKinds(FrappeTestCase):
+	READER = "test-file-kinds-reader@example.com"
+	DOCTYPE = "Test Kind Without Attachment"
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		frappe.get_doc(
+			doctype="DocType",
+			name=cls.DOCTYPE,
+			module="Custom",
+			custom=1,
+			fields=[{"label": "Title", "fieldname": "title", "fieldtype": "Data"}],
+			permissions=[{"role": "All", "read": 1, "create": 1}],
+		).insert(ignore_if_duplicate=True)
+		if not frappe.db.exists("User", cls.READER):
+			# a desk reader of its own: Blogger makes it a System User, as on the desk
+			with patch("frappe.sendmail"):
+				frappe.get_doc(
+					doctype="User",
+					email=cls.READER,
+					first_name="File kinds reader",
+					send_welcome_email=0,
+					roles=[{"role": "Blogger"}],
+				).insert(ignore_permissions=True)
+		frappe.db.commit()
+
+	@classmethod
+	def tearDownClass(cls):
+		frappe.set_user("Administrator")
+		frappe.delete_doc("User", cls.READER, force=True, ignore_permissions=True)
+		frappe.delete_doc("DocType", cls.DOCTYPE, force=True, ignore_permissions=True)
+		frappe.db.commit()
+		super().tearDownClass()
+
+	def setUp(self):
+		frappe.set_user("Administrator")
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		frappe.db.rollback()
+
+	def condition_and_kinds_read(self):
+		"""The reader's File condition, and the kinds whose meta was read to build it."""
+		from frappe.core.doctype.file.file import get_permission_query_conditions
+
+		frappe.local.role_permissions = {}
+		with patch.object(frappe, "get_meta", wraps=frappe.get_meta) as get_meta:
+			condition = get_permission_query_conditions(self.READER)
+		return condition, {call.args[0] for call in get_meta.call_args_list if call.args}
+
+	def test_a_kind_without_a_file_is_neither_read_nor_named(self):
+		condition, read = self.condition_and_kinds_read()
+		self.assertNotIn(self.DOCTYPE, read)
+		self.assertNotIn(self.DOCTYPE, condition)
+
+	def test_a_kind_with_a_file_is_still_named_and_listed(self):
+		record = frappe.get_doc({"doctype": self.DOCTYPE, "title": "with a file"}).insert(
+			ignore_permissions=True
+		)
+		attached = frappe.new_doc(
+			"File",
+			file_name="attached_kind.txt",
+			attached_to_doctype=self.DOCTYPE,
+			attached_to_name=record.name,
+			content="attached",
+			is_private=1,
+		).insert(ignore_permissions=True)
+
+		condition = self.condition_and_kinds_read()[0]
+		self.assertIn(self.DOCTYPE, condition)
+		# this condition alone: an installed app may AND its own File condition to it in get_list
+		listed = frappe.db.sql_list(
+			f"select name from `tabFile` where name = %s and {condition}", (attached.name,)
+		)
+		self.assertEqual(listed, [attached.name])
+
+
 # //// Neoffice — added tests (no upstream equivalent): our fork slugs file names and URLs
 # //// (File.before_insert, File.validate_file_url, handler.upload_file). The URL must keep naming
 # //// the file that is actually on disk (neoffice-maintenance#662).
