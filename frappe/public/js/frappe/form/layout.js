@@ -169,22 +169,28 @@ frappe.ui.form.Layout = class Layout {
 				}
 			}
 
-			//// Neoffice — a first tab « Overview » (« Aperçu ») on the form of each kind neoffice_theme lists in the
-			//// boot (neoffice_everything.overview; Daniel's screen 4, 28.10): the thing's answer, its figures and the
-			//// linked documents that wait, drawn by the theme (public/js/everything_overview.js) in this HTML field.
-			//// Upstream has no such tab: without the theme's boot key nothing changes. The theme hides the field, so
-			//// the tab, on a new document and on a draft to submit; a form shown in a dialog never gets it.
+			//// Neoffice — the thing's « Overview » (« Aperçu ») at the top of the form's first tab, for each kind
+			//// neoffice_theme lists in the boot (neoffice_everything.overview; Daniel's screen 4, 28.10): its answer, its
+			//// figures and the linked documents that wait, drawn by the theme (public/js/everything_overview.js) in this
+			//// HTML field. A section above the tab's fields, not a tab of its own (Jérémy, 29.10: the form opens on
+			//// « Details », the overview first, the fields below). Upstream has none of it: without the theme's boot key
+			//// nothing changes. The theme hides the field, so its section, on a new document and on a draft to submit;
+			//// a form shown in a dialog never gets it.
 			if (!new_fields && this.neo_wants_overview()) {
-				this.fields.splice(
-					0,
-					0,
-					{
-						label: __("Overview", null, "Everything page"),
-						fieldtype: "Tab Break",
-						fieldname: "__neo_overview",
-					},
-					{ fieldtype: "HTML", fieldname: "__neo_overview_html" }
-				);
+				const tab = this.fields.indexOf(first_tab || default_tab);
+				const next = this.fields[tab + 1];
+				const overview = [
+					{ fieldtype: "Section Break", fieldname: "__neo_overview" },
+					{ fieldtype: "HTML", fieldname: "__neo_overview_html" },
+				];
+				// the tab's own fields keep a section of their own, below the overview's
+				if (next && !["Section Break", "Tab Break"].includes(next.fieldtype)) {
+					overview.push({
+						fieldtype: "Section Break",
+						fieldname: "__neo_overview_after",
+					});
+				}
+				this.fields.splice(tab + 1, 0, ...overview);
 			}
 			//// END Neoffice
 		}
@@ -213,7 +219,7 @@ frappe.ui.form.Layout = class Layout {
 		});
 	}
 
-	//// Neoffice — the kinds whose form opens on « Overview » (see render): the page's form only, once.
+	//// Neoffice — the kinds whose form shows its « Overview » (see render): the page's form only, once.
 	neo_wants_overview() {
 		const kinds = frappe.boot?.neoffice_everything?.overview || [];
 		return (
