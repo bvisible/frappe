@@ -1,6 +1,8 @@
 # Copyright (c) 2015, Frappe Technologies and contributors
 # License: MIT. See LICENSE
 
+import secrets
+
 import frappe
 from frappe import _
 from frappe.model.document import Document
@@ -33,7 +35,10 @@ class OAuthClient(Document):
 	def validate(self):
 		self.client_id = self.name
 		if not self.client_secret:
-			self.client_secret = frappe.generate_hash(length=10)
+			# //// Neoffice — upstream gives the client a 10-character secret (40 bits), and the OpenID id token is signed with that
+			# //// secret (HS256, see frappe/oauth.py): one token seen is enough to guess it offline. A long random one instead
+			# //// (neoffice-maintenance#1985).
+			self.client_secret = secrets.token_hex(32)
 		self.validate_grant_and_response()
 		self.add_default_role()
 
