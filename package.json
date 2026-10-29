@@ -69,7 +69,7 @@
     "rtlcss": "^4.0.0",
     "sass": "^1.63.0",
     "showdown": "^2.1.0",
-    "socket.io": "^4.7.1",
+    "socket.io": "^4.8.1",
     "socket.io-client": "^4.7.1",
     "sortablejs": "^1.15.0",
     "superagent": "^8.0.0",
@@ -85,6 +85,8 @@
     "utf-8-validate": "^6.0.3"
   },
   "resolutions": {
+    "socket.io-parser": "~4.2.7",
+    "socket.io-adapter": "~2.5.8",
     "sortablejs": "^1.15.7"
   }
 }
