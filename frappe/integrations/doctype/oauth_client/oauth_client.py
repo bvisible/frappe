@@ -1,6 +1,7 @@
 # Copyright (c) 2015, Frappe Technologies and contributors
 # License: MIT. See LICENSE
 
+# //// Neoffice — mints the long client secret in validate() below (neoffice-maintenance#1985).
 import secrets
 
 import frappe
