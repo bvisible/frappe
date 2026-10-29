@@ -17,7 +17,7 @@ dependencies = [
     "Click~=8.4.1",
     "filelock~=3.20.1",
     "filetype~=1.2.0",
-    "GitPython~=3.1.34",
+    "GitPython>=3.1.34,<4",  # //// Neoffice — upstream: ~=3.1.34. Five high advisories of GitPython are fixed only in 3.2, and the frappe-bench of a bench pins ~=3.2.1 from 5.31.1. Frappe uses it only in three commands (new-app, translation helper, a utility command), never on a request. Remove when upstream pins 3.2 (maintenance#1984).
     "Jinja2~=3.1.2",
     "Pillow>=12.3.0,<14",  # //// Neoffice — upstream: ~=12.3.0. All 39 known advisories of Pillow 12.3 are fixed only in 13.0.0, and this decodes images sent by outsiders. Checked on 2026-10-29: the image, QR, thumbnail and PDF paths of Frappe and of the Neoffice apps give the same results with 13.0.0 (maintenance#1984). Remove when upstream pins 13.
     "PyJWT~=2.15.0",
