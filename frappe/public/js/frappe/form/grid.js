@@ -178,6 +178,9 @@ export default class Grid {
 		//// Neoffice — added call (8a044787a8, 2025-11-07): wires the Toggle Full Width button of the template
 		//// above. The method it calls is ours too, right below.
 		this.setup_fullwidth_toggle();
+		//// Neoffice — added call (maintenance#2001): a mainly vertical swipe that starts over a grid in
+		//// horizontal-scroll mode moves the page instead of sticking to the grid. The method is ours, below.
+		this.setup_vertical_wheel_handoff();
 		if (this.df.on_setup) {
 			this.df.on_setup(this);
 		}
@@ -294,6 +297,70 @@ export default class Grid {
 				open_fullscreen();
 			}
 		});
+	}
+	//// Neoffice — added method, no upstream equivalent (v15 or develop), for maintenance#2001. Past ten
+	//// columns our grid scrolls sideways (.column-limit-reached: overflow-x scroll, overflow-y hidden, set in
+	//// grid_row.js), and a browser picks the scroller of a WHOLE wheel gesture from its first event (scroll
+	//// latching). A trackpad or Magic Mouse swipe that starts over the table with the slightest sideways
+	//// drift latched onto the table, which cannot move vertically: the page stopped with the table under the
+	//// pointer, and what follows it (taxes, totals) looked missing until a reload. Once the table had moved
+	//// sideways, a drift either way latched. Measured on a Sales Invoice with a synthetic gesture (600 px
+	//// down, 20 px sideways): page 0 px, table 20 px. A mainly vertical gesture the table would capture is
+	//// handed to the nearest scroller that can move vertically (.main-section in the cockpit layout); a
+	//// mainly sideways one still scrolls the table, and a gesture that starts straight down is left to the
+	//// browser, which already scrolls the page.
+	setup_vertical_wheel_handoff() {
+		const container = this.wrapper.find(".form-grid-container").get(0);
+		if (!container) return;
+		const grid_field = this.wrapper;
+		const HANDOFF_GAP = 150; // ms without a wheel event that ends a handed-off gesture
+		let handing_off_until = 0;
+
+		const can_scroll_x = (el, dx) =>
+			dx < 0 ? el.scrollLeft > 0 : el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+		const can_scroll_y = (el, dy) => {
+			const overflow_y = getComputedStyle(el).overflowY;
+			if (!["auto", "scroll", "overlay"].includes(overflow_y)) return false;
+			return dy < 0
+				? el.scrollTop > 0
+				: el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+		};
+		// A scroller between the pointer and the grid (a long text in an open row) keeps the gesture
+		const inner_scroller = (target, dy) => {
+			for (let el = target; el && el !== container; el = el.parentElement) {
+				if (el.nodeType === 1 && can_scroll_y(el, dy)) return true;
+			}
+			return false;
+		};
+		const page_scroller = (dy) => {
+			for (let el = container.parentElement; el; el = el.parentElement) {
+				if (el === document.body || el === document.documentElement) break;
+				if (can_scroll_y(el, dy)) return el;
+			}
+			return document.scrollingElement;
+		};
+
+		container.addEventListener(
+			"wheel",
+			(e) => {
+				// Not cancelable: the browser already latched this gesture elsewhere. ctrlKey: a pinch-zoom.
+				// The fullscreen overlay scrolls both ways by itself, over a page that must stay still.
+				if (!e.cancelable || e.ctrlKey || grid_field.hasClass("grid-fullscreen")) return;
+				if (e.timeStamp > handing_off_until) {
+					const mainly_vertical = Math.abs(e.deltaY) > Math.abs(e.deltaX);
+					if (!mainly_vertical || !e.deltaX || !can_scroll_x(container, e.deltaX))
+						return;
+					if (can_scroll_y(container, e.deltaY) || inner_scroller(e.target, e.deltaY))
+						return;
+				}
+				e.preventDefault();
+				handing_off_until = e.timeStamp + HANDOFF_GAP;
+				const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? window.innerHeight : 1;
+				const scroller = page_scroller(e.deltaY);
+				if (scroller) scroller.scrollTop += e.deltaY * unit;
+			},
+			{ passive: false }
+		);
 	}
 	set_grid_description() {
 		let description_wrapper = $(this.parent).find(".grid-description");
