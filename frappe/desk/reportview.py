@@ -936,12 +936,20 @@ def get_filters_cond(doctype, filters, conditions, ignore_permissions=None, with
 # //// v15.123 merge).
 # //// Nothing upstream sits here, so the merge should append cleanly.
 # ////
+# //// get_distinct_values (maintenance#2054): it read with ignore_permissions=True, so any logged-in
+# //// user, a Website User included, got every distinct value of any field of any doctype. It now
+# //// reads as the caller: select (or read) permission on the doctype, a bare field the caller may
+# //// read at its permission level, then frappe.get_list's user permissions and query conditions.
+# //// Its only caller, our datatable fork (columnmanager.js, Link column autocomplete), asks for
+# //// `name` and also sends `filters`: those are the LIST's filters, not the Link target's, so the
+# //// signature still leaves them out (frappe.call drops an argument the function does not take).
 @frappe.whitelist()
 def get_distinct_values(doctype, fieldname, limit=None):
-	if limit:
-		return frappe.db.get_all(doctype, distinct=True, fields=[fieldname], limit=limit, ignore_permissions=True)
-	else:
-		return frappe.db.get_all(doctype, distinct=True, fields=[fieldname], ignore_permissions=True)
+	frappe.has_permission(doctype, "select", throw=True)
+	if fieldname not in get_permitted_fields(doctype, ignore_virtual=True):
+		raise_invalid_field(fieldname)
+
+	return frappe.get_list(doctype, fields=[fieldname], distinct=True, limit=cint(limit) or None)
 
 @frappe.whitelist()
 def save_user_report_settings(doctype, settings):

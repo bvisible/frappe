@@ -2,7 +2,11 @@
 # License: MIT. See LICENSE
 
 import frappe
-from frappe.desk.reportview import export_query, extract_fieldnames
+from frappe.desk.reportview import (  # //// Neoffice — see the test at the end
+	export_query,
+	extract_fieldnames,
+	get_distinct_values,
+)
 from frappe.tests.utils import FrappeTestCase
 
 
@@ -108,3 +112,31 @@ class TestReportview(FrappeTestCase):
 
 		self.assertTrue(jobs, "Background job was not enqueued")
 		self.assertTrue(email_queue, "Email was not enqueued")
+
+	# //// Neoffice — added test (maintenance#2054): get_distinct_values, our fork's endpoint at the end of
+	# //// reportview.py, read with ignore_permissions=True. It must refuse a Website User, serve a permitted
+	# //// user, and refuse anything but a bare field the caller may read.
+	def test_get_distinct_values_permissions(self):
+		website_user = "reportview-distinct-website@example.com"
+		if not frappe.db.exists("User", website_user):
+			frappe.get_doc(
+				doctype="User",
+				email=website_user,
+				first_name="Distinct",
+				user_type="Website User",
+				send_welcome_email=0,
+			).insert(ignore_permissions=True)
+
+		with self.set_user(website_user):
+			self.assertRaises(frappe.PermissionError, get_distinct_values, "Role", "name", 10000)
+			self.assertRaises(frappe.PermissionError, get_distinct_values, "DocType", "module")
+			# every user's own User record is shared with them, and only that one comes back
+			self.assertEqual([row.name for row in get_distinct_values("User", "name", 10000)], [website_user])
+
+		names = {row.name for row in get_distinct_values("Role", "name", 10000)}
+		self.assertIn("System Manager", names)
+		self.assertEqual(len(get_distinct_values("Role", "name", 1)), 1)
+
+		self.assertRaises(frappe.DataError, get_distinct_values, "Role", "count(name)")
+		self.assertRaises(frappe.DataError, get_distinct_values, "Role", "`tabUser`.`email`")
+		self.assertRaises(frappe.DataError, get_distinct_values, "Role", "no_such_field")
