@@ -247,7 +247,11 @@ frappe.ui.FilterGroup = class {
 
 		let filter = this._push_new_filter(...args);
 
-		if (filter && filter.value) {
+		//// Neoffice — upstream waited for the filter's value only when it was truthy. A filter whose value is 0
+		//// (« docstatus = 0 », the « Brouillons » view of a list) resolved at once, add_filters() then ran
+		//// update_filters() before the control held the 0, found no value and dropped the filter: the list
+		//// reloaded unfiltered and the view fell back to « Tous ». Any given value is waited for now.
+		if (filter && ![undefined, null, ""].includes(filter.value)) {
 			// filter.setup_state(is_new_filter);
 			return filter._filter_value_set; // internal promise
 		}
