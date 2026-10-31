@@ -156,6 +156,14 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -yq mariadb-client libcups2-dev
 
+      # //// Neoffice — the mariadb client the runner installs now insists on TLS and the mariadb:10.6 service
+      # //// container offers none: « SSL is required, but the server does not support it » killed « New site »
+      # //// before one test ran (neoffice-maintenance#2041, red since 137f0a5643). Told once, in the client's own
+      # //// configuration, for the SET GLOBAL call and frappe's own restore of the new site. Drop when the
+      # //// service container offers TLS or upstream's workflow does the same.
+      - name: Tell the mariadb client to skip TLS
+        run: printf '[client]\nskip-ssl\n' > ~/.my.cnf
+
       - name: Init bench on THIS sha
         run: |
           pip install frappe-bench
