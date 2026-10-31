@@ -304,6 +304,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this._current_txt = txt;
 
 		if (!txt || txt.length < 2) {
+			//// Neoffice — the server searches waiting for a pause (_schedule_server_searches) are for words gone.
+			this._drop_server_searches();
 			if (!txt) this._show_home();
 			else this.$panel.removeClass("active"); // Hide panel but don't clear input
 			return;
@@ -328,6 +330,41 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		// Render local options immediately
 		this._render(txt);
 
+		//// Neoffice — the searches that ask the server (document, amount, Drive, agenda, full text) run from
+		//// _schedule_server_searches: at once, or once the keys rest where the answering bar sets a pause.
+		this._schedule_server_searches(txt);
+	}
+
+	//// Neoffice — 31.10 (neoffice_theme, the answering bar): each key sent five searches of the palette beside
+	//// the bar's own question - 24 requests for « garage favre » typed in four bursts, measured on a site of
+	//// 3 workers, all back together after 2.4 to 3.7 s. Where the bar owns the panel their rows are only
+	//// « Also found » under its answer: the bar sets frappe.search.AwesomeBar.server_pause_ms and they go once
+	//// the keys rest, for the last words only. 0 (any site without the bar): at once, as upstream does. Remove
+	//// with the bar's panel, or if upstream debounces its server searches apart from the drawing.
+	_schedule_server_searches(txt) {
+		this._drop_server_searches();
+		// a DocType named by the words is the row: no document link (read now, the drawing is done)
+		const link = !this.options.some((o) => o.default === "DocTypeAction");
+		const pause = frappe.search.AwesomeBar.server_pause_ms || 0;
+		if (!pause) return this._server_searches(txt, link);
+		// « Searching… » stands while the full-text search waits, as while it is on its way
+		this._search_pending = true;
+		this._server_timer = setTimeout(() => {
+			this._server_timer = null;
+			if (this._current_txt === txt && this.$panel.hasClass("active")) this._server_searches(txt, link);
+		}, pause);
+	}
+
+	_drop_server_searches() {
+		if (this._server_timer) clearTimeout(this._server_timer);
+		this._server_timer = null;
+	}
+
+	_server_searches(txt, link) {
+		if (link) this._make_document_link(txt);
+		this._make_amount_search(txt);
+		this._make_drive_search(txt);
+		this._make_calendar_search(txt);
 		// Fire async global search (skipped for math expressions)
 		this._search_global(txt);
 	}
@@ -614,14 +651,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this._make_calculator(txt);
 		this._make_random(txt);
 		this._make_doctype_action(txt);
-		// Skip document link if we already matched a DocType name
-		const has_dt_action = this.options.some((o) => o.default === "DocTypeAction");
-		if (!has_dt_action) {
-			this._make_document_link(txt);
-		}
-		this._make_amount_search(txt);
-		this._make_drive_search(txt);
-		this._make_calendar_search(txt);
+		//// Neoffice — 31.10: the document link (skipped when a DocType matched), amount, Drive and agenda
+		//// searches ask the server: they run from _schedule_server_searches, at once or at the pause.
 
 		// Custom search providers
 		this.options = this.options.concat(this._run_providers(txt));
@@ -1412,6 +1443,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		// so the panel would reposition against a 0×0 rect at top-left).
 		this._search_id++;
 		this._search_pending = false;
+		//// Neoffice — 31.10: nor do the server searches still waiting for a pause leave (_schedule_server_searches).
+		this._drop_server_searches();
 		this._current_txt = "";
 		//// Neoffice — see the block marker above: reset the first-key timer (#822, search R6)
 		this._started = null;
