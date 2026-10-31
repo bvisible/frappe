@@ -56,7 +56,8 @@ def get_context(context):
 
 	language = None
 	if not frappe.form_dict.get("_lang") and not explicit_print_language():
-		language = document_print_language(doc.doctype, doc.name, doc)
+		# //// Neoffice — lot 7: the format is told to the hooks
+		language = document_print_language(doc.doctype, doc.name, doc, getattr(print_format, "name", None))
 
 	with print_language(language):
 		if print_format and print_format.get("print_format_builder_beta"):

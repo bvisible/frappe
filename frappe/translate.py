@@ -1026,10 +1026,17 @@ def explicit_print_language() -> str | None:
 	return frappe.local.flags.get("print_language") or None
 
 
-def document_print_language(doctype: str | None = None, name: str | None = None, doc=None) -> str | None:
-	"""The language a document is printed in when nobody chose one, or None for the session's own."""
+# //// Neoffice — lot 7: the print format is told to the hooks too (its default language is the last answer)
+def document_print_language(
+	doctype: str | None = None, name: str | None = None, doc=None, print_format: str | None = None
+) -> str | None:
+	"""The language a document is printed in when nobody chose one, or None for the session's own.
+
+	``print_format`` names the format about to print it: it carries a default language of its own (the Oslo formats say
+	French), which is what a document that says nothing is printed in."""
 	for method in frappe.get_hooks("document_print_language"):
-		language = frappe.call(method, doctype=doctype, name=name, doc=doc)
+		# //// Neoffice — lot 7: print_format added
+		language = frappe.call(method, doctype=doctype, name=name, doc=doc, print_format=print_format)
 		if language:
 			return language
 	return None

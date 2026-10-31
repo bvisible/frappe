@@ -2339,7 +2339,7 @@ def attach_print(
 		is_weasyprint_print_format = print_format_doc.get("print_format_builder_beta")
 
 	# //// Neoffice — multilingual lot 7: the document's own language, when the caller names none
-	lang = lang or document_print_language(doctype, name, doc)
+	lang = lang or document_print_language(doctype, name, doc, print_format)
 	with print_language(lang or local.lang):
 		content = ""
 		if cint(print_settings.send_print_as_pdf):

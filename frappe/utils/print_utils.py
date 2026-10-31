@@ -54,7 +54,8 @@ def get_print(
 	from frappe.translate import document_print_language, explicit_print_language, print_language
 
 	if not explicit_print_language():
-		language = document_print_language(doctype, name, doc)
+		# //// Neoffice — lot 7: the format is told to the hooks
+		language = document_print_language(doctype, name, doc, print_format)
 		if language:
 			with print_language(language):
 				return get_print(

@@ -19,6 +19,7 @@ from frappe.translate import document_print_language, explicit_print_language, p
 
 HOOK = "frappe.tests.test_document_print_language.german_for_notes"
 OTHER_HOOK = "frappe.tests.test_document_print_language.italian_for_everything"
+LISTENING_HOOK = "frappe.tests.test_document_print_language.listening"
 real_get_hooks = frappe.get_hooks
 
 
@@ -28,6 +29,14 @@ def german_for_notes(doctype=None, name=None, doc=None):
 
 def italian_for_everything(doctype=None, name=None, doc=None):
 	return "it"
+
+
+TOLD = []
+
+
+def listening(doctype=None, name=None, doc=None, print_format=None):
+	TOLD.append((doctype, print_format))
+	return None
 
 
 def hooked(*methods):
@@ -85,6 +94,43 @@ class TestTheAppsDecide(FrappeTestCase):
 		with hooked(HOOK, OTHER_HOOK):
 			self.assertEqual(document_print_language("Note", "x"), "de")
 			self.assertEqual(document_print_language("ToDo", "x"), "it")
+
+
+class TestTheHookIsToldTheFormat(FrappeTestCase):
+	"""A format has a default language of its own (the Oslo formats say French): the apps need to know which one prints."""
+
+	def setUp(self):
+		TOLD.clear()
+
+	def test_the_format_is_passed_to_the_hook(self):
+		with hooked(LISTENING_HOOK):
+			document_print_language("Note", "x", print_format="Oslo Note")
+		self.assertEqual(TOLD, [("Note", "Oslo Note")])
+
+	def test_a_hook_that_does_not_take_a_format_still_works(self):
+		with hooked(HOOK):
+			self.assertEqual(document_print_language("Note", "x", print_format="Oslo Note"), "de")
+
+	def test_get_print_names_its_format(self):
+		with (
+			hooked(LISTENING_HOOK),
+			patch(
+				"frappe.website.serve.get_response_without_exception_handling",
+				return_value=type("Response", (), {"data": b"<p>printed</p>"})(),
+			),
+		):
+			frappe.get_print("Note", "x", print_format="Oslo Note")
+		self.assertEqual(TOLD, [("Note", "Oslo Note")])
+
+	def test_attach_print_names_its_format(self):
+		doc = frappe.get_doc({"doctype": "Note", "title": "Attached", "name": "Attached"})
+		with (
+			hooked(LISTENING_HOOK),
+			patch("frappe.get_print", return_value="<p>printed</p>"),
+			patch("frappe.get_cached_doc", return_value=frappe._dict(print_format_builder_beta=0)),
+		):
+			frappe.attach_print("Note", "Attached", doc=doc, print_format="Oslo Note")
+		self.assertEqual(TOLD, [("Note", "Oslo Note")])
 
 
 class _Response:
