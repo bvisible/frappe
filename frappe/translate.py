@@ -964,6 +964,10 @@ def get_translated_doctypes():
 	return unique(dts + custom_dts)
 
 
+# //// Neoffice — multilingual lot 7 (neoffice-maintenance#2035). Two changes to upstream's print_language():
+# //// it remembers the language a caller CHOSE (`frappe.local.flags.print_language`), so that get_print() and the print view
+# //// know that nobody has to pick one for them (see document_print_language below); and it puts the language back in a
+# //// `finally`, which upstream did not: a body that raised left the whole request, mail queue included, in the print language.
 @contextmanager
 def print_language(language: str):
 	"""Ensure correct globals for printing in a specific language.
@@ -975,27 +979,60 @@ def print_language(language: str):
 	    html = frappe.get_print(...)
 	```
 	"""
-	if not language or language == frappe.local.lang:
+	# //// Neoffice — lot 7: no language is no choice (upstream also skipped a language equal to the current one)
+	if not language:
 		# do nothing
 		yield
 		return
 
-	# remember original values
-	_lang = frappe.local.lang
-	_jenv_restricted = getattr(frappe.local, "jenv_restricted", None)
-	_jenv_unrestricted = getattr(frappe.local, "jenv_unrestricted", None)
+	# //// Neoffice — lot 7: the choice is remembered while the block runs, then put back
+	chosen_before = frappe.local.flags.get("print_language")
+	frappe.local.flags.print_language = language
+	try:
+		if language == frappe.local.lang:
+			yield
+			return
 
-	# set language, empty any existing lang_full_dict and jenv
-	frappe.local.lang = language
-	frappe.local.jenv_restricted = None
-	frappe.local.jenv_unrestricted = None
+		# remember original values
+		# //// Neoffice — lot 7: (re-indented under the new try, nothing else changed)
+		_lang = frappe.local.lang
+		_jenv_restricted = getattr(frappe.local, "jenv_restricted", None)
+		_jenv_unrestricted = getattr(frappe.local, "jenv_unrestricted", None)
 
-	yield
+		# set language, empty any existing lang_full_dict and jenv
+		# //// Neoffice — lot 7: (re-indented, nothing else changed)
+		frappe.local.lang = language
+		frappe.local.jenv_restricted = None
+		frappe.local.jenv_unrestricted = None
 
-	# restore original values
-	frappe.local.lang = _lang
-	frappe.local.jenv_restricted = _jenv_restricted
-	frappe.local.jenv_unrestricted = _jenv_unrestricted
+		try:
+			yield
+		finally:
+			# restore original values
+			frappe.local.lang = _lang
+			frappe.local.jenv_restricted = _jenv_restricted
+			frappe.local.jenv_unrestricted = _jenv_unrestricted
+	finally:
+		frappe.local.flags.print_language = chosen_before
+
+
+# //// Neoffice — added (multilingual lot 7, neoffice-maintenance#2035; no upstream equivalent). Upstream prints a document in
+# //// the SESSION's language everywhere on the server (get_print, download_pdf, attach_print, the portal's print view); only
+# //// the desk's print view reads `doc.language`. So the PDF of a German order, sent by a clerk working in French, went out in
+# //// French. The apps decide which language a document is read in (hook `document_print_language`, called with
+# //// ``doctype``, ``name`` and ``doc``: the first answer wins); this fork only asks, and lets a caller's own choice win.
+def explicit_print_language() -> str | None:
+	"""The language a caller chose with ``print_language()``, if one is in force."""
+	return frappe.local.flags.get("print_language") or None
+
+
+def document_print_language(doctype: str | None = None, name: str | None = None, doc=None) -> str | None:
+	"""The language a document is printed in when nobody chose one, or None for the session's own."""
+	for method in frappe.get_hooks("document_print_language"):
+		language = frappe.call(method, doctype=doctype, name=name, doc=doc)
+		if language:
+			return language
+	return None
 
 
 # Backward compatibility

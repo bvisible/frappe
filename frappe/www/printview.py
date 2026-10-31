@@ -49,23 +49,36 @@ def get_context(context):
 
 	print_format = get_print_format_doc(None, meta=meta)
 
-	if print_format and print_format.get("print_format_builder_beta"):
-		from frappe.utils.weasyprint import get_html
+	# //// Neoffice — multilingual lot 7 (neoffice-maintenance#2035): a page opened with no ``_lang`` (the customer portal's link
+	# //// to the PDF of an order) is in the document's language, not the visitor's. A ``_lang`` in the address, or a language a
+	# //// caller chose (get_print inside print_language()), is a choice and wins.
+	from frappe.translate import document_print_language, explicit_print_language, print_language
 
-		body = get_html(
-			doctype=frappe.form_dict.doctype, name=frappe.form_dict.name, print_format=print_format.name
-		)
-		body += trigger_print_script
-	else:
-		body = get_rendered_template(
-			doc,
-			print_format=print_format,
-			meta=meta,
-			trigger_print=frappe.form_dict.trigger_print,
-			no_letterhead=frappe.form_dict.no_letterhead,
-			letterhead=letterhead,
-			settings=settings,
-		)
+	language = None
+	if not frappe.form_dict.get("_lang") and not explicit_print_language():
+		language = document_print_language(doc.doctype, doc.name, doc)
+
+	with print_language(language):
+		if print_format and print_format.get("print_format_builder_beta"):
+			from frappe.utils.weasyprint import get_html
+
+			body = get_html(
+				doctype=frappe.form_dict.doctype, name=frappe.form_dict.name, print_format=print_format.name
+			)
+			body += trigger_print_script
+		else:
+			body = get_rendered_template(
+				doc,
+				print_format=print_format,
+				meta=meta,
+				trigger_print=frappe.form_dict.trigger_print,
+				no_letterhead=frappe.form_dict.no_letterhead,
+				letterhead=letterhead,
+				settings=settings,
+			)
+		# //// Neoffice — lot 7: read inside the block, the page says what language and direction it is in
+		page_language = frappe.local.lang
+		page_direction = "rtl" if is_rtl() else "ltr"
 
 	# Include selected print format name in access log
 	print_format_name = getattr(print_format, "name", "Standard")
@@ -83,8 +96,8 @@ def get_context(context):
 		"print_style": get_print_style(frappe.form_dict.style, print_format),
 		"comment": frappe.session.user,
 		"title": frappe.utils.strip_html(cstr(doc.get_title() or doc.name)),
-		"lang": frappe.local.lang,
-		"layout_direction": "rtl" if is_rtl() else "ltr",
+		"lang": page_language,  # //// Neoffice — lot 7 (was frappe.local.lang)
+		"layout_direction": page_direction,  # //// Neoffice — lot 7 (was computed here)
 		"doctype": frappe.form_dict.doctype,
 		"name": frappe.form_dict.name,
 		"key": frappe.form_dict.get("key"),

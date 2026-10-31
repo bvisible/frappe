@@ -49,6 +49,29 @@ def get_print(
 	local.form_dict.pdf_generator is set from before_request hook (print designer app) for download_pdf endpoint
 	if it is not set (internal function call) then set it
 	"""
+	# //// Neoffice — multilingual lot 7 (neoffice-maintenance#2035): a document is printed in its own language when nobody
+	# //// chose one; a caller that wrapped this call in print_language() has chosen and wins (see frappe/translate.py).
+	from frappe.translate import document_print_language, explicit_print_language, print_language
+
+	if not explicit_print_language():
+		language = document_print_language(doctype, name, doc)
+		if language:
+			with print_language(language):
+				return get_print(
+					doctype=doctype,
+					name=name,
+					print_format=print_format,
+					style=style,
+					as_pdf=as_pdf,
+					doc=doc,
+					output=output,
+					no_letterhead=no_letterhead,
+					password=password,
+					pdf_options=pdf_options,
+					letterhead=letterhead,
+					pdf_generator=pdf_generator,
+				)
+
 	import copy
 
 	from frappe.utils.pdf import get_pdf
