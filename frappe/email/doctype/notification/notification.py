@@ -293,14 +293,26 @@ def get_context(context):
 		}
 		enqueue_create_notification(users, notification_doc)
 
+	# //// Neoffice — multilingual lot 9 (neoffice-maintenance#2037): the whole mail (subject, body, the print attached, the
+	# //// footer frappe.sendmail writes) is made in the language the apps give the document it is about; none keeps upstream's.
 	def send_an_email(self, doc, context):
+		language = frappe.translate.document_print_language(doc.doctype, doc.name, doc)
+		with frappe.translate.print_language(language):
+			self._send_an_email(doc, context)
+
+	def _send_an_email(self, doc, context):
 		from email.utils import formataddr
 
 		from frappe.core.doctype.communication.email import _make as make_communication
 
-		subject = self.subject
+		# //// Neoffice — lot 9: the wording of the language in force when the apps hold one
+		translated = frappe.translate.translated_document_text("Notification", self.name, "subject")
+		subject = translated or self.subject
 		if "{" in subject:
-			subject = frappe.render_template(self.subject, context, restrict_globals=True)
+			# //// Neoffice — lot 9: a translation that does not render falls back to the template's own subject
+			subject = frappe.translate.render_with_fallback(
+				translated, self.subject, context, restrict_globals=True
+			)
 
 		attachments = self.get_attachment(doc)
 		recipients, cc, bcc = self.get_list_of_recipients(doc, context)
@@ -308,7 +320,13 @@ def get_context(context):
 			return
 
 		sender = None
-		message = frappe.render_template(self.message, context, restrict_globals=True)
+		# //// Neoffice — lot 9: the wording of the language in force when the apps hold one
+		message = frappe.translate.render_with_fallback(
+			frappe.translate.translated_document_text("Notification", self.name, "message"),
+			self.message,
+			context,
+			restrict_globals=True,
+		)
 		if self.sender and self.sender_email:
 			sender = formataddr((self.sender, self.sender_email))
 
@@ -472,10 +490,15 @@ def get_context(context):
 				"name": doc.name,
 				"print_format": self.print_format,
 				"print_letterhead": print_settings.with_letterhead,
-				"lang": doc.get("language")
-				or frappe.db.get_value("Print Format", self.print_format, "default_print_language")
-				if self.print_format
-				else "en",
+				# //// Neoffice — lot 9: the language the apps give the document comes first; upstream's own answer
+				# //// (the document's field, the format's default, English without a format) is the fallback
+				"lang": frappe.translate.document_print_language(doc.doctype, doc.name, doc, self.print_format)
+				or (
+					doc.get("language")
+					or frappe.db.get_value("Print Format", self.print_format, "default_print_language")
+					if self.print_format
+					else "en"
+				),
 			}
 
 	def get_template(self, md_as_html=False):

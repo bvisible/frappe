@@ -33,20 +33,32 @@ class EmailTemplate(Document):
 		validate_template(self.subject)
 		validate_template(self.response_)
 
+	# //// Neoffice — multilingual lot 9 (neoffice-maintenance#2037): the subject and the body are the wording of the language in
+	# //// force when the apps hold one (translated_document_text), else the template's own text.
 	def get_formatted_subject(self, doc):
-		return frappe.render_template(self.subject, doc)
+		text = frappe.translate.translated_document_text("Email Template", self.name, "subject")
+		return frappe.translate.render_with_fallback(text, self.subject, doc)
 
 	def get_formatted_response(self, doc):
-		return frappe.render_template(self.response_, doc)
+		# //// Neoffice — lot 9: the body field the template ticks, translated when the apps hold a wording of it
+		field = "response_html" if self.use_html else "response"
+		text = frappe.translate.translated_document_text("Email Template", self.name, field)
+		return frappe.translate.render_with_fallback(text, self.response_, doc)
 
 	def get_formatted_email(self, doc):
 		if isinstance(doc, str):
 			doc = json.loads(doc)
 
-		return {
-			"subject": self.get_formatted_subject(doc),
-			"message": self.get_formatted_response(doc),
-		}
+		# //// Neoffice — lot 9: a mail about a document is written in the language the apps give that document (its own, its
+		# //// customer's...), whoever is composing it; no answer keeps the language in force.
+		language = None
+		if hasattr(doc, "get") and doc.get("doctype"):
+			language = frappe.translate.document_print_language(doc.get("doctype"), doc.get("name"), doc)
+		with frappe.translate.print_language(language):
+			return {
+				"subject": self.get_formatted_subject(doc),
+				"message": self.get_formatted_response(doc),
+			}
 
 
 @frappe.whitelist()

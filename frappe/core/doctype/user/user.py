@@ -3,7 +3,7 @@
 
 from collections.abc import Iterable
 from datetime import timedelta
-from functools import cached_property, lru_cache
+from functools import cached_property, lru_cache, wraps  # //// Neoffice — lot 9: wraps, for in_the_users_language
 from typing import Any
 
 import frappe
@@ -53,6 +53,18 @@ desk_properties = (
 	"timeline",
 	"dashboard",
 )
+
+
+
+# //// Neoffice — added (multilingual lot 9, neoffice-maintenance#2037; no upstream equivalent): a method of a User that writes a
+# //// mail to that user does it in their language (User.language), when they have one; none keeps the language in force.
+def in_the_users_language(method):
+	@wraps(method)
+	def in_language(self, *args, **kwargs):
+		with frappe.translate.print_language(self.get("language") or None):
+			return method(self, *args, **kwargs)
+
+	return in_language
 
 
 class User(Document):
@@ -410,6 +422,10 @@ class User(Document):
 		"""get first_name space last_name"""
 		return (self.first_name or "") + ((self.first_name and " ") or "") + (self.last_name or "")
 
+	# //// Neoffice — multilingual lot 9 (neoffice-maintenance#2037): the welcome and the password reset mails are written in the
+	# //// language their recipient reads the desk or the shop in (User.language: stamped from the page a visitor signed up on),
+	# //// not in the language of whoever triggers them. No language keeps the one in force, as upstream.
+	@in_the_users_language
 	def password_reset_mail(self, link):
 		reset_password_template = frappe.db.get_system_setting("reset_password_template")
 
@@ -421,6 +437,7 @@ class User(Document):
 			custom_template=reset_password_template,
 		)
 
+	@in_the_users_language  # //// Neoffice — lot 9, see password_reset_mail
 	def send_welcome_mail_to_user(self):
 		from frappe.utils import get_url
 

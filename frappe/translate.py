@@ -1042,6 +1042,40 @@ def document_print_language(
 	return None
 
 
+# //// Neoffice — added (multilingual lot 9, neoffice-maintenance#2037; no upstream equivalent). An Email Template or a
+# //// Notification holds ONE wording, in the site's language, so every mail to a customer who reads German went out in
+# //// French. The apps hold the other wordings (hook `translated_document_text`, called with ``doctype``, ``name``,
+# //// ``fieldname`` and ``language``: the first answer wins); this fork only asks, and falls back to the text the document
+# //// holds when nobody answers.
+def translated_document_text(
+	doctype: str, name: str, fieldname: str, language: str | None = None
+) -> str | None:
+	"""The text of ``doctype`` ``name``'s ``fieldname`` in ``language`` (the language in force by default), or None."""
+	language = language or frappe.local.lang
+	if not (doctype and name and fieldname and language):
+		return None
+	for method in frappe.get_hooks("translated_document_text"):
+		text = frappe.call(method, doctype=doctype, name=name, fieldname=fieldname, language=language)
+		if text:
+			return text
+	return None
+
+
+# //// Neoffice — lot 9: a translated wording is rendered like the template it translates, and a mail is never lost to it
+def render_with_fallback(translated: str | None, source: str, context, **kwargs) -> str:
+	"""``translated`` rendered with ``context``; when it does not render (a model that lost a brace of an expression, a person
+	who edited it badly) the error is logged and ``source`` is rendered instead: the customer gets the mail in the site's
+	language, not nothing."""
+	if translated:
+		shown = len(frappe.local.message_log)
+		try:
+			return frappe.render_template(translated, context, **kwargs)
+		except Exception:
+			del frappe.local.message_log[shown:]  # frappe.throw told the user of a translation they never saw
+			frappe.log_error("A translated wording does not render", frappe.get_traceback())
+	return frappe.render_template(source, context, **kwargs)
+
+
 # Backward compatibility
 get_full_dict = get_all_translations
 load_lang = get_translations_from_apps
