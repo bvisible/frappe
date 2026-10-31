@@ -106,6 +106,7 @@ jobs:
                   src = open(f, encoding="utf-8").read()
               except OSError:
                   continue
+              rows = src.splitlines()
               # frappe/test_runner.py matches the glob and is the RUNNER, not a suite.
               if not re.search(r"^class [A-Za-z_]*\(.*TestCase", src, re.M):
                   continue
@@ -135,6 +136,14 @@ jobs:
                   for n in node.body:
                       if isinstance(n, ast.FunctionDef) and n.name.startswith("test"):
                           first = min([d.lineno for d in n.decorator_list] + [n.lineno])
+                          # The comment block and the blank line written right above a test (the
+                          # « //// Neoffice — added test » marker the fork rules ask for) belong to that
+                          # test. Left outside, they counted as touched lines of the class and made the
+                          # whole class run, upstream tests that need a mail account this CI lacks
+                          # included (frappe Tests red on test_export_report_via_email since
+                          # 749bb98555, neoffice-maintenance#2041).
+                          while first > 1 and (not rows[first - 2].strip() or rows[first - 2].lstrip().startswith("#")):
+                              first -= 1
                           lines = set(range(first, (n.end_lineno or n.lineno) + 1))
                           if lines & touched:
                               hit.append(n.name)
