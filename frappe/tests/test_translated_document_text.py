@@ -23,12 +23,17 @@ from frappe.translate import (
 
 LANGUAGE_HOOK = "frappe.tests.test_translated_document_text.german_for_notes"
 TEXT_HOOK = "frappe.tests.test_translated_document_text.german_texts"
+USER_HOOK = "frappe.tests.test_translated_document_text.german_for_users"
 real_get_hooks = frappe.get_hooks
 asked = []
 
 
 def german_for_notes(doctype=None, name=None, doc=None, print_format=None):
 	return "de" if doctype == "Note" else None
+
+
+def german_for_users(doctype=None, name=None, doc=None, print_format=None):
+	return "de" if doctype == "User" else None
 
 
 def german_texts(doctype=None, name=None, fieldname=None, language=None):
@@ -179,29 +184,30 @@ class TestANotification(FrappeTestCase):
 
 class TestAUsersMails(FrappeTestCase):
 	def user(self, language):
-		return frappe.get_doc(
-			{"doctype": "User", "email": "zz-lot9@example.com", "first_name": "ZZ", "language": language}
-		)
+		return frappe.get_doc({"doctype": "User", "email": "zz-lot9@example.com", "first_name": "ZZ", "language": language})
 
-	def test_the_password_reset_mail_is_written_in_the_language_of_its_recipient(self):
+	def test_the_password_reset_mail_is_written_in_the_language_the_apps_give_its_recipient(self):
 		seen = []
-		with patch.object(
-			User, "send_login_mail", lambda self, *args, **kwargs: seen.append(frappe.local.lang)
+		with (
+			hooked(document_print_language=[USER_HOOK]),
+			patch.object(User, "send_login_mail", lambda self, *args, **kwargs: seen.append(frappe.local.lang)),
 		):
 			self.user("de").password_reset_mail("https://example.com/reset")
 		self.assertEqual(seen, ["de"])
 
-	def test_a_user_with_no_language_keeps_the_language_in_force(self):
+	def test_a_user_the_apps_give_no_language_keeps_the_language_in_force(self):
+		"""A user whose own language the site does not speak (the hook answers nothing) is mailed as upstream does."""
 		seen = []
-		with patch.object(
-			User, "send_login_mail", lambda self, *args, **kwargs: seen.append(frappe.local.lang)
-		):
-			self.user(None).password_reset_mail("https://example.com/reset")
+		with patch.object(User, "send_login_mail", lambda self, *args, **kwargs: seen.append(frappe.local.lang)):
+			self.user("de").password_reset_mail("https://example.com/reset")
 		self.assertEqual(seen, [frappe.local.lang])
 
 	def test_the_language_is_put_back(self):
 		before = frappe.local.lang
-		with patch.object(User, "send_login_mail", lambda self, *args, **kwargs: None):
+		with (
+			hooked(document_print_language=[USER_HOOK]),
+			patch.object(User, "send_login_mail", lambda self, *args, **kwargs: None),
+		):
 			self.user("de").password_reset_mail("https://example.com/reset")
 		self.assertEqual(frappe.local.lang, before)
 
@@ -210,7 +216,8 @@ class TestAUsersMails(FrappeTestCase):
 		def write(self, first, second=None):
 			return (frappe.local.lang, first, second)
 
-		self.assertEqual(write(frappe._dict(language="it"), 1, second=2), ("it", 1, 2))
+		with hooked(document_print_language=[USER_HOOK]):
+			self.assertEqual(write(frappe._dict(name="x"), 1, second=2), ("de", 1, 2))
 		self.assertEqual(write.__name__, "write")
 
 

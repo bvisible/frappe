@@ -57,11 +57,13 @@ desk_properties = (
 
 
 # //// Neoffice — added (multilingual lot 9, neoffice-maintenance#2037; no upstream equivalent): a method of a User that writes a
-# //// mail to that user does it in their language (User.language), when they have one; none keeps the language in force.
+# //// mail to that user does it in the language the apps give that user (hook `document_print_language`: their own, when the site
+# //// speaks it); none keeps the language in force, so a site that speaks one language is untouched.
 def in_the_users_language(method):
 	@wraps(method)
 	def in_language(self, *args, **kwargs):
-		with frappe.translate.print_language(self.get("language") or None):
+		# //// Neoffice — lot 9: the language the apps give this user, not the field's value (see above)
+		with frappe.translate.print_language(frappe.translate.document_print_language("User", self.name, self)):
 			return method(self, *args, **kwargs)
 
 	return in_language
