@@ -209,7 +209,14 @@ frappe.ui.Filter = class {
 		if (Array.isArray(value)) {
 			this._filter_value_set = this.field.set_value(value);
 		} else if (value !== undefined && value !== null) {
-			const field_value = typeof value === "number" ? value : String(value).trim();
+			//// Neoffice — upstream (5d53563bd5) keeps a number as a number for every field, to spare numeric fields a
+			//// locale-formatted string. A Select or Data control validates with `if (!v) return ""`: the number 0
+			//// became empty, so « docstatus = 0 » (the « Brouillons » view, a route option {docstatus: 0}) was
+			//// dropped and the list reloaded unfiltered. Only numeric fields keep the number now.
+			const keeps_number =
+				typeof value === "number" &&
+				frappe.model.numeric_fieldtypes.includes(this.field.df.fieldtype);
+			const field_value = keeps_number ? value : String(value).trim();
 			this._filter_value_set = this.field.set_value(field_value);
 		}
 		return this._filter_value_set;
