@@ -452,6 +452,11 @@ jobs:
           print(" ".join(methods))
           PY
           : > /tmp/results
+          # Classes whose tests lean on what the others of the class leave behind (the signed-in
+          # user, a doctype, the users' permissions): alone, the methods we touched fail on the
+          # setup the class would have given them (TestDBQuery: test_nested_permission and
+          # test_permission_fragments_are_parenthesised, a PermissionError). They run whole.
+          WHOLE_CLASS=" frappe.tests.test_db_query::TestDBQuery "
           # One CASE per call, at the grain of our divergence: the class we added in
           # test_email_account.py, not upstream's TestInboundMail — which needs an
           # inbound-mail fixture no bare CI site has, and whose red says nothing about
@@ -462,6 +467,7 @@ jobs:
             # module::Class, or module::Class::m1,m2 when only those methods are ours
             mod="${entry%%::*}"; rest="${entry#*::}"; case_name="${rest%%::*}"
             picked=""; [ "$rest" = "$case_name" ] || picked="${rest#*::}"
+            case "$WHOLE_CLASS" in *" $mod::$case_name "*) picked="" ;; esac
             echo "::group::$case_name${picked:+ [$picked]} ($mod)"
             args=$(python3 /tmp/case_args.py "$mod" "$case_name" || true)
             doctype=$(printf '%s\n' "$args" | sed -n 1p); methods=$(printf '%s\n' "$args" | sed -n 2p)
