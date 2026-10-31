@@ -469,6 +469,13 @@ jobs:
             if [ -n "$doctype" ] && [ -n "$methods" ]; then
               cmd=(bench --site test_site run-tests --doctype "$doctype")
               for m in $methods; do cmd+=(--test "$m"); done
+            elif [ -n "$picked" ]; then
+              # only the methods we touched in an upstream class of a plain module: `--module` with
+              # `--test` (what the full suite's single-test mode does). The branch below ran the whole
+              # class, so a test of upstream's that needs a mail account this CI lacks went red with
+              # the method we added next to it (test_export_report_via_email, #2041).
+              cmd=(bench --site test_site run-tests --module "$mod")
+              for m in ${picked//,/ }; do cmd+=(--test "$m"); done
             else
               # a plain module runs its whole class: `--case` with `--test` breaks the
               # runner (`_run_unittest` reads `_tests` off a TestCase)
