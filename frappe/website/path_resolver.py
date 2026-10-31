@@ -173,7 +173,10 @@ def resolve_redirect(path, query_string=None):
 		frappe.flags.redirect_location = "/app"
 		raise frappe.Redirect
 
-	redirects = frappe.get_hooks("website_redirects")
+	# //// Neoffice — a COPY of the hooks list (neoffice-maintenance#2063): the list frappe.get_hooks() hands out is the one the
+	# //// process keeps cached, and `+=` below appended the database rows to it on every call, for good. A renamed page's old
+	# //// rule then stood in front of its new one for as long as the worker lived, and the list grew with each route cache miss.
+	redirects = list(frappe.get_hooks("website_redirects"))
 	redirects += frappe.get_all(
 		"Website Route Redirect", ["source", "target", "redirect_http_status"], order_by=None
 	)
