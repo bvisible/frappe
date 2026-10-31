@@ -1529,7 +1529,7 @@ frappe-charts@2.0.0-rc27:
 
 "frappe-datatable@github:bvisible/datatable":
   version "0.0.0-development"
-  resolved "https://codeload.github.com/bvisible/datatable/tar.gz/c77eddabd7ddb741a296f3ab1a18d55585132219"
+  resolved "https://codeload.github.com/bvisible/datatable/tar.gz/bf47fa37779c4dbfa965c6ecc4bb335f32c4f2d6"
   dependencies:
     hyperlist "^1.0.0-beta"
     lodash "^4.17.5"
