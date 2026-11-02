@@ -171,6 +171,14 @@ def resolve_redirect(path, query_string=None):
 		and not frappe.local.flags.get("server_side_render")
 	):
 		frappe.flags.redirect_location = "/app"
+		# //// Neoffice — a signed-in customer has no desk: /app answered « Not permitted », a dead end behind `/` and every
+		# //// « Home » link of an offline site (neoffice-maintenance#2122). /me always exists and redirects nowhere: the
+		# //// site's home would be `/` again, and a loop.
+		if (
+			frappe.session.user != "Guest"
+			and frappe.get_cached_value("User", frappe.session.user, "user_type") == "Website User"
+		):
+			frappe.flags.redirect_location = "/me"
 		raise frappe.Redirect
 
 	# //// Neoffice — a COPY of the hooks list (neoffice-maintenance#2063): the list frappe.get_hooks() hands out is the one the
