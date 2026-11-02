@@ -248,6 +248,18 @@ login.login_handlers = (function () {
 					localStorage.removeItem("last_visited");
 				}
 
+				//// Neoffice — upstream knows the page a customer left only when the link says so (redirect-to) or the
+				//// cart wrote it down (last_visited). The menu, the product cards and the reviews of a shop link a bare
+				//// /login, so a buyer who signed in lost their page and ended on the site's home. The page they left
+				//// is the referrer; the login and password pages are not ones to come back to (neoffice-maintenance#2122).
+				if (!last_visited && document.referrer) {
+					var page_left = new URL(document.referrer);
+					if (page_left.origin === window.location.origin
+						&& !["/login", "/update-password"].includes(page_left.pathname)) {
+						last_visited = page_left.pathname + page_left.search;
+					}
+				}
+
 				//// Neoffice — added (0fc74d1ad5, 2025-12-08 "fix: ignore redirect-to=/app for Website Users
 				//// (No App response)"): a Website User signing in from a /app URL was sent back to /app,
 				//// which they have no access to — a dead end, and the previous fix only covered the
