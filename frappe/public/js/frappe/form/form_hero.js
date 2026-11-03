@@ -1083,6 +1083,7 @@ frappe.ui.form.FormHero = class FormHero {
 			rows.forEach((row) => {
 				row.style.transform = "";
 				row.style.flexWrap = "";
+				row.style.minWidth = ""; //// Neoffice — set below when the rows wrap
 				row.style.maxWidth = "";
 			});
 			const box = band.getBoundingClientRect();
@@ -1092,7 +1093,9 @@ frappe.ui.form.FormHero = class FormHero {
 			if (total > box.width) {
 				const share = Math.floor((box.width - gap * (rows.length - 1)) / rows.length);
 				rows.forEach((row) => {
+					//// Neoffice — its whole share, not its column's: squeezed into its column it stacks one pill per line
 					row.style.flexWrap = "wrap";
+					row.style.minWidth = `${share}px`;
 					row.style.maxWidth = `${share}px`;
 				});
 				items = measure(box);
