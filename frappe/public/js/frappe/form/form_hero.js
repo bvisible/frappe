@@ -1059,17 +1059,25 @@ frappe.ui.form.FormHero = class FormHero {
 	//// that keeps its tools (WebStamp, Print, the theme's mirror of the custom buttons) beside the current step's
 	//// actions made the two rows run over each other, half the pills unreadable (an accepted quotation, measured:
 	//// « Sent » from 413 to 941 px, « Accepted » from 752, neoffice-maintenance#2167). Each row is now slid sideways,
-	//// as little as it takes, so the rows sit side by side in step order inside the steps' band; when they cannot all
-	//// fit on one line, each wraps within its own column instead. The rows grow after this render (the theme's mirror
-	//// adds its clones later) and the band follows the window: a ResizeObserver lays them out again.
+	//// as little as it takes, so the rows sit side by side in step order inside the steps' band (one row alone is
+	//// kept inside too: under the last step of a short stepper it ran past the hero); when they cannot all fit on one
+	//// line, each wraps to its share of the band. The rows grow after this render (the theme's mirror adds its clones
+	//// later) and the band follows the window: a ResizeObserver lays them out again, and `lay_out_step_rows()` lets
+	//// the mirror do it at once, after its clones (it used to place the rows itself and undid this layout).
 	space_step_rows() {
 		if (this.step_rows_observer) this.step_rows_observer.disconnect();
 		this.step_rows_observer = null;
+		this.lay_out_step_rows = null;
 		const band = this.$wrapper.find(".form-hero-steps").not(".is-compact")[0];
 		if (!band) return;
 		const rows = Array.from(band.querySelectorAll(".form-hero-step > .step-ctas"));
-		if (rows.length < 2 || typeof ResizeObserver === "undefined") return;
+		if (!rows.length) return;
 		const gap = 8;
+		const measure = (box) =>
+			rows.map((row) => {
+				const r = row.getBoundingClientRect();
+				return { row, natural: r.left - box.left, width: r.width, off: 0 };
+			});
 		const lay_out = () => {
 			if (!band.isConnected) return;
 			rows.forEach((row) => {
@@ -1078,17 +1086,16 @@ frappe.ui.form.FormHero = class FormHero {
 				row.style.maxWidth = "";
 			});
 			const box = band.getBoundingClientRect();
-			const items = rows.map((row) => {
-				const r = row.getBoundingClientRect();
-				return { row, natural: r.left - box.left, width: r.width, off: 0 };
-			});
+			if (!box.width) return; // not laid out (hidden tab, collapsed hero)
+			let items = measure(box);
 			const total = items.reduce((sum, it) => sum + it.width, 0) + gap * (items.length - 1);
 			if (total > box.width) {
+				const share = Math.floor((box.width - gap * (rows.length - 1)) / rows.length);
 				rows.forEach((row) => {
 					row.style.flexWrap = "wrap";
-					row.style.maxWidth = "100%";
+					row.style.maxWidth = `${share}px`;
 				});
-				return;
+				items = measure(box);
 			}
 			// Rows that would touch form a group; a group sits where its rows want to be on average, inside the band.
 			const groups = [];
@@ -1119,6 +1126,9 @@ frappe.ui.form.FormHero = class FormHero {
 				})
 			);
 		};
+		this.lay_out_step_rows = lay_out;
+		lay_out();
+		if (typeof ResizeObserver === "undefined") return;
 		this.step_rows_observer = new ResizeObserver(() => window.requestAnimationFrame(lay_out));
 		this.step_rows_observer.observe(band);
 		rows.forEach((row) => this.step_rows_observer.observe(row));
