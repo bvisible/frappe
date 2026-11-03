@@ -98,6 +98,23 @@ website_redirects = [
 	},
 ]
 
+# //// Neoffice — the pages frappe sends a person to stay open while the website is in maintenance (Website Profile
+# //// maintenance_mode, an instance without a showcase site): the portal home, a document's « view online » link, the
+# //// unsubscribe link of an e-mail, a workflow action sent by e-mail, the QR code of two-factor login. Every app declares
+# //// its own in this hook; frappe.website.path_resolver.website_route_stays_open reads them (neoffice-maintenance#2171).
+website_maintenance_open_routes = [
+	"me",
+	"profile",
+	"update-profile",
+	"third_party_apps",
+	"printview",
+	"message",
+	"unsubscribe",
+	"confirm_workflow_action",
+	"qrcode",
+	"website_script.js",
+]
+
 base_template = "templates/base.html"
 
 write_file_keys = ["file_url", "file_name"]

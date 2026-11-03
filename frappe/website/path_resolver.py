@@ -28,6 +28,91 @@ def _is_frappe_test_fixture(endpoint: str) -> bool:
 	return any(os.path.exists(target + suffix) for suffix in ("", ".html", ".md", "/index.html", "/index.md"))
 
 
+# //// Neoffice — what a website in maintenance keeps serving (neoffice-maintenance#2171). A Website Profile in
+# //// maintenance (an instance without a showcase site) closed every route but the desk's, and the pages a customer is
+# //// SENT to closed with the showcase: the follow-up link of a job, a quotation to accept, a payment, the customer
+# //// portal answered « The site will be available soon ». Only the showcase closes now. Stays open:
+# ////   · the infrastructure: the desk, the API, files, login;
+# ////   · an app mounted by a route rule (`/<app>/<path:app_path>`): an application, not the showcase — the rule
+# ////     webshop's own maintenance veil follows for signed-in users since neoffice-maintenance#1325;
+# ////   · the customer's service pages (customer_service_route): every route an app declares in its hooks.py,
+# ////     `website_maintenance_open_routes` (the pages it sends a customer to; frappe's own are in frappe/hooks.py),
+# ////     and the customer portal, the routes of the portal menu (`standard_portal_menu_items`, Portal Settings).
+# ////     Webshop's maintenance veil opens these too.
+# //// A route opens itself and what follows it (`job` opens /job and /job/<x>, never /jobs); each page then applies its
+# //// own permissions. No list of another app's pages lives here: an app installed tomorrow declares its own.
+MAINTENANCE_INFRASTRUCTURE_ROUTES = (
+	"app",
+	"api",
+	"assets",
+	"files",
+	"private",
+	"login",
+	"update-password",
+	"site-offline",
+	"robots.txt",
+)
+APP_MOUNT_SUFFIX = "<path:app_path>"
+
+
+def website_route_stays_open(path: str) -> bool:
+	"""Whether a website route is still served while its Website Profile is in maintenance."""
+	path = (path or "").strip("/ ")
+	if path.split("/", 1)[0] in MAINTENANCE_INFRASTRUCTURE_ROUTES:
+		return True
+	return _under_any(path, app_mount_routes()) or customer_service_route(path)
+
+
+def customer_service_route(path: str) -> bool:
+	"""Whether a route is a page an app sends a customer to, or a page of the customer portal."""
+	return _under_any((path or "").strip("/ "), customer_service_routes())
+
+
+def _under_any(path: str, routes) -> bool:
+	return any(path == route or path.startswith(route + "/") for route in routes)
+
+
+def app_mount_routes() -> set[str]:
+	"""The first segment of every app mounted by a route rule (`/helpdesk/<path:app_path>` -> `helpdesk`)."""
+	routes = []
+	for rule in frappe.get_hooks("website_route_rules") or []:
+		from_route = (rule.get("from_route") or "") if isinstance(rule, dict) else ""
+		if from_route.endswith(APP_MOUNT_SUFFIX):
+			routes.append(from_route[: -len(APP_MOUNT_SUFFIX)])
+	return _clean_routes(routes)
+
+
+def customer_service_routes() -> set[str]:
+	"""The routes the apps declare in `website_maintenance_open_routes`, and the routes of the customer portal."""
+	routes = list(frappe.get_hooks("website_maintenance_open_routes") or [])
+	for hook in ("standard_portal_menu_items", "portal_menu_items"):
+		routes.extend(
+			(item or {}).get("route") for item in frappe.get_hooks(hook) or [] if isinstance(item, dict)
+		)
+	settings = frappe.get_cached_doc("Portal Settings")
+	routes.extend(row.route for row in (settings.get("custom_menu") or []) if row.get("enabled"))
+	return _clean_routes(routes)
+
+
+def _clean_routes(routes) -> set[str]:
+	return {route.strip("/ ") for route in routes if isinstance(route, str) and route.strip("/ ")}
+
+
+def sees_through_maintenance() -> bool:
+	"""Staff keeps seeing the real site behind its maintenance page: that IS the preview.
+
+	Staff was System Manager or Website Manager. In Neoffice System Manager belongs to Administrator alone, so that
+	locked every employee out of the pages and apps an instance in maintenance still runs (/pos, /drive, the mail
+	page…); a desk user is a member of staff. A customer (Website User) and a visitor meet the maintenance page."""
+	user = frappe.session.user
+	if not user or user == "Guest":
+		return False
+	roles = frappe.get_roles()
+	if "System Manager" in roles or "Website Manager" in roles:
+		return True
+	return frappe.get_cached_value("User", user, "user_type") == "System User"
+
+
 class PathResolver:
 	__slots__ = ("http_status_code", "path")
 
@@ -46,28 +131,20 @@ class PathResolver:
 			return self.path, NotFoundPage(self.path)
 
 		# //// Neoffice per-site maintenance: a Website Profile with maintenance_mode=1
-		# //// serves the branded /site-offline page (503) to visitors on EVERY route of
-		# //// that host — other profiles on the same instance keep serving normally, so
-		# //// one shop can be under maintenance while the main site stays up. Staff
-		# //// (System/Website Manager) keeps seeing the real site: that IS the preview.
+		# //// serves the branded /site-offline page (503) to visitors on the routes of its
+		# //// showcase website — other profiles on the same instance keep serving normally, so
+		# //// one shop can be under maintenance while the main site stays up. What stays open
+		# //// (the customer's service pages, the apps, the portal) and who sees through it:
+		# //// website_route_stays_open and sees_through_maintenance above (neoffice-maintenance#2171).
 		# //// Placed before redirects/renderers so nothing can leak around it.
 		profile = getattr(frappe.local, "website_profile_doc", None)
-		if profile is not None and profile.get("maintenance_mode"):
-			first_segment = self.path.split("/", 1)[0]
-			if first_segment not in (
-				"app",
-				"api",
-				"assets",
-				"files",
-				"private",
-				"login",
-				"update-password",
-				"site-offline",
-				"robots.txt",
-			):
-				roles = frappe.get_roles()
-				if "System Manager" not in roles and "Website Manager" not in roles:
-					return "site-offline", TemplatePage("site-offline", 503)
+		if (
+			profile is not None
+			and profile.get("maintenance_mode")
+			and not website_route_stays_open(self.path)
+			and not sees_through_maintenance()
+		):
+			return "site-offline", TemplatePage("site-offline", 503)
 
 		try:
 			resolve_redirect(self.path, request.query_string)
