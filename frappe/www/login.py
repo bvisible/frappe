@@ -132,7 +132,11 @@ def get_context(context):
 
 	context["login_label"] = f" {_('or')} ".join(login_label)
 
-	context["login_with_email_link"] = frappe.get_system_settings("login_with_email_link")
+	# //// Neoffice — offered only where a code can actually be mailed (a default outgoing account exists): a code
+	# //// nobody receives would lock out an account that has no password. See frappe/passwordless.py.
+	from frappe.passwordless import is_enabled as passwordless_is_enabled
+
+	context["login_with_email_link"] = passwordless_is_enabled()
 	context["login_with_frappe_cloud_url"] = (
 		f"{get_site_login_url()}?site={frappe.local.site}"
 		if on_frappecloud() and frappe.conf.get("fc_communication_secret")
@@ -164,34 +168,16 @@ def get_login_with_email_link_ratelimit() -> int:
 @frappe.whitelist(allow_guest=True)
 @rate_limit(limit=get_login_with_email_link_ratelimit, seconds=60 * 60)
 def send_login_link(email: str):
-	if not frappe.get_system_settings("login_with_email_link"):
-		return
+	# //// Neoffice — upstream minted a key that `login_via_key` consumes on the GET that opens the link: a mail
+	# //// scanner burns it, it skips two-factor authentication, it lands on /me, and the answer told a known address
+	# //// from an unknown one. Everything that asks for a link now gets frappe/passwordless.py: a code AND a link
+	# //// that only a button signs in with, 2FA users left to their password, the same answer for every address.
+	# //// `login_via_key` below stays only for the links already in a mailbox when this shipped (10 minutes); drop it
+	# //// with `_generate_temporary_login_link` once the fork stops carrying its test. The upstream body of this
+	# //// function (key, `login_with_email_link` template, sendmail) is in frappe/frappe's history of this file.
+	from frappe.passwordless import request_code
 
-	try:
-		expiry = frappe.get_system_settings("login_with_email_link_expiry") or 10
-		link = _generate_temporary_login_link(email, expiry)
-
-		app_name = (
-			frappe.get_website_settings("app_name") or frappe.get_system_settings("app_name") or _("Frappe")
-		)
-
-		subject = _("Login To {0}").format(app_name)
-
-		frappe.sendmail(
-			subject=subject,
-			recipients=email,
-			template="login_with_email_link",
-			args={"link": link, "minutes": expiry, "app_name": app_name},
-			now=True,
-		)
-	except frappe.DoesNotExistError:
-		frappe.clear_messages()
-	except frappe.OutgoingEmailError:
-		frappe.clear_messages()
-		frappe.log_error(title="Login link email could not be sent", message=frappe.get_traceback())
-	except Exception:
-		frappe.clear_messages()
-		frappe.log_error(title="Login link generation failed unexpectedly", message=frappe.get_traceback())
+	return request_code(email)
 
 
 def _generate_temporary_login_link(email: str, expiry: int):

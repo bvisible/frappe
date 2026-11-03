@@ -122,7 +122,8 @@
 							<div class="login-button-wrapper">
 								<a href="#login-with-email-link"
 									class="btn btn-block btn-default btn-sm btn-login-option btn-login-with-email-link">
-									{{ _("Login with Email Link") }}</a>
+									{#- //// Neoffice — the entry is a code (frappe/passwordless.py), not only a link. -#}
+									{{ _("Sign in with a code") }}</a>
 							</div>
 						</div>
 						{% endif %}
@@ -222,7 +223,8 @@
 	</section>
 
 	<section class='for-login-with-email-link'>
-			{{ logo_section(_('Login with Email Link')) }}
+			{#- //// Neoffice — upstream titles this section "Login with Email Link"; the entry is a code now. -#}
+			{{ logo_section(_('Sign in with a code')) }}
 		<div class="login-content page-card">
 			<form class="form-signin form-login-with-email-link hide" role="form">
 				<div class="page-card-body">
@@ -241,13 +243,36 @@
 					</div>
 				</div>
 				<div class="page-card-actions">
+					{#- //// Neoffice — upstream: "Send login link". The mail carries a code and a link. -#}
 					<button class="btn btn-sm btn-primary btn-block btn-login-with-email-link"
-						type="submit">{{ _("Send login link") }}</button>
+						type="submit">{{ _("Send me a code") }}</button>
 					<p class="text-center sign-up-message">
 						<a href="#login">{{ _("Back to Login") }}</a>
 					</p>
 				</div>
 			</form>
+				{#- //// Neoffice — step two of the code sign-in (frappe/passwordless.py, login.js `login.code`). Shown by
+				//// script once the code has been asked for; `autocomplete="one-time-code"` lets a phone offer it. -#}
+				<form class="form-signin form-login-code" role="form" style="display: none;">
+					<div class="page-card-body">
+						<p class="text-muted text-center login-code-hint">
+							{{ _("If this address can sign in with a code, it is on its way. Otherwise, use your password.") }}
+						</p>
+						<div class="email-field">
+							<input type="text" id="login_code" class="form-control" inputmode="numeric"
+								autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" placeholder="000000"
+								aria-label="{{ _('Code') }}" required>
+						</div>
+					</div>
+					<div class="page-card-actions">
+						<button class="btn btn-sm btn-primary btn-block btn-login-code" type="submit">{{ _("Sign in") }}</button>
+						<p class="text-center sign-up-message">
+							<a href="#" class="btn-resend-code">{{ _("Send a new code") }}</a>
+							&middot;
+							<a href="#login">{{ _("Use my password") }}</a>
+						</p>
+					</div>
+				</form>
 		</div>
 	</section>
 </div>

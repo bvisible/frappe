@@ -57,22 +57,24 @@ login.bind_events = function () {
 		return false;
 	});
 
+	//// Neoffice — upstream posts the address to send_login_link and shows "Login link sent". The sign-in is
+	//// a code (and the link beside it) now: two steps, frappe/passwordless.py, `login.code` below.
 	$(".form-login-with-email-link").on("submit", function (event) {
 		event.preventDefault();
-		var args = {};
-		args.cmd = "frappe.www.login.send_login_link";
-		args.email = ($("#login_with_email_link_email").val() || "").trim();
-		if (!args.email) {
-			login.set_status({{ _("Valid Login id required.") | tojson }}, 'red');
-			return false;
-		}
-		login.call(args).then(() => {
-			login.set_status({{ _("Login link sent to your email") | tojson }}, 'blue');
-			$("#login_with_email_link_email").val("");
-		}).catch(() => {
-			login.set_status({{ _("Send login link") | tojson }}, 'blue');
-		});
+		login.code.request(($("#login_with_email_link_email").val() || "").trim());
+		return false;
+	});
 
+	//// Neoffice — step two of the code sign-in: the code typed, checked by login.code.verify.
+	$(".form-login-code").on("submit", function (event) {
+		event.preventDefault();
+		login.code.verify();
+		return false;
+	});
+
+	$(".btn-resend-code").on("click", function (event) {
+		event.preventDefault();
+		login.code.request(login.code.email);
 		return false;
 	});
 
@@ -153,6 +155,8 @@ login.forgot = function () {
 
 login.login_with_email_link = function () {
 	login.reset_sections();
+	//// Neoffice — coming back to this section starts again at the address, never on a stale code form.
+	login.code.show_first_step();
 	if ($("#login_email").val()) {
 		$("#login_with_email_link_email").val($("#login_email").val());
 	}
@@ -166,6 +170,121 @@ login.signup = function () {
 	$("#signup_fullname").focus();
 }
 
+
+//// Neoffice — the code sign-in (frappe/passwordless.py): ask for a code, type it, land on the right page.
+//// The answers are plain objects ({ok, reason}) rather than HTTP errors, and say the same for every address.
+login.code = (function () {
+	var texts = {
+		address: {{ _("Valid Login id required.") | tojson }},
+		busy: {{ _("Too many requests. Please try again later.") | tojson }},
+		wrong: {{ _("This code is not valid. Check it and try again.") | tojson }},
+		locked: {{ _("Too many wrong codes. Ask for a new code.") | tojson }},
+		refused: {{ _("Signing in with a code is not available for this account. Use your password.") | tojson }},
+		no_account: {{ _("No account uses this address here.") | tojson }},
+		failed: {{ _("Oops! Something went wrong.") | tojson }},
+		verifying: {{ _("Verifying...") | tojson }},
+		success: {{ _("Success") | tojson }},
+		sent: {{ _("A new code is on its way.") | tojson }},
+		send: {{ _("Send me a code") | tojson }},
+		sign_in: {{ _("Sign in") | tojson }},
+	};
+	var resend_timer = null;
+
+	function post(method, args) {
+		return fetch("/api/method/frappe.passwordless." + method, {
+			method: "POST",
+			credentials: "same-origin",
+			headers: {
+				"Content-Type": "application/json",
+				"Accept": "application/json",
+				"X-Frappe-CSRF-Token": window.csrf_token || "",
+			},
+			body: JSON.stringify(args),
+		}).then(function (response) {
+			return response.json().catch(function () { return {}; }).then(function (body) {
+				return { status: response.status, body: body.message || {} };
+			});
+		});
+	}
+
+	function say(message, button_label) {
+		login.set_status(message, "red");
+		setTimeout(function () {
+			$("section:visible .btn-primary").text(button_label);
+			$("section:visible .page-card-body").removeClass("invalid");
+		}, 2500);
+	}
+
+	function count_down(seconds) {
+		var link = $(".btn-resend-code");
+		clearInterval(resend_timer);
+		var left = seconds;
+		link.css("pointer-events", "none").css("opacity", 0.5);
+		resend_timer = setInterval(function () {
+			left -= 1;
+			if (left <= 0) {
+				clearInterval(resend_timer);
+				link.css("pointer-events", "").css("opacity", "");
+			}
+		}, 1000);
+	}
+
+	return {
+		email: "",
+		show_first_step: function () {
+			clearInterval(resend_timer);
+			$(".form-login-code").hide();
+			$(".form-login-with-email-link").show();
+			$("#login_code").val("");
+		},
+		request: function (email) {
+			if (!email) {
+				say(texts.address, texts.send);
+				return;
+			}
+			var self = this;
+			login.set_status(texts.verifying, "blue");
+			post("request_code", {
+				email: email,
+				redirect_to: frappe.utils.sanitise_redirect(frappe.utils.get_url_arg("redirect-to")) || "",
+			}).then(function (r) {
+				if (r.status === 429) return say(texts.busy, texts.send);
+				if (!r.body.ok) return say(r.body.reason === "invalid_address" ? texts.address : texts.failed, texts.send);
+				self.email = email;
+				$(".form-login-with-email-link").hide();
+				$(".form-login-code").show();
+				$("section:visible .btn-primary").text(texts.sign_in);
+				$("#login_code").val("").focus();
+				count_down(r.body.resend_in || 30);
+			}).catch(function () {
+				say(texts.failed, texts.send);
+			});
+		},
+		verify: function () {
+			var code = ($("#login_code").val() || "").replace(/\s+/g, "");
+			if (!/^\d{6}$/.test(code)) {
+				say(texts.wrong, texts.sign_in);
+				return;
+			}
+			login.set_status(texts.verifying, "blue");
+			post("verify_code", { email: this.email, code: code }).then(function (r) {
+				var result = r.body;
+				if (r.status === 429) return say(texts.busy, texts.sign_in);
+				if (result.ok && result.status === "signed_in") {
+					login.set_status(texts.success, "green");
+					window.location.href = result.redirect_to;
+					return;
+				}
+				if (result.ok && result.status === "unknown_address") return say(texts.no_account, texts.sign_in);
+				var reason = { locked: texts.locked, not_allowed: texts.refused }[result.reason] || texts.wrong;
+				say(reason, texts.sign_in);
+				$("#login_code").val("").focus();
+			}).catch(function () {
+				say(texts.failed, texts.sign_in);
+			});
+		},
+	};
+})();
 
 // Login
 login.call = function (args, callback, url="/") {

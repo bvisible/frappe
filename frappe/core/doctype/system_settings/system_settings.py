@@ -70,6 +70,8 @@ class SystemSettings(Document):
 		lifespan_qrcode_image: DF.Int
 		link_field_results_limit: DF.Int
 		log_api_requests: DF.Check
+		# //// Neoffice — typing of the field added in system_settings.json (frappe/passwordless.py)
+		login_code_system_users: DF.Check
 		login_with_email_link: DF.Check
 		login_with_email_link_expiry: DF.Int
 		logout_on_password_reset: DF.Check

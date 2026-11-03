@@ -1,0 +1,21 @@
+{#- //// Neoffice — added file (no upstream equivalent). See login-link.py. -#}
+{% extends "templates/web.html" %}
+
+{% block page_content %}
+<div class="login-content page-card" style="max-width: 420px; margin: 4rem auto; text-align: center;">
+	<div class="page-card-head"><h4>{{ _("Sign in") }}</h4></div>
+	{% if status == "ready" %}
+	<form method="post" action="/api/method/frappe.passwordless.sign_in_with_link">
+		<p>{{ _("Press the button to sign in on this device.") }}</p>
+		<input type="hidden" name="token" value="{{ token | e }}">
+		<button type="submit" class="btn btn-primary btn-block">{{ _("Sign in") }}</button>
+	</form>
+	{% elif status == "other_device" %}
+	<p>{{ _("Open this link in the browser where you asked for the code, or type the code from the email on that page.") }}</p>
+	{% elif status == "needs_code" %}
+	<p>{{ _("Type the code from the email on the page where you started to create your account.") }}</p>
+	{% else %}
+	<p>{{ _("This sign-in link is invalid or has expired. Ask for a new code.") }}</p>
+	{% endif %}
+</div>
+{% endblock %}
