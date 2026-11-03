@@ -167,9 +167,10 @@ class TestPasswordless(FrappeTestCase):
 		code = self.code_for(address)
 		wrong = "000000" if code != "000000" else "111111"
 
-		reasons = [
-			passwordless.verify_code(address, wrong)["reason"] for _ in range(passwordless.MAX_ATTEMPTS)
-		]
+		self.assertEqual(
+			passwordless.MAX_ATTEMPTS, 5
+		)  # the contract; the loop must not follow a changed constant
+		reasons = [passwordless.verify_code(address, wrong)["reason"] for _ in range(5)]
 		self.assertEqual(set(reasons), {"invalid"})
 		self.assertEqual(passwordless.verify_code(address, wrong)["reason"], "locked")
 		self.assertEqual(passwordless.verify_code(address, code)["reason"], "locked")
@@ -177,11 +178,8 @@ class TestPasswordless(FrappeTestCase):
 
 	def test_an_address_nobody_holds_locks_at_the_same_attempt(self):
 		address = _address("nobody")
-		reasons = [
-			passwordless.verify_code(address, "123456")["reason"]
-			for _ in range(passwordless.MAX_ATTEMPTS + 1)
-		]
-		self.assertEqual(reasons, ["invalid"] * passwordless.MAX_ATTEMPTS + ["locked"])
+		reasons = [passwordless.verify_code(address, "123456")["reason"] for _ in range(6)]
+		self.assertEqual(reasons, ["invalid"] * 5 + ["locked"])
 
 	def test_a_new_request_kills_the_old_code(self):
 		address = _address("replace")
@@ -195,6 +193,37 @@ class TestPasswordless(FrappeTestCase):
 		self.assertNotEqual(first, second)
 		self.assertFalse(passwordless.verify_code(address, first)["ok"])
 		self.assertTrue(passwordless.verify_code(address, second)["ok"])
+
+	def test_a_fresh_code_is_not_locked_by_the_attempts_made_on_the_old_one(self):
+		address = _address("fresh")
+		_make_user(address)
+		self.ask(address)
+		wrong = "000000" if self.code_for(address) != "000000" else "111111"
+		for _ in range(6):
+			passwordless.verify_code(address, wrong)  # the address is now locked
+		self.assertEqual(passwordless.verify_code(address, wrong)["reason"], "locked")
+
+		self.skip_cooldown(address)
+		self.ask(address)
+		self.assertTrue(passwordless.verify_code(address, self.code_for(address))["ok"])
+
+	def test_someone_who_signs_in_and_out_again_at_once_is_sent_a_new_code(self):
+		address = _address("again")
+		_make_user(address)
+		self.ask(address)
+		self.assertTrue(passwordless.verify_code(address, self.code_for(address))["ok"])
+
+		self.ask(address)  # no skip_cooldown: the sign-in cleared it
+		self.assertEqual(len(self.mails), 2)
+		# the hourly cap is untouched by the reset
+		for _ in range(passwordless.SENDS_PER_HOUR):
+			self.skip_cooldown(address)
+			try:
+				self.ask(address)
+			except frappe.TooManyRequestsError:
+				break
+		else:
+			self.fail("the hourly cap on mails to one address was lost")
 
 	def test_two_parallel_right_answers_sign_in_once(self):
 		address = _address("race")
@@ -337,6 +366,11 @@ class TestPasswordless(FrappeTestCase):
 			"/checkout": "/checkout",
 			"/cart?x=1": "/cart?x=1",
 			"//evil.example/x": None,
+			"///evil.example": None,  # a browser reads it as //evil.example
+			"////evil.example": None,
+			"evil.example/x": None,  # relative: it would resolve under whatever page the browser is on
+			"checkout": None,
+			"?next=/cart": None,
 			"/\\evil.example": None,
 			"https://evil.example/x": None,
 			"javascript:alert(1)": None,
@@ -498,15 +532,34 @@ class TestPasswordless(FrappeTestCase):
 	def test_the_mail_carries_the_code_the_link_and_the_expiry(self):
 		address = _address("mail")
 		_make_user(address)
-		self.ask(address, brand="Chez <b>Martin</b>")
+		self.ask(address)
 
 		mail = self.mails[-1]
 		args = mail["args"]
 		self.assertIn(args["code"], mail["subject"])
-		self.assertEqual(args["brand"], "Chez bMartin/b")  # markup characters dropped
 		self.assertIn("/login-link?token=", args["link"])
 		self.assertEqual(mail["template"], "passwordless_code")
 		self.assertTrue(mail["now"])
+
+	def test_the_brand_is_the_servers_never_the_callers(self):
+		import inspect
+
+		self.assertNotIn("brand", inspect.signature(passwordless.request_code).parameters)
+
+		address = _address("brand")
+		_make_user(address)
+		real = frappe.get_hooks
+
+		def hooks(name=None, *args, **kwargs):
+			return ["some.app.shop_name"] if name == "passwordless_brand" else real(name, *args, **kwargs)
+
+		with (
+			patch("frappe.get_hooks", side_effect=hooks),
+			patch("frappe.get_attr", return_value=lambda: "Chez <b>Martin</b>"),
+		):
+			self.ask(address)
+		self.assertEqual(self.mails[-1]["args"]["brand"], "Chez bMartin/b")  # markup characters dropped
+		self.assertIn("Chez bMartin/b", self.mails[-1]["subject"])
 
 	def test_the_template_renders_and_escapes_the_brand(self):
 		html = frappe.get_template("templates/emails/passwordless_code.html").render(

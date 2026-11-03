@@ -29053,7 +29053,7 @@ msgstr "Troppi processi in background in coda ({0}). Riprova dopo qualche tempo.
 
 #: frappe/templates/includes/login/login.js:283
 msgid "Too many requests. Please try again later."
-msgstr ""
+msgstr "Troppe richieste. Riprovi più tardi."
 
 #: frappe/core/doctype/user/user.py:1049
 msgid "Too many users signed up recently, so the registration is disabled. Please try back in an hour"
@@ -35350,3 +35350,110 @@ msgstr "{} non trovato nel PATH! Questo è necessario per eseguire un backup."
 msgid "← Back to upload files"
 msgstr "← Torna al caricamento dei file"
 
+#: frappe/templates/includes/login/login.js:187
+msgid "A new code is on its way."
+msgstr "Un nuovo codice è in arrivo."
+
+#: frappe/www/login.html:194
+msgid "Forgot Password"
+msgstr "Password dimenticata"
+
+#: frappe/www/login.html:259
+msgid "If this address can sign in with a code, it is on its way. Otherwise, use your password."
+msgstr "Se questo indirizzo può accedere con un codice, il codice è in arrivo. In caso contrario, usi la Sua password."
+
+#: frappe/templates/emails/passwordless_code.html:42
+msgid "If you did not ask for this email, ignore it: nobody can sign in without the code. Never share it with anyone."
+msgstr "Se non ha richiesto questa e-mail, la ignori: nessuno può accedere senza il codice. Non lo comunichi mai a nessuno."
+
+#: frappe/templates/includes/login/login.js:183
+msgid "No account uses this address here."
+msgstr "Nessun account utilizza questo indirizzo."
+
+#: frappe/www/login-link.html:14
+msgid "Open this link in the browser where you asked for the code, or type the code from the email on that page."
+msgstr "Apra questo link nel browser da cui ha richiesto il codice, oppure inserisca il codice ricevuto via e-mail in quella pagina."
+
+#: frappe/templates/emails/passwordless_code.html:26
+msgid "Or open this link on the device where you asked for the code:"
+msgstr "Oppure apra questo link sul dispositivo da cui ha richiesto il codice:"
+
+#: frappe/www/login-link.html:9
+msgid "Press the button to sign in on this device."
+msgstr "Prema il pulsante per accedere da questo dispositivo."
+
+#: frappe/www/login.html:142 frappe/www/login.html:165
+msgid "Request a professional account"
+msgstr "Richieda un account professionale"
+
+#: frappe/www/login.html:270
+msgid "Send a new code"
+msgstr "Invia un nuovo codice"
+
+#: frappe/templates/includes/login/login.js:188 frappe/www/login.html:248
+msgid "Send me a code"
+msgstr "Mi invii un codice"
+
+#: frappe/templates/emails/passwordless_code.html:28
+#, python-brace-format
+msgid "Sign in to {0}"
+msgstr "Accedi a {0}"
+
+#: frappe/www/login.html:126 frappe/www/login.html:227
+msgid "Sign in with a code"
+msgstr "Accedi con un codice"
+
+#: frappe/templates/includes/login/login.js:182
+msgid "Signing in with a code is not available for this account. Use your password."
+msgstr "L'accesso con codice non è disponibile per questo account. Acceda con la Sua password."
+
+#: frappe/templates/emails/passwordless_code.html:20
+#, python-brace-format
+msgid "The code is valid for {0} minutes and works once."
+msgstr "Il codice è valido per {0} minuti e può essere usato una sola volta."
+
+#: frappe/templates/includes/login/login.js:180
+msgid "This code is not valid. Check it and try again."
+msgstr "Questo codice non è valido. Lo verifichi e riprovi."
+
+#: frappe/passwordless.py:461 frappe/www/login-link.html:18
+msgid "This sign-in link is invalid or has expired. Ask for a new code."
+msgstr "Questo link di accesso non è valido o è scaduto. Richieda un nuovo codice."
+
+#: frappe/passwordless.py:327 frappe/passwordless.py:437
+msgid "Too many attempts from this connection. Try again in an hour."
+msgstr "Troppi tentativi da questa connessione. Riprovi tra un'ora."
+
+#: frappe/passwordless.py:242
+msgid "Too many codes were asked for this address. Try again in an hour."
+msgstr "Sono stati richiesti troppi codici per questo indirizzo. Riprovi tra un'ora."
+
+#: frappe/passwordless.py:233
+msgid "Too many sign-in requests from this connection. Try again in an hour."
+msgstr "Troppe richieste di accesso da questa connessione. Riprovi tra un'ora."
+
+#: frappe/templates/includes/login/login.js:181
+msgid "Too many wrong codes. Ask for a new code."
+msgstr "Troppi codici errati. Richieda un nuovo codice."
+
+#: frappe/www/login-link.html:16
+msgid "Type the code from the email on the page where you started to create your account."
+msgstr "Inserisca il codice ricevuto via e-mail nella pagina da cui ha iniziato a creare il Suo account."
+
+#: frappe/templates/emails/passwordless_code.html:35
+msgid "Type this code on the page to create your account."
+msgstr "Inserisca questo codice nella pagina per creare il Suo account."
+
+#: frappe/www/login.html:272
+msgid "Use my password"
+msgstr "Usare la mia password"
+
+#: frappe/templates/emails/passwordless_code.html:15
+#, python-brace-format
+msgid "Your sign-in code for {0}"
+msgstr "Il Suo codice di accesso per {0}"
+
+#: frappe/passwordless.py:299
+#, python-brace-format
+msgid "{0} is your sign-in code for {1}"
+msgstr "{0} è il Suo codice di accesso per {1}"

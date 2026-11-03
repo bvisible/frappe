@@ -166,7 +166,14 @@ def _clean_brand(brand) -> str:
 	return text.strip()[:80]
 
 
-def _default_brand() -> str:
+def _brand() -> str:
+	"""The name of the site the mail speaks for, decided HERE. A caller who chose it could write any company's name in a
+	mail our server sends ("your code for ..."). An app that knows the name of the site being served (the shop's chrome,
+	which differs from one site to the next) lists a function under the `passwordless_brand` hook."""
+	for path in frappe.get_hooks("passwordless_brand"):
+		name = _clean_brand(frappe.get_attr(path)())
+		if name:
+			return name
 	return frappe.get_website_settings("app_name") or frappe.get_system_settings("app_name") or _("Frappe")
 
 
@@ -218,7 +225,7 @@ def signable_user(address: str) -> str | None:
 @frappe.whitelist(
 	allow_guest=True, methods=["POST"]
 )  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
-def request_code(email, redirect_to=None, brand=None):
+def request_code(email, redirect_to=None):
 	"""Mail a code and a link to `email`. The answer is the same whether the address has an account, may open one or
 	is nobody's: only the mailbox learns anything. Guest-callable on purpose, limited per address and per connection.
 	"""
@@ -244,12 +251,12 @@ def request_code(email, redirect_to=None, brand=None):
 	user = signable_user(address)
 	nonce = secrets.token_urlsafe(16)
 	if user or (signup_is_open() and not frappe.db.exists("User", address)):
-		_start_challenge(address, address_id, nonce, redirect_to, brand, known=bool(user))
+		_start_challenge(address, address_id, nonce, redirect_to, known=bool(user))
 	_set_nonce_cookie(nonce)  # always, so that the response's headers do not tell either
 	return answer
 
 
-def _start_challenge(address, address_id, nonce, redirect_to, brand, known):
+def _start_challenge(address, address_id, nonce, redirect_to, known):
 	minutes = _expiry_minutes()
 	seconds = minutes * 60
 	code = f"{secrets.randbelow(10**CODE_DIGITS):0{CODE_DIGITS}d}"
@@ -277,7 +284,7 @@ def _start_challenge(address, address_id, nonce, redirect_to, brand, known):
 		code=code,
 		link_token=link_token,
 		minutes=minutes,
-		brand=_clean_brand(brand) or _default_brand(),
+		brand=_brand(),
 		lang=frappe.local.lang,
 		known=known,
 	)
@@ -343,6 +350,9 @@ def verify_code(email, code):
 	if not _take(challenge_key):  # a parallel call with the same correct code got there first
 		return _refused("invalid")
 	_take(_key("link", challenge["link"]))
+	# The mailbox is proven: someone who signs out and in again at once must get their code, not a silent cooldown
+	# (the hourly cap on mails to the address stays).
+	_forget_counter("cooldown", address_id)
 	return _finish(address, challenge)
 
 

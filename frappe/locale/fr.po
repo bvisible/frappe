@@ -37189,3 +37189,91 @@ msgstr "Déconnexion forcée par l'utilisateur"
 #: frappe/core/doctype/activity_log/activity_log_list.js
 msgid "Invalid login credentials"
 msgstr "Identifiants de connexion invalides"
+
+#: frappe/templates/includes/login/login.js:187
+msgid "A new code is on its way."
+msgstr "Un nouveau code est en route."
+
+#: frappe/www/login.html:259
+msgid "If this address can sign in with a code, it is on its way. Otherwise, use your password."
+msgstr "Si cette adresse peut se connecter par code, le code est en route. Sinon, utilisez votre mot de passe."
+
+#: frappe/templates/emails/passwordless_code.html:42
+msgid "If you did not ask for this email, ignore it: nobody can sign in without the code. Never share it with anyone."
+msgstr "Si vous n'avez pas demandé cet e-mail, ignorez-le : personne ne peut se connecter sans ce code. Ne le communiquez jamais à qui que ce soit."
+
+#: frappe/templates/includes/login/login.js:183
+msgid "No account uses this address here."
+msgstr "Aucun compte n'utilise cette adresse ici."
+
+#: frappe/www/login-link.html:14
+msgid "Open this link in the browser where you asked for the code, or type the code from the email on that page."
+msgstr "Ouvrez ce lien dans le navigateur où vous avez demandé le code, ou saisissez le code reçu par e-mail sur cette page."
+
+#: frappe/templates/emails/passwordless_code.html:26
+msgid "Or open this link on the device where you asked for the code:"
+msgstr "Ou ouvrez ce lien sur l'appareil où vous avez demandé le code :"
+
+#: frappe/www/login-link.html:9
+msgid "Press the button to sign in on this device."
+msgstr "Appuyez sur le bouton pour vous connecter sur cet appareil."
+
+#: frappe/templates/emails/passwordless_code.html:28
+#, python-brace-format
+msgid "Sign in to {0}"
+msgstr "Se connecter à {0}"
+
+#: frappe/www/login.html:126 frappe/www/login.html:227
+msgid "Sign in with a code"
+msgstr "Se connecter avec un code"
+
+#: frappe/templates/includes/login/login.js:182
+msgid "Signing in with a code is not available for this account. Use your password."
+msgstr "La connexion par code n'est pas disponible pour ce compte. Utilisez votre mot de passe."
+
+#: frappe/templates/emails/passwordless_code.html:20
+#, python-brace-format
+msgid "The code is valid for {0} minutes and works once."
+msgstr "Le code est valable {0} minutes et ne fonctionne qu'une fois."
+
+#: frappe/templates/includes/login/login.js:180
+msgid "This code is not valid. Check it and try again."
+msgstr "Ce code n'est pas valable. Vérifiez-le et réessayez."
+
+#: frappe/passwordless.py:461 frappe/www/login-link.html:18
+msgid "This sign-in link is invalid or has expired. Ask for a new code."
+msgstr "Ce lien de connexion n'est pas valable ou a expiré. Demandez un nouveau code."
+
+#: frappe/passwordless.py:327 frappe/passwordless.py:437
+msgid "Too many attempts from this connection. Try again in an hour."
+msgstr "Trop de tentatives depuis cette connexion. Réessayez dans une heure."
+
+#: frappe/passwordless.py:242
+msgid "Too many codes were asked for this address. Try again in an hour."
+msgstr "Trop de codes ont été demandés pour cette adresse. Réessayez dans une heure."
+
+#: frappe/passwordless.py:233
+msgid "Too many sign-in requests from this connection. Try again in an hour."
+msgstr "Trop de demandes de connexion depuis cette connexion. Réessayez dans une heure."
+
+#: frappe/templates/includes/login/login.js:181
+msgid "Too many wrong codes. Ask for a new code."
+msgstr "Trop de codes erronés. Demandez un nouveau code."
+
+#: frappe/www/login-link.html:16
+msgid "Type the code from the email on the page where you started to create your account."
+msgstr "Saisissez le code reçu par e-mail sur la page où vous avez commencé à créer votre compte."
+
+#: frappe/templates/emails/passwordless_code.html:35
+msgid "Type this code on the page to create your account."
+msgstr "Saisissez ce code sur la page pour créer votre compte."
+
+#: frappe/templates/emails/passwordless_code.html:15
+#, python-brace-format
+msgid "Your sign-in code for {0}"
+msgstr "Votre code de connexion pour {0}"
+
+#: frappe/passwordless.py:299
+#, python-brace-format
+msgid "{0} is your sign-in code for {1}"
+msgstr "{0} est votre code de connexion pour {1}"
