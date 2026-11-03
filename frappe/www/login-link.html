@@ -12,6 +12,42 @@
 	</form>
 	{% elif status == "other_device" %}
 	<p>{{ _("Open this link in the browser where you asked for the code, or type the code from the email on that page.") }}</p>
+	{#- A page can run a script, so here the link is one tap from the clipboard, to be pasted into the browser where the code was asked for (a mail app's own browser is not that one). -#}
+	<button type="button" class="btn btn-default btn-block" id="copy-login-link">{{ _("Copy the link") }}</button>
+	<p id="copy-login-link-done" class="text-muted" style="margin-top: 12px;" hidden>{{ _("Link copied. Paste it into the browser where you asked for the code.") }}</p>
+	<script>
+		(function () {
+			var button = document.getElementById("copy-login-link");
+			var done = document.getElementById("copy-login-link-done");
+			if (!button) return;
+			function copied() {
+				done.hidden = false;
+			}
+			function fallback(text) {
+				var field = document.createElement("textarea");
+				field.value = text;
+				field.setAttribute("readonly", "");
+				field.style.position = "fixed";
+				field.style.opacity = "0";
+				document.body.appendChild(field);
+				field.select();
+				try {
+					if (document.execCommand("copy")) copied();
+				} catch (error) {}
+				document.body.removeChild(field);
+			}
+			button.addEventListener("click", function () {
+				var text = window.location.href;
+				if (navigator.clipboard && window.isSecureContext) {
+					navigator.clipboard.writeText(text).then(copied, function () {
+						fallback(text);
+					});
+				} else {
+					fallback(text);
+				}
+			});
+		})();
+	</script>
 	{% elif status == "needs_code" %}
 	<p>{{ _("Type the code from the email on the page where you started to create your account.") }}</p>
 	{% else %}

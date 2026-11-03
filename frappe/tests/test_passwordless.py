@@ -584,6 +584,39 @@ class TestPasswordless(FrappeTestCase):
 		)
 		self.assertNotIn("login-link?token", new_account)
 
+	def test_the_mail_writes_the_link_out_to_be_pasted_into_the_browser_that_asked(self):
+		"""A mail cannot run a script, so it has no « copy » button: the link is also written out, where a long press selects it. The link signs
+		in only in the browser where the code was asked for, and a mail app's own browser is not that one."""
+		link = "https://shop.example/login-link?token=t"
+		render = frappe.get_template("templates/emails/passwordless_code.html").render
+		known = render(code="123456", link=link, minutes=10, brand="Shop", known=True)
+
+		# once as the button's address, once as text
+		self.assertEqual(known.count(link), 2)
+		self.assertIn(f">{link}</p>", known)
+		self.assertIn("paste it into the browser where you asked for the code", known)
+
+		# an address with no account is given no link at all, written out or not
+		self.assertNotIn(link, render(code="123456", link=link, minutes=10, brand="Shop", known=False))
+
+	def test_the_page_of_a_link_opened_in_another_browser_can_copy_it(self):
+		"""Where the link was opened in the wrong browser (the button is not there), the page offers to copy it, to paste it where the code was asked for."""
+		template = frappe.get_template("www/login-link.html")
+
+		def page(status):
+			context = template.new_context({"status": status, "token": "t" if status == "ready" else ""})
+			return "".join(template.blocks["page_content"](context))
+
+		other_device = page("other_device")
+		self.assertIn('id="copy-login-link"', other_device)
+		self.assertIn("navigator.clipboard", other_device)
+		# a page that is not a secure context has no clipboard API
+		self.assertIn("document.execCommand", other_device)
+		self.assertIn("Paste it into the browser where you asked for the code.", other_device)
+
+		for status in ("ready", "needs_code", "invalid"):
+			self.assertNotIn("copy-login-link", page(status), status)
+
 	def test_a_mail_that_cannot_leave_is_logged_and_never_shown(self):
 		address = _address("nomail")
 		_make_user(address)

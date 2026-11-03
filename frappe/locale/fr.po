@@ -37277,3 +37277,15 @@ msgstr "Votre code de connexion pour {0}"
 #, python-brace-format
 msgid "{0} is your sign-in code for {1}"
 msgstr "{0} est votre code de connexion pour {1}"
+
+#: frappe/templates/emails/passwordless_code.html:32
+msgid "Is that the wrong browser? Copy this link and paste it into the browser where you asked for the code:"
+msgstr "Ce n'est pas le bon navigateur ? Copiez ce lien et collez-le dans le navigateur où vous avez demandé le code :"
+
+#: frappe/www/login-link.html:16
+msgid "Copy the link"
+msgstr "Copier le lien"
+
+#: frappe/www/login-link.html:17
+msgid "Link copied. Paste it into the browser where you asked for the code."
+msgstr "Lien copié. Collez-le dans le navigateur où vous avez demandé le code."
