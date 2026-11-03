@@ -957,7 +957,10 @@ frappe.ui.form.FormHero = class FormHero {
 			const p = print_action(this.frm);
 			if (p) {
 				const at = clamp(2);
-				if (!all_actions.some((a) => a.label === p.label && a._anchor === at)) {
+				//// Neoffice — deduped against EVERY step, as the comment above says: comparing the anchor too left a
+				//// second « Print » under the validated step while the current step already offered one (an accepted
+				//// quotation showed it under « Sent » and under « Accepted », neoffice-maintenance#2167).
+				if (!all_actions.some((a) => a.label === p.label)) {
 					all_actions.push({ ...p, _anchor: at });
 				}
 			}
@@ -1039,6 +1042,7 @@ frappe.ui.form.FormHero = class FormHero {
 				`${top_html}<div class="form-hero-steps">${seg}</div><div class="form-hero-insights"></div>`
 			);
 		}
+		this.space_step_rows(); //// Neoffice — the rows of two steps never run over each other (see below)
 		if (all_actions.length) {
 			this.$wrapper.find(".step-cta").on("click", (e) => {
 				e.preventDefault();
@@ -1048,6 +1052,76 @@ frappe.ui.form.FormHero = class FormHero {
 			});
 		}
 		this.render_extras();
+	}
+
+	//// Neoffice — each step's row of actions is centred on its step and overflows its column on purpose
+	//// (cockpit.css): it reads as one line under the stepper. That holds while ONE step carries actions. A done step
+	//// that keeps its tools (WebStamp, Print, the theme's mirror of the custom buttons) beside the current step's
+	//// actions made the two rows run over each other, half the pills unreadable (an accepted quotation, measured:
+	//// « Sent » from 413 to 941 px, « Accepted » from 752, neoffice-maintenance#2167). Each row is now slid sideways,
+	//// as little as it takes, so the rows sit side by side in step order inside the steps' band; when they cannot all
+	//// fit on one line, each wraps within its own column instead. The rows grow after this render (the theme's mirror
+	//// adds its clones later) and the band follows the window: a ResizeObserver lays them out again.
+	space_step_rows() {
+		if (this.step_rows_observer) this.step_rows_observer.disconnect();
+		this.step_rows_observer = null;
+		const band = this.$wrapper.find(".form-hero-steps").not(".is-compact")[0];
+		if (!band) return;
+		const rows = Array.from(band.querySelectorAll(".form-hero-step > .step-ctas"));
+		if (rows.length < 2 || typeof ResizeObserver === "undefined") return;
+		const gap = 8;
+		const lay_out = () => {
+			if (!band.isConnected) return;
+			rows.forEach((row) => {
+				row.style.transform = "";
+				row.style.flexWrap = "";
+				row.style.maxWidth = "";
+			});
+			const box = band.getBoundingClientRect();
+			const items = rows.map((row) => {
+				const r = row.getBoundingClientRect();
+				return { row, natural: r.left - box.left, width: r.width, off: 0 };
+			});
+			const total = items.reduce((sum, it) => sum + it.width, 0) + gap * (items.length - 1);
+			if (total > box.width) {
+				rows.forEach((row) => {
+					row.style.flexWrap = "wrap";
+					row.style.maxWidth = "100%";
+				});
+				return;
+			}
+			// Rows that would touch form a group; a group sits where its rows want to be on average, inside the band.
+			const groups = [];
+			const place = (g) => {
+				const wanted = g.items.reduce((s, x) => s + x.natural - x.off, 0) / g.items.length;
+				return Math.min(Math.max(wanted, 0), box.width - g.width);
+			};
+			items.forEach((it) => {
+				let g = { items: [it], width: it.width };
+				for (;;) {
+					g.left = place(g);
+					const prev = groups[groups.length - 1];
+					if (!prev || prev.left + prev.width + gap <= g.left) break;
+					g.items.forEach((x) => {
+						x.off += prev.width + gap;
+						prev.items.push(x);
+					});
+					prev.width += gap + g.width;
+					groups.pop();
+					g = prev;
+				}
+				groups.push(g);
+			});
+			groups.forEach((g) =>
+				g.items.forEach((x) => {
+					const dx = Math.round(g.left + x.off - x.natural);
+					x.row.style.transform = dx ? `translateX(${dx}px)` : "";
+				})
+			);
+		};
+		this.step_rows_observer = new ResizeObserver(() => window.requestAnimationFrame(lay_out));
+		this.step_rows_observer.observe(band);
+		rows.forEach((row) => this.step_rows_observer.observe(row));
 	}
 
 	//// Neoffice — the compact head's owned slot (see set_hero_layout). A provider that throws draws nothing: an
