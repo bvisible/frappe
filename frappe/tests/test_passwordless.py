@@ -11,6 +11,8 @@ import frappe
 from frappe import passwordless
 from frappe.tests.utils import FrappeTestCase
 
+LANDING_PATH = "login-link"
+
 
 def _address(tag):
 	return f"pwl-{tag}-{uuid.uuid4().hex[:8]}@example.com"
@@ -430,8 +432,21 @@ class TestPasswordless(FrappeTestCase):
 		# a new address gets no link in its mail at all; the code is the way to open an account
 		self.assertFalse([m for m in self.mails if m["recipients"] == [new] and m["args"]["known"]])
 
+	def test_the_landing_page_has_the_controller_frappe_looks_for(self):
+		"""Frappe turns the hyphens of a page's name into underscores to find its controller: login-link.html is served
+		by login_link.py. A controller named like the page is never loaded and the page renders with no context."""
+		www = os.path.join(os.path.dirname(frappe.__file__), "www")
+		self.assertTrue(os.path.exists(os.path.join(www, "login-link.html")))
+		self.assertTrue(os.path.exists(os.path.join(www, "login_link.py")))
+		self.assertFalse(os.path.exists(os.path.join(www, "login-link.py")))
+		from frappe.website.page_renderers.template_page import TemplatePage
+
+		page = TemplatePage(LANDING_PATH, 200)
+		page.set_pymodule()
+		self.assertEqual(page.pymodule_name, "frappe.www.login_link")
+
 	def test_the_landing_page_shows_what_the_link_state_says(self):
-		path = os.path.join(os.path.dirname(frappe.__file__), "www", "login-link.py")
+		path = os.path.join(os.path.dirname(frappe.__file__), "www", "login_link.py")
 		spec = importlib.util.spec_from_file_location("login_link_page", path)
 		page = importlib.util.module_from_spec(spec)
 		spec.loader.exec_module(page)
