@@ -86,9 +86,14 @@ def system_users_allowed() -> bool:
 
 
 def signup_is_open() -> bool:
+	"""Whether an address with no account may be offered one: Website Settings' "Disable Signup" is off, and no app
+	closes it for this site. An app closes it by listing a function under the `passwordless_signup_closed` hook (the
+	shop does on a site for business accounts only, where an account is opened by a person, not by a mailbox)."""
 	from frappe.website.utils import is_signup_disabled
 
-	return not cint(is_signup_disabled())
+	if cint(is_signup_disabled()):
+		return False
+	return not any(frappe.get_attr(path)() for path in frappe.get_hooks("passwordless_signup_closed"))
 
 
 @frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
@@ -374,6 +379,7 @@ def sign_in(user: str, redirect_to: str | None = None) -> dict:
 	which created the account from a proof ends the same way."""
 	from frappe.auth import LoginManager
 
+	redirect_to = _safe_redirect(redirect_to)
 	manager = getattr(frappe.local, "login_manager", None) or LoginManager()
 	try:
 		manager.login_as(user)

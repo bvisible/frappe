@@ -46,6 +46,7 @@ class TestPasswordless(FrappeTestCase):
 			self.mails.append(kwargs)
 
 		self.real_peer_ip = passwordless._peer_ip
+		self.real_signup_is_open = passwordless.signup_is_open
 		self.cookie_spy = patch.object(
 			passwordless, "_set_nonce_cookie", wraps=passwordless._set_nonce_cookie
 		)
@@ -290,6 +291,35 @@ class TestPasswordless(FrappeTestCase):
 		self.ask(address)
 		self.assertEqual(self.mails, [])
 		self.assertFalse(passwordless.verify_code(address, "123456")["ok"])
+
+	def test_an_app_can_close_sign_up_for_its_site(self):
+		"""The shop closes it on a site for business accounts only, through the `passwordless_signup_closed` hook."""
+		with patch("frappe.website.utils.is_signup_disabled", return_value=0):
+			with patch("frappe.get_hooks", return_value=[]):
+				self.assertTrue(self.real_signup_is_open())
+			with (
+				patch("frappe.get_hooks", return_value=["some.app.closed"]),
+				patch("frappe.get_attr", return_value=lambda: True),
+			):
+				self.assertFalse(self.real_signup_is_open())
+			with (
+				patch("frappe.get_hooks", return_value=["some.app.open"]),
+				patch("frappe.get_attr", return_value=lambda: False),
+			):
+				self.assertTrue(self.real_signup_is_open())
+		with (
+			patch("frappe.website.utils.is_signup_disabled", return_value=1),
+			patch("frappe.get_hooks", return_value=[]),
+		):
+			self.assertFalse(self.real_signup_is_open())
+
+	def test_an_app_that_finishes_the_sign_in_gets_the_same_safe_redirect(self):
+		address = _address("finish")
+		_make_user(address)
+		for hostile in ("//evil.example", "https://evil.example/x", "javascript:alert(1)"):
+			result = passwordless.sign_in(address, hostile)
+			self.assertTrue(result["redirect_to"].endswith("/me"), hostile)
+		self.assertEqual(passwordless.sign_in(address, "/cart")["redirect_to"], "/cart")
 
 	def test_a_known_but_barred_address_is_never_offered_a_new_account(self):
 		address = _address("barred")
