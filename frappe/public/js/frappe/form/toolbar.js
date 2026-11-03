@@ -49,7 +49,8 @@ frappe.ui.form.Toolbar = class Toolbar {
 	set_title() {
 		let title;
 		if (this.frm.is_new()) {
-			title = __("New {0}", [__(this.frm.meta.name)]);
+			//// Neoffice — the doctype as the context: its own words when a catalogue has them (translate.js).
+			title = __("New {0}", [__(this.frm.meta.name)], this.frm.meta.name);
 		} else if (this.frm.meta.title_field) {
 			let title_field = (this.frm.doc[this.frm.meta.title_field] || "").toString().trim();
 			title = strip_html(title_field || this.frm.docname);
@@ -596,7 +597,8 @@ frappe.ui.form.Toolbar = class Toolbar {
 		// New
 		if (p[CREATE] && !this.frm.meta.issingle && !this.frm.meta.in_create) {
 			this.page.add_menu_item(
-				__("New {0}", [__(me.frm.doctype)]),
+				//// Neoffice — the doctype as the context: its own words when a catalogue has them (translate.js).
+				__("New {0}", [__(me.frm.doctype)], me.frm.doctype),
 				function () {
 					frappe.new_doc(me.frm.doctype, true);
 				},

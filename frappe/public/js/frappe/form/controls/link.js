@@ -348,13 +348,19 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 						if (!me.df.only_select) {
 							if (frappe.model.can_create(doctype)) {
 								// new item
+								//// Neoffice — the doctype as the context: its own words when a catalogue has them (translate.js).
+								const create_label = __(
+									"Create a new {0}",
+									[__(me.get_options())],
+									me.get_options()
+								);
 								r.message.push({
 									html:
 										"<span class='link-option'>" +
 										"<i class='fa fa-plus' style='margin-right: 5px;'></i> " +
-										__("Create a new {0}", [__(me.get_options())]) +
+										create_label + //// Neoffice — see above
 										"</span>",
-									label: __("Create a new {0}", [__(me.get_options())]),
+									label: create_label, //// Neoffice — see above
 									value: "create_new__link_option",
 									action: me.new_doc,
 								});

@@ -1284,6 +1284,11 @@ frappe.search.AwesomeBar = class AwesomeBar {
 			.filter((p) => !p.startsWith("ID :"))
 			.slice(0, 3)
 			.map((p) => {
+				//// Neoffice — the field's label in the reader's language: the index keeps it in English
+				//// (global_search.py writes `field.label + " : " + value`), and a name searched on a French
+				//// desk read « Customer Name : … », « First Name : … », « Party Name : … » (maintenance#2161).
+				const colon = p.indexOf(" : ");
+				if (colon > 0) p = __(p.slice(0, colon)) + p.slice(colon);
 				//// Neoffice — one pass at word starts, see mark_search_terms (2026-10-05)
 				if (txt) p = mark_search_terms(p, txt);
 				return p;
@@ -1690,8 +1695,10 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		const translated = __(doctype);
 		// Single prominent action — always first
 		this.options.push({
-			label: __("View all {0}", [translated]),
-			value: __("View all {0}", [translated]),
+			//// Neoffice — the doctype as the context: « Voir toutes les relances », not « Voir tous les Relance »
+			//// (translate.js, maintenance#2161).
+			label: __("View all {0}", [translated], doctype),
+			value: __("View all {0}", [translated], doctype),
 			route: ["List", doctype],
 			index: 250,
 			default: "DocTypeAction",

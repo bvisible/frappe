@@ -353,9 +353,14 @@ frappe.ui.form.FormDialog = class FormDialog {
 		frappe.app?.link_preview?.clear_all_popovers?.();
 		this.level = level;
 		this.dialog = level.dialog;
+		//// Neoffice — the doctype as the context of « New {0} »: its own words when a catalogue has them (translate.js).
 		this.dialog.set_title(
 			this.creating
-				? `<span class="form-dialog-doctype">${__("New {0}", [__(this.doctype)])}</span>`
+				? `<span class="form-dialog-doctype">${__(
+						"New {0}",
+						[__(this.doctype)],
+						this.doctype
+				  )}</span>`
 				: `<span class="form-dialog-doctype">${__(
 						this.doctype
 				  )}</span> ${frappe.utils.escape_html(this.name)}`
@@ -437,7 +442,11 @@ frappe.ui.form.FormDialog = class FormDialog {
 		const doc = this.frm.doc;
 		// A new document has no name yet (« new-item-attribute-abc »): say what is being made.
 		if (this.frm.is_new()) {
-			return `<span class="form-dialog-doctype">${__("New {0}", [__(this.doctype)])}</span>`;
+			return `<span class="form-dialog-doctype">${__(
+				"New {0}",
+				[__(this.doctype)],
+				this.doctype
+			)}</span>`;
 		}
 		const title = frappe.utils.escape_html(this.frm.get_title() || doc.name);
 		const indicator = frappe.get_indicator(doc, this.doctype);
@@ -508,7 +517,7 @@ frappe.ui.form.FormDialog = class FormDialog {
 		if (this.frm && this.frm.is_dirty()) {
 			// A document being created has only a temporary name (« new-item-attribute-abc »).
 			const title = this.frm.is_new()
-				? __("New {0}", [__(this.doctype)])
+				? __("New {0}", [__(this.doctype)], this.doctype)
 				: this.frm.get_title();
 			frappe.confirm(__("Discard the changes made to {0}?", [title]), () =>
 				this.close({ discard: true })

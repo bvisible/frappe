@@ -329,7 +329,8 @@ frappe.views.TreeView = class TreeView {
 
 		// the dialog
 		var d = new frappe.ui.Dialog({
-			title: __("New {0}", [__(me.doctype)]),
+			//// Neoffice — the doctype as the context: its own words when a catalogue has them (translate.js).
+			title: __("New {0}", [__(me.doctype)], me.doctype),
 			fields: me.fields,
 		});
 

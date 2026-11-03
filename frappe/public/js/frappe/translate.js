@@ -9,8 +9,15 @@ frappe._ = function (txt, replace, context = null) {
 	let translated_text = "";
 
 	let key = txt; // txt.replace(/\n/g, "");
-	if (context) {
-		translated_text = frappe._messages[`${key}:${context}`];
+	//// Neoffice — `context` may also be a list, tried in order (upstream takes one: `${key}:${context}`).
+	//// A phrase said of one doctype ("New {0}", "Create your first {0}", "View all {0}") passes the
+	//// doctype's name as its context: French cannot build « Nouvelle relance » from « Nouveau(elle) {0} »
+	//// and a label, the gender and the elision belong to the noun. So a catalogue may say the whole
+	//// phrase of one doctype under its name (msgctxt "Dunning" msgid "New {0}" msgstr "Nouvelle relance"),
+	//// and every doctype it does not name keeps the phrase as before (maintenance#2161).
+	for (const each of Array.isArray(context) ? context : context ? [context] : []) {
+		translated_text = frappe._messages[`${key}:${each}`];
+		if (translated_text) break;
 	}
 
 	if (!translated_text) {

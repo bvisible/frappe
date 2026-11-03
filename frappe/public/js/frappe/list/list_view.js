@@ -539,6 +539,10 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		let help_link = this.get_documentation_link();
 		let filters = this.filter_area && this.filter_area.get();
 
+		//// Neoffice — the doctype's name as the first context (translate.js): « Vous n'avez pas encore créé de
+		//// Évaluation physique » and « Créez votre premier Évaluation physique » become the doctype's own words
+		//// when a catalogue has them; the list's own context comes next, then the bare phrase, as upstream.
+		const contexts = [this.doctype, "Create a new document from list view"];
 		let has_filters_set = filters && filters.length;
 		let no_result_message = has_filters_set
 			? __("No {0} found with matching filters. Clear filters to see all {0}.", [
@@ -546,15 +550,11 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 			  ])
 			: this.meta.description
 			? __(this.meta.description)
-			: __("You haven't created a {0} yet", [__(this.doctype)]);
+			: __("You haven't created a {0} yet", [__(this.doctype)], this.doctype); //// Neoffice — see above
 
 		let new_button_label = has_filters_set
-			? __("Create a new {0}", [__(this.doctype)], "Create a new document from list view")
-			: __(
-					"Create your first {0}",
-					[__(this.doctype)],
-					"Create a new document from list view"
-			  );
+			? __("Create a new {0}", [__(this.doctype)], contexts) //// Neoffice — see above
+			: __("Create your first {0}", [__(this.doctype)], contexts); //// Neoffice — see above
 		let empty_state_image =
 			this.settings.empty_state_image ||
 			"/assets/frappe/images/ui-states/list-empty-state.svg";

@@ -203,7 +203,8 @@ frappe.breadcrumbs = {
 		let docname = frappe.get_route().slice(2).join("/");
 		let docname_title;
 		if (docname.startsWith("new-" + doctype.toLowerCase().replace(/ /g, "-"))) {
-			docname_title = __("New {0}", [__(doctype)]);
+			//// Neoffice — the doctype as the context: its own words when a catalogue has them (translate.js).
+			docname_title = __("New {0}", [__(doctype)], doctype);
 		} else {
 			docname_title = __(docname);
 		}

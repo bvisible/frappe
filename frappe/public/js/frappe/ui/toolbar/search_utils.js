@@ -164,8 +164,9 @@ frappe.search.utils = {
 				if (level) {
 					out.push({
 						type: "New",
-						label: __("New {0}", [search_result.marked_string || __(item)]),
-						value: __("New {0}", [__(item)]),
+						//// Neoffice — the doctype as the context: its own words when a catalogue has them (translate.js).
+						label: __("New {0}", [search_result.marked_string || __(item)], item),
+						value: __("New {0}", [__(item)], item),
 						index: 1 + level,
 						match: item,
 						onclick: function () {
@@ -214,8 +215,9 @@ frappe.search.utils = {
 						var match = item;
 						out.push({
 							type: "New",
-							label: __("New {0}", [search_result.marked_string || __(item)]),
-							value: __("New {0}", [__(item)]),
+							//// Neoffice — the doctype as the context: its own words when a catalogue has them (translate.js).
+							label: __("New {0}", [search_result.marked_string || __(item)], item),
+							value: __("New {0}", [__(item)], item),
 							index: score + 0.015,
 							match: item,
 							onclick: function () {
@@ -403,7 +405,9 @@ frappe.search.utils = {
 								index + field_length / 2 < field_value.length ? "..." : "";
 							field_value = field_data;
 						}
-						var field_name = part.slice(0, colon_index);
+						//// Neoffice — the label in the reader's language: the index keeps it in English
+						//// (global_search.py writes `field.label + " : " + value`), see awesome_bar.js (maintenance#2161).
+						var field_name = __(part.slice(0, colon_index));
 
 						// Find remaining result_length and add field length to result_current_length
 						var remaining_length = result_max_length - result_current_length;

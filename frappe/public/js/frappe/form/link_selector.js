@@ -159,7 +159,8 @@ frappe.ui.form.LinkSelector = class LinkSelector {
 							"</span>" +
 							(frappe.model.can_create(me.doctype)
 								? '<br><br><a class="new-doc btn btn-default btn-sm">' +
-								  __("Create a new {0}", [__(me.doctype)]) +
+								  //// Neoffice — the doctype as the context: its own words when a catalogue has them (translate.js).
+								  __("Create a new {0}", [__(me.doctype)], me.doctype) +
 								  "</a>"
 								: "") +
 							"</p>"
