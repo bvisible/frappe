@@ -546,20 +546,26 @@ class TestPasswordless(FrappeTestCase):
 
 		self.assertNotIn("brand", inspect.signature(passwordless.request_code).parameters)
 
-		address = _address("brand")
-		_make_user(address)
 		real = frappe.get_hooks
 
 		def hooks(name=None, *args, **kwargs):
 			return ["some.app.shop_name"] if name == "passwordless_brand" else real(name, *args, **kwargs)
 
+		# the hook, called by itself: patching get_attr for a whole request would also swap the job that sends the mail
 		with (
 			patch("frappe.get_hooks", side_effect=hooks),
 			patch("frappe.get_attr", return_value=lambda: "Chez <b>Martin</b>"),
 		):
+			self.assertEqual(passwordless._brand(), "Chez bMartin/b")  # markup characters dropped
+		self.assertTrue(passwordless._brand())  # no hook answers: the application's own name
+
+		# and the mail carries what the server decided
+		address = _address("brand")
+		_make_user(address)
+		with patch.object(passwordless, "_brand", return_value="Chez Martin"):
 			self.ask(address)
-		self.assertEqual(self.mails[-1]["args"]["brand"], "Chez bMartin/b")  # markup characters dropped
-		self.assertIn("Chez bMartin/b", self.mails[-1]["subject"])
+		self.assertEqual(self.mails[-1]["args"]["brand"], "Chez Martin")
+		self.assertIn("Chez Martin", self.mails[-1]["subject"])
 
 	def test_the_template_renders_and_escapes_the_brand(self):
 		html = frappe.get_template("templates/emails/passwordless_code.html").render(
