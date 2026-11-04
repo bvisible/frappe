@@ -44,6 +44,11 @@
 								<tr>
 									<td valign="top">
 										<p>{{ content }}</p>
+										{#- //// Neoffice — the account's signature, which get_formatted_html computes and leaves out when the message
+										    //// says <!-- signature-included -->. The Email Design of neoffice_theme renders it; this file did not, so a
+										    //// bench without the theme, or a design that failed to render, sent the mail with no signature at all
+										    //// (maintenance#2192). -#}
+										{%- if signature %}{{ signature }}{% endif %}
 									</td>
 								</tr>
 							</table>
