@@ -255,6 +255,33 @@ class TestPasswordless(FrappeTestCase):
 		frappe.cache.delete_value(passwordless._key("challenge", passwordless._mac("address", address)))
 		self.assertFalse(passwordless.verify_code(address, code)["ok"])
 
+	def test_a_clear_cache_leaves_the_live_code_its_link_and_its_counters_alone(self):
+		# Every update, deploy and migrate runs `bench clear-cache`, which deletes every key of the site that no
+		# `persistent_cache_keys` pattern names: a code mailed a second earlier read "invalid", and an operator's
+		# command reset the attempt counter that limits guesses (osiris, 2026-11-04, three e2e sign-ins lost).
+		self.assertIn("passwordless:*", frappe.get_hooks("persistent_cache_keys"))
+
+		address = _address("clearcache")
+		_make_user(address)
+		self.ask(address)
+		code = self.code_for(address)
+		link_token = self.link_token_for(address)
+		wrong = "000000" if code != "000000" else "111111"
+		self.assertFalse(passwordless.verify_code(address, wrong)["ok"])  # one attempt, counted
+		attempts_key = frappe.cache.make_key(
+			passwordless._key("attempts", passwordless._mac("address", address))
+		)
+		link_key = passwordless._key("link", passwordless._mac("link", link_token))
+		attempts_before = int(frappe.cache.get(attempts_key))
+		self.assertEqual(attempts_before, 1)
+
+		frappe.clear_cache()
+
+		self.assertIsNotNone(self.challenge(address), "the live code survived")
+		self.assertIsNotNone(frappe.cache.get_value(link_key, expires=True), "its link survived")
+		self.assertEqual(int(frappe.cache.get(attempts_key)), attempts_before, "the attempts were not reset")
+		self.assertTrue(passwordless.verify_code(address, code)["ok"])
+
 	# ----------------------------------------------------------------------------------- who may sign in
 
 	def test_the_switch_off_sends_nothing(self):

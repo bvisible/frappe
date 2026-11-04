@@ -674,6 +674,12 @@ persistent_cache_keys = [
 	"monitor-transactions",
 	"rate-limit-counter-*",
 	"rl:*",
+	# //// Neoffice — frappe.passwordless keeps its live codes, link tokens, mailbox proofs and the counters
+	# //// that limit them under this prefix (neoffice-maintenance#2192). Without it every `bench clear-cache` (each
+	# //// update, deploy and migrate runs one) deleted them: a person who had just been mailed a code was told it
+	# //// was invalid, and a rate-limit window that an operator's command could reset was no limit. Every key
+	# //// carries a TTL, so keeping them cannot grow the cache. To retire if frappe.passwordless leaves the fork.
+	"passwordless:*",
 ]
 
 user_invitation = {
