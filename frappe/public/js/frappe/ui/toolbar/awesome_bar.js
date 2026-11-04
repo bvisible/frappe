@@ -385,6 +385,8 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		this.$panel.empty();
 	}
 
+	//// Neoffice — added (2026-10-26, render hooks of the palette): runs each hook an app registered in
+	//// AwesomeBar.render_hooks; a hook that throws is logged and the others still draw.
 	_run_render_hooks(txt, $main, $sidebar) {
 		for (const hook of frappe.search.AwesomeBar.render_hooks) {
 			try {

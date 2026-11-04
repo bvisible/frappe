@@ -72,6 +72,8 @@ login.bind_events = function () {
 		return false;
 	});
 
+	//// Neoffice — added (maintenance#2192): « resend the code » asks for a new code for the address
+	//// it was first sent to.
 	$(".btn-resend-code").on("click", function (event) {
 		event.preventDefault();
 		login.code.request(login.code.email);
