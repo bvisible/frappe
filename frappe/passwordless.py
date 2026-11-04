@@ -169,7 +169,13 @@ def _clean_brand(brand) -> str:
 def _brand() -> str:
 	"""The name of the site the mail speaks for, decided HERE. A caller who chose it could write any company's name in a
 	mail our server sends ("your code for ..."). An app that knows the name of the site being served (the shop's chrome,
-	which differs from one site to the next) lists a function under the `passwordless_brand` hook."""
+	which differs from one site to the next) lists a function under the `passwordless_brand` hook. An app that asks for a code on
+	behalf of ONE page of its own, which the shop's chrome knows nothing of (a restaurant's QR page), names it in
+	`frappe.flags.passwordless_brand` for the length of its call: the more specific name comes first, so the order the apps are
+	installed in (that of the hooks) decides nothing there. It is server code that sets the flag; no request parameter reaches it."""
+	named = _clean_brand(frappe.flags.get("passwordless_brand"))
+	if named:
+		return named
 	for path in frappe.get_hooks("passwordless_brand"):
 		name = _clean_brand(frappe.get_attr(path)())
 		if name:

@@ -567,6 +567,57 @@ class TestPasswordless(FrappeTestCase):
 		self.assertEqual(self.mails[-1]["args"]["brand"], "Chez Martin")
 		self.assertIn("Chez Martin", self.mails[-1]["subject"])
 
+	def test_a_name_set_by_the_asking_app_comes_before_every_hook(self):
+		"""The shop's hook comes first in the install order, so a restaurant's page asking through the same engine was mailed
+		under the shop's name: the app that asks names the site for its call, and that name wins."""
+		real = frappe.get_hooks
+
+		def hooks(name=None, *args, **kwargs):
+			return ["some.app.shop_name"] if name == "passwordless_brand" else real(name, *args, **kwargs)
+
+		with (
+			patch("frappe.get_hooks", side_effect=hooks),
+			patch("frappe.get_attr", return_value=lambda: "The Shop"),
+		):
+			self.assertEqual(passwordless._brand(), "The Shop")
+			try:
+				frappe.flags.passwordless_brand = "  Chez <b>Martin</b>  "
+				self.assertEqual(passwordless._brand(), "Chez bMartin/b")  # cleaned like a hook's name
+			finally:
+				frappe.flags.passwordless_brand = None
+			# once the call is over, the hooks speak again
+			self.assertEqual(passwordless._brand(), "The Shop")
+			try:
+				frappe.flags.passwordless_brand = "   "
+				self.assertEqual(passwordless._brand(), "The Shop")  # a name with nothing in it names nobody
+			finally:
+				frappe.flags.passwordless_brand = None
+
+		# and it is the one the mail carries
+		address = _address("flagbrand")
+		_make_user(address)
+		try:
+			frappe.flags.passwordless_brand = "Chez Martin"
+			self.ask(address)
+		finally:
+			frappe.flags.passwordless_brand = None
+		self.assertEqual(self.mails[-1]["args"]["brand"], "Chez Martin")
+		self.assertIn("Chez Martin", self.mails[-1]["subject"])
+
+	def test_no_request_parameter_names_the_site(self):
+		keys = ("brand", "passwordless_brand")
+		address = _address("formbrand")
+		_make_user(address)
+		try:
+			for key in keys:
+				frappe.form_dict[key] = "Evil Corp"
+			self.ask(address)
+		finally:
+			for key in keys:
+				frappe.form_dict.pop(key, None)
+		self.assertNotIn("Evil Corp", self.mails[-1]["subject"])
+		self.assertNotEqual(self.mails[-1]["args"]["brand"], "Evil Corp")
+
 	def test_the_template_renders_and_escapes_the_brand(self):
 		html = frappe.get_template("templates/emails/passwordless_code.html").render(
 			code="123456", link="https://shop.example/login-link?token=t", minutes=10, brand="A&B", known=True
