@@ -603,6 +603,43 @@ body.neoffice-cockpit .form-hero-status .indicator-pill {
 	border: 1px solid rgba(60, 45, 20, 0.14);
 	box-shadow: 0 2px 6px rgba(20, 16, 10, 0.1);
 }
+/* //// Neoffice — a document's badge beside its status, in the same row astride the hero's top edge (form_hero.js,
+   hero_status_html: « Préparé par Nora » on what the secretary prepared). The row takes the place of the lone pill: same
+   anchor, same height. The pill's geometry, the design system's accent tint (--color-accent-soft, signal-50) under ink;
+   on dark, its --color-accent-soft and --color-accent-soft-fg over the card, as the pill sits half outside the card. */
+body.neoffice-cockpit .form-hero-status.has-badge {
+	position: absolute;
+	top: 5px;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: auto;
+}
+body.neoffice-cockpit .form-hero-status.has-badge .indicator-pill {
+	position: static;
+}
+body.neoffice-cockpit .form-hero-badge {
+	display: inline-flex;
+	align-items: center;
+	box-sizing: border-box;
+	height: 20px;
+	font-size: 11px;
+	font-weight: 600;
+	padding: 3px 10px;
+	border: 1px solid rgba(60, 45, 20, 0.14);
+	border-radius: 999px;
+	box-shadow: 0 2px 6px rgba(20, 16, 10, 0.1);
+	background: #ffeae2;
+	color: #141414;
+	white-space: nowrap;
+}
+[data-theme="dark"] body.neoffice-cockpit .form-hero-badge {
+	border-color: rgba(255, 251, 245, 0.14);
+	background:
+		linear-gradient(rgba(245, 93, 26, 0.16), rgba(245, 93, 26, 0.16)),
+		var(--card-bg, #1c2127);
+	color: #ffb599;
+}
 body.neoffice-cockpit .form-hero-title {
 	font-size: 30px;
 	font-family: "Forum", Georgia, serif;

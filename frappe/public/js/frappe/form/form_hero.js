@@ -865,22 +865,7 @@ frappe.ui.form.FormHero = class FormHero {
 				</div>`;
 		}
 
-		// Status pill (the doc indicator) surfaced in the hero, above the title,
-		// so the page-head can drop its own pill and reclaim width. We reuse
-		// Frappe's `.indicator-pill <color>` so the STATUS COLOUR is preserved
-		// exactly (yellow / green / red / gray …) — get_indicator returns
-		// [label, color, filter].
-		let status_html = "";
-		try {
-			const ind = frappe.get_indicator ? frappe.get_indicator(doc, this.frm.doctype) : null;
-			if (ind && ind[0]) {
-				status_html = `<div class="form-hero-status"><span class="indicator-pill no-indicator-dot ${frappe.utils.escape_html(
-					ind[1] || "gray"
-				)}">${frappe.utils.escape_html(ind[0])}</span></div>`;
-			}
-		} catch (e) {
-			// no status is fine — just skip the pill
-		}
+		const status_html = this.hero_status_html(); //// Neoffice — the status, and the document's badges beside it
 
 		//// Neoffice — a function, so the compact head (see set_hero_layout) can put its steps inside the row.
 		const make_top = (steps_html) => `
@@ -1205,6 +1190,39 @@ frappe.ui.form.FormHero = class FormHero {
 			const line = (this.detail_lines || [])[cint($(e.currentTarget).attr("data-detail-idx"))];
 			line && line.run && line.run(this.frm);
 		});
+	}
+
+	// Status pill (the doc indicator) surfaced in the hero, above the title,
+	// so the page-head can drop its own pill and reclaim width. We reuse
+	// Frappe's `.indicator-pill <color>` so the STATUS COLOUR is preserved
+	// exactly (yellow / green / red / gray …) — get_indicator returns
+	// [label, color, filter].
+	//// Neoffice — a document can say something of itself beside its status, in the same row: « Préparé par Nora » on what
+	//// the secretary prepared, today. The app that knows it sets `__onload.hero_badges`, a list of { label }, from a
+	//// doc_events `onload`: the form receives it with the document, no second request (the hero draws at once and
+	//// again at each refresh), and the label is in the words of who opens it. Frappe knows nothing about the subject.
+	hero_status_html() {
+		const doc = this.frm.doc;
+		let status = "";
+		try {
+			const ind = frappe.get_indicator ? frappe.get_indicator(doc, this.frm.doctype) : null;
+			if (ind && ind[0]) {
+				status = `<span class="indicator-pill no-indicator-dot ${frappe.utils.escape_html(
+					ind[1] || "gray"
+				)}">${frappe.utils.escape_html(ind[0])}</span>`;
+			}
+		} catch (e) {
+			// no status is fine — just skip the pill
+		}
+		const badges = ((doc.__onload && doc.__onload.hero_badges) || [])
+			.filter((badge) => badge && badge.label)
+			.map(
+				(badge) =>
+					`<span class="form-hero-badge">${frappe.utils.escape_html(badge.label)}</span>`
+			)
+			.join("");
+		if (!status && !badges) return "";
+		return `<div class="form-hero-status${badges ? " has-badge" : ""}">${status}${badges}</div>`;
 	}
 
 	//// Neoffice — collects the registered value notes (see add_hero_value_note).
