@@ -544,6 +544,73 @@ class TestPasswordless(FrappeTestCase):
 		with self.assertRaises(frappe.TooManyRequestsError):
 			self.ask(_address("peer-over"))
 
+	# ----------------------------------------------------------------------------------- the ceiling is the site's
+
+	def with_setting(self, value):
+		"""The site's `rate_limit_email_link_login` as `value`; every other setting is read as it is."""
+		real = frappe.get_system_settings
+		return patch(
+			"frappe.get_system_settings",
+			side_effect=lambda field: value if field == "rate_limit_email_link_login" else real(field),
+		)
+
+	def test_a_site_that_set_nothing_keeps_the_default_ceilings(self):
+		for empty in (None, 0, "", "0"):
+			with self.subTest(setting=empty), self.with_setting(empty):
+				self.assertEqual(passwordless._requests_per_peer_hour(), passwordless.REQUESTS_PER_PEER_HOUR)
+				self.assertEqual(
+					passwordless._verifications_per_peer_hour(), passwordless.VERIFICATIONS_PER_PEER_HOUR
+				)
+
+	def test_a_value_that_is_not_a_positive_number_is_not_a_limit_of_zero(self):
+		for garbled in (-5, "abc", "-1"):
+			with self.subTest(setting=garbled), self.with_setting(garbled):
+				self.assertEqual(passwordless._requests_per_peer_hour(), passwordless.REQUESTS_PER_PEER_HOUR)
+
+	def test_the_sites_setting_is_the_ceiling_of_a_connection(self):
+		with self.with_setting(3):
+			self.assertEqual(passwordless._requests_per_peer_hour(), 3)
+			for i in range(3):
+				self.ask(_address(f"small{i}"))
+			with self.assertRaises(frappe.TooManyRequestsError):
+				self.ask(_address("small-over"))
+
+	def test_a_room_that_set_a_high_ceiling_is_served_past_the_default(self):
+		"""A restaurant's guests share one address: the default would close the room at the 61st."""
+		with self.with_setting(100):
+			for i in range(passwordless.REQUESTS_PER_PEER_HOUR + 1):
+				self.ask(_address(f"room{i}"))
+		self.assertEqual(
+			len(self.mails), 0
+		)  # nobody of the room has an account: no mail, and no refusal either
+
+	def test_the_checks_of_the_codes_follow_the_ceiling_and_never_fall_below_the_default(self):
+		with self.with_setting(300):
+			self.assertEqual(passwordless._verifications_per_peer_hour(), 900)
+		with self.with_setting(100):
+			self.assertEqual(passwordless._verifications_per_peer_hour(), 300)
+		with self.with_setting(5):
+			self.assertEqual(
+				passwordless._verifications_per_peer_hour(), passwordless.VERIFICATIONS_PER_PEER_HOUR
+			)
+
+	def test_every_door_that_checks_a_code_reads_the_ceiling_of_the_site(self):
+		client = self.make_client()
+		with patch.object(passwordless, "_verifications_per_peer_hour", return_value=1):
+			for door, args in (
+				(passwordless.verify_code, ("someone@example.com", "123456")),
+				(passwordless.sign_in_with_link, ("not-a-token",)),
+				(passwordless.app_sign_in, (client.client_id, self.VERIFIER)),
+			):
+				with self.subTest(door=door.__name__):
+					self.peer = f"198.51.100.{uuid.uuid4().int % 250 + 1}-{uuid.uuid4().hex[:6]}"
+					try:
+						door(*args)
+					except Exception:  # the first call is let in, and refused for its own reason
+						frappe.clear_messages()
+					with self.assertRaises(frappe.TooManyRequestsError):
+						door(*args)
+
 	def test_the_counted_address_is_the_last_forwarded_entry(self):
 		"""nginx's own entry: a caller writes the first ones, so a fresh first entry per request must not reset the count."""
 		with patch("frappe.get_request_header", return_value="1.1.1.1, 2.2.2.2, 9.9.9.9"):

@@ -38,6 +38,10 @@ What it guarantees, and what each line cost to learn:
   `System Settings.login_code_system_users` is ticked.
 * Counted per connection with the LAST `X-Forwarded-For` entry (nginx's own), never `rate_limit`'s first one, which a
   caller writes (measured on the shops, 2026-10-30: 25 of 25 requests passed a limit of 20).
+* The ceiling of a connection is the site's to set: a restaurant's guests all sit behind the room's Wi-Fi, one address for
+  the whole room. `System Settings.rate_limit_email_link_login` (upstream's own field, which `www/login.py`'s sender reads
+  too, with 5 as its default) sets the code requests an hour; empty keeps 60. The checks of the codes follow it (three for
+  each request, never fewer than 200).
 """
 
 import base64
@@ -77,6 +81,19 @@ LANDING_ROUTE = "login-link"
 def _expiry_minutes() -> int:
 	minutes = cint(frappe.get_system_settings("login_with_email_link_expiry")) or DEFAULT_EXPIRY_MINUTES
 	return min(max(minutes, 5), 30)
+
+
+def _requests_per_peer_hour() -> int:
+	"""Code requests one connection may make in an hour: the site's `rate_limit_email_link_login` when it holds a positive number,
+	else `REQUESTS_PER_PEER_HOUR`. Nothing is read from the request, and a negative or garbled value is not a limit of zero."""
+	asked = cint(frappe.get_system_settings("rate_limit_email_link_login"))
+	return asked if asked > 0 else REQUESTS_PER_PEER_HOUR
+
+
+def _verifications_per_peer_hour() -> int:
+	"""Checks of a code (and sign-ins by link) one connection may make in an hour. Each guest asks for a code and types it, so a room allowed
+	N requests is allowed three times as many checks; never fewer than `VERIFICATIONS_PER_PEER_HOUR`, so the default site is as it was."""
+	return max(VERIFICATIONS_PER_PEER_HOUR, 3 * _requests_per_peer_hour())
 
 
 def can_send_mail() -> bool:
@@ -267,7 +284,7 @@ def request_code(email, redirect_to=None, app_challenge=None):
 	):
 		return {"ok": False, "reason": "invalid_request"}
 
-	if _hit("request_peer", _peer_ip(), 3600) > REQUESTS_PER_PEER_HOUR:
+	if _hit("request_peer", _peer_ip(), 3600) > _requests_per_peer_hour():
 		_too_many(_("Too many sign-in requests from this connection. Try again in an hour."))
 
 	answer = {"ok": True, "resend_in": RESEND_AFTER, "expires_in": _expiry_minutes() * 60}
@@ -389,7 +406,7 @@ def verify_code(email, code):
 	if not address or not CODE_RE.match(code):
 		return _refused("invalid")
 
-	if _hit("verify_peer", _peer_ip(), 3600) > VERIFICATIONS_PER_PEER_HOUR:
+	if _hit("verify_peer", _peer_ip(), 3600) > _verifications_per_peer_hour():
 		_too_many(_("Too many attempts from this connection. Try again in an hour."))
 
 	challenge = _consume_code(address, code)
@@ -520,7 +537,7 @@ def link_state(token) -> dict:
 )  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
 def sign_in_with_link(token):
 	"""What the landing page's button posts: signs in, then sends the browser on. Guest-callable on purpose."""
-	if _hit("verify_peer", _peer_ip(), 3600) > VERIFICATIONS_PER_PEER_HOUR:
+	if _hit("verify_peer", _peer_ip(), 3600) > _verifications_per_peer_hour():
 		_too_many(_("Too many attempts from this connection. Try again in an hour."))
 
 	if link_state(token)["status"] != "ready":
@@ -579,7 +596,7 @@ def app_sign_in(client_id, verifier, email=None, code=None, token=None):
 	if not client:
 		return _refused("invalid_client")
 
-	if _hit("verify_peer", _peer_ip(), 3600) > VERIFICATIONS_PER_PEER_HOUR:
+	if _hit("verify_peer", _peer_ip(), 3600) > _verifications_per_peer_hour():
 		_too_many(_("Too many attempts from this connection. Try again in an hour."))
 
 	bound = _app_binding(_s256(verifier))
