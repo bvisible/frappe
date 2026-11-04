@@ -758,3 +758,218 @@ class TestPasswordless(FrappeTestCase):
 		):
 			send_login_link("someone@example.com")
 		request.assert_called_once_with("someone@example.com")
+
+	# ----------------------------------------------------------------------------------- the mobile app
+
+	# RFC 7636, appendix B: the verifier an app keeps and the challenge it sends
+	VERIFIER = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+	OTHER_VERIFIER = "x" * 43
+
+	def make_client(self):
+		client = frappe.get_doc(
+			{
+				"doctype": "OAuth Client",
+				"app_name": f"pwl-app-{uuid.uuid4().hex[:8]}",
+				"scopes": "all openid",
+				"redirect_uris": "io.neoffice.app:/callback",
+				"default_redirect_uri": "io.neoffice.app:/callback",
+				"grant_type": "Authorization Code",
+				"response_type": "Code",
+			}
+		)
+		client.insert(ignore_permissions=True)
+		return client
+
+	def app_account(self, tag):
+		address = _address(tag)
+		_make_user(address)
+		self.assertTrue(self.ask(address, app_challenge=self.CHALLENGE)["ok"])
+		return address, self.make_client()
+
+	def test_the_challenge_of_the_app_is_the_sha256_of_its_verifier(self):
+		self.assertEqual(passwordless._s256(self.VERIFIER), self.CHALLENGE)
+
+	def test_the_status_says_this_server_knows_the_app(self):
+		self.assertTrue(passwordless.status()["app"])
+
+	def test_the_app_signs_in_with_the_code_and_its_verifier(self):
+		address, client = self.app_account("app-code")
+		code = self.code_for(address)
+
+		result = passwordless.app_sign_in(client.client_id, self.VERIFIER, email=address, code=code)
+
+		self.assertTrue(result["ok"], result)
+		for key in ("access_token", "refresh_token", "expires_in", "token_type", "sid", "user", "full_name"):
+			self.assertIn(key, result)
+		self.assertEqual(
+			(result["user"], result["token_type"], result["expires_in"]), (address, "Bearer", 3600)
+		)
+		self.manager.login_as.assert_called_once_with(address)
+		token = frappe.db.get_value(
+			"OAuth Bearer Token",
+			{"access_token": result["access_token"]},
+			["user", "client", "status", "refresh_token"],
+			as_dict=True,
+		)
+		self.assertEqual(
+			(token.user, token.client, token.status, token.refresh_token),
+			(address, client.name, "Active", result["refresh_token"]),
+		)
+		# once
+		again = passwordless.app_sign_in(client.client_id, self.VERIFIER, email=address, code=code)
+		self.assertEqual(again, {"ok": False, "reason": "invalid"})
+		self.manager.login_as.assert_called_once()
+
+	def test_a_wrong_verifier_is_refused_before_anything_is_consumed(self):
+		address, client = self.app_account("app-verifier")
+		code = self.code_for(address)
+
+		stranger = passwordless.app_sign_in(client.client_id, self.OTHER_VERIFIER, email=address, code=code)
+		self.assertEqual(stranger, {"ok": False, "reason": "invalid"})
+		self.manager.login_as.assert_not_called()
+		self.assertIsNotNone(
+			self.challenge(address), "a stranger who has the code must not burn the real one"
+		)
+
+		real = passwordless.app_sign_in(client.client_id, self.VERIFIER, email=address, code=code)
+		self.assertTrue(real["ok"])
+
+	def test_a_malformed_verifier_or_an_unknown_client_is_refused_and_burns_nothing(self):
+		address, client = self.app_account("app-client")
+		code = self.code_for(address)
+
+		for verifier in (None, "", "short", "!" * 43, 123):
+			self.assertEqual(
+				passwordless.app_sign_in(client.client_id, verifier, email=address, code=code),
+				{"ok": False, "reason": "invalid"},
+			)
+		for client_id in (None, "", "nobody", 5):
+			self.assertEqual(
+				passwordless.app_sign_in(client_id, self.VERIFIER, email=address, code=code),
+				{"ok": False, "reason": "invalid_client"},
+			)
+		self.assertIsNotNone(self.challenge(address))
+		self.assertTrue(
+			passwordless.app_sign_in(client.client_id, self.VERIFIER, email=address, code=code)["ok"]
+		)
+
+	def test_the_app_does_not_open_what_the_web_asked_for_and_the_web_still_can(self):
+		address = _address("web-asked")
+		_make_user(address)
+		client = self.make_client()
+		self.ask(address)
+		code = self.code_for(address)
+
+		self.assertEqual(
+			passwordless.app_sign_in(client.client_id, self.VERIFIER, email=address, code=code),
+			{"ok": False, "reason": "invalid"},
+		)
+		self.assertTrue(passwordless.verify_code(address, code)["ok"])
+
+	def test_five_wrong_codes_lock_the_app_too(self):
+		address, client = self.app_account("app-lock")
+		right = self.code_for(address)
+		wrong = "000000" if right != "000000" else "111111"
+		for _try in range(passwordless.MAX_ATTEMPTS):
+			self.assertEqual(
+				passwordless.app_sign_in(client.client_id, self.VERIFIER, email=address, code=wrong)[
+					"reason"
+				],
+				"invalid",
+			)
+		locked = passwordless.app_sign_in(client.client_id, self.VERIFIER, email=address, code=right)
+		self.assertEqual(locked, {"ok": False, "reason": "locked"})
+
+	def test_the_app_signs_in_with_the_link_it_was_reopened_by_and_once(self):
+		address, client = self.app_account("app-link")
+		token = self.link_token_for(address)
+
+		wrong = passwordless.app_sign_in(client.client_id, self.OTHER_VERIFIER, token=token)
+		self.assertEqual(wrong, {"ok": False, "reason": "invalid"})
+		self.manager.login_as.assert_not_called()
+		self.assertIsNotNone(self.challenge(address), "a link opened with another verifier must not burn it")
+
+		result = passwordless.app_sign_in(client.client_id, self.VERIFIER, token=token)
+		self.assertTrue(result["ok"], result)
+		self.assertEqual(result["user"], address)
+		self.manager.login_as.assert_called_once_with(address)
+
+		again = passwordless.app_sign_in(client.client_id, self.VERIFIER, token=token)
+		self.assertEqual(again, {"ok": False, "reason": "invalid"})
+		self.assertEqual(passwordless.link_state(token)["status"], "invalid")
+
+	def test_the_link_of_an_app_request_opens_the_app_and_never_signs_in_on_the_web(self):
+		address, _client = self.app_account("app-web-link")
+		token = self.link_token_for(address)
+		nonce = self.cookie_spy_mock.call_args.args[0]
+
+		self.assertEqual(passwordless.link_state(token)["status"], "app")
+		# not even the browser that asked, with its cookie: this link belongs to the app
+		self.with_cookie(nonce)
+		self.assertEqual(passwordless.link_state(token)["status"], "app")
+		passwordless.sign_in_with_link(token)
+		self.assertEqual(frappe.local.response.get("http_status_code"), 403)
+		self.manager.login_as.assert_not_called()
+
+	def test_an_app_asks_for_existing_accounts_only_and_the_answer_does_not_tell(self):
+		known = _address("app-known")
+		_make_user(known)
+		stranger = _address("app-stranger")
+
+		with patch.object(passwordless, "signup_is_open", return_value=True):
+			said_known = self.ask(known, app_challenge=self.CHALLENGE)
+			said_stranger = self.ask(stranger, app_challenge=self.CHALLENGE)
+			# the web, on the same site, does offer the stranger an account
+			web_stranger = _address("web-stranger")
+			self.ask(web_stranger)
+
+		self.assertEqual(said_known, said_stranger)
+		self.assertTrue([m for m in self.mails if m["recipients"] == [known]])
+		self.assertFalse([m for m in self.mails if m["recipients"] == [stranger]])
+		self.assertTrue([m for m in self.mails if m["recipients"] == [web_stranger]])
+
+	def test_a_malformed_challenge_is_refused_and_mails_nothing(self):
+		address = _address("app-bad-challenge")
+		_make_user(address)
+		for challenge in ("short", "!" * 43, "a" * 44, 7, ""):
+			self.assertEqual(
+				self.ask(address, app_challenge=challenge), {"ok": False, "reason": "invalid_request"}
+			)
+		self.assertFalse(self.mails)
+
+	def test_the_landing_page_offers_to_open_the_app_with_the_token_and_the_site(self):
+		address, _client = self.app_account("app-landing")
+		token = self.link_token_for(address)
+		path = os.path.join(os.path.dirname(frappe.__file__), "www", "login_link.py")
+		spec = importlib.util.spec_from_file_location("login_link_page_app", path)
+		page = importlib.util.module_from_spec(spec)
+		spec.loader.exec_module(page)
+
+		context = frappe._dict()
+		frappe.local.form_dict.token = token
+		with patch.object(page, "get_request_host", return_value="shop.example"):
+			page.get_context(context)
+
+		self.assertEqual(context.status, "app")
+		self.assertEqual(context.app_link, f"neoffice://sign-in?token={token}&site=shop.example")
+		self.assertEqual(context.token, "", "the page never prints a token it does not post")
+
+		html = os.path.join(os.path.dirname(frappe.__file__), "www", "login-link.html")
+		with open(html) as handle:
+			self.assertIn('{% elif status == "app" %}', handle.read())
+
+	def test_the_patch_ticks_both_switches_for_every_existing_site(self):
+		from frappe.patches.v15_0 import neoffice_sign_in_with_a_code_on_by_default as ticked
+
+		with patch("frappe.db.set_single_value") as setter:
+			ticked.execute()
+		self.assertEqual(
+			sorted(call.args for call in setter.call_args_list),
+			[
+				("System Settings", "login_code_system_users", 1),
+				("System Settings", "login_with_email_link", 1),
+			],
+		)
+		with open(os.path.join(os.path.dirname(frappe.__file__), "patches.txt")) as handle:
+			self.assertIn("frappe.patches.v15_0.neoffice_sign_in_with_a_code_on_by_default", handle.read())

@@ -35473,3 +35473,15 @@ msgstr "Link kopieren"
 #: frappe/www/login-link.html:17
 msgid "Link copied. Paste it into the browser where you asked for the code."
 msgstr "Link kopiert. Fügen Sie ihn im Browser ein, in dem Sie den Code angefordert haben."
+
+#: frappe/www/login-link.html
+msgid "Open the app"
+msgstr "App öffnen"
+
+#: frappe/www/login-link.html
+msgid "Press the button to open the app and sign in."
+msgstr "Drücken Sie die Schaltfläche, um die App zu öffnen und sich anzumelden."
+
+#: frappe/www/login-link.html
+msgid "The app does not open, or this is not the phone where you asked? Type the code from the email in the app."
+msgstr "Die App öffnet sich nicht, oder ist dies nicht das Telefon, für das Sie es angefordert haben? Geben Sie den Code aus der E-Mail in der App ein."

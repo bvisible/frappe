@@ -48,6 +48,10 @@
 			});
 		})();
 	</script>
+	{% elif status == "app" %}
+	<p>{{ _("Press the button to open the app and sign in.") }}</p>
+	<a class="btn btn-primary btn-block" href="{{ app_link | e }}" id="open-the-app">{{ _("Open the app") }}</a>
+	<p class="text-muted" style="margin-top: 12px;">{{ _("The app does not open, or this is not the phone where you asked? Type the code from the email in the app.") }}</p>
 	{% elif status == "needs_code" %}
 	<p>{{ _("Type the code from the email on the page where you started to create your account.") }}</p>
 	{% else %}

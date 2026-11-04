@@ -263,3 +263,6 @@ frappe.patches.v15_0.neoffice_sessions_device_column
 # //// every doctype (logs, versions, comments, ledger rows); this keeps only the rows a search can
 # //// return. Reason in the module's header.
 frappe.patches.v15_0.neoffice_global_search_prune
+# //// Neoffice — added entry (maintenance#2192): signing in with a code is on by default on every site, existing ones
+# //// included (their settings never received the default of a field added later). Reason in the module's header.
+frappe.patches.v15_0.neoffice_sign_in_with_a_code_on_by_default

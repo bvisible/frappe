@@ -16,6 +16,9 @@ the shop's dialog, POS Next's guest ordering):
     verify_code(email, code)     signs in, or proves the mailbox of an address that has no account yet
     sign_in_with_link(token)     what the button of the landing page `/login-link` posts (a GET never signs in)
     consume_proof(proof)         the Python door of an app that creates the account (the shop, the till)
+    app_sign_in(client_id, verifier, ...)
+                                 the mobile app's door: the same code, or the link that reopens the app, against the
+                                 secret only the asking device holds (PKCE), answered with the OAuth bundle
 
 What it guarantees, and what each line cost to learn:
 
@@ -37,6 +40,7 @@ What it guarantees, and what each line cost to learn:
   caller writes (measured on the shops, 2026-10-30: 25 of 25 requests passed a limit of 20).
 """
 
+import base64
 import hashlib
 import hmac
 import re
@@ -57,6 +61,12 @@ VERIFICATIONS_PER_PEER_HOUR = 200
 PROOF_MINUTES = 15
 NONCE_COOKIE = "pwl_nonce"
 CODE_RE = re.compile(r"^\d{%d}$" % CODE_DIGITS)
+# The mobile app (PKCE, RFC 7636): it keeps a random `verifier` on the device and sends only its SHA-256, the
+# `app_challenge`, with the request. The link in the mail is opened on any device and means nothing without the verifier.
+APP_CHALLENGE_RE = re.compile(r"^[A-Za-z0-9_-]{43}$")
+APP_VERIFIER_RE = re.compile(r"^[A-Za-z0-9_-]{43,128}$")
+APP_LINK = "neoffice://sign-in"
+APP_ACCESS_TOKEN_SECONDS = 3600
 
 LANDING_ROUTE = "login-link"
 
@@ -99,7 +109,14 @@ def signup_is_open() -> bool:
 @frappe.whitelist(allow_guest=True)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
 def status():
 	"""What a sign-in page needs to know to offer the code: whether it is on, and how long it lives."""
-	return {"enabled": is_enabled(), "expires_in": _expiry_minutes() * 60, "resend_in": RESEND_AFTER}
+	# `app`: this server knows the mobile app's door (`app_sign_in`). An older server has no such key, and the app then
+	# shows no button.
+	return {
+		"enabled": is_enabled(),
+		"app": True,
+		"expires_in": _expiry_minutes() * 60,
+		"resend_in": RESEND_AFTER,
+	}
 
 
 # --------------------------------------------------------------------------------------------- primitives
@@ -231,9 +248,13 @@ def signable_user(address: str) -> str | None:
 @frappe.whitelist(
 	allow_guest=True, methods=["POST"]
 )  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
-def request_code(email, redirect_to=None):
+def request_code(email, redirect_to=None, app_challenge=None):
 	"""Mail a code and a link to `email`. The answer is the same whether the address has an account, may open one or
 	is nobody's: only the mailbox learns anything. Guest-callable on purpose, limited per address and per connection.
+
+	The mobile app passes `app_challenge`: the link in the mail then opens the app instead of signing in on the web, and
+	only the device that holds the matching verifier can use it (see `app_sign_in`). An app cannot create an account, so
+	an address with none is mailed nothing, with the same answer.
 	"""
 	if not is_enabled():
 		return {"ok": False, "reason": "disabled"}
@@ -241,6 +262,10 @@ def request_code(email, redirect_to=None):
 	address = _normalise(email)
 	if not address:
 		return {"ok": False, "reason": "invalid_address"}
+	if app_challenge is not None and not (
+		isinstance(app_challenge, str) and APP_CHALLENGE_RE.match(app_challenge)
+	):
+		return {"ok": False, "reason": "invalid_request"}
 
 	if _hit("request_peer", _peer_ip(), 3600) > REQUESTS_PER_PEER_HOUR:
 		_too_many(_("Too many sign-in requests from this connection. Try again in an hour."))
@@ -256,13 +281,25 @@ def request_code(email, redirect_to=None):
 
 	user = signable_user(address)
 	nonce = secrets.token_urlsafe(16)
-	if user or (signup_is_open() and not frappe.db.exists("User", address)):
-		_start_challenge(address, address_id, nonce, redirect_to, known=bool(user))
+	if user or (not app_challenge and signup_is_open() and not frappe.db.exists("User", address)):
+		_start_challenge(
+			address, address_id, nonce, redirect_to, known=bool(user), app_challenge=app_challenge
+		)
 	_set_nonce_cookie(nonce)  # always, so that the response's headers do not tell either
 	return answer
 
 
-def _start_challenge(address, address_id, nonce, redirect_to, known):
+def _app_binding(challenge: str) -> str:
+	return _mac("app", challenge)
+
+
+def _s256(verifier: str) -> str:
+	"""The `app_challenge` of a verifier: base64url, no padding, of its SHA-256 (RFC 7636, S256)."""
+	digest = hashlib.sha256(verifier.encode()).digest()
+	return base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+
+
+def _start_challenge(address, address_id, nonce, redirect_to, known, app_challenge=None):
 	minutes = _expiry_minutes()
 	seconds = minutes * 60
 	code = f"{secrets.randbelow(10**CODE_DIGITS):0{CODE_DIGITS}d}"
@@ -275,6 +312,7 @@ def _start_challenge(address, address_id, nonce, redirect_to, known):
 		"nonce": _mac("nonce", nonce),
 		"redirect_to": _safe_redirect(redirect_to),
 		"known": known,
+		"app": _app_binding(app_challenge) if app_challenge else None,
 	}
 	frappe.cache.set_value(_key("challenge", address_id), challenge, expires_in_sec=seconds)
 	frappe.cache.set_value(
@@ -354,6 +392,19 @@ def verify_code(email, code):
 	if _hit("verify_peer", _peer_ip(), 3600) > VERIFICATIONS_PER_PEER_HOUR:
 		_too_many(_("Too many attempts from this connection. Try again in an hour."))
 
+	challenge = _consume_code(address, code)
+	if isinstance(challenge, str):
+		return _refused(challenge)
+	return _finish(address, challenge)
+
+
+def _consume_code(address: str, code: str, bound: str | None = None) -> dict | str:
+	"""Check `code` against the live challenge of `address` and consume it: the challenge, or the reason it was refused.
+	The web and the app share this one, so they share the attempts, the lock and the single consumption.
+
+	`bound` is the app's binding (see `_app_binding`): when given, the challenge must have been asked for by that very
+	device, and a wrong one is refused BEFORE anything is consumed, so a stranger who guessed a code cannot burn the
+	real person's."""
 	address_id = _mac("address", address)
 	challenge_key = _key("challenge", address_id)
 	challenge = frappe.cache.get_value(challenge_key, expires=True)
@@ -361,20 +412,22 @@ def verify_code(email, code):
 	# Counted whether or not a code is live, so an address nobody holds locks at the same attempt as one that has one.
 	if _hit("attempts", address_id, _expiry_minutes() * 60) > MAX_ATTEMPTS:
 		_take(challenge_key)
-		return _refused("locked")
+		return "locked"
 
 	expected = challenge["code"] if challenge else _mac("code", address, "none", "none")
 	given = _mac("code", address, challenge["id"] if challenge else "none", code)
 	if not (challenge and hmac.compare_digest(expected, given)):
-		return _refused("invalid")
+		return "invalid"
+	if bound is not None and not (challenge.get("app") and hmac.compare_digest(challenge["app"], bound)):
+		return "invalid"
 
 	if not _take(challenge_key):  # a parallel call with the same correct code got there first
-		return _refused("invalid")
+		return "invalid"
 	_take(_key("link", challenge["link"]))
 	# The mailbox is proven: someone who signs out and in again at once must get their code, not a silent cooldown
 	# (the hourly cap on mails to the address stays).
 	_forget_counter("cooldown", address_id)
-	return _finish(address, challenge)
+	return challenge
 
 
 def _finish(address: str, challenge: dict) -> dict:
@@ -441,6 +494,7 @@ def link_state(token) -> dict:
 	`ready` the cookie of the browser that asked is here, the button signs in
 	`other_device` the link is live but this browser did not ask: type the code
 	`needs_code` the address has no account yet: the code is the way to open one
+	`app` the mobile app asked: the page offers to open it, the web never signs in with this link
 	`invalid` unknown, expired or replaced
 	"""
 	if not isinstance(token, str) or not token:
@@ -453,6 +507,8 @@ def link_state(token) -> dict:
 		return {"status": "invalid"}
 	if not challenge.get("known"):
 		return {"status": "needs_code"}
+	if challenge.get("app"):
+		return {"status": "app"}
 	sent = frappe.request.cookies.get(NONCE_COOKIE) if getattr(frappe.local, "request", None) else None
 	if sent and hmac.compare_digest(challenge["nonce"], _mac("nonce", sent)):
 		return {"status": "ready"}
@@ -493,3 +549,106 @@ def _link_refused():
 		http_status_code=403,
 		indicator_color="red",
 	)
+
+
+# --------------------------------------------------------------------------------------------- the mobile app
+
+
+@frappe.whitelist(
+	allow_guest=True, methods=["POST"]
+)  # nosemgrep: frappe-semgrep-rules.rules.security.guest-whitelisted-method
+def app_sign_in(client_id, verifier, email=None, code=None, token=None):
+	"""The mobile app's door: the code typed in the app (`email` + `code`), or the link that reopened it (`token`), with
+	the `verifier` whose SHA-256 the app sent when it asked. Answers with the OAuth bundle `mobile_auth` hands the app after
+	a password, so everything downstream is unchanged.
+
+	The verifier is what makes the link safe to mail: it is opened on any device, by scanners and by other apps that
+	registered the same scheme, and none of them holds it. A challenge the web asked for is not opened here, nor an
+	app's by the web link. Guest-callable on purpose, counted per connection like the web's doors.
+	"""
+	if not is_enabled():
+		return _refused("disabled")
+	if not (isinstance(verifier, str) and APP_VERIFIER_RE.match(verifier)):
+		return _refused("invalid")
+	# Before anything is consumed: a wrong client must not burn the person's code.
+	client = (
+		frappe.db.get_value("OAuth Client", {"client_id": client_id}, "name")
+		if isinstance(client_id, str) and client_id
+		else None
+	)
+	if not client:
+		return _refused("invalid_client")
+
+	if _hit("verify_peer", _peer_ip(), 3600) > VERIFICATIONS_PER_PEER_HOUR:
+		_too_many(_("Too many attempts from this connection. Try again in an hour."))
+
+	bound = _app_binding(_s256(verifier))
+	if token:
+		opened = _open_app_link(token, bound)
+	else:
+		address = _normalise(email)
+		given = re.sub(r"\s+", "", code) if isinstance(code, str) else ""
+		if not address or not CODE_RE.match(given):
+			return _refused("invalid")
+		opened = _consume_code(address, given, bound=bound)
+		if not isinstance(opened, str):
+			opened = (address, opened)
+	if isinstance(opened, str):
+		return _refused(opened)
+
+	address, _challenge = opened
+	user = signable_user(address)
+	if not user:
+		return _refused("invalid")
+	signed = sign_in(user)
+	if not signed.get("ok"):
+		return signed
+	return {"ok": True, **_mint_app_bundle(user, client)}
+
+
+def _open_app_link(token, bound: str) -> tuple[str, dict] | str:
+	"""Consume the link `token`, if it is the app's and `bound` is the binding of the device that asked."""
+	if not isinstance(token, str) or not token:
+		return "invalid"
+	link_key = _key("link", _mac("link", token))
+	link = frappe.cache.get_value(link_key, expires=True)
+	if not link:
+		return "invalid"
+	challenge_key = _key("challenge", _mac("address", link["address"]))
+	challenge = frappe.cache.get_value(challenge_key, expires=True)
+	if (
+		not challenge
+		or challenge["id"] != link["id"]
+		or not (challenge.get("app") and hmac.compare_digest(challenge["app"], bound))
+	):
+		return "invalid"
+	if not _take(challenge_key):  # a parallel call got there first
+		return "invalid"
+	_take(link_key)
+	return link["address"], challenge
+
+
+def _mint_app_bundle(user: str, client: str) -> dict:
+	"""The OAuth bearer token `neoffice_theme.mobile.mobile_auth` mints after a password, minted the same way: straight
+	in the table, since the client does not offer a password grant. Also carries the session id the app's web view needs."""
+	from frappe.oauth import get_url_delimiter
+
+	access_token = secrets.token_urlsafe(32)
+	refresh_token = secrets.token_urlsafe(32)
+	otoken = frappe.new_doc("OAuth Bearer Token")
+	otoken.client = client
+	otoken.user = user
+	otoken.scopes = "all" + get_url_delimiter() + "openid"
+	otoken.access_token = access_token
+	otoken.refresh_token = refresh_token
+	otoken.expires_in = APP_ACCESS_TOKEN_SECONDS
+	otoken.save(ignore_permissions=True)
+	return {
+		"access_token": access_token,
+		"refresh_token": refresh_token,
+		"expires_in": APP_ACCESS_TOKEN_SECONDS,
+		"token_type": "Bearer",
+		"sid": frappe.session.sid,
+		"user": user,
+		"full_name": frappe.db.get_value("User", user, "full_name") or user,
+	}
