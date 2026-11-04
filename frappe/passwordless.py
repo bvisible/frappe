@@ -302,6 +302,14 @@ def _set_nonce_cookie(nonce: str):
 		manager.set_cookie(NONCE_COOKIE, nonce, max_age=_expiry_minutes() * 60, httponly=True, samesite="Lax")
 
 
+def _speaks_the_accounts_language() -> bool:
+	"""Whether the mail is written in the language the sending account signs in. An Email Account carries ONE signature, a text of its own
+	("Meilleures salutations, L'équipe …"), so a mail written in the guest's language (German, Italian) ended with a French goodbye. Only a mail in
+	the site's language keeps the signature; the template drops it otherwise (the `<!-- signature-included -->` marker frappe's mail body honours)."""
+	site = (frappe.db.get_single_value("System Settings", "language") or "en").lower().replace("_", "-")
+	return (frappe.local.lang or "en").lower().replace("_", "-") == site
+
+
 def send_code_email(address, code, link_token, minutes, brand, lang=None, known=True):
 	"""The job that mails the code. A failure is logged, never shown: the person asked, the answer was already given."""
 	frappe.local.lang = lang or frappe.local.lang
@@ -311,7 +319,14 @@ def send_code_email(address, code, link_token, minutes, brand, lang=None, known=
 			recipients=[address],
 			subject=_("{0} is your sign-in code for {1}").format(code, brand),
 			template="passwordless_code",
-			args={"code": code, "link": link, "minutes": minutes, "brand": brand, "known": known},
+			args={
+				"code": code,
+				"link": link,
+				"minutes": minutes,
+				"brand": brand,
+				"known": known,
+				"own_voice": _speaks_the_accounts_language(),
+			},
 			now=True,
 		)
 	except Exception:

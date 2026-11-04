@@ -677,6 +677,50 @@ class TestPasswordless(FrappeTestCase):
 		# an address with no account is given no link at all, written out or not
 		self.assertNotIn(link, render(code="123456", link=link, minutes=10, brand="Shop", known=False))
 
+	def test_a_mail_in_another_language_than_the_sites_ends_with_no_foreign_signature(self):
+		"""An Email Account carries ONE signature, a text of its own (« Meilleures salutations, L'équipe … »): a code mail written in the page's
+		language, German or Italian, ended with that French goodbye. Only a mail in the site's language keeps the signature."""
+		real = frappe.db.get_single_value
+
+		def a_french_site(doctype, field, *args, **kwargs):
+			if (doctype, field) == ("System Settings", "language"):
+				return "fr"
+			return real(doctype, field, *args, **kwargs)
+
+		self.addCleanup(setattr, frappe.local, "lang", frappe.local.lang)
+		address = _address("goodbye")
+		with patch("frappe.db.get_single_value", side_effect=a_french_site):
+			for lang, in_the_sites_language in (("fr", True), ("de", False), ("it", False)):
+				with self.subTest(lang=lang):
+					passwordless.send_code_email(address, "123456", "token", 10, "Shop", lang=lang)
+
+					self.assertIs(self.mails[-1]["args"]["own_voice"], in_the_sites_language)
+
+		render = frappe.get_template("templates/emails/passwordless_code.html").render
+		args = {
+			"code": "123456",
+			"link": "https://shop.example/x",
+			"minutes": 10,
+			"brand": "Shop",
+			"known": True,
+		}
+		self.assertNotIn("signature-included", render(own_voice=True, **args))
+		self.assertIn("<!-- signature-included -->", render(own_voice=False, **args))
+
+	def test_the_marker_is_what_frappe_reads_to_leave_the_signature_out(self):
+		"""The contract the template relies on: frappe's mail body adds the account's signature unless the message says it is included."""
+		from frappe.email.email_body import get_formatted_html
+
+		account = frappe._dict(add_signature=1, signature="SIGN-OFF-OF-THE-ACCOUNT", footer="")
+
+		with_signature = get_formatted_html("Subject", "<p>Body</p>", email_account=account)
+		without = get_formatted_html(
+			"Subject", "<p>Body</p><!-- signature-included -->", email_account=account
+		)
+
+		self.assertIn("SIGN-OFF-OF-THE-ACCOUNT", with_signature)
+		self.assertNotIn("SIGN-OFF-OF-THE-ACCOUNT", without)
+
 	def test_the_page_of_a_link_opened_in_another_browser_can_copy_it(self):
 		"""Where the link was opened in the wrong browser (the button is not there), the page offers to copy it, to paste it where the code was asked for."""
 		template = frappe.get_template("www/login-link.html")
