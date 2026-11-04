@@ -948,8 +948,10 @@ class TestPasswordless(FrappeTestCase):
 
 		context = frappe._dict()
 		frappe.local.form_dict.token = token
-		with patch.object(page, "get_request_host", return_value="shop.example"):
-			page.get_context(context)
+		# The real `get_request_host`, which wants the request: a stand-in that answers whatever it is called with once hid
+		# a call without it (a 500 on osiris, the first time the page was opened for real).
+		self.with_cookie("not-this-links-nonce")
+		page.get_context(context)
 
 		self.assertEqual(context.status, "app")
 		self.assertEqual(context.app_link, f"neoffice://sign-in?token={token}&site=shop.example")

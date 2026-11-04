@@ -21,7 +21,10 @@ def get_context(context):
 	# nobody in, the app adds the secret only it holds (`passwordless.app_sign_in`).
 	context.app_link = ""
 	if state["status"] == "app":
-		query = urlencode({"token": token, "site": get_request_host()}, quote_via=quote)
+		request = getattr(frappe.local, "request", None)
+		query = urlencode(
+			{"token": token, "site": get_request_host(request) if request else ""}, quote_via=quote
+		)
 		context.app_link = f"{APP_LINK}?{query}"
 	context.title = _("Sign in")
 	context.no_breadcrumbs = True
