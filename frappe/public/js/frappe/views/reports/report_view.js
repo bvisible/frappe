@@ -1643,6 +1643,14 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		this.fields = [...fields_already_in_table, ...fields_to_add];
 	}
 
+	//// Neoffice — added method, see the marker in setup_columns: true only when the doctype's meta is here and says
+	//// the field does not exist. A child table not loaded yet proves nothing, and `_`-fields are the view's own.
+	is_saved_column_gone(fieldname, doctype) {
+		const known = frappe.meta.docfield_map[doctype];
+		if (!known || fieldname.startsWith("_")) return false;
+		return !known[fieldname] && !frappe.model.std_fields_list.includes(fieldname);
+	}
+
 	get_fields() {
 		let fields = this.fields.map((f) => {
 			let column_name = frappe.model.get_full_column_name(f[0], f[1]);
@@ -1971,7 +1979,11 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 					this.fields = settings.order.map(field => {
 						const [parenttype, fieldname] = field.split(":");
 						return [fieldname, parenttype];
-					});
+					//// Neoffice — a saved column whose field is gone is left out. The saved order rebuilds
+					//// this.fields past the check of _add_field, and the query names every field: one
+					//// custom field an app retired refused the whole view (« Field not permitted in
+					//// query ») at each opening, and nobody can take a column off a view that never draws.
+					}).filter(([fieldname, parenttype]) => !this.is_saved_column_gone(fieldname, parenttype));
 					//// Neoffice — upstream's `if (column) { column.width = … }` no longer sits here: it moved into
 					//// the loop below, which reads the saved settings.widths (see the block marker above).
 
