@@ -202,7 +202,9 @@ def get_shared(doctype, user=None, rights=None, *, filters=None, limit=None):
 		share_filters += filters
 
 	or_filters = [["user", "=", user]]
-	if user != "Guest":
+	# //// Neoffice — a share « with everyone » is the desk's own: it reached every portal account too (a customer of the
+	# //// portal read a sales workbook shared with everyone, maintenance#515, 06.11). Now it reaches the staff only.
+	if user != "Guest" and everyone_reaches(user):
 		or_filters += [["everyone", "=", 1]]
 
 	shared_docs = frappe.get_all(
@@ -222,13 +224,26 @@ def get_shared_doctypes(user=None):
 	if not user:
 		user = frappe.session.user
 	table = frappe.qb.DocType("DocShare")
+	# //// Neoffice — a share « with everyone » reaches the staff only (see get_shared above).
+	reached = (table.user == user) | (table.everyone == 1) if everyone_reaches(user) else table.user == user
 	query = (
 		frappe.qb.from_(table)
-		.where((table.user == user) | (table.everyone == 1))
+		.where(reached)  # //// Neoffice — was (user == user) | (everyone == 1), see above
 		.select(table.share_doctype)
 		.distinct()
 	)
 	return query.run(pluck=True)
+
+
+# //// Neoffice — added function (no upstream equivalent): whom a share « with everyone » reaches. The desk shares a
+# //// document with everyone for its staff; a portal account (a Website User) is not one of them, nor is Guest.
+def everyone_reaches(user: str | None = None) -> bool:
+	user = user or frappe.session.user
+	if user == "Guest":
+		return False
+	if user == "Administrator":
+		return True
+	return frappe.get_cached_value("User", user, "user_type") != "Website User"
 
 
 def get_share_name(doctype, name, user, everyone):
