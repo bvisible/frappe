@@ -277,10 +277,19 @@ def extract_script_and_style_tags(html):
 	styles = []
 
 	for script in soup.find_all("script"):
+		# //// Neoffice — a <script src="…">, or one with no single text node, has no `.string`: extracted, it was
+		# //// written back as <script>None</script> (« None is not defined » on every page of a shop whose generated
+		# //// header carried one, neoffice-maintenance#2351), and its src was lost. It stays in the block where it
+		# //// was; only an inline script with a body is taken out for deduplication. Upstream keeps `script.string`.
+		if script.get("src") or script.string is None:
+			continue
 		scripts.append(script.string)
 		script.extract()
 
 	for style in soup.find_all("style"):
+		# //// Neoffice — the same for an empty <style>: it was written back as <style>None</style> (#2351).
+		if style.string is None:
+			continue
 		styles.append(style.string)
 		style.extract()
 
