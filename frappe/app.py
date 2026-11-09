@@ -120,8 +120,21 @@ def after_response_wrapper(app):
 
 	@functools.wraps(app)
 	def application(environ, start_response):
+		# //// Neoffice — an exception that leaves the request (raised by `sync_database` in the `else:` of application(), by
+		# //// handle_exception() when the error page fails like the page it replaces, or by the `finally:`) never reached the
+		# //// ClosingIterator below, so frappe.destroy() did not run: the gunicorn worker kept the request's connection open,
+		# //// idle, with its transaction and the metadata locks of every table the request had read, until the garbage
+		# //// collector freed it (never, in a worker without traffic). A DROP or ALTER on those tables then waited without end:
+		# //// the order script of a new instance (neoffice-maintenance#2407), the migrate of an update. Upstream has the same
+		# //// path (version-15 and develop); drop this when it closes the connection of a request that raises.
+		try:
+			response = app(environ, start_response)
+		except BaseException:
+			close_failed_request()
+			raise
 		return ClosingIterator(
-			app(environ, start_response),
+			# //// Neoffice — the response obtained in the try above (was `app(environ, start_response)` here)
+			response,
 			(
 				run_after_response_callbacks,
 				frappe.destroy,
@@ -129,6 +142,15 @@ def after_response_wrapper(app):
 		)
 
 	return application
+
+
+def close_failed_request():
+	"""Close the connection of a request that raised before it had a response, without hiding what it raised."""
+	# //// Neoffice — added with the close in after_response_wrapper (neoffice-maintenance#2407)
+	try:
+		frappe.destroy()
+	except Exception:
+		frappe.logger().error("Failed to close the connection of a request that raised", exc_info=True)
 
 
 @after_response_wrapper
@@ -224,6 +246,12 @@ def init_request(request):
 		# site does not exist
 		raise NotFound
 
+	# //// Neoffice — frappe.init() above connects by itself when Redis has lost `installed_app_modules` and the global
+	# //// defaults (any clear-cache): setup_module_map() → get_installed_apps() → connect(), which reads tabDefaultValue.
+	# //// connect() below replaced that connection without closing it, and the worker kept it open, idle, with its
+	# //// transaction and metadata lock, until the garbage collector freed it (neoffice-maintenance#2407).
+	if frappe.db:
+		frappe.db.close()
 	frappe.connect(set_admin_as_user=False)
 	# //// Neoffice — a site in maintenance still serves the methods it names in `maintenance_open_methods`
 	# //// (site_config.json, dotted paths). The hub keeps the relays its client instances call at any hour (their
