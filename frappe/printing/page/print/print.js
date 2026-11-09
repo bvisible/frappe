@@ -91,25 +91,72 @@ frappe.ui.form.PrintView = class {
 		//// the viewer (legacy paths kept as fallbacks: print server, raw/QZ).
 		this.page.set_primary_action(__("Print"), () => this.print_pdfjs(), "printer");
 
-		this.page.add_button(__("Download PDF"), () => this.download_pdfjs(), {
-			icon: "small-file",
+		//// Neoffice — compact toolbar (2026-11-09). Upstream's four labelled buttons ("Download PDF", "Full Page",
+		//// "Refresh", "Back to form") need ~680px, and below 992px Frappe hides the whole row (`hidden-xs hidden-md`
+		//// on .custom-actions), so on a small screen the download button was only reachable through the ⋯ menu.
+		//// Now: the row stays visible at every width; Refresh and Full Page are an icon alone, Download and Back keep
+		//// a one-word label that folds into its icon on a narrow head (setup_compact_toolbar); the full label stays
+		//// the tooltip and the ⋯ menu entry. When even the icons do not fit, the page's overflow manager moves the
+		//// lowest data-pao-priority first into ⋯ (page.js redistribute_custom_actions). The full label is kept
+		//// as the button's data-label on purpose: the theme finds these buttons by it (simple_print_bar).
+		this.page.custom_actions.removeClass("hidden-xs hidden-md");
+
+		this.add_compact_button(__("Download PDF"), () => this.download_pdfjs(), {
+			icon: "es-line-download",
+			short_label: __("Download"),
+			priority: 4,
 		});
 
-		this.page.add_button(__("Full Page"), () => this.render_page("/printview?"), {
+		//// Neoffice — Full Page: an icon alone (the note above), the first button to move into the ⋯ menu when the row is full.
+		this.add_compact_button(__("Full Page"), () => this.render_page("/printview?"), {
 			icon: "full-page",
+			priority: 1,
 		});
 
 		//// Neoffice — upstream's "PDF" button (render_pdf, opens the PDF in a new tab) is removed: "Download PDF" above
 		//// replaces it and falls back to render_pdf when the viewer has no document (e1a3fd4e35 2026-06-12).
-		this.page.add_button(__("Refresh"), () => this.refresh_print_format(), {
+		this.add_compact_button(__("Refresh"), () => this.refresh_print_format(), {
 			icon: "refresh",
+			priority: 2,
 		});
 
-		//// Neoffice — upstream adds a "Form" button on mobile and an unlabeled Form icon on desktop; one labeled
-		//// "Back to form" button everywhere instead (1ef01abd26 2026-06-12 "…labeled Back-to-form button…").
-		this.page.add_button(__("Back to form"), () => this.go_to_form_view(), {
-			icon: "es-line-filetype",
+		//// Neoffice — upstream adds a "Form" button on mobile and an unlabeled Form icon on desktop; one "Back to
+		//// form" button everywhere instead (1ef01abd26 2026-06-12), now an arrow and the word "Back".
+		this.add_compact_button(__("Back to form"), () => this.go_to_form_view(), {
+			icon: "es-line-arrow-left",
+			short_label: __("Back"),
+			priority: 3,
 		});
+
+		this.setup_compact_toolbar();
+	}
+
+	//// Neoffice — added (see setup_toolbar): a toolbar button that shows an icon and, optionally, a short label
+	//// (class print-btn-label, hidden by .print-toolbar-compact). `label` stays the button's tooltip, its
+	//// data-label and its ⋯ menu entry. `priority`: the lower, the sooner it moves into ⋯ when the row is full.
+	add_compact_button(label, click, { icon, short_label, priority }) {
+		const $button = this.page.add_button(label, click, { icon: icon });
+		// add_button writes `${icon}${label}`: drop the label text, keep the icon
+		$button
+			.contents()
+			.filter((i, node) => node.nodeType === Node.TEXT_NODE)
+			.remove();
+		if (short_label) {
+			$button.append($('<span class="print-btn-label"></span>').text(short_label));
+		}
+		return $button.attr({ title: label, "aria-label": label, "data-pao-priority": priority });
+	}
+
+	//// Neoffice — added (see setup_toolbar): fold the labels of Download and Back into their icons when the page
+	//// head is narrow. Measured on the head, not the window: the cockpit's sidebar takes 60 to 250px of it.
+	setup_compact_toolbar() {
+		const head = this.page.wrapper.find(".page-head").get(0);
+		if (!head || !window.ResizeObserver) return;
+		const COMPACT_BELOW = 720;
+		const update = () =>
+			this.page.wrapper.toggleClass("print-toolbar-compact", head.clientWidth < COMPACT_BELOW);
+		new ResizeObserver(update).observe(head);
+		update();
 	}
 
 	//// Neoffice ▼▼▼ embedded PDF.js preview (vendored viewer, thumbnails on)

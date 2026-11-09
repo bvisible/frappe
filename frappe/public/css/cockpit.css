@@ -203,6 +203,29 @@ body.neoffice-cockpit [data-page-route="print"] .pdfjs-preview-wrapper {
 	min-height: 0;
 	position: relative;
 }
+/* //// Neoffice — print page toolbar (2026-11-09, print.js setup_toolbar): the buttons win over the breadcrumb.
+   Upstream gives .page-title a fixed share of the head (col-md-4 …), so on a small screen the buttons got what was left
+   and Frappe hid the row altogether; here the title takes what the buttons leave and fades out under them. */
+body.neoffice-cockpit [data-page-route="print"] .page-head .page-title {
+	flex: 1 1 0;
+	width: auto;
+	max-width: none;
+	min-width: 0;
+}
+/* the fade is on the breadcrumb alone: the menu toggle beside it stays crisp when the title is squeezed to nothing */
+body.neoffice-cockpit [data-page-route="print"] .page-head .page-title .title-area {
+	min-width: 0;
+	overflow: hidden;
+	-webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+	mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+}
+body.neoffice-cockpit [data-page-route="print"] .page-head .page-actions {
+	flex: 0 1 auto;
+}
+/* … and the words of Download and Back fold into their icon on a narrow head (print.js setup_compact_toolbar) */
+body.neoffice-cockpit .print-toolbar-compact .print-btn-label {
+	display: none;
+}
 /* loading overlay shown while the server renders the PDF (Chrome generation
    can take a few seconds — an empty grey viewer would read as broken) */
 .pdfjs-preview-wrapper {

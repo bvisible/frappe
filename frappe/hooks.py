@@ -64,7 +64,7 @@ app_include_css = [
 	"desk.bundle.css",
 	"report.bundle.css",
 	# //// NEOFFICE PATCH — cockpit desk shell (gray frame + floating panel)
-	"/assets/frappe/css/cockpit.css?v=85",
+	"/assets/frappe/css/cockpit.css?v=87",
 ]
 app_include_icons = [
 	"frappe/icons/timeless/icons.svg",
