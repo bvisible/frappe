@@ -20,6 +20,25 @@ https://chromedevtools.github.io/devtools-protocol/
 # //// stay under the websocket library's 1 MiB message limit, which cdp_connection does not lift.
 PDF_STREAM_CHUNK = 512 * 1024
 
+# //// Neoffice — added (neoffice-maintenance#2368): the first segments of the paths on the site's own host that
+# //// answer with code, not with a file. The page rendered for a PDF or a preview image may run scripts of its own
+# //// (a shop page asks for the cart and the signed-in banner); intercept_request_for_local_resources reads every
+# //// request to the host as a file, so those calls were refused as "Attempted Unauthorized File Access" and wrote
+# //// an Error Log row each, on every publication of a page. Remove with the branch that uses it if upstream
+# //// ever answers such calls itself.
+DYNAMIC_ROUTE_ROOTS = ("api", "app")
+
+
+def is_dynamic_route(clean_path: str) -> bool:
+	"""Whether a path on the site's host is a route the site answers with code (an API call, a desk route),
+	not a file: its first segment is one of DYNAMIC_ROUTE_ROOTS and it never steps out with "..".
+
+	`clean_path` is the unquoted path without its leading slash, query string included. A path that climbs
+	("api/../site_config.json") is not a route: it stays what it was, an attempt on a file."""
+	route = clean_path.split("?", 1)[0].split("#", 1)[0]
+	segments = route.split("/")
+	return segments[0] in DYNAMIC_ROUTE_ROOTS and ".." not in segments
+
 
 class Page:
 	def __init__(self, session, browser_context_id, page_type):
@@ -159,6 +178,18 @@ class Page:
 					# //// on one shop) and dropped from the PDF. The "assets/" branch below
 					# //// could never match either.
 					clean_path = urllib.parse.unquote(path).lstrip("/")
+
+					# //// Neoffice — neoffice-maintenance#2368: a call to the site's own API or desk is not a file
+					# //// and not an intrusion. It is still never made (the page has no business calling the site as
+					# //// the session that renders it), but it fails quietly, without an Error Log row. A path that
+					# //// climbs out of public/ is not matched here and is still logged below.
+					if is_dynamic_route(clean_path):
+						self.session.send(
+							"Fetch.failRequest",
+							{"requestId": data["request_id"], "errorReason": "BlockedByClient"},
+							return_future=True,
+						)
+						return
 
 					if clean_path.startswith("assets/"):
 						final_system_path = os.path.abspath(os.path.join(bench_sites, clean_path))
