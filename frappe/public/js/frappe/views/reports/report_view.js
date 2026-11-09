@@ -2336,7 +2336,11 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				if (column.docfield && column.docfield.fieldname === "name" && value && typeof value === "string") {
 					const dt = column.docfield.options || column.docfield.parent || this.doctype;
 					const v = frappe.utils.escape_html(value);
-					return `<a href="${frappe.utils.get_form_link(dt, value)}" data-doctype="${frappe.utils.escape_html(dt)}" data-name="${v}" data-value="${v}" data-neo-id="1">${v}</a>`;
+					//// Neoffice — on a translated doctype (`translated_doctype`) the ID reads in the user's language, as a
+					//// Link field shows it: a fitness club's coach read the test catalogue as « Sit and reach », « Wall sit »
+					//// in a French desk (09.11). Only the text: the link and its data keep the record's real name.
+					const shown = (frappe.boot?.translated_doctypes || []).includes(dt) ? frappe.utils.escape_html(__(value)) : v;
+					return `<a href="${frappe.utils.get_form_link(dt, value)}" data-doctype="${frappe.utils.escape_html(dt)}" data-name="${v}" data-value="${v}" data-neo-id="1">${shown}</a>`;
 				}
 				////
 				let doc = null;
