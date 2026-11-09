@@ -79,7 +79,7 @@ _CLIENT_ADMIN_ROLES = (
 	"Purchase Manager",
 	"Purchase Master Manager",
 	"Purchase User",
-	"Nexus POS Manager",
+	"POSNext Manager",
 	"POSNext Cashier",
 	"Website Manager",
 )
@@ -87,7 +87,7 @@ _CLIENT_ADMIN_ROLES = (
 PERSONAS = {
 	"portal_customer": Persona(("Customer",)),
 	"cashier": Persona(("POSNext Cashier",)),  # Retail, level User
-	"till_manager": Persona(("Nexus POS Manager", "POSNext Cashier", "Retail")),  # Retail, level Manager
+	"till_manager": Persona(("POSNext Manager", "POSNext Cashier", "Retail")),  # Retail, level Manager
 	"accountant": Persona(("Accounts User",)),  # Accounting, level User
 	"head_accountant": Persona(("Accounts Manager", "Accounts User")),  # Accounting, level Manager
 	"sales_user": Persona(("Sales User", "Billing")),  # Selling, level User
