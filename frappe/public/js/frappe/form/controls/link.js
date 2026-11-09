@@ -505,10 +505,21 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 	 * @returns {boolean} - True if input matches the label, value, or description.
 	 */
 	input_matches_item(input, item) {
+		//// Neoffice — accents are folded on both sides. The search behind the dropdown compares without them
+		//// (MariaDB's utf8mb4_unicode_ci), so « revisio » lists « Révision chaudière »; upstream compared the raw
+		//// lowercase strings, refused that row, and Enter or Tab on it did nothing (09.11). Remove when upstream
+		//// folds accents here.
+		const fold = (value) =>
+			cstr(value)
+				.normalize("NFD")
+				.replace(/[\u0300-\u036f]/g, "")
+				.toLowerCase();
+		const typed = fold(input);
 		return (
 			input &&
 			[this.get_translated(item.label ?? item.value), item.value, item.description].some(
-				(value) => cstr(value).toLowerCase().includes(input)
+				//// Neoffice — compared folded, as said above
+				(value) => fold(value).includes(typed)
 			)
 		);
 	}
