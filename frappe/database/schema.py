@@ -234,7 +234,13 @@ class DbColumn:
 			return
 
 		# type
-		if current_def["type"] != column_type:
+		# //// Neoffice — backport of frappe/frappe@1a1dc0a62c (develop only, not in version-15).
+		# //// MariaDB stores a JSON column as longtext and information_schema still answers
+		# //// "longtext", while Frappe asks for "json": every migrate saw a type change and rebuilt
+		# //// the table for nothing (neoffice-maintenance#1652). Remove when the fleet is on Frappe 16.
+		if current_def["type"] != column_type and not (
+			current_def["type"] == "longtext" and column_type == "json" and frappe.db.db_type == "mariadb"
+		):
 			self.table.change_type.append(self)
 
 		# unique
@@ -287,6 +293,14 @@ class DbColumn:
 		try:
 			if cur_default in ("", None) and self.default in ("", None):
 				# both none, empty
+				return False
+
+			# //// Neoffice — backport of frappe/frappe@40b465ee0d (develop only, not in version-15).
+			# //// Frappe creates Currency, Float and Percent columns as `not null default 0` and the
+			# //// database answers '0.000000000': against a field without a default this was read as
+			# //// "default changed", so every migrate re-sent a MODIFY (a table rebuild) for nothing
+			# //// (neoffice-maintenance#1652). Remove when the fleet is on Frappe 16.
+			elif cur_default and flt(cur_default) == 0.0 and self.default in ("", None, 0.0):
 				return False
 
 			elif cur_default in ("", None):
