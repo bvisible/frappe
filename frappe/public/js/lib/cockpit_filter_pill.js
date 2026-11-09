@@ -49,6 +49,70 @@
 	function setCollapsed(side, val) {
 		side.classList.toggle("nf-pill-collapsed", val);
 		persist(val);
+		//// Neoffice — #945: the chip is measured when it is collapsed (see placeBesideToolbar)
+		placeBesideToolbar(side);
+	}
+
+	//// Neoffice — neoffice-maintenance#945: on a plain list the collapsed chip floated over the first
+	//// rows of the table (it hid the last column of row 2 in the report view). When the view has a
+	//// toolbar row (.page-form, which holds the standard filters) the chip is now centred on that row
+	//// and the row keeps room for it (padding-right, cockpit.css), so the chip never sits on data.
+	//// The two numbers are measured, not guessed: the row's height follows the theme density and its
+	//// filters wrap. Views without a toolbar row (dashboard, kanban, calendar), phones (the pill is a
+	//// FAB there) and spaces with tabs (.nwt-framed: their own Filters button, #917) keep their old
+	//// place. Remove this block if the pill is ever rendered inside the toolbar markup itself.
+	var IN_TOOLBAR = "nf-pill-in-toolbar"; // marker on .layout-main, read by cockpit.css
+	var PHONE_MAX = 767; // up to this width the pill is the bottom-right FAB (cockpit.css)
+
+	// Top of the chip, in px from the top of .layout-main, so that it is centred on the toolbar row.
+	function chipTop(rowTop, rowHeight, chipHeight) {
+		return Math.max(0, Math.round(rowTop + (rowHeight - chipHeight) / 2));
+	}
+
+	function toolbarRow(main) {
+		return main.querySelector(".layout-main-section > .page-form");
+	}
+
+	function placeBesideToolbar(side) {
+		var main = side.parentElement;
+		if (!main) return;
+		var row = toolbarRow(main);
+		// offsetParent is null while the row is display:none (a view that hides its form, a hidden page)
+		var usable = !!row && row.offsetParent !== null && window.innerWidth > PHONE_MAX;
+		if (!usable) {
+			main.classList.remove(IN_TOOLBAR);
+			main.style.removeProperty("--nf-pill-top");
+			main.style.removeProperty("--nf-pill-w");
+			return;
+		}
+		main.classList.add(IN_TOOLBAR);
+		// Measure the COLLAPSED chip only: the open card is wider and taller, and must not move the row.
+		if (!side.classList.contains("nf-pill-collapsed")) return;
+		var mainBox = main.getBoundingClientRect();
+		var rowBox = row.getBoundingClientRect();
+		var chipBox = side.getBoundingClientRect();
+		main.style.setProperty(
+			"--nf-pill-top",
+			chipTop(rowBox.top - mainBox.top, rowBox.height, chipBox.height) + "px"
+		);
+		main.style.setProperty("--nf-pill-w", Math.ceil(chipBox.width) + "px");
+	}
+
+	// Follow the toolbar row (its filters wrap, a view shows or hides it) and the chip (the count badge
+	// and the reset cross change its width).
+	function watchToolbar(side) {
+		var main = side.parentElement;
+		var row = main && toolbarRow(main);
+		var update = function () {
+			placeBesideToolbar(side);
+		};
+		if (typeof ResizeObserver === "function") {
+			var ro = new ResizeObserver(update);
+			ro.observe(side);
+			if (row) ro.observe(row);
+		} else {
+			window.addEventListener("resize", update);
+		}
 	}
 
 	// Active filter count. The stock filter button carries a localized title
@@ -154,6 +218,8 @@
 
 		if (sidebar.classList.contains(ENHANCED)) {
 			refreshCount(side);
+			//// Neoffice — #945: the view may have shown or hidden its toolbar row since the last visit
+			placeBesideToolbar(side);
 			return;
 		}
 		sidebar.classList.add(ENHANCED);
@@ -179,6 +245,8 @@
 
 		setCollapsed(side, isCollapsed());
 		refreshCount(side);
+		//// Neoffice — #945: follow the toolbar row and the chip (see placeBesideToolbar)
+		watchToolbar(side);
 
 		// Keep the badge live when the user adds/clears filters (the filter
 		// button's title attribute changes). Observe the top controls row.

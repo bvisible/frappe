@@ -2372,6 +2372,24 @@ body.neoffice-cockpit.nf-list .sidebar-toggle-btn {
 	display: none !important;
 }
 
+/* //// Neoffice — neoffice-maintenance#945: on a plain list the collapsed chip floated over the first
+   rows of the table (top: 115px, with nothing reserving room for it: it hid the last column of row 2).
+   cockpit_filter_pill.js marks .layout-main with .nf-pill-in-toolbar when the view has a visible toolbar
+   row (.page-form, the standard filters) and measures --nf-pill-top (the chip centred on that row) and
+   --nf-pill-w (the collapsed chip's width). The chip then sits at the right end of the toolbar row, and
+   the row keeps that room free so its filters never run under the chip. The open card keeps its place
+   (it hangs from the same corner). Without the marker (dashboard, kanban and calendar views have no
+   toolbar row; spaces with tabs are .nwt-framed and have their own Filters button) the rules above
+   stay as they were. Phones keep the FAB. Remove with the JS block of #945. */
+@media (min-width: 768px) {
+	body.neoffice-cockpit.nf-list .layout-main.nf-pill-in-toolbar:not(.nwt-framed) > .layout-side-section {
+		top: var(--nf-pill-top, 6px);
+	}
+	body.neoffice-cockpit.nf-list .layout-main.nf-pill-in-toolbar:not(.nwt-framed) .layout-main-section > .page-form {
+		padding-right: calc(var(--nf-pill-w, 120px) + 24px);
+	}
+}
+
 /* ---- mobile: the pill becomes a bottom-right FAB → bottom sheet ---- */
 @media (max-width: 767px) {
 	body.neoffice-cockpit.nf-list .list-sidebar.hidden-xs.hidden-sm {
