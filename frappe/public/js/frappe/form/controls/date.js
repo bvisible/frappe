@@ -172,7 +172,15 @@ frappe.ui.form.ControlDate = class ControlDate extends frappe.ui.form.ControlDat
 			let sysdefaults = frappe.sys_defaults;
 			let date_format =
 				sysdefaults && sysdefaults.date_format ? sysdefaults.date_format : "yyyy-mm-dd";
-			frappe.msgprint(__("Date {0} must be in format: {1}", [value, date_format]));
+			// //// Neoffice — an impossible date reaches validate() already parsed, as the literal
+			// //// "Invalid date" that moment writes, so the message told the user nothing of what
+			// //// was typed; and the format was the system string (dd-mm-yyyy) in every language.
+			// //// Show the typed text and the translated format (frappe's catalogue already holds
+			// //// jj-mm-aaaa for French). Remove when upstream fixes the message (neoffice-maintenance#1468).
+			const typed_text = value === "Invalid date" && this.$input ? this.$input.val() : value;
+			frappe.msgprint(
+				__("Date {0} must be in format: {1}", [typed_text || value, __(date_format)])
+			);
 			return "";
 		}
 		return value;
