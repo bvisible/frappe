@@ -6,6 +6,9 @@ class RealTimeClient {
 	constructor() {
 		this.open_tasks = {};
 		this.open_docs = new Set();
+		// //// Neoffice — state of schedule_reconnect() below (neoffice-maintenance#889).
+		this.reconnect_tries = 0;
+		this.reconnect_timer = null;
 	}
 
 	on(event, callback) {
@@ -67,6 +70,37 @@ class RealTimeClient {
 
 		this.socket.on("connect_error", function (err) {
 			console.error("Error connecting to socket.io:", err.message);
+			// //// Neoffice — after a `bench restart` the socket server is back before the web
+			// //// server, so its connection middleware (get_user_info) is refused and socket.io
+			// //// destroys the socket: `socket.active` is false and it never retries by itself, so
+			// //// every open desk page lost realtime until reloaded (neoffice-maintenance#889).
+			// //// Remove if upstream retries after a refusal by the connection middleware.
+			if (!me.socket.active) {
+				me.schedule_reconnect();
+			}
+		});
+
+		// //// Neoffice — the manager also gives up after `reconnectionAttempts` (3, about 7 s):
+		// //// a restart that takes longer leaves a socket that is neither connected nor trying.
+		this.socket.io.on("reconnect_failed", function () {
+			me.schedule_reconnect();
+		});
+
+		this.socket.on("connect", function () {
+			me.reconnect_tries = 0;
+		});
+
+		// //// Neoffice — a tab that comes back to the foreground reconnects at once instead of
+		// //// waiting for the next retry (timers of hidden tabs are throttled).
+		document.addEventListener("visibilitychange", function () {
+			if (
+				document.visibilityState === "visible" &&
+				!me.lazy_connect &&
+				!me.socket.connected
+			) {
+				me.reconnect_tries = 0;
+				me.socket.connect();
+			}
 		});
 
 		this.socket.on("msgprint", function (message) {
@@ -111,6 +145,27 @@ class RealTimeClient {
 
 			me.doc_close(frm.doctype, frm.docname);
 		});
+	}
+
+	// //// Neoffice — retry with a back-off (2 s, 4 s ... 30 s), one timer at a time and at most
+	// //// MAX_RECONNECT_TRIES times; a tab coming back to the foreground starts again from zero.
+	schedule_reconnect() {
+		const MAX_RECONNECT_TRIES = 30;
+		if (
+			this.reconnect_timer ||
+			this.lazy_connect ||
+			this.reconnect_tries >= MAX_RECONNECT_TRIES
+		) {
+			return;
+		}
+		this.reconnect_tries = (this.reconnect_tries || 0) + 1;
+		const wait = Math.min(30000, 1000 * 2 ** this.reconnect_tries);
+		this.reconnect_timer = setTimeout(() => {
+			this.reconnect_timer = null;
+			if (!this.socket.connected) {
+				this.socket.connect();
+			}
+		}, wait);
 	}
 
 	get_host(port = 9000) {
