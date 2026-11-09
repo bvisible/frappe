@@ -9,6 +9,7 @@ import re
 from email import policy
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
+from html import unescape  # //// Neoffice — see _message_has_signature (maintenance#1521)
 from typing import TYPE_CHECKING
 
 import frappe
@@ -24,6 +25,7 @@ from frappe.utils import (
 	scrub_urls,
 	split_emails,
 	strip,
+	strip_html_tags,  # //// Neoffice — see _message_has_signature (maintenance#1521)
 	to_markdown,
 )
 from frappe.utils.pdf import get_pdf
@@ -410,6 +412,12 @@ def get_formatted_html(
 	signature = None
 	if "<!-- signature-included -->" not in message:
 		signature = get_signature(email_account)
+		# //// Neoffice — the composer (communication.js, set_content) already writes the sending account's signature into the
+		# //// editor for an account that may read Email Account or has a personal one, and this render added it a second
+		# //// time under the message (maintenance#1521). Leave ours out when the message holds it. Remove when the composer
+		# //// is the only place that adds a signature, or when it writes the marker above.
+		if signature and _message_has_signature(message, signature):
+			signature = None
 
 	domain = get_url()
 	# //// Neoffice — guarded: Global Defaults and Company belong to erpnext. A bench
@@ -595,6 +603,31 @@ def get_signature(email_account):
 		return "<br>" + email_account.signature
 	else:
 		return ""
+
+
+# //// Neoffice — maintenance#1521: the innermost quoted block, taken out repeatedly so that a reply to a reply goes too
+_QUOTED_BLOCK = re.compile(r"<blockquote\b(?:(?!<blockquote\b).)*?</blockquote>", re.IGNORECASE | re.DOTALL)
+
+
+def _message_has_signature(message, signature):
+	# //// Neoffice — whether `message` already holds the text of `signature` (maintenance#1521), compared as the composer
+	# //// does (text without tags), and blind to where the lines break: the editor writes a signature's <br> as two
+	# //// paragraphs. A reply quotes the earlier mails, which may carry the same signature: what sits in a quoted block
+	# //// does not count, so that the new mail still gets its own.
+	def text_of(html):
+		return re.sub(r"\s+", "", unescape(strip_html_tags(html or "")))
+
+	wanted = text_of(signature)
+	if not wanted:
+		return False
+
+	own = message or ""
+	while True:
+		unquoted = _QUOTED_BLOCK.sub(" ", own)
+		if unquoted == own:
+			break
+		own = unquoted
+	return wanted in text_of(own)
 
 
 def get_footer(email_account, footer=None):
