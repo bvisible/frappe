@@ -37305,3 +37305,24 @@ msgstr "L'application ne s'ouvre pas, ou ce n'est pas le téléphone sur lequel 
 #: frappe/public/js/frappe/form/form_dialog.js
 msgid "Record saved. The current document is not saved yet."
 msgstr "Fiche enregistrée. Le document en cours n'est pas encore enregistré."
+
+#: frappe/public/js/frappe/utils/datatable.js:14
+msgctxt "Column menu of a table"
+msgid "Freeze"
+msgstr "Figer"
+
+#: frappe/public/js/frappe/ui/chart.js:109
+#, python-brace-format
+msgctxt "Day of a heatmap"
+msgid "on {0}"
+msgstr "le {0}"
+
+#: frappe/public/js/frappe/form/form_hero.js:273
+msgctxt "Sales document stage"
+msgid "Order"
+msgstr "Commande"
+
+#: frappe/public/js/frappe/utils/datatable.js:15
+msgctxt "Column menu of a table"
+msgid "Unfreeze"
+msgstr "Ne plus figer"
