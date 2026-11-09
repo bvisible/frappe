@@ -504,6 +504,7 @@ frappe.ui.form.FormDialog = class FormDialog {
 		return frm.save(action, (r) => {
 			if (r && !r.exc) {
 				this.propagate();
+				this.say_origin_is_unsaved();
 				// The document that was just created, under the name the server gave it.
 				const saved = (r.docs && r.docs[0]) || frm.doc;
 				this.saved = true;
@@ -511,6 +512,22 @@ frappe.ui.form.FormDialog = class FormDialog {
 				if (this.creating && this.on_saved && saved) this.on_saved(saved);
 			}
 		});
+	}
+
+	//// Neoffice — neoffice-maintenance#1102: the stock « Saved » of a save in this dialog does not say WHICH
+	//// document was saved, and the dialog closes at once, so a reader who came from a half-typed quotation
+	//// could take it for the quotation itself. When the document the link was clicked from has unsaved
+	//// changes (typed, or updated by propagate() above), say that only the linked record was saved.
+	say_origin_is_unsaved() {
+		const origin = this.origin_frm;
+		if (!origin || origin === this.frm || !origin.doc || !origin.is_dirty()) return;
+		frappe.show_alert(
+			{
+				message: __("Record saved. The current document is not saved yet."),
+				indicator: "orange",
+			},
+			7
+		);
 	}
 
 	request_close() {

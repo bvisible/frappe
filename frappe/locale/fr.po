@@ -5330,7 +5330,7 @@ msgstr ""
 
 #: frappe/public/js/frappe/form/controls/link.js:17
 msgid "Clear Link"
-msgstr ""
+msgstr "Effacer le lien"
 
 #. Label of a Int field in DocType 'Logs To Clear'
 #: frappe/core/doctype/logs_to_clear/logs_to_clear.json:26
@@ -37301,3 +37301,7 @@ msgstr "Appuyez sur le bouton pour ouvrir l'application et vous connecter."
 #: frappe/www/login-link.html
 msgid "The app does not open, or this is not the phone where you asked? Type the code from the email in the app."
 msgstr "L'application ne s'ouvre pas, ou ce n'est pas le téléphone sur lequel vous avez demandé le code ? Saisissez le code reçu par e-mail dans l'application."
+
+#: frappe/public/js/frappe/form/form_dialog.js
+msgid "Record saved. The current document is not saved yet."
+msgstr "Fiche enregistrée. Le document en cours n'est pas encore enregistré."
