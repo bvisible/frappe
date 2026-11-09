@@ -1,3 +1,9 @@
+@charset "UTF-8";
+/* //// Neoffice — keep the @charset above as the very first bytes of this sheet. It is served as
+   //// text/css with no charset, and a document that is not UTF-8 (the assistance console replays a
+   //// page in an iframe) read the raw breadcrumb separator as Windows-1252 and showed three odd
+   //// characters. Generated content below is written as ASCII escapes for the same reason
+   //// (maintenance#1386). Not a workaround to retire: it is safe whatever the embedding page does. */
 /* //// Neoffice — added file (no upstream equivalent, v15 or develop). First shipped by
    //// d0268ef91a (2026-06-10 "feat(cockpit): NeoCockpit is the default desk chrome — single
    //// menu, no navbar") and grown by ~60 commits since (form hero, grid redesign, filter
@@ -348,12 +354,12 @@ body.neoffice-cockpit .page-breadcrumbs li {
 	align-items: center;
 }
 body.neoffice-cockpit .page-breadcrumbs li + li::before {
-	content: "›";
+	content: "\203A";
 	margin: 0 7px;
 	opacity: 0.45;
 }
 body.neoffice-cockpit .page-breadcrumbs:not(:empty)::after {
-	content: "›";
+	content: "\203A";
 	margin: 0 8px;
 	opacity: 0.45;
 }
