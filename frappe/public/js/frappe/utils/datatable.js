@@ -7,6 +7,12 @@ frappe.utils.datatable.get_translations = function () {
 		"Sort Descending": __("Sort Descending"),
 		"Reset sorting": __("Reset sorting"),
 		"Remove column": __("Remove column"),
+		//// Neoffice — the column menu of frappe-datatable also offers « Freeze » / « Unfreeze ». This table
+		//// REPLACES the datatable's own entry for the language (its TranslationManager does a shallow
+		//// Object.assign), so a string missing here reads in English whatever the datatable ships
+		//// (maintenance#2421). Upstream lists neither, in v15 or develop.
+		Freeze: __("Freeze", null, "Column menu of a table"),
+		Unfreeze: __("Unfreeze", null, "Column menu of a table"),
 		"No Data": __("No Data"),
 		"{count} cells copied": {
 			1: __("{count} cell copied"),

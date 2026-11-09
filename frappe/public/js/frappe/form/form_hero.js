@@ -267,7 +267,12 @@ const HERO_REGISTRY = {
 			{ label: __("Draft"), when: doc.creation },
 			{ label: __("Sent"), when: tx.submit() || tx.status("Open") },
 			{ label: __("Accepted"), when: tx.status("Accepted") },
-			{ label: __("Order"), when: tx.status("Ordered", "Partially Ordered", "Invoiced") },
+			//// Neoffice — the stage takes a context: the bare word « Order » is also a sort order, and the French
+			//// of the apps loaded after frappe (builder, suite, wiki, helpdesk) wins: « Ordre » (maintenance#2421).
+			{
+				label: __("Order", null, "Sales document stage"),
+				when: tx.status("Ordered", "Partially Ordered", "Invoiced"),
+			},
 		],
 		rank(doc) {
 			if (doc.docstatus === 2 || ["Lost", "Expired", "Cancelled"].includes(doc.status))
