@@ -160,8 +160,12 @@ const DETAIL_ICONS = {
 	user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
 	send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg>',
 };
-function send_action(frm) {
-	if (frm.doc.docstatus !== 1) return null;
+//// Neoffice — `with_draft`: a draft invoice that is saved may be sent too (its hero offers « Send » beside « Validate »);
+//// every other caller still gets a send action on a validated document only.
+function send_action(frm, with_draft) {
+	const sendable =
+		frm.doc.docstatus === 1 || (with_draft && frm.doc.docstatus === 0 && !frm.is_new());
+	if (!sendable) return null;
 	const base = { label: __("Send"), icon: "mail", run: () => frm.email_doc() };
 	const provider = frappe.ui.form.hero_send_actions[frm.doctype];
 	if (!provider) return base;
@@ -176,6 +180,21 @@ function send_action(frm) {
 function print_action(frm) {
 	if (frm.doc.docstatus !== 1) return null;
 	return { label: __("Print"), icon: "print", run: () => frm.print_doc() };
+}
+//// Neoffice — what stays under the validated step for the whole validated life of the document, besides what the current
+//// step already offers: « Print » for every doctype (you re-open a paid invoice to view or reprint it) and, for a doctype
+//// whose registry entry says `keep_send`, « Send » too: a customer asks for a copy of an invoice long after paying it, and the
+//// head used to drop « Send » with the last step. « Send » comes first, as on the unpaid invoice. Deduped by label against every
+//// step, so that nothing is drawn twice (an accepted quotation showed « Print » twice: neoffice-maintenance#2167).
+function kept_actions(frm, conf, listed) {
+	if (cint(frm.doc.docstatus) !== 1) return [];
+	const kept = [];
+	const wanted = [conf && conf.keep_send ? send_action(frm) : null, print_action(frm)];
+	const shown = (a) => listed.concat(kept).some((l) => l.label === a.label);
+	wanted.forEach((a) => {
+		if (a && !shown(a)) kept.push(a);
+	});
+	return kept;
 }
 function create_menu_action(frm) {
 	if (frm.doc.docstatus !== 1) return null;
@@ -355,8 +374,11 @@ const HERO_REGISTRY = {
 			if (doc.status === "Paid") return 4;
 			return 2;
 		},
+		//// Neoffice — an invoice can be sent whatever its stage: on a draft (beside « Validate »), unpaid and overdue (the current
+		//// step), and paid (kept under the validated step, see kept_actions): customers ask for a copy after they paid.
+		keep_send: true,
 		actions(rank, frm) {
-			if (rank === 1) return [submit_action(frm)];
+			if (rank === 1) return [submit_action(frm), send_action(frm, true)];
 			if (rank === 2) return [send_action(frm), print_action(frm), create_menu_action(frm)];
 			return [];
 		},
@@ -943,18 +965,10 @@ frappe.ui.form.FormHero = class FormHero {
 		// validated life of the document — you often re-open a paid invoice
 		// to view or reprint it. Like WebStamp, it persists once validated;
 		// deduped against the current-step actions so it never doubles up.
-		if (cint(this.frm.doc.docstatus) === 1) {
-			const p = print_action(this.frm);
-			if (p) {
-				const at = clamp(2);
-				//// Neoffice — deduped against EVERY step, as the comment above says: comparing the anchor too left a
-				//// second « Print » under the validated step while the current step already offered one (an accepted
-				//// quotation showed it under « Sent » and under « Accepted », neoffice-maintenance#2167).
-				if (!all_actions.some((a) => a.label === p.label)) {
-					all_actions.push({ ...p, _anchor: at });
-				}
-			}
-		}
+		//// Neoffice — worked out by kept_actions (« Print » always, « Send » where the doctype keeps it), deduped against every step.
+		kept_actions(this.frm, conf, all_actions).forEach((a) =>
+			all_actions.push({ ...a, _anchor: clamp(2) })
+		);
 
 		const seg = steps
 			.map((step, i) => {
