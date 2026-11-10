@@ -972,7 +972,8 @@ class QueueBuilder:
 				mail.set_in_reply_to(f"<{message_id}>")
 		return mail
 
-	def process(self, send_now=False) -> EmailQueue | None:
+	# //// Neoffice — `raise_send_error` added (upstream: process(self, send_now=False)); see the send below.
+	def process(self, send_now=False, raise_send_error=True) -> EmailQueue | None:
 		"""Build and return the email queues those are created.
 
 		Sends email incase if it is requested to send now.
@@ -989,7 +990,17 @@ class QueueBuilder:
 		if not queue_separately:
 			recipients = list(set(final_recipients + self.final_cc() + self.final_bcc()))
 			q = EmailQueue.new({**queue_data, **{"recipients": recipients}}, ignore_permissions=True)
-			send_now and q.send()
+			# //// Neoffice — upstream: `send_now and q.send()`, the error raised to the caller.
+			# //// raise_send_error=False (frappe.sendmail, when the immediate send is ours and not the
+			# //// caller's) keeps it in the row instead: SendMailContext has already marked it "Not Sent"
+			# //// with one more retry (or "Error" at the limit) and committed, so the flush sends it again.
+			# //// A hub down for a few seconds failed the user's action that sent a mail (maintenance #2488).
+			if send_now:
+				try:
+					q.send()
+				except Exception:
+					if raise_send_error:
+						raise
 			return q
 		else:
 			if send_now and len(final_recipients) >= 1000:

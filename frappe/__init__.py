@@ -939,7 +939,13 @@ def sendmail(
 	# //// we fall back to upstream's own default — queue the mail, do not send it — which is what
 	# //// every frappe/erpnext/hrms test is written against (they read `Email Queue`, they never
 	# //// assert a delivery). Production behaviour is unchanged.
-	return builder.process(send_now=not flags.in_test)
+	# //// Neoffice — the immediate send we force is ours, not the caller's: when it fails (the hub
+	# //// answers 503 for a few seconds at each of its restarts), the mail stays in Email Queue
+	# //// ("Not Sent", retried by the flush, as upstream would have queued it) and the caller's
+	# //// action goes on. It used to raise up to the caller: a save, a notification or a password
+	# //// reset failed while its mail left a minute later (maintenance #2488). A caller that asked
+	# //// for now=True (or delayed=False) still gets the error, as upstream.
+	return builder.process(send_now=not flags.in_test, raise_send_error=bool(now))
 
 whitelisted = []
 guest_methods = []
