@@ -5043,7 +5043,7 @@ msgstr "Changer l'en-tête"
 #. Label of a Section Break field in DocType 'User'
 #: frappe/core/doctype/user/user.json:327
 msgid "Change Password"
-msgstr "Changez le Mot de Passe"
+msgstr "Changer le mot de passe"
 
 #: frappe/public/js/print_format_builder/print_format_builder.bundle.js:27
 msgid "Change Print Format"
