@@ -252,13 +252,31 @@ def get_filtered_attachments(dt: str, dn: str | int, filters: str):
 def get_versions(doc: "Document") -> list[dict]:
 	if not doc.meta.track_changes:
 		return []
-	return frappe.get_all(
+	# //// Neoffice — kept to be filtered for the reader below (neoffice-maintenance#2296), no longer returned whole
+	versions = frappe.get_all(
 		"Version",
 		filters=dict(ref_doctype=doc.doctype, docname=str(doc.name)),
 		fields=["name", "owner", "creation", "data"],
 		limit=10,
 		order_by="creation desc",
 	)
+
+	# //// Neoffice — the history of a form shows only the fields the reader may read: upstream version-15 gave the
+	# //// old and the new value of every field to anyone who opens the form (neoffice-maintenance#2296; see
+	# //// readable_version_json in core/doctype/version/version.py). Upstream develop does the same since
+	# //// eb3c578130 and 82e99a101e: at the v16 merge take its get_versions and drop these lines.
+	from frappe.core.doctype.version.version import filter_version_json, readable_version_fields
+
+	readable = readable_version_fields(doc.doctype)
+	if readable is None:
+		return versions
+	readable_versions = []
+	for version in versions:
+		data = filter_version_json(version.data, readable)
+		if data is not None:
+			version.data = data
+			readable_versions.append(version)
+	return readable_versions
 
 
 @frappe.whitelist()

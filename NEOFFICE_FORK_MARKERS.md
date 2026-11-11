@@ -209,3 +209,15 @@ none of it was introduced by the merge. "TO REVIEW" rows are candidates to go ba
 | `frappe/automation/workspace/tools/tools.json`, `frappe/core/workspace/users/users.json`, `frappe/core/workspace/welcome_workspace/welcome_workspace.json`, `frappe/website/workspace/website/website.json` | Workspaces trimmed (shortcuts and cards removed) and restricted to the `Core` domain, for our own workspace layout | 4e23539603 (2024-09-23 "last updates", no message), 7446c62c35 |
 | `frappe/core/form_tour/doctype/doctype.json`, `frappe/custom/form_tour/custom_field/custom_field.json`, `frappe/printing/form_tour/letter_head/letter_head.json`, `frappe/printing/form_tour/print_format/print_format.json` | Form tours re-exported with the keys of a newer Form Tour schema (`hide_buttons`, `offset_x`…). TO REVIEW: no functional change identified | 4e23539603 |
 | `frappe/custom/module_onboarding/customization/customization.json`, `frappe/website/module_onboarding/website/website.json`, `frappe/website/onboarding_step/add_blog_category/add_blog_category.json`, `frappe/website/onboarding_step/create_blogger/create_blogger.json`, `frappe/website/onboarding_step/enable_website_tracking/enable_website_tracking.json`, `frappe/website/onboarding_step/introduction_to_website/introduction_to_website.json`, `frappe/website/onboarding_step/web_page_tour/web_page_tour.json` | Onboarding: our help address instead of the ERPNext documentation link, form tours switched off on the website steps | 7446c62c35, 4e23539603 |
+
+## Contracts
+
+What an upstream merge must keep (`scripts/fork_contracts.py` of `bvisible/neoffice-ci`).
+
+| Contract | Rule | Pattern | Why |
+| --- | --- | --- | --- |
+| `frappe/desk/form/load.py` | present | `readable_version_fields\(doc\.doctype\)` | neoffice-maintenance#2296 (audit Q15): the history of a form shows a reader only the fields they may read. At the v16 merge upstream's own filter of `get_versions` (develop eb3c578130, 82e99a101e) takes its place: then write upstream's call here instead (`readable_permlevels\(doc\.meta\)`), never delete the row |
+| `frappe/core/doctype/version/version.py` | present | `self\.data = readable_version_json\(self\.data, self\.ref_doctype\)` | #2296: the Version form and every read of a Version as a document keep only the fields the reader may read of the recorded document |
+| `frappe/core/doctype/version/version.py` | present | `data = json\.loads\(readable_version_json\(self\.data, self\.ref_doctype\)` | #2296: the diffs of the Version form are drawn from the readable fields only |
+| `frappe/model/db_query.py` | present | `select_version_data_readably\(self\)` | #2296: a list of Version selects its data as a plain column next to the recorded doctype, never inside an expression |
+| `frappe/model/db_query.py` | present | `result = filter_version_rows\(self, result\)` | #2296: a list of Version gives each row's data with only the fields its reader may read |

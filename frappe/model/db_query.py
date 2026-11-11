@@ -427,6 +427,12 @@ class DatabaseQuery:
 			return []
 
 		result = self.build_and_run()
+		# //// Neoffice — a list of Version gives each row's data with only the fields its reader may read of the
+		# //// recorded document (neoffice-maintenance#2296; select_version_data_readably in prepare_args)
+		if self.doctype == "Version":
+			from frappe.core.doctype.version.version import filter_version_rows
+
+			result = filter_version_rows(self, result)
 
 		if self.with_comment_count:
 			self.add_comment_count(result)
@@ -509,6 +515,12 @@ from {tables}
 		self.set_optional_columns()
 		self.build_conditions()
 		self.apply_fieldlevel_read_permissions()
+		# //// Neoffice — the data of a Version is filtered for its reader once read, so it is selected only as a plain
+		# //// column, next to the doctype it records (neoffice-maintenance#2296; see version.py)
+		if self.doctype == "Version":
+			from frappe.core.doctype.version.version import select_version_data_readably
+
+			select_version_data_readably(self)
 		# read now: table prefixes and postgres casts below rewrite the fields
 		self.has_own_name = self.selects_own_name()
 		if self.with_comment_count and self.distinct and not self.has_own_name:
