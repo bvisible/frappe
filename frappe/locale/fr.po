@@ -4739,11 +4739,11 @@ msgstr "Impossible de changer l'état d'un Document Annulé. Ligne de transition
 
 #: frappe/core/doctype/user_social_login/user_social_login.py:44
 msgid "Cannot change the provider of this sign-in identifier."
-msgstr ""
+msgstr "Impossible de modifier le fournisseur de cet identifiant de connexion."
 
 #: frappe/core/doctype/user_social_login/user_social_login.py:48
 msgid "Cannot change the sign-in identifier for the frappe provider."
-msgstr ""
+msgstr "Impossible de modifier l'identifiant de connexion du fournisseur frappe."
 
 #: frappe/core/doctype/doctype/doctype.py:1131
 msgid "Cannot change to/from autoincrement autoname in Customize Form"
