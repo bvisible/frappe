@@ -270,7 +270,17 @@ jobs:
         run: |
           # upstream's server-tests.yml runs this very image as a service: the site's outgoing
           # mail (mail_server localhost:2525, set above) lands here instead of failing to connect
-          docker run -d --name smtp_sink -p 2525:25 rnwood/smtp4dev:3.7.1
+          # //// Neoffice — and its web API on 3000, as upstream's service maps it: TestEmailIntegrationTest reads
+          # //// the received mails there (ConnectionRefused on localhost:3000 without it, neoffice-maintenance#1832).
+          docker run -d --name smtp_sink -p 2525:25 -p 3000:80 rnwood/smtp4dev:3.7.1
+
+      # //// Neoffice — upstream's CI builds frappe's assets (install.sh: bench build --app frappe); the whole suite
+      # //// needs them where a test reads a bundle: test_inline_styling inlines email.bundle.css, which is not
+      # //// there with --skip-assets (neoffice-maintenance#1832). The cases mode keeps its bare bench.
+      - name: Build frappe's assets, for the whole suite
+        if: steps.modules.outputs.mode == 'full'
+        working-directory: /home/runner/frappe-bench
+        run: CI=Yes bench build --app frappe
 
       - name: Serve the site, for the tests that call it over HTTP
         working-directory: /home/runner/frappe-bench
