@@ -366,7 +366,21 @@ frappe.ui.form.Toolbar = class Toolbar {
 			this.page.wrapper.find(".standard-actions").first().prepend(this.$preview_btn);
 		}
 		// hide on unsaved documents (nothing meaningful to print yet)
-		this.$preview_btn.toggleClass("hide", Boolean(this.frm.doc.__islocal));
+		//// Neoffice — and wherever the menu's Print is not offered: the button stayed on a cancelled invoice while the
+		//// menu had no Print and the server refused the print (« Not allowed to print cancelled documents »). The same
+		//// rule as make_menu_items, read again at each refresh (maintenance#1472).
+		this.$preview_btn.toggleClass("hide", Boolean(this.frm.doc.__islocal) || !this.can_print_this_document());
+	}
+
+	//// Neoffice — added method (no upstream equivalent): the condition make_menu_items puts on its Print entry.
+	can_print_this_document() {
+		const docstatus = cint(this.frm.doc.docstatus);
+		if (!frappe.model.is_submittable(this.frm.doc.doctype) || docstatus == 1) return true;
+		const print_settings = frappe.model.get_doc(":Print Settings", "Print Settings");
+		// Not loaded (never seen, the boot carries it): the button as it was, the server still decides.
+		if (!print_settings) return true;
+		if (docstatus == 2) return Boolean(cint(print_settings.allow_print_for_cancelled));
+		return Boolean(cint(print_settings.allow_print_for_draft));
 	}
 
 	make_menu() {
