@@ -51,7 +51,7 @@ from .utils.jinja import (
 )
 from .utils.lazy_loader import lazy_import
 
-__version__ = "15.126.0"
+__version__ = "15.126.1"
 __title__ = "Frappe Framework"
 
 # This if block is never executed when running the code. It is only used for
@@ -891,6 +891,9 @@ def sendmail(
 
 	if not delayed:
 		now = True
+
+	if communication and not (recipients or cc or bcc):
+		throw(_("At least one recipient is required"))
 
 	from frappe.email.doctype.email_queue.email_queue import QueueBuilder
 

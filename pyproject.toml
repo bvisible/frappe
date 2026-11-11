@@ -68,7 +68,7 @@ dependencies = [
     "pydantic>=2.12.0,<3.0.0",  # //// Neoffice — upstream: ~=2.12.0 (2.12.* only); the benches already run 2.13 for our other apps (nora's mcp), a pin would downgrade it (maintenance#1679)
     "pyotp~=2.9.0",
     "python-dateutil~=2.9.0",
-    "pytz==2025.2",
+    "pytz==2026.5",
     "rauth~=0.7.3",
     "redis~=4.5.5",
     "hiredis~=2.2.3",

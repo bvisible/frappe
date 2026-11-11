@@ -117,10 +117,15 @@ def extract_email_id(email: str) -> str:
 	return cstr(parse_addr(email)[1])
 
 
-def validate_phone_number_with_country_code(phone_number: str, fieldname: str) -> None:
+def validate_phone_number_with_country_code(
+	phone_number: str, fieldname: str | None = None, label: str | None = None
+) -> None:
 	from phonenumbers import NumberParseException, is_valid_number, parse
 
 	from frappe import _
+
+	if not (fieldname or label):
+		raise TypeError("validate_phone_number_with_country_code() requires a fieldname or label")
 
 	if not phone_number:
 		return
@@ -138,7 +143,7 @@ def validate_phone_number_with_country_code(phone_number: str, fieldname: str) -
 	finally:
 		if not valid_number:
 			frappe.throw(
-				error_message.format(frappe.bold(phone_number), frappe.bold(fieldname)),
+				error_message.format(frappe.bold(phone_number), frappe.bold(label or fieldname)),
 				title=error_title,
 				exc=frappe.InvalidPhoneNumberError,
 			)
@@ -283,6 +288,11 @@ def validate_url(
 		frappe.throw(frappe._("'{0}' is not a valid URL").format(frappe.bold(txt)))
 
 	return is_valid
+
+
+def has_unsafe_url_scheme(txt: str) -> bool:
+	"""Return True if `txt` has a scheme that runs code when the URL is opened."""
+	return urlparse(txt).scheme in ("javascript", "vbscript", "data")
 
 
 def validate_iban(iban: str, throw: bool = False) -> bool:
