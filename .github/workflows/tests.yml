@@ -240,6 +240,14 @@ jobs:
           # upstream's CI site config carries it. Ours did not: every test that logs in as
           # Administrator died on "Incomplete login details" (test_brute_security, #392).
           bench --site test_site set-config admin_password admin
+          # //// Neoffice — two more keys of upstream's CI site config (.github/helper/db/mariadb.json), and the
+          # //// assets link its `bench build --app frappe` leaves (we init with --skip-assets and build nothing). Without
+          # //// them TestBackups' `bench restore` stopped on « MySQL root password: », and every test of test_email_body
+          # //// died in setUp on sites/assets/frappe/images/frappe-favicon.svg (neoffice-maintenance#1832).
+          bench --site test_site set-config root_login root
+          bench --site test_site set-config root_password root
+          mkdir -p sites/assets
+          [ -e sites/assets/frappe ] || ln -s ../../apps/frappe/frappe/public sites/assets/frappe
           # --skip-assets leaves no sites/assets/assets.json, and frappe's error page reads it
           # (jinja_globals.bundled_asset). A 404 on the served site then crashed INSIDE
           # handle_exception, the dev server never closed that request's transaction, and its

@@ -948,7 +948,10 @@ def sendmail(
 	# //// action goes on. It used to raise up to the caller: a save, a notification or a password
 	# //// reset failed while its mail left a minute later (maintenance #2488). A caller that asked
 	# //// for now=True (or delayed=False) still gets the error, as upstream.
-	return builder.process(send_now=not flags.in_test, raise_send_error=bool(now))
+	# //// Neoffice — under test, a caller's own now=True (or delayed=False) is upstream's: the mail is sent at once.
+	# //// Queueing it there too left upstream's tests that ask for it on an empty « Sent » queue (test_email,
+	# //// user_invitation, email_account.test_sendmail: neoffice-maintenance#1832). Only OUR forced send stays off.
+	return builder.process(send_now=bool(now) or not flags.in_test, raise_send_error=bool(now))
 
 whitelisted = []
 guest_methods = []
