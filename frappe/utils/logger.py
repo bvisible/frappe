@@ -123,4 +123,47 @@ def sanitized_dict(form_dict):
 		for secret_kw in blocklist:
 			if secret_kw in k:
 				sanitized_dict[k] = "********"
+	# //// Neoffice ▼▼▼ — a form save (frappe.desk.form.save.savedocs) sends the whole document as ONE JSON string
+	# //// under `doc` (`docs` for some callers): the loop above read only the first level, so a failed save wrote the
+	# //// document's Password fields in clear into frappe.log (« Form Dict: … », a mailbox password on the hub on
+	# //// 11.11, neoffice-maintenance#2549). The JSON is decoded, its secret keys and its Password fields (child rows
+	# //// included) masked, and encoded again. Drop this when upstream masks the nested document.
+	for k in ("doc", "docs"):
+		if isinstance(sanitized_dict.get(k), str):
+			sanitized_dict[k] = _sanitized_json_document(sanitized_dict[k], blocklist)
+	# //// Neoffice ▲▲▲
 	return sanitized_dict
+
+
+# //// Neoffice — added function, see sanitized_dict (neoffice-maintenance#2549).
+def _sanitized_json_document(value, blocklist):
+	"""`value`, a JSON document or list of documents, with its secret keys and its Password fields masked."""
+	import json
+
+	try:
+		decoded = json.loads(value)
+	except ValueError:
+		return value
+	if not isinstance(decoded, dict | list):
+		return value
+
+	def password_fields(doctype):
+		try:
+			return {df.fieldname for df in frappe.get_meta(doctype).fields if df.fieldtype == "Password"}
+		except Exception:
+			return set()  # no database at hand (a log written outside a request): the names still decide
+
+	def mask(node):
+		if isinstance(node, list):
+			return [mask(item) for item in node]
+		if not isinstance(node, dict):
+			return node
+		secret = password_fields(node["doctype"]) if isinstance(node.get("doctype"), str) else set()
+		return {
+			key: "********"
+			if key in secret or any(word in key for word in blocklist)
+			else mask(item)
+			for key, item in node.items()
+		}
+
+	return json.dumps(mask(decoded))
