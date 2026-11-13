@@ -49,17 +49,31 @@ def validate_receiver_nos(receiver_list):
 @frappe.whitelist()
 def get_contact_number(contact_name: str, ref_doctype: str, ref_name: str):
 	"Return mobile number of the given contact."
-	number = frappe.db.sql(
-		"""select mobile_no, phone from tabContact
-		where name=%s
-			and exists(
-				select name from `tabDynamic Link` where link_doctype=%s and link_name=%s
-			)
-	""",
-		(contact_name, ref_doctype, ref_name),
-	)
+	# //// Neoffice — backport of upstream's v16 fix (frappe 0153d1c7d6, GHSA-r8gf-89pc-pmv3, published for v16
+	# //// only). The v15 query checked no permission and did not tie the Dynamic Link to the contact: any logged-in
+	# //// account, a portal customer included, read the number of any contact (proven on a dev instance on
+	# //// 13.11.2026, neoffice-maintenance#2646). Now: read access on the contact and on the document, and a number
+	# //// only for a contact linked to that document. Remove when upstream backports it to version-15, or at v16.
+	frappe.has_permission("Contact", doc=contact_name, throw=True)
+	frappe.has_permission(ref_doctype, doc=ref_name, throw=True)
 
-	return (number and (number[0][0] or number[0][1])) or ""
+	is_linked = frappe.db.exists(
+		"Dynamic Link",
+		{
+			"parenttype": "Contact",
+			"parent": contact_name,
+			"link_doctype": ref_doctype,
+			"link_name": ref_name,
+		},
+	)
+	# //// Neoffice — upstream's v16 fix, continued (#2646): no number for a contact not linked to the document.
+	if not is_linked:
+		return ""
+
+	# //// Neoffice — upstream's v16 fix, continued (#2646): the number of that contact only.
+	contact = frappe.db.get_value("Contact", contact_name, ["mobile_no", "phone"], as_dict=True)
+
+	return (contact and (contact.mobile_no or contact.phone)) or ""
 
 
 def check_sms_permission():
