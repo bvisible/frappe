@@ -2,6 +2,7 @@ from collections.abc import Callable
 from functools import lru_cache, wraps
 from inspect import _empty, isclass, signature
 from types import EllipsisType
+
 # //// Neoffice — added get_type_hints to resolve PEP 563 deferred (stringified) annotations before the ForwardRef/str skip below, so whitelisted endpoints on modules using `from __future__ import annotations` get argument checking again (48b6d2dde2 "fix(typing): deferred annotations no longer skip the whole argument check")
 from typing import ForwardRef, TypeVar, Union, get_type_hints
 
@@ -243,10 +244,10 @@ def transform_parameter_types(func: Callable, args: tuple, kwargs: dict):
 				continue
 			raise_type_error(current_arg, current_arg_type, current_arg_value)
 
-		# //// Neoffice — a report-only pass must not cast either: production keeps the
-		# //// exact behaviour it had before the annotations were resolved.
-		if not enforce:
-			continue
+		# //// Neoffice — a VALID value is cast in report-only mode too (maintenance#1310, Jérémy's choice A, 13.11).
+		# //// The pass used to skip the cast as well, so a PEP 563 endpoint annotated `limit: int` received the
+		# //// request's "50" and broke on `limit + 1` (Writer, suite). Upstream casts on every endpoint, which is
+		# //// what the code written against it expects; only an INVALID value stays report-only above.
 
 		# update the args and kwargs with possibly casted value
 		if current_arg in kwargs:

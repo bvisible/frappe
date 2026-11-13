@@ -1790,6 +1790,28 @@ class TestArgumentTypingValidations(FrappeTestCase):
 		with self.assertRaises(FrappeTypeError):
 			optional_dict("a", True)
 
+	# //// Neoffice — added tests (maintenance#1310): live traffic runs PEP 563 endpoints in report-only mode.
+	def test_report_only_mode_casts_a_valid_value(self):
+		from unittest.mock import patch
+
+		from frappe.tests.pep563_annotated_module import simple_types
+
+		with patch("frappe.utils.typing_validations._enforce_deferred_annotations", return_value=False):
+			# what a request sends: strings; what the endpoint's code expects: its annotations
+			self.assertEqual(simple_types("50", "2.5", "1"), (50, 2.5, True))
+
+	def test_report_only_mode_lets_an_invalid_value_through_unchanged(self):
+		from unittest.mock import patch
+
+		from frappe.tests.pep563_annotated_module import simple_types
+
+		with (
+			patch("frappe.utils.typing_validations._enforce_deferred_annotations", return_value=False),
+			patch("frappe.utils.typing_validations._report_deferred_type_error") as report,
+		):
+			self.assertEqual(simple_types(1, 2, "a"), (1, 2.0, "a"))
+		report.assert_called_once()
+
 	def test_unresolvable_string_annotation_fails_open(self):
 		"""An annotation naming something that does not exist must not break the call."""
 		from frappe.tests.pep563_annotated_module import unresolvable_hint
