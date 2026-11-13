@@ -11,7 +11,9 @@ from frappe import _
 from frappe.desk.reportview import validate_args
 from frappe.model.db_query import check_parent_permission
 from frappe.model.utils import is_virtual_doctype
-from frappe.utils import attach_expanded_links, get_safe_filters
+
+# //// Neoffice — cstr added to this import for _refuse_changed_standard_fields (GHSA-2c6h-wv85-fxvj, below).
+from frappe.utils import attach_expanded_links, cstr, get_safe_filters
 from frappe.utils.deprecations import deprecated
 
 if TYPE_CHECKING:
@@ -212,16 +214,45 @@ def set_value(doctype: str, name: str | int, fieldname: str | dict[str, Any], va
 	# check for child table doctype
 	if not frappe.get_meta(doctype).istable:
 		doc = frappe.get_doc(doctype, name)
+		# //// Neoffice — GHSA-2c6h-wv85-fxvj, see _refuse_changed_standard_fields below.
+		_refuse_changed_standard_fields(doc, values)
 		doc.update(values)
 	else:
 		doc = frappe.db.get_value(doctype, name, ["parenttype", "parent"], as_dict=True)
 		doc = frappe.get_doc(doc.parenttype, doc.parent)
 		child = doc.getone({"doctype": doctype, "name": name})
+		# //// Neoffice — GHSA-2c6h-wv85-fxvj, see _refuse_changed_standard_fields below.
+		_refuse_changed_standard_fields(child, values)
 		child.update(values)
 
 	doc.save()
 
 	return doc.copy_with_fieldlevel_read_permissions().as_dict()
+
+
+# //// Neoffice — added (GHSA-2c6h-wv85-fxvj, "mass assignment in client endpoint through type confusion", published
+# //// without a fixed version). set_value refuses a standard field named as `fieldname`, but the same fields given as a
+# //// dict, or as the JSON text of one, went through: `fieldname in (...)` is False for a dict. `name` given that way
+# //// made doc.save() write over ANOTHER record of the doctype: the UPDATE targets the name sent, the permission is
+# //// checked on the copy in memory, and the other record's `owner`, `creation` and `modified`, sent along, pass the
+# //// set-once and timestamp checks (seen on a dev instance on 13.11: an account wrote over another user's ToDo).
+# //// `parent` / `parenttype` / `parentfield` sent for a child row would move it to another document.
+# //// Upstream wrote this check (frappe#38815) and reverted it two days later (frappe#38882): frappe-ui echoes fields it
+# //// already holds. So a standard field is refused here only when its value CHANGES, and `modified` / `modified_by`
+# //// stay free (save() sets both; `modified` carries the edit-conflict check). Remove when an upstream release the
+# //// fleet runs closes the advisory.
+_FIELDS_SET_VALUE_NEVER_CHANGES = frozenset(frappe.model.default_fields + frappe.model.child_table_fields) - {
+	"modified",
+	"modified_by",
+}
+
+
+def _refuse_changed_standard_fields(doc: "Document", values: Any) -> None:
+	if not isinstance(values, dict):
+		return
+	for field in _FIELDS_SET_VALUE_NEVER_CHANGES.intersection(values):
+		if cstr(values[field]) != cstr(doc.get(field)):
+			frappe.throw(_("Cannot edit standard fields"))
 
 
 @frappe.whitelist(methods=["POST", "PUT"])

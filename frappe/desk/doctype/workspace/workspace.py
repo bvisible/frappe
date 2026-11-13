@@ -323,7 +323,9 @@ def new_page(new_page: str):
 @frappe.whitelist()
 # //// Neoffice — `deleted_widgets` added (07ee48dd37, 2026-06-16): the widgets the user deleted from the page, passed
 # //// to save_new_widget so their shortcut/card rows go too (see workspace.js).
-def save_page(title: str, public: str | int, new_widgets: str, blocks: str, deleted_widgets: str | None = None):
+def save_page(
+	title: str, public: str | int, new_widgets: str, blocks: str, deleted_widgets: str | None = None
+):
 	public = frappe.parse_json(public)
 
 	filters = {"public": public, "label": title}
@@ -335,6 +337,20 @@ def save_page(title: str, public: str | int, new_widgets: str, blocks: str, dele
 		doc = frappe.get_doc("Workspace", pages[0])
 	else:
 		frappe.throw(_("Workspace not found"), frappe.DoesNotExistError)
+
+	# //// Neoffice — GHSA-mcr4-jc52-ww6x is fixed upstream in v16 only (8ef9e90762, 345016b08a, today's
+	# //// can_edit_workspace); the v15 save_page checked nothing. `public` reaches the filters above as the
+	# //// caller sent it, so a JSON list such as ["!=", 1] made any logged-in account, a portal customer
+	# //// included, find another user's private workspace by its label and overwrite its content (validate()
+	# //// guards public workspaces only, and the save ignores permissions). Same rule as update_page and as
+	# //// v16: a Workspace Manager, or the owner of a private workspace. Remove when the fleet runs v16.
+	if doc.public and not is_workspace_manager():
+		frappe.throw(_("Need Workspace Manager role to edit public workspaces."), frappe.PermissionError)
+	if not doc.public and doc.for_user != frappe.session.user and not is_workspace_manager():
+		frappe.throw(
+			_("Need Workspace Manager role to edit private workspace of other users"),
+			frappe.PermissionError,
+		)
 
 	doc.content = blocks
 	doc.save(ignore_permissions=True)
