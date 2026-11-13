@@ -442,8 +442,10 @@ def get_desktop_page(page: str):
 # //// Neoffice — upstream takes no argument. `current_workspace` (0634af137c 2025-11-13 "Enhance workspace and
 # //// app customization logic") limits the list to the workspaces of the App Customization app holding it,
 # //// so the redesigned sidebar shows one app at a time; the whole function is reworked below.
+# //// `current_workspace` is annotated: it reaches frappe.db.get_value as a filter, and a JSON body would otherwise
+# //// make it an operator (neoffice-ci check_whitelist_permissions).
 @frappe.whitelist()
-def get_workspace_sidebar_items(current_workspace=None):
+def get_workspace_sidebar_items(current_workspace: str | None = None):
 	"""Get list of sidebar items for desk"""
 	# //// Neoffice — a portal account (Website User) never reaches the desk: /app refuses it (www/app.py), and the
 	# //// desk's own sidebar must not answer it either. It listed 14 workspace names to a shop's customer (13.11,
