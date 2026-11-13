@@ -445,6 +445,12 @@ def get_desktop_page(page: str):
 @frappe.whitelist()
 def get_workspace_sidebar_items(current_workspace=None):
 	"""Get list of sidebar items for desk"""
+	# //// Neoffice — a portal account (Website User) never reaches the desk: /app refuses it (www/app.py), and the
+	# //// desk's own sidebar must not answer it either. It listed 14 workspace names to a shop's customer (13.11,
+	# //// neoffice-maintenance#2637): no record, but the shape of the client's desk. Empty, as for an account that
+	# //// holds no workspace. Keep this block through an upstream merge.
+	if frappe.get_cached_value("User", frappe.session.user, "user_type") == "Website User":
+		return {"pages": [], "has_access": False, "has_create_access": False}
 	has_access = "Workspace Manager" in frappe.get_roles()
 
 	# don't get domain restricted pages
