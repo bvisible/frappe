@@ -484,7 +484,22 @@ def get_valid_perms(doctype=None, user=None):
 	perms = get_perms_for(roles)
 	custom_perms = get_perms_for(roles, "Custom DocPerm")
 
-	doctypes_with_custom_perms = get_doctypes_with_custom_docperms()
+	# //// Neoffice — the meta never applies a Custom DocPerm to its special doctypes (DocType, DocField, DocPerm,
+	# //// Module Def, DocType Action, DocType Link, DocType State: Meta.process() returns before
+	# //// set_custom_permissions()) nor to Custom DocPerm itself (set_custom_permissions() skips it), so
+	# //// has_permission() reads their standard DocPerm alone. Upstream still took their Custom DocPerm rows here, so
+	# //// the boot (UserPermissions.can_read) and get_doctypes_with_read() (the permission queries of Comment and File)
+	# //// granted what the server refuses: with the "Desk User: read DocType" row every Neoffice site carries, a desk
+	# //// account without System Manager read DocType in the browser, and a list with a Link column to DocType asked
+	# //// the server for its values and popped the refusal (neoffice-maintenance#2710). A row on such a doctype also
+	# //// replaced its standard rows here, booting a System Manager without DocType. Their Custom DocPerm rows are left
+	# //// out and their standard rows count, as in the meta. (The meta skips child tables too; the boot never lists a
+	# //// child table in can_read, so they are left as upstream has them.) Remove when upstream reads both the same way.
+	from frappe.model.meta import Meta
+
+	no_custom_perms = Meta.special_doctypes | {"Custom DocPerm"}
+	custom_perms = [p for p in custom_perms if p.parent not in no_custom_perms]
+	doctypes_with_custom_perms = set(get_doctypes_with_custom_docperms()) - no_custom_perms
 	for p in perms:
 		if p.parent not in doctypes_with_custom_perms:
 			custom_perms.append(p)
