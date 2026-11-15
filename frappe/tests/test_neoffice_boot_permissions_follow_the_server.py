@@ -78,12 +78,15 @@ class TestNeofficeBootPermissionsFollowTheServer(FrappeTestCase):
 
 	def test_no_doctype_is_read_in_the_boot_and_refused_by_the_server(self):
 		# Every doctype the boot says the account reads, the server must say so too (select as well): the general check.
-		# A child table is left out: the boot never lists one in can_read, and the server reads it through its parent.
+		# A child table is left out: the boot never lists one in can_read, and the server reads it through its parent. So is
+		# a doctype with documents shared with the account: the boot rightly reads it (a desk account is shared its own User
+		# at creation), and the server opens those documents by their share, not by a role.
 		booted = self.booted(self.desk_user)
 		child_tables = set(frappe.get_all("DocType", filters={"istable": 1}, pluck="name"))
+		shared = set(frappe.share.get_shared_doctypes(self.desk_user))
 		boot_only = []
 		for doctype, rights in booted.perm_map.items():
-			if doctype in child_tables or not frappe.db.exists("DocType", doctype):
+			if doctype in child_tables or doctype in shared or not frappe.db.exists("DocType", doctype):
 				continue
 			server = get_role_permissions(frappe.get_meta(doctype), user=self.desk_user)
 			for right in ("read", "select"):
