@@ -70,7 +70,15 @@ class HTTPRequest:
 			return
 
 		if frappe.get_request_header("X-Forwarded-For"):
-			frappe.local.request_ip = (frappe.get_request_header("X-Forwarded-For").split(",", 1)[0]).strip()
+			# //// Neoffice — upstream keeps the FIRST entry (`.split(",", 1)[0]`). Only the LAST entry is written
+			# //// by the proxy in front of frappe: nginx's `$proxy_add_x_forwarded_for` (the vhosts of the customers'
+			# //// website domains) keeps the header as it arrived and appends the address of the connection, so the
+			# //// entries before it are not the proxy's. IP restrictions (validate_ip_address, 2FA bypass), the
+			# //// per-address login attempt counter and rate limits all read request_ip. Under bench's vhost
+			# //// (`X-Forwarded-For $remote_addr`) the header holds one entry, so a site behind one proxy keeps the
+			# //// same address. neoffice_theme already re-read it this way in before_request, which runs after the
+			# //// login and the session checks done here. (neoffice-maintenance#2296)
+			frappe.local.request_ip = (frappe.get_request_header("X-Forwarded-For").rsplit(",", 1)[-1]).strip()
 
 		elif frappe.get_request_header("REMOTE_ADDR"):
 			frappe.local.request_ip = frappe.get_request_header("REMOTE_ADDR")
