@@ -906,6 +906,13 @@ frappe.provide("frappe.ui.dialog_model");
 		return d;
 	};
 
+	// The action of a prompt is named by its verb (design system 6.18), never Frappe's « Submit » (« Valider »): a prompt that
+	// names none says « Continue ».
+	const prompt = frappe.prompt;
+	frappe.prompt = function (fields, callback, title, primary_label) {
+		return prompt.call(this, fields, callback, title, primary_label || __("Continue"));
+	};
+
 	// A message has its « OK » (Jérémy, 05.11: a cross alone reads as a block), and Enter takes it.
 	const msgprint = frappe.msgprint;
 	const msgprint_model = function (msg) {
