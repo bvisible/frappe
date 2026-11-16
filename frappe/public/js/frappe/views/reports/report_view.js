@@ -6,6 +6,19 @@ import DataTable from "frappe-datatable";
 window.DataTable = DataTable;
 frappe.provide("frappe.views");
 
+//// Neoffice — added (16.11.2026, the views of documents, design system 6.17): the height of a row is the desk's token
+//// --ws-cell (neoffice_theme: 42 px in the Normal size, 35 in Compact). The table places its rows by this number
+//// (virtual scrolling), so a style sheet cannot change it; 35 px, upstream's, where no theme defines the token.
+function report_view_cell_height() {
+	const value = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ws-cell"));
+	return value > 20 ? Math.round(value) : 35;
+}
+//// Neoffice — the person switches the size (« Lisible » / « Compact »): the report on screen takes the new height.
+window.addEventListener("neo-size-change", () => {
+	const list = window.cur_list;
+	if (list && frappe.views.ReportView && list instanceof frappe.views.ReportView && list.datatable) list.render();
+});
+
 ////////////////////////////////////////////////////////////////////////
 //// Neoffice — Report View rework: this file diverges heavily from upstream v15.89.0
 //// (~1070 added lines on 2800, 55 hunks). Every hunk carries its own marker below; this
@@ -856,7 +869,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		});
 		////
 
-		if (this.datatable && !force) {
+		//// Neoffice — a table drawn at another row height (the size changed) is drawn again (report_view_cell_height).
+		if (this.datatable && !force && this.datatable.options.cellHeight === report_view_cell_height()) {
 			this.datatable.refresh(this.get_data(this.data), this.columns);
 			//// Neoffice — re-style the totals data row after a refresh (8b00ad979c 2025-11-26; see the marker above fetch_comment_counts).
 			this.style_totals_row();
@@ -1064,7 +1078,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			translations: frappe.utils.datatable.get_translations(),
 			checkboxColumn: true,
 			inlineFilters: true,
-			cellHeight: 35,
+			//// Neoffice — was 35: the views' token (report_view_cell_height above).
+			cellHeight: report_view_cell_height(),
 			direction: frappe.utils.is_rtl() ? "rtl" : "ltr",
 			//// Neoffice — added (6a0cb32fb2, 2025-11-26 "show totals as last data row instead of footer"):
 			//// frappe-datatable's own footer total row is switched OFF because the totals are built as a
