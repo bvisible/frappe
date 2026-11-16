@@ -44,7 +44,9 @@ frappe.ui.form.SuccessAction = class SuccessAction {
 			const stored = count === 1 ? setting.first_success_message : setting.message;
 			let message;
 			if (doctype && stored && stored.includes(doctype)) {
-				message = __(stored.replace(doctype, "{0}"), [__(doctype)]);
+				//// Neoffice — the doctype as the context (translate.js), so a catalogue may say the alert whole for one
+				//// doctype: « Facture de vente a été validé avec succès » could not agree with its noun (maintenance#2559).
+				message = __(stored.replace(doctype, "{0}"), [__(doctype)], doctype);
 			} else {
 				message = __(stored);
 			}

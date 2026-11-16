@@ -6463,8 +6463,11 @@ msgstr "Nom Pays"
 
 #. Label of a Data field in DocType 'Address'
 #: frappe/contacts/doctype/address/address.json:75
+# //// Neoffice — a county is not a canton: the address form showed « Canton » above « Canton/Province » (the
+# //// state field, where a Swiss address keeps its canton). In Switzerland the level under the canton is the
+# //// district (neoffice-maintenance#2559).
 msgid "County"
-msgstr "Canton"
+msgstr "District"
 
 #: frappe/public/js/frappe/utils/number_systems.js:23
 #: frappe/public/js/frappe/utils/number_systems.js:45
