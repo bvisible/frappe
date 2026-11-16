@@ -978,15 +978,17 @@ def _neoffice_send_after_commit(queue_doc) -> None:
 		from frappe.email.doctype.email_queue.email_queue import EmailQueue
 
 		try:
-			# gone when the caller went back to a savepoint taken before the sendmail
-			if local.db.exists("Email Queue", name):
+			# //// Neoffice — gone when the caller went back to a savepoint taken before the sendmail; `db` is the
+			# //// module's proxy, as in the rest of sendmail
+			if db.exists("Email Queue", name):
 				EmailQueue.find(name).send()
 		except Exception:
 			# SendMailContext has left the row "Not Sent" (the flush retries it) or "Error", and committed it;
 			# raising here would fail a request whose work is already committed (#2488)
 			pass
 
-	local.db.after_commit.add(send)
+	# //// Neoffice — sent right after the caller's commit (#2654)
+	db.after_commit.add(send)
 	# a GET request ends in a rollback unless it asks for a commit: the row, and its mail, would go with it
 	if getattr(local, "request", None) is not None:
 		local.flags.commit = True

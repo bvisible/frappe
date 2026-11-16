@@ -46,18 +46,32 @@ def process(row, **kwargs):
 
 
 def sendmail(**kwargs):
-	"""frappe.sendmail outside the test runner, with no site: returns how it asked QueueBuilder to process."""
+	"""frappe.sendmail outside the test runner, with no site: how it asked QueueBuilder to process, and the sends it
+	left for after the caller's commit (#2654)."""
 	session = frappe._dict(user="Administrator")
+	database = mock.MagicMock(get_value=mock.Mock(return_value=None))
 	with (
 		mock.patch.object(frappe, "flags", frappe._dict(in_test=False)),
-		mock.patch.object(frappe, "db", mock.MagicMock(get_value=mock.Mock(return_value=None))),
+		mock.patch.object(frappe, "db", database),
 		mock.patch.object(frappe, "session", session),
 		mock.patch("frappe.defaults.get_user_default", return_value=None),
 		mock.patch("frappe.defaults.get_global_default", return_value=None),
-		mock.patch.object(QueueBuilder, "process", autospec=True, return_value="the row") as process_call,
+		mock.patch.object(
+			QueueBuilder, "process", autospec=True, return_value=frappe._dict(name="the row")
+		) as process_call,
 	):
 		frappe.sendmail(recipients=["buyer@example.com"], subject="Order", message="Thanks", **kwargs)
-	return process_call.call_args.kwargs
+	return process_call.call_args.kwargs, [each.args[0] for each in database.after_commit.add.call_args_list]
+
+
+def send_after_commit(row):
+	"""The send frappe.sendmail leaves for after the commit, run against `row` (no site, no database)."""
+	database = mock.MagicMock(exists=mock.Mock(return_value=True))
+	with mock.patch.object(frappe, "db", database):
+		frappe._neoffice_send_after_commit(frappe._dict(name="the row"))
+		(send,) = [each.args[0] for each in database.after_commit.add.call_args_list]
+		with mock.patch.object(email_queue.EmailQueue, "find", return_value=row):
+			send()
 
 
 class TestAMailSentAtOnceKeepsItsErrorInTheQueue(unittest.TestCase):
@@ -79,10 +93,23 @@ class TestAMailSentAtOnceKeepsItsErrorInTheQueue(unittest.TestCase):
 		self.assertIs(process(row, send_now=True, raise_send_error=False), row)
 		self.assertEqual(row.sends, 1)
 
+	# //// Neoffice — #2654: the immediate send that is ours waits for the caller's commit; it was made in the
+	# //// caller's transaction (send_now=True, raise_send_error=False), whose savepoints the send's commit erased.
 	def test_sendmail_keeps_the_error_unless_the_caller_asked_for_now(self):
-		self.assertEqual(sendmail(), {"send_now": True, "raise_send_error": False})
-		self.assertEqual(sendmail(now=True), {"send_now": True, "raise_send_error": True})
-		self.assertEqual(sendmail(delayed=False), {"send_now": True, "raise_send_error": True})
+		self.assertEqual(sendmail()[0], {"send_now": False})
+		self.assertEqual(sendmail(now=True)[0], {"send_now": True, "raise_send_error": True})
+		self.assertEqual(sendmail(delayed=False)[0], {"send_now": True, "raise_send_error": True})
+
+	def test_sendmail_leaves_its_own_send_for_after_the_commit(self):
+		self.assertEqual(len(sendmail()[1]), 1)
+		self.assertEqual(sendmail(now=True)[1], [])
+
+	def test_a_failed_send_after_the_commit_stays_in_the_queue_and_the_caller_goes_on(self):
+		row = FakeQueueRow(error=HUB_DOWN)
+
+		send_after_commit(row)
+
+		self.assertEqual(row.sends, 1)
 
 
 if __name__ == "__main__":
