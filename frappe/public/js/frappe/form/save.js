@@ -253,15 +253,21 @@ frappe.ui.form.check_mandatory = function (frm) {
 	});
 
 	if (lines.length) {
-		frappe.msgprint({
-			message:
-				__("Please fill the following mandatory fields before saving:") +
-				"<br><br><ul><li>" +
-				lines.join("</li><li>") +
-				"</li></ul>",
-			indicator: "red",
-			title: __("Missing Fields"),
-		});
+		//// Neoffice — the form may show what is missing in place (a pill in the head, the fields outlined and named:
+		//// neoffice_theme save_state.js) instead of this dialog, which asked for an OK after the fact. Its handler answers
+		//// true when it did; false, or no handler, leaves the desk's message as it was.
+		//// To remove when the fleet runs a desk that says what is missing in place itself.
+		if (!frm.$wrapper || frm.$wrapper.triggerHandler("neo_missing_required") !== true) {
+			frappe.msgprint({
+				message:
+					__("Please fill the following mandatory fields before saving:") +
+					"<br><br><ul><li>" +
+					lines.join("</li><li>") +
+					"</li></ul>",
+				indicator: "red",
+				title: __("Missing Fields"),
+			});
+		}
 		frm.refresh();
 	}
 
