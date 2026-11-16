@@ -952,7 +952,45 @@ def sendmail(
 	# //// was tried (468561cc32, neoffice-maintenance#1832): our SendMailContext commits, a new User's welcome mail
 	# //// went out in the middle of the apps' tests and destroyed their savepoint (lms CI: « SAVEPOINT lms_test does
 	# //// not exist »). Seven upstream mail tests that read a « Sent » queue stay red on the whole suite for it.
-	return builder.process(send_now=not flags.in_test, raise_send_error=bool(now))
+	# //// Neoffice — the immediate send we force waits for the caller's transaction to commit (neoffice-maintenance
+	# //// #2654). Sending commits, and a commit in the middle of a request or a job ends the caller's transaction:
+	# //// its savepoints are gone (lms's bulk enrolment, one savepoint per student, died on « SAVEPOINT … does not
+	# //// exist » after the first confirmation mail) and what it wrote before the mail stays even when it fails
+	# //// later. The row is queued inside the transaction, as upstream does, and sent by db.after_commit right after
+	# //// the caller's commit, in the same request or job: the mail still leaves at once and a failed send stays in
+	# //// the queue (#2488); an action rolled back sends nothing. A caller's own now=True (or delayed=False) keeps
+	# //// upstream's send in place; a mail queued separately (queue_separately, or more than 100 recipients) goes to
+	# //// its background job, as upstream does when the send is not asked for.
+	if now or flags.in_test:
+		return builder.process(send_now=not flags.in_test, raise_send_error=bool(now))
+	queued = builder.process(send_now=False)
+	_neoffice_send_after_commit(queued)
+	return queued
+
+
+# //// Neoffice — added function (no upstream equivalent): the deferred immediate send of sendmail (#2654).
+def _neoffice_send_after_commit(queue_doc) -> None:
+	name = getattr(queue_doc, "name", None)
+	if not name:
+		return
+
+	def send():
+		from frappe.email.doctype.email_queue.email_queue import EmailQueue
+
+		try:
+			# gone when the caller went back to a savepoint taken before the sendmail
+			if local.db.exists("Email Queue", name):
+				EmailQueue.find(name).send()
+		except Exception:
+			# SendMailContext has left the row "Not Sent" (the flush retries it) or "Error", and committed it;
+			# raising here would fail a request whose work is already committed (#2488)
+			pass
+
+	local.db.after_commit.add(send)
+	# a GET request ends in a rollback unless it asks for a commit: the row, and its mail, would go with it
+	if getattr(local, "request", None) is not None:
+		local.flags.commit = True
+
 
 whitelisted = []
 guest_methods = []
