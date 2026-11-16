@@ -91,6 +91,16 @@ frappe.provide("frappe.ui.dialog_model");
 		}
 		d.get_close_btn().attr({ title: __("Close") + " (Esc)", "aria-label": __("Close") });
 		if (d.eyebrow) d.set_eyebrow(d.eyebrow);
+		// A window that rewrites its ink button (.text(), .html()) takes its key off with it: the key comes back.
+		const p = d.get_primary_btn()[0];
+		if (p && window.MutationObserver) {
+			new MutationObserver(function () {
+				const $p = $(p);
+				if (!$p.hasClass("hide") && !$p.children(".neo-kbd").length && $p.text().trim()) {
+					set_key($p, d.key_hint());
+				}
+			}).observe(p, { childList: true });
+		}
 	}
 
 	P.set_eyebrow = function (text) {
@@ -257,6 +267,7 @@ frappe.provide("frappe.ui.dialog_model");
 		this.__dlg_bar = (steps || []).map((s) => (typeof s === "string" ? { label: s } : s));
 		this.neo_wizard = this.neo_wizard === false ? false : true;
 		render_bar(this, current || 0);
+		refresh_keys(this);
 	};
 
 	P.go_to_step = function (i, opts) {
