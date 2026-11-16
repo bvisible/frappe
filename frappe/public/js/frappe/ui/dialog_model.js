@@ -24,6 +24,8 @@ frappe.provide("frappe.ui.dialog_model");
 
 	// Escape or a click beside first closes what is open inside the window: a list, a calendar, a menu.
 	const POPUP_OPEN = ".awesomplete > ul:not([hidden]), .datepicker.active, .dropdown-menu.show";
+	// What a person types into: a key aimed at one of these outside the window belongs to it, not to the window.
+	const EDITABLE = "input, textarea, select, [contenteditable], [contenteditable] *";
 	const NOT_VALUES = new Set([
 		"HTML",
 		"Button",
@@ -728,7 +730,17 @@ frappe.provide("frappe.ui.dialog_model");
 			const d = top_dialog();
 			if (!d || !d.__dlg_shell || d.static) return;
 			const t = e.target;
-			if (t && t.closest && !t.closest(".modal") && t !== document.body) return; // typing elsewhere (a side panel)
+			// Typing elsewhere (a field of a side panel) keeps its keys. A link or a button left focused behind the window
+			// (a form that kept the focus while its window opened on load) does not: Escape and Enter are the window's.
+			if (
+				t &&
+				t.closest &&
+				!t.closest(".modal") &&
+				t !== document.body &&
+				t.matches &&
+				t.matches(EDITABLE)
+			)
+				return;
 			if (e.key === "Escape") {
 				// Escape closes what is open inside the window first, and leaves a table cell or a row's form.
 				if (popup_open() || document.querySelector(".grid-row-open")) return;
