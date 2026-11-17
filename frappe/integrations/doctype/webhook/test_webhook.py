@@ -116,6 +116,12 @@ class TestWebhook(FrappeTestCase):
 
 		frappe.cache.delete_value("webhooks")
 
+		# //// Neoffice — under test our fork keeps a mail in its queue, the caller's now=True included (frappe.sendmail,
+		# //// neoffice-maintenance#1832): sending it there committed inside the apps' tests and destroyed their savepoints.
+		# //// Upstream's setUp sends its users' welcome mail at once, and the commit of that send runs the webhook queue;
+		# //// ours does not, so the hooks the setUp queued are still there. The queue is emptied before the insert measured.
+		frappe.local._webhook_queue = []
+
 		# Insert the user to db
 		self.test_user.insert()
 

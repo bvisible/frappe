@@ -224,13 +224,17 @@ class TestEmailAccount(FrappeTestCase):
 		self.assertTrue("test-mail-000" in mail.get("Subject"))
 
 	def test_sendmail(self):
-		frappe.sendmail(
+		# //// Neoffice — under test our fork keeps a mail in its queue, the caller's now=True included (frappe.sendmail,
+		# //// neoffice-maintenance#1832): sending it there committed inside the apps' tests and destroyed their savepoints.
+		# //// The test sends its own queued row, as upstream's now=True (delayed=False) does.
+		queued = frappe.sendmail(
 			sender="test_sender@example.com",
 			recipients="test_recipient@example.com",
 			content="test mail 001",
 			subject="test-mail-001",
 			delayed=False,
 		)
+		queued.send()  # //// Neoffice — see above
 
 		sent_mail = email.message_from_string(frappe.safe_decode(frappe.flags.sent_mail))
 		self.assertTrue("test-mail-001" in sent_mail.get("Subject"))

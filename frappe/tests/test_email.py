@@ -19,6 +19,16 @@ from frappe.tests.utils import FrappeTestCase, change_settings
 test_dependencies = ["Email Account"]
 
 
+# //// Neoffice — under test our fork keeps a mail in its queue, the caller's now=True included (frappe.sendmail,
+# //// neoffice-maintenance#1832): sending it there committed inside the apps' tests and destroyed their savepoints.
+# //// A test that reads what was sent sends its own queued row first, as upstream's now=True does.
+def _send_queued(queued):
+	for row in queued if isinstance(queued, list) else [queued]:
+		if row:
+			row.send()
+	return queued
+
+
 class TestEmail(FrappeTestCase):
 	def setUp(self):
 		frappe.db.delete("Email Unsubscribe")
@@ -166,7 +176,8 @@ class TestEmail(FrappeTestCase):
 
 	def test_cc_footer(self):
 		# test if sending with cc's makes it into header
-		frappe.sendmail(
+		# //// Neoffice — the row is sent by the test (see _send_queued)
+		queued = frappe.sendmail(
 			recipients=["test@example.com"],
 			cc=["test1@example.com"],
 			sender="admin@example.com",
@@ -178,6 +189,7 @@ class TestEmail(FrappeTestCase):
 			expose_recipients="footer",
 			now=True,
 		)
+		_send_queued(queued)  # //// Neoffice — see _send_queued
 		email_queue = frappe.db.sql("""select name from `tabEmail Queue` where status='Sent'""", as_dict=1)
 		self.assertEqual(len(email_queue), 1)
 		queue_recipients = [
@@ -200,7 +212,8 @@ class TestEmail(FrappeTestCase):
 		from frappe.utils import set_request
 		from frappe.utils.verified_command import verify_request
 
-		frappe.sendmail(
+		# //// Neoffice — the row is sent by the test (see _send_queued)
+		queued = frappe.sendmail(
 			recipients=["test@example.com"],
 			cc=["test1@example.com"],
 			sender="admin@example.com",
@@ -211,6 +224,7 @@ class TestEmail(FrappeTestCase):
 			unsubscribe_message="Unsubscribe",
 			now=True,
 		)
+		_send_queued(queued)  # //// Neoffice — see _send_queued
 		email_queue = frappe.db.sql("""select name from `tabEmail Queue` where status='Sent'""", as_dict=1)
 		self.assertEqual(len(email_queue), 1)
 		queue_recipients = [
@@ -249,13 +263,15 @@ class TestEmail(FrappeTestCase):
 	def test_sender(self):
 		def _patched_assertion(email_account, assertion):
 			with patch.object(QueueBuilder, "get_outgoing_email_account", return_value=email_account):
-				frappe.sendmail(
+				# //// Neoffice — the row is sent by the test (see _send_queued)
+				queued = frappe.sendmail(
 					recipients=["test1@example.com"],
 					sender="admin@example.com",
 					subject="Test Email Queue",
 					message="This mail is queued!",
 					now=True,
 				)
+				_send_queued(queued)  # //// Neoffice — see _send_queued
 				email_queue_sender = frappe.db.get_value("Email Queue", {"status": "Sent"}, "sender")
 				self.assertEqual(email_queue_sender, assertion)
 
@@ -450,6 +466,7 @@ class TestEmailIntegrationTest(FrappeTestCase):
 		email = frappe.sendmail(
 			sender=sender, recipients=recipients, subject=subject, content=content, now=True
 		)
+		_send_queued(email)  # //// Neoffice — see _send_queued
 		email.reload()
 		self.assertEqual(email.sender, sender)
 		self.assertEqual(len(email.recipients), 2)
@@ -480,6 +497,10 @@ class TestEmailIntegrationTest(FrappeTestCase):
 			send_email=True,
 			now=True,
 		).get("name")
+		# //// Neoffice — the print is stored when the mail is sent: the test sends the queue (see _send_queued)
+		from frappe.email.queue import flush
+
+		flush()
 
 		communication = frappe.get_doc("Communication", name)
 

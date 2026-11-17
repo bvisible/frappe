@@ -165,6 +165,16 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -yq mariadb-client libcups2-dev
 
+      # //// Neoffice — the PDF engine upstream's CI installs (.github/helper/install.sh, wkhtmltox 0.12.6.1-2): without it
+      # //// test_generate_pdf, the mail of auto_repeat with its PDF and test_store_attachments died on the runner
+      # //// (neoffice-maintenance#1832). Every Neoffice instance has it.
+      - name: wkhtmltopdf, as upstream's CI
+        run: |
+          sudo apt-get install -yq xfonts-75dpi xfonts-base
+          wget -q -O /tmp/wkhtmltox.deb https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-2/wkhtmltox_0.12.6.1-2.jammy_amd64.deb
+          sudo apt-get install -yq /tmp/wkhtmltox.deb
+          wkhtmltopdf --version
+
       # //// Neoffice — the mariadb client the runner installs now insists on TLS and the mariadb:10.6 service
       # //// container offers none: « SSL is required, but the server does not support it » killed « New site »
       # //// before one test ran (neoffice-maintenance#2041, red since 137f0a5643). Told once, in the client's own
@@ -265,8 +275,9 @@ jobs:
           # read "Change" for "Changement" (neoffice-maintenance#667, 2026-10-04).
           bench compile-po-to-mo --app frappe
 
+      # //// Neoffice — in both modes (neoffice-maintenance#1832): the cases this fork touches include upstream's mail
+      # //// tests, which send through the sink (TestEmailIntegrationTest).
       - name: SMTP sink, for the whole suite
-        if: steps.modules.outputs.mode == 'full'
         run: |
           # upstream's server-tests.yml runs this very image as a service: the site's outgoing
           # mail (mail_server localhost:2525, set above) lands here instead of failing to connect

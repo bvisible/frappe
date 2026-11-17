@@ -270,10 +270,22 @@ class TestUserInvitation(FrappeTestCase):
 			app_name="frappe",
 		)
 
+	# //// Neoffice — under test our fork keeps a mail in its queue, the caller's now=True included (frappe.sendmail,
+	# //// neoffice-maintenance#1832): sending it there committed inside the apps' tests and destroyed their savepoints.
+	# //// The invitations send at once (now=True): the queue is sent before what was sent is read.
+	def send_the_queued_mails(self):
+		from frappe.email.queue import flush
+
+		flush()
+
 	def get_email_names(self, sent_only=True):
+		if sent_only:
+			self.send_the_queued_mails()  # //// Neoffice — see send_the_queued_mails
 		filters = {"status": "Sent"} if sent_only else None
 		return frappe.db.get_all("Email Queue", filters=filters, fields=["name"])
 
 	def get_email_messages(self, sent_only=True):
+		if sent_only:
+			self.send_the_queued_mails()  # //// Neoffice — see send_the_queued_mails
 		filters = {"status": "Sent"} if sent_only else None
 		return frappe.db.get_all("Email Queue", filters=filters, fields=["message"])
