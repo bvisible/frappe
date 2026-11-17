@@ -361,6 +361,14 @@ frappe.ui.form.Toolbar = class Toolbar {
 				</button>
 			`);
 			this.$preview_btn.on("click", () => this.frm.print_doc());
+			//// Neoffice — on a full head the button keeps its eye, the last of the head's buttons to fold (2026-11-17,
+			//// maintenance#2750): data-pao-shed for the head's overflow manager (page.js setup_actions_overflow), its
+			//// words in a .pao-label that folds, and in its title.
+			this.$preview_btn
+				.attr({ "data-pao-shed": "80", title: `${__("Preview")} / ${__("Print")}` })
+				.contents()
+				.filter((i, node) => node.nodeType === 3 && node.textContent.trim())
+				.wrap('<span class="pao-label"></span>');
 			// first slot of the actions group, so it survives workflow forms
 			// where the native primary/actions buttons are hidden
 			this.page.wrapper.find(".standard-actions").first().prepend(this.$preview_btn);

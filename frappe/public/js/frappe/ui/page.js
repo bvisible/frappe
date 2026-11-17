@@ -652,13 +652,73 @@ frappe.ui.Page = class Page {
 	// action) are hidden and their pre-existing menu duplicates (the
 	// hidden-xl items frappe already creates for mobile) are revealed in
 	// the ⋯ menu. Re-runs on resize and whenever buttons are (re)added.
+	//
+	//// Neoffice — the whole head, not only the custom buttons (2026-11-17, maintenance#2750). On a draft invoice
+	//// the meta icons (attachments, comments, tags, follow) covered the document's name: the standard cluster (the
+	//// save pill, « Save » drawn grey beside « Submit », Preview / Print, Side preview) never gave way and the row
+	//// overflowed to the left, over the title. What gives way now, first to last:
+	////   1. an element marked data-pao-shed below 50 goes (`pao-dropped`), once the trail would be cut: it only
+	////      repeats what is shown (« Save » grey while the pill says « Saved »);
+	////   2. the trail fades under its end (a form's title keeps its name: --pao-title-floor, cockpit.css);
+	////   3. the custom buttons go into ⋯, as before;
+	////   4. an element marked data-pao-shed 50 or more folds to its icon (`pao-folded`, its `.pao-label` hidden),
+	////      lowest first, while the actions still reach over the title.
+	//// Never the name covered, never a button cut in half.
 	setup_actions_overflow() {
 		if (!this.custom_actions.length || !window.ResizeObserver) return;
 		const run = frappe.utils.debounce(() => this.redistribute_custom_actions(), 120);
 		this._overflow_observer = new MutationObserver(run);
 		this._overflow_observer.observe(this.custom_actions[0], { childList: true });
+		//// Neoffice — the standard cluster's buttons come and go (the save pill, the twin), and a name read later
+		//// changes the room the title needs (maintenance#2750).
+		if (this.standard_actions[0]) {
+			this._overflow_observer.observe(this.standard_actions[0], { childList: true });
+		}
+		const title_area = this.wrapper.find(".page-head .title-area")[0];
+		if (title_area) {
+			this._overflow_observer.observe(title_area, {
+				childList: true,
+				subtree: true,
+				characterData: true,
+			});
+		}
 		this._overflow_resizer = new ResizeObserver(run);
 		this._overflow_resizer.observe(this.page_actions[0]);
+		//// Neoffice — and the head itself: where the title takes the room the actions leave (a form, cockpit.css),
+		//// the actions' box does not change when the window narrows until they are pressed.
+		const head = this.wrapper.find(".page-head-content")[0];
+		if (head) this._overflow_resizer.observe(head);
+	}
+
+	//// Neoffice — added method (maintenance#2750): the width the title cannot go under, everything in its row but
+	//// the trail (the back button, the name, the star), set as --pao-title-floor for cockpit.css. Returns the trail.
+	set_title_floor() {
+		const title = this.wrapper.find(".page-head .page-title")[0];
+		if (!title || !title.offsetWidth) return null;
+		const crumbs = title.querySelector(".page-breadcrumbs");
+		const name = title.querySelector(".title-text");
+		const row = (name || crumbs) && (name || crumbs).parentElement;
+		if (!row) return null;
+		const left = title.getBoundingClientRect().left;
+		const outer = (el) => {
+			const cs = getComputedStyle(el);
+			return (
+				el.getBoundingClientRect().width +
+				(parseFloat(cs.marginLeft) || 0) +
+				(parseFloat(cs.marginRight) || 0)
+			);
+		};
+		let right = left;
+		for (const el of row.children) {
+			if (el === crumbs || !el.offsetWidth) continue;
+			const r = el.getBoundingClientRect().right;
+			right = Math.max(right, r + (parseFloat(getComputedStyle(el).marginRight) || 0));
+		}
+		const trail = crumbs && crumbs.offsetWidth ? outer(crumbs) : 0;
+		const pad = parseFloat(getComputedStyle(title).paddingRight) || 0;
+		const floor = Math.ceil(right - left + pad - trail);
+		title.style.setProperty("--pao-title-floor", Math.max(floor, 0) + "px");
+		return crumbs;
 	}
 
 	redistribute_custom_actions() {
@@ -675,7 +735,47 @@ frappe.ui.Page = class Page {
 			this.menu_btn_group.addClass("hidden-xl");
 			this._pao_unhid_menu = false;
 		}
+		//// Neoffice — maintenance#2750: give back what an earlier pass dropped or folded, then measure the title.
+		const sheddable = [...$actions[0].querySelectorAll("[data-pao-shed]")];
+		sheddable.forEach((el) => el.classList.remove("pao-dropped", "pao-folded"));
+		this.wrapper.find(".page-head .page-breadcrumbs").removeClass("pao-trail-gone");
+		const crumbs = this.set_title_floor();
+		const rank = (el) => parseFloat(el.getAttribute("data-pao-shed")) || 0;
+		const shed_order = (low, high) =>
+			sheddable
+				.filter((el) => rank(el) >= low && rank(el) < high && el.offsetWidth)
+				.sort((a, b) => rank(a) - rank(b));
+		// the trail is cut when its words are wider than its box
+		const trail_cut = () => !!crumbs && crumbs.scrollWidth > crumbs.clientWidth + 1;
+		// the actions reach over the title when one of them starts left of their own box (they are aligned right)
+		const actions_overflow = () => {
+			const edge = $actions[0].getBoundingClientRect().left - 1;
+			return [...$actions[0].children].some(
+				(el) => el.offsetWidth && el.getBoundingClientRect().left < edge
+			);
+		};
+		for (const el of shed_order(0, 50)) {
+			if (!trail_cut() && !actions_overflow()) break;
+			el.classList.add("pao-dropped");
+			void ca.offsetWidth;
+		}
+		this.redistribute_custom_buttons(ca);
+		for (const el of shed_order(50, Infinity)) {
+			if (!actions_overflow()) break;
+			el.classList.add("pao-folded");
+			void ca.offsetWidth;
+		}
+		if (crumbs) {
+			crumbs.classList.toggle("pao-trail-cut", trail_cut());
+			// narrower than its fade, a trail shows nothing one can read: it goes, with the « › » before the name
+			// (measured above with it, so the title keeps that room and is never pressed by this)
+			crumbs.classList.toggle("pao-trail-gone", trail_cut() && crumbs.clientWidth < 24);
+		}
+	}
 
+	//// Neoffice — the custom buttons' part of redistribute_custom_actions, unchanged, made its own method so that
+	//// the head's later steps run after it (maintenance#2750; it used to return early when everything fitted).
+	redistribute_custom_buttons(ca) {
 		// Overflow is decided by MEASUREMENT, not a width budget: a budget
 		// calc that's off by a few px leaves one button clipped (the "…Stamp"
 		// cut-off). We compare the buttons' NATURAL total width (they carry

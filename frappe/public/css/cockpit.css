@@ -411,6 +411,9 @@ body.neoffice-cockpit .page-head .custom-actions > .pao-overflowed {
    buttons into the ⋯ menu instead of leaving a half-cut one. */
 body.neoffice-cockpit .page-head .custom-actions > * {
 	flex: 0 0 auto;
+	/* //// Neoffice — and no max-width (2026-11-17, maintenance#2750): Frappe's .ellipsis gives a button max-width 100%, so
+	   in a row pressed to 0 px every button measured 0 and the overflow manager saw nothing to move into ⋯. */
+	max-width: none;
 }
 body.neoffice-cockpit .page-head .custom-actions::-webkit-scrollbar {
 	display: none;
@@ -435,6 +438,75 @@ body.neoffice-cockpit .page-head .standard-actions {
 	flex-shrink: 0;
 	flex-wrap: nowrap;
 	align-items: center;
+}
+/* //// Neoffice — what gives way on a full head (2026-11-17, maintenance#2750; page.js setup_actions_overflow says the
+   order). An element marked data-pao-shed goes (pao-dropped) or keeps its icon (pao-folded: its words, .pao-label, stay
+   in its title). */
+body.neoffice-cockpit .page-head .pao-dropped {
+	display: none !important;
+}
+body.neoffice-cockpit .page-head .pao-folded .pao-label {
+	display: none;
+}
+body.neoffice-cockpit .page-head .btn.pao-folded {
+	gap: 0;
+	min-width: calc(var(--ws-btn, 34px) + 6px);
+	padding-left: 10px;
+	padding-right: 10px;
+}
+/* //// Neoffice — a form's head keeps the document's name whole (2026-11-17, maintenance#2750). The title used to keep
+   its natural width (above, flex 0 0 auto) and the actions to take the rest: when they were wider than the rest, they ran
+   to the left over the name (a draft invoice at 1440 px: the meta icons on « Suzette Croteau »). Here, as on the print page,
+   the title takes the room the actions leave, never less than its back button, its name and its star (--pao-title-floor,
+   measured by page.js), and its trail fades under its end; the actions that do not fit go into ⋯ or keep their icon. */
+@media (min-width: 768px) {
+	body.neoffice-cockpit[data-route^="Form/"] .page-head .page-title {
+		flex: 1 1 0;
+		max-width: none;
+		min-width: var(--pao-title-floor, 0px);
+	}
+	body.neoffice-cockpit[data-route^="Form/"] .page-head .page-title .title-area,
+	body.neoffice-cockpit[data-route^="Form/"] .page-head .page-title .title-area > div,
+	body.neoffice-cockpit[data-route^="Form/"] .page-head .page-title .title-area .flex {
+		min-width: 0;
+	}
+	body.neoffice-cockpit[data-route^="Form/"] .page-head .page-breadcrumbs {
+		flex: 0 1 auto;
+		min-width: 0;
+		overflow: hidden;
+	}
+	body.neoffice-cockpit[data-route^="Form/"] .page-head .page-breadcrumbs.pao-trail-cut {
+		-webkit-mask-image: linear-gradient(to left, transparent 0, #000 24px);
+		mask-image: linear-gradient(to left, transparent 0, #000 24px);
+	}
+	/* the trail's last « › » stands before the name, out of the part that fades: a cut trail never runs into the name
+	   (« Facture de verSuzette Croteau ») */
+	body.neoffice-cockpit[data-route^="Form/"] .page-head .page-breadcrumbs:not(:empty)::after {
+		content: none;
+	}
+	body.neoffice-cockpit[data-route^="Form/"] .page-head .page-breadcrumbs:not(:empty) + .title-text::before {
+		content: "\203A";
+		margin: 0 8px;
+		color: var(--text-muted);
+		font-size: var(--ws-meta, 13px);
+		opacity: 0.45;
+	}
+	/* a trail pressed narrower than its fade goes, and its « › » with it (page.js) */
+	body.neoffice-cockpit[data-route^="Form/"] .page-head .page-breadcrumbs.pao-trail-gone {
+		visibility: hidden;
+	}
+	body.neoffice-cockpit[data-route^="Form/"] .page-head .page-breadcrumbs.pao-trail-gone + .title-text::before {
+		content: none;
+	}
+	body.neoffice-cockpit[data-route^="Form/"] .page-head .title-text {
+		flex: 0 0 auto;
+	}
+	body.neoffice-cockpit[data-route^="Form/"] .page-head .page-actions {
+		flex: 0 1 auto;
+	}
+	body.neoffice-cockpit[data-route^="Form/"] .page-head .page-actions > .form-meta-cluster {
+		flex-shrink: 0;
+	}
 }
 
 /* List/report views: the desk gives .page-container the gray page background
