@@ -1980,8 +1980,10 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				args: { doctype: this.doctype },
 			})
 			.then((response) => {
+				//// Neoffice — see the block marker above: cache kept for the view
 				if (response) this.neo_report_settings_cache = response;
 			})
+			//// Neoffice — see the block marker above: a failed fetch leaves the cache empty, asked again later
 			.catch(() => {});
 	}
 
