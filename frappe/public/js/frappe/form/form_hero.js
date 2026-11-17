@@ -321,8 +321,20 @@ const HERO_REGISTRY = {
 		steps: (doc, tx) => [
 			{ label: __("Draft"), when: doc.creation },
 			{ label: __("Confirmed"), when: tx.submit() },
-			{ label: __("Delivered"), when: tx.status("To Bill", "Completed") },
-			{ label: __("Billed"), when: tx.status("Completed") },
+			// A delivery or an invoice moves the status of a sales order by a database write, with no
+			// line of history: « Delivered » stayed « in progress » at 100 % delivered, though the rank
+			// below counts it done (neoffice-maintenance#1466). Read the history, then the percentage,
+			// as the purchase order's steps do.
+			{
+				label: __("Delivered"),
+				when:
+					tx.status("To Bill", "Completed") ||
+					(flt(doc.per_delivered) >= 100 ? doc.modified : null),
+			},
+			{
+				label: __("Billed"),
+				when: tx.status("Completed") || (flt(doc.per_billed) >= 100 ? doc.modified : null),
+			},
 		],
 		rank(doc) {
 			if (doc.docstatus === 2 || ["Cancelled", "Closed"].includes(doc.status)) return -1;
