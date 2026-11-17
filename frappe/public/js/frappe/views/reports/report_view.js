@@ -217,6 +217,25 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		return args;
 	}
 
+	//// Neoffice — added method (upstream inherits BaseList.get_call_args): the fields an app wants with each row without a
+	//// column of their own (frappe.neo_row_fields(view) -> fieldnames of the view's doctype), for what it draws before the
+	//// ID (the name column's format, below): a customer's or a supplier's logo and the name its initials are read from
+	//// (neoffice_theme gallery.js; 17.11, « un petit logo devant le nom »). Added to the rows' request only - the export
+	//// reads get_args and keeps the reader's columns -, and never to a grouped view, whose rows are groups. No function,
+	//// or nothing returned: upstream's request.
+	get_call_args() {
+		const call = super.get_call_args();
+		const group = this.group_by_control;
+		const grouped = group && group.aggregate_function && group.group_by;
+		if (typeof frappe.neo_row_fields === "function" && !grouped && Array.isArray(call.args.fields)) {
+			for (const fieldname of frappe.neo_row_fields(this) || []) {
+				const column = frappe.model.get_full_column_name(fieldname, this.doctype);
+				if (!call.args.fields.includes(column)) call.args.fields.push(column);
+			}
+		}
+		return call;
+	}
+
 	before_refresh() {
 		//// Neoffice — added block, ~355 lines down to the closing //// before `if (this.report_doc)`.
 		//// Upstream before_refresh() only re-reads route_options for a Custom Report; everything here
@@ -2355,7 +2374,12 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 					//// Link field shows it: a fitness club's coach read the test catalogue as « Sit and reach », « Wall sit »
 					//// in a French desk (09.11). Only the text: the link and its data keep the record's real name.
 					const shown = (frappe.boot?.translated_doctypes || []).includes(dt) ? frappe.utils.escape_html(__(value)) : v;
-					return `<a href="${frappe.utils.get_form_link(dt, value)}" data-doctype="${frappe.utils.escape_html(dt)}" data-name="${v}" data-value="${v}" data-neo-id="1">${shown}</a>`;
+					//// Neoffice — what an app draws before the ID of a row of the view's own doctype (frappe.neo_row_lead(view,
+					//// name) -> HTML, escaped by the app): a customer's or a supplier's logo, else its initials (get_call_args
+					//// above). Nothing defined or returned: the cell as it was.
+					const neo_lead =
+						dt === this.doctype && typeof frappe.neo_row_lead === "function" ? frappe.neo_row_lead(this, value) || "" : "";
+					return `${neo_lead}<a href="${frappe.utils.get_form_link(dt, value)}" data-doctype="${frappe.utils.escape_html(dt)}" data-name="${v}" data-value="${v}" data-neo-id="1">${shown}</a>`;
 				}
 				////
 				let doc = null;
