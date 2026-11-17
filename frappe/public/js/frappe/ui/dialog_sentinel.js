@@ -184,19 +184,23 @@ frappe.provide("frappe.ui.dialog_sentinel");
 	P.show = function () {
 		const r = show.apply(this, arguments);
 		if (on()) {
-			// A window is drawn after its fade (about a second on the desk): it is measured once it stands, 3 s at most.
+			// A window is drawn after its fade (about a second on the desk; `display` is false until then): it is measured
+			// once it stands, 4 s at most, and not at all when it is closed before.
 			const d = this;
 			const started = Date.now();
+			let seen = false;
 			const look = () => {
 				try {
 					const W = d.$wrapper && d.$wrapper[0];
+					if (d.display) seen = true;
+					else if (seen) return; // closed before it was measured
 					const standing = W && d.display && parseFloat(getComputedStyle(W).opacity) > 0.95;
 					const m = standing ? measure(d) : null;
 					if (m) return send("window", m);
 				} catch (e) {
 					return; // never in the way of a window
 				}
-				if (d.display !== false && Date.now() - started < 3000) setTimeout(look, 250);
+				if (Date.now() - started < 4000) setTimeout(look, 250);
 			};
 			setTimeout(look, 450);
 		}
