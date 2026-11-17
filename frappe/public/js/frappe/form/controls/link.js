@@ -282,6 +282,10 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 				return 0;
 			},
 		});
+		//// Neoffice — Awesomplete (node_modules, not ours) writes its screen-reader status in English: « Begin typing for
+		//// results. » was read, hidden, on every link field (maintenance#2782). Said in the reader's language; the counts the
+		//// library writes while one types stay its own (it rewrites them at each search).
+		if (this.awesomplete.status) this.awesomplete.status.textContent = __("Begin typing for results.");
 
 		this.custom_awesomplete_filter && this.custom_awesomplete_filter(this.awesomplete);
 
