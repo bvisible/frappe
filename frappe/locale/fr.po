@@ -37352,3 +37352,11 @@ msgstr "Vous avez été déconnecté"
 #: frappe/public/js/frappe/desk.js:784
 msgid "Your session"
 msgstr "Votre session"
+
+#: frappe/public/js/frappe/form/controls/link.js
+msgid "{0} results found"
+msgstr "{0} résultats trouvés"
+
+#: frappe/public/js/frappe/form/controls/link.js
+msgid "{0}, list item {1} of {2}"
+msgstr "{0}, élément {1} sur {2} de la liste"

@@ -5,6 +5,10 @@
 // custom queries
 // add_fetches
 import Awesomplete from "awesomplete";
+//// Neoffice — Awesomplete (node_modules, not ours) writes in English what a screen reader announces while one types in
+//// a link field: « 3 results found », « No results found », « <a choice>, list item 2 of 5 » (maintenance#2782). Said in
+//// the reader's language, once for the library: the two methods that write it are wrapped (every control imports this).
+neo_say_the_status_in_the_reader_s_language(Awesomplete);
 frappe.ui.form.recent_link_validations = {};
 
 frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlData {
@@ -914,4 +918,32 @@ if (Awesomplete) {
 			return item.value === value;
 		});
 	};
+}
+
+//// Neoffice — added function (no upstream equivalent): the wrapper called at the top of this file (maintenance#2782).
+function neo_say_the_status_in_the_reader_s_language(Library) {
+	const proto = Library && Library.prototype;
+	if (!proto || proto.__neo_status_said) return;
+	proto.__neo_status_said = true;
+	const say = (status) => {
+		const text = status && status.textContent;
+		let found;
+		if (!text) return;
+		if (text === "No results found") {
+			status.textContent = __("No results found");
+		} else if ((found = /^(\d+) results found$/.exec(text))) {
+			status.textContent = __("{0} results found", [found[1]]);
+		} else if ((found = /^(.*), list item (\d+) of (\d+)$/.exec(text))) {
+			status.textContent = __("{0}, list item {1} of {2}", [found[1], found[2], found[3]]);
+		}
+	};
+	["evaluate", "goto"].forEach((method) => {
+		const own = proto[method];
+		if (typeof own !== "function") return;
+		proto[method] = function (...args) {
+			const result = own.apply(this, args);
+			say(this.status);
+			return result;
+		};
+	});
 }
