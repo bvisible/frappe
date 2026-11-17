@@ -336,16 +336,19 @@ const HERO_REGISTRY = {
 				when: tx.status("Completed") || (flt(doc.per_billed) >= 100 ? doc.modified : null),
 			},
 		],
+		// The step in progress is the one to do next, as on the purchase order: confirmed, the
+		// delivery is in progress; delivered in full, the invoice is. The order ranked one step
+		// lower, and read « Delivered: in progress » once all of it was delivered (#1466).
 		rank(doc) {
 			if (doc.docstatus === 2 || ["Cancelled", "Closed"].includes(doc.status)) return -1;
 			if (doc.docstatus === 0) return 1;
 			if (flt(doc.per_billed) >= 100) return 5;
-			if (flt(doc.per_delivered) >= 100) return 3;
-			return 2;
+			if (flt(doc.per_delivered) >= 100) return 4;
+			return 3;
 		},
 		actions(rank, frm) {
 			if (rank === 1) return [submit_action(frm)];
-			if (rank === 2)
+			if (rank === 3)
 				return [
 					make_action(
 						frm,
@@ -356,7 +359,7 @@ const HERO_REGISTRY = {
 					print_action(frm),
 					create_menu_action(frm),
 				];
-			if (rank === 3)
+			if (rank === 4)
 				return [
 					make_action(
 						frm,
