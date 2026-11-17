@@ -335,6 +335,9 @@ scheduler_events = {
 		"frappe.desk.doctype.event.event.send_event_digest",
 		"frappe.email.doctype.notification.notification.trigger_daily_alerts",
 		"frappe.desk.form.document_follow.send_daily_updates",
+		# //// Neoffice — added: the daily report of the windows' sentinel (frappe/desk/dialog_sentinel.py); it writes
+		# //// nothing on a site where the sentinel is off.
+		"frappe.desk.dialog_sentinel.daily_report",
 	],
 	"daily_long": [],
 	"daily_maintenance": [

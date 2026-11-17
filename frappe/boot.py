@@ -122,6 +122,11 @@ def get_bootinfo():
 	from frappe.desk.form_dialog import get_boot_settings as get_link_dialog_settings
 
 	bootinfo.link_dialog = get_link_dialog_settings()
+	# //// Neoffice — added: the sentinel of the windows (frappe/desk/dialog_sentinel.py, ui/dialog_sentinel.js) — on
+	# //// where the site_config says `neo_dialog_sentinel: 1` (our test instance), off everywhere else.
+	from frappe.desk.dialog_sentinel import get_boot_flag as get_dialog_sentinel_flag
+
+	bootinfo.neo_dialog_sentinel = get_dialog_sentinel_flag()
 	bootinfo.additional_filters_config = get_additional_filters_from_hooks()
 	bootinfo.desk_settings = get_desk_settings()
 	bootinfo.app_logo_url = get_app_logo()

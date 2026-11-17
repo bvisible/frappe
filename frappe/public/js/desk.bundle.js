@@ -49,6 +49,9 @@ import "./frappe/ui/dialog.js";
 //// Neoffice — added: one model for every window (design system §6.18): the shell, steps, keys and leaving rules of
 //// frappe.ui.Dialog and of messages.js, after both are defined. See the head of the file.
 import "./frappe/ui/dialog_model.js";
+//// Neoffice — added: the sentinel of the windows, after the model it measures; it sends nothing where the site_config
+//// does not turn it on (frappe/desk/dialog_sentinel.py).
+import "./frappe/ui/dialog_sentinel.js";
 import "./frappe/ui/capture.js";
 import "./frappe/ui/app_icon.js";
 import "./frappe/ui/theme_switcher.js";
