@@ -497,10 +497,15 @@ class TestEmailIntegrationTest(FrappeTestCase):
 			send_email=True,
 			now=True,
 		).get("name")
-		# //// Neoffice — the print is stored when the mail is sent: the test sends the queue (see _send_queued)
-		from frappe.email.queue import flush
-
-		flush()
+		# //// Neoffice — the print is stored when the mail is sent: the test sends the rows of its communication (see
+		# //// _send_queued). Not the whole queue: rows other tests left behind fail on their server, and flush() gives up
+		# //// past a share of failures before it reaches this one.
+		_send_queued(
+			[
+				frappe.get_doc("Email Queue", row)
+				for row in frappe.get_all("Email Queue", {"communication": name}, pluck="name")
+			]
+		)
 
 		communication = frappe.get_doc("Communication", name)
 
