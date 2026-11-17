@@ -150,7 +150,12 @@ frappe.ui.FieldGroup = class FieldGroup extends frappe.ui.form.Layout {
 				if (!is_null(v)) ret[f.df.fieldname] = v;
 			}
 
-			if (this.is_dialog && f.df.reqd && !f.value) {
+			//// Neoffice — an empty required field is refreshed (its red border), but not while someone types in it. Its
+			// letters reach the model only after the control's own wait, so the refresh_dependency that runs 0.1 s after
+			// another field changes put the model's empty value back over them: « Contrôle annuel » typed right after
+			// leaving the customer was kept as « ôle annuel » (maintenance#2824).
+			const typing = f.$input && f.$input.is(":focus") && f.$input.val();
+			if (this.is_dialog && f.df.reqd && !f.value && !typing) {
 				f.refresh_input();
 			}
 
