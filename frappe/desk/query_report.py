@@ -118,6 +118,10 @@ def generate_report_result(
 	if filters and isinstance(filters, str):
 		filters = json.loads(filters)
 
+	# //// Neoffice — the company filter is held to the account's bound before the report reads anything (see
+	# //// validate_company_filter)
+	validate_company_filter(report, filters, user)
+
 	res = get_report_result(report, filters) or []
 
 	columns, result, message, chart, report_summary, skip_total_row = ljust_list(res, 6)
@@ -1042,6 +1046,33 @@ def validate_filters_permissions(report_name, filters=None, user=None):
 						linked_doctype, filters[field.fieldname]
 					)
 				)
+
+
+# //// Neoffice — added function (no upstream equivalent), called by generate_report_result (neoffice-maintenance#2838). A script
+# //// or query report reads the company its `company` filter names, in SQL, and its result is filtered afterwards only on the Link
+# //// columns it shows (get_filtered_data): most financial and stock reports show no company column. An account bound to some
+# //// companies (a User Permission on Company that applies to the report's doctype) chose another company in the filter and read
+# //// its books. Such a company is refused, as its documents are at the desk; nothing changes for an account without a bound,
+# //// for a bound that applies to other doctypes only, nor for a report run without a company filter.
+def validate_company_filter(report, filters, user):
+	if not isinstance(filters, dict) or not filters.get("company"):
+		return
+	from frappe.core.doctype.user_permission.user_permission import get_user_permissions
+	from frappe.permissions import filter_allowed_docs_for_doctype
+
+	permissions = get_user_permissions(user).get("Company")
+	if not permissions:
+		return
+	allowed = filter_allowed_docs_for_doctype(permissions, report.ref_doctype, with_default_doc=False)
+	if not allowed:
+		return
+	asked = filters["company"]
+	for company in asked if isinstance(asked, list | tuple) else [asked]:
+		if company and company not in allowed:
+			frappe.throw(
+				_("You do not have permission to access {0}: {1}.").format(_("Company"), company),
+				frappe.PermissionError,
+			)
 
 
 def translate_report_data(data, total_row):
