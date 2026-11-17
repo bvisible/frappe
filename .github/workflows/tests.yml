@@ -288,8 +288,11 @@ jobs:
       # //// Neoffice — upstream's CI builds frappe's assets (install.sh: bench build --app frappe); the whole suite
       # //// needs them where a test reads a bundle: test_inline_styling inlines email.bundle.css, which is not
       # //// there with --skip-assets (neoffice-maintenance#1832). The cases mode keeps its bare bench.
+      # //// Neoffice — and in the cases mode when the cases hold the mail integration tests (neoffice-maintenance#1832): the
+      # //// print test_store_attachments attaches is a PDF whose images are frappe's assets (« PDF generation failed because
+      # //// of broken image links » on a bare bench). Any other push keeps its bare bench.
       - name: Build frappe's assets, for the whole suite
-        if: steps.modules.outputs.mode == 'full'
+        if: steps.modules.outputs.mode == 'full' || contains(steps.modules.outputs.cases, 'TestEmailIntegrationTest')
         working-directory: /home/runner/frappe-bench
         run: CI=Yes bench build --app frappe
 
