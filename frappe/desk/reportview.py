@@ -1036,6 +1036,11 @@ def get_comment_count(doctype, docnames):
 	if isinstance(docnames, str):
 		docnames = json.loads(docnames)
 
+	# //// Neoffice — a virtual doctype has no table, hence no _comments column: get_all handed the query to
+	# //// its controller, which answered 500 on every list of Bulk Transaction Log (maintenance#2805).
+	if frappe.get_meta(doctype).is_virtual:
+		return {docname: 0 for docname in docnames}
+
 	comment_counts = {}
 
 	# Get _comments field for all docnames in one query
