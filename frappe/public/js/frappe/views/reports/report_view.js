@@ -134,7 +134,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	setup_view() {
 		//// Neoffice — the user's column settings are read here, without blocking, before the first
 		//// setup_columns() (see neo_prefetch_report_settings below); upstream has no such call.
-		if (this.neo_report_settings_prefetched === undefined) {
+		if (!this.neo_report_settings_asked) {
 			return this.neo_prefetch_report_settings().then(() => this.setup_view());
 		}
 		this.setup_columns();
@@ -427,6 +427,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 									widths: column_widths
 								};
 				
+								//// Neoffice — the next drawing reads the settings again (see neo_prefetch_report_settings).
+								me.neo_report_settings_cache = undefined;
 								frappe.call({
 									method: "frappe.desk.reportview.save_global_report_settings",
 									args: {
@@ -1242,6 +1244,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				widths: column_widths
 			};
 			
+			//// Neoffice — the settings kept for the view are the ones just saved (see neo_prefetch_report_settings).
+			this.neo_report_settings_cache = { message: settings };
 			frappe.call({
 				method: 'frappe.desk.reportview.save_user_report_settings',
 				args: {
@@ -1961,24 +1965,24 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	}
 
 	//// Neoffice — added: setup_columns() below reads the user's saved columns with a SYNCHRONOUS call (see its
-	//// block marker), and a synchronous call holds the whole tab until the server answers. Opened while the
-	//// list's other requests (its count, the stock of its rows) took every worker, the Item list froze the tab
-	//// for 14 s and more (maintenance#2804). The first answer is now fetched asynchronously as the view is set
-	//// up, and the first setup_columns() takes it without the network; a later one (a column changed) still asks
-	//// the server, as before. undefined: not asked yet; null: asked, nothing came; false: taken.
+	//// block marker), and render() calls setup_columns() at every drawing (a filter, a page, a live update). A
+	//// synchronous call holds the whole tab until the server answers: opened while the list's other requests
+	//// (its count, the stock of its rows) took every worker, the Item list froze the tab 14 s and more
+	//// (maintenance#2804). The answer is now fetched asynchronously as the view is set up and kept for the
+	//// view (neo_report_settings_cache): every setup_columns() takes it without the network. Saving the
+	//// columns puts the saved settings in it; saving the global settings empties it, and the next drawing
+	//// asks the server, synchronously as before, and keeps that answer.
 	neo_prefetch_report_settings() {
-		this.neo_report_settings_prefetched = null;
+		this.neo_report_settings_asked = true;
 		return frappe
 			.call({
 				method: "frappe.desk.reportview.get_user_report_settings",
 				args: { doctype: this.doctype },
 			})
 			.then((response) => {
-				this.neo_report_settings_prefetched = response || null;
+				if (response) this.neo_report_settings_cache = response;
 			})
-			.catch(() => {
-				this.neo_report_settings_prefetched = null;
-			});
+			.catch(() => {});
 	}
 
 	setup_columns() {
@@ -2009,13 +2013,19 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		////}
 
 		////
-		//// Neoffice — the answer fetched ahead by neo_prefetch_report_settings() is taken once, without the
-		//// network; otherwise the synchronous call below, as before.
-		const neo_prefetched = this.neo_report_settings_prefetched;
-		this.neo_report_settings_prefetched = false;
-		const neo_settings_call = neo_prefetched
-			? (options) => options.callback(neo_prefetched)
-			: (options) => frappe.call(options);
+		//// Neoffice — the settings kept for the view (neo_prefetch_report_settings) are taken without the
+		//// network; otherwise the synchronous call below, as before, whose answer is kept.
+		const neo_cached = this.neo_report_settings_cache;
+		const neo_settings_call = neo_cached
+			? (options) => options.callback(neo_cached)
+			: (options) =>
+					frappe.call({
+						...options,
+						callback: (response) => {
+							this.neo_report_settings_cache = response;
+							options.callback(response);
+						},
+					});
 		neo_settings_call({
 			method: 'frappe.desk.reportview.get_user_report_settings',
 			args: {
