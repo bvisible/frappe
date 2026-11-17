@@ -674,6 +674,14 @@ frappe.ui.Page = class Page {
 		if (this.standard_actions[0]) {
 			this._overflow_observer.observe(this.standard_actions[0], { childList: true });
 		}
+		//// Neoffice — and the page's own action going quiet or live (save_state.js), which decides where a script's
+		//// ink button stands (maintenance#2804). Only this attribute: the head's own passes change classes.
+		if (this.btn_primary && this.btn_primary[0]) {
+			this._overflow_observer.observe(this.btn_primary[0], {
+				attributes: true,
+				attributeFilter: ["data-neo-ss-btn"],
+			});
+		}
 		const title_area = this.wrapper.find(".page-head .title-area")[0];
 		if (title_area) {
 			this._overflow_observer.observe(title_area, {
@@ -739,6 +747,25 @@ frappe.ui.Page = class Page {
 		const sheddable = [...$actions[0].querySelectorAll("[data-pao-shed]")];
 		sheddable.forEach((el) => el.classList.remove("pao-dropped", "pao-folded"));
 		this.wrapper.find(".page-head .page-breadcrumbs").removeClass("pao-trail-gone");
+		//// Neoffice — the main action is the ink one and the last of the head (design system 6.17, maintenance#2804).
+		//// Where the page's own action is hidden (a tool: Bank Clearance) or quiet (a saved document's « Save »,
+		//// save_state.js data-neo-ss-btn), a script's visible ink button is the main one: its group goes after the
+		//// standard cluster (`neo-own-primary-last`, neoffice_theme document_views.css). Read on what is drawn: a
+		//// script's button may be hidden by a rule and keep its class (a submitted document).
+		const page_primary = this.btn_primary && this.btn_primary[0];
+		const page_primary_live =
+			!!page_primary &&
+			!!page_primary.offsetWidth &&
+			!["quiet", "outline"].includes(page_primary.getAttribute("data-neo-ss-btn"));
+		// a form only (a tool is a form of its own): a list's ink button is its tab's « + Create », drawn after this pass
+		const on_form = !!this.wrapper.find(".form-layout").length;
+		// the ink button itself, or a group whose button is one (« Add participants ▾ »)
+		const own_ink = [...ca.children].some(
+			(el) =>
+				el.offsetWidth &&
+				(el.classList.contains("btn-primary") || !!el.querySelector(":scope > .btn-primary"))
+		);
+		$actions[0].classList.toggle("neo-own-primary-last", on_form && !page_primary_live && own_ink);
 		const crumbs = this.set_title_floor();
 		const rank = (el) => parseFloat(el.getAttribute("data-pao-shed")) || 0;
 		const shed_order = (low, high) =>
