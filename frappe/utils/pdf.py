@@ -389,8 +389,20 @@ def _print_format_styles_of(stylesheet: str) -> tuple:
 
 def inline_private_images(html) -> str:
 	soup = BeautifulSoup(html, "html.parser")
+	# //// Neoffice — every image used to be looked up, one by one. A dunning of 107 invoices draws 208 images: the
+	# //// logo 108 times (one File query each) and 100 QR codes already inline as `data:` URIs of about 13 KB each,
+	# //// which urlparse and mimetypes read for nothing. Measured on that document: 0.43 s of the 0.8 s the function
+	# //// took, twice per render. A `data:` source can never be a private file, and the lookup of one source gives
+	# //// the same answer the second time within a call, so the first is skipped and the second is remembered;
+	# //// the HTML that comes out is the same. Drops at the v16 merge only if upstream does the same.
+	looked_up = {}
 	for img in soup.find_all("img"):
-		if b64 := _get_base64_image(img["src"]):
+		src = img["src"]
+		if src.startswith("data:"):
+			continue
+		if src not in looked_up:
+			looked_up[src] = _get_base64_image(src)
+		if b64 := looked_up[src]:
 			img["src"] = b64
 	return str(soup)
 
