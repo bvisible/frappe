@@ -13,6 +13,11 @@ frappe.utils.datatable.get_translations = function () {
 		//// (maintenance#2421). Upstream lists neither, in v15 or develop.
 		Freeze: __("Freeze", null, "Column menu of a table"),
 		Unfreeze: __("Unfreeze", null, "Column menu of a table"),
+		//// Neoffice — the tooltip of a column's filter (« Filter based on Groupe de clients »), written as an
+		//// English template literal in frappe-datatable until its 1.22.0-neoffice.3 (rowmanager.js,
+		//// getFilterInput): it asks this table for both keys (maintenance#2559).
+		"Filter based on {column}": __("Filter based on {column}"),
+		Index: __("Index"),
 		"No Data": __("No Data"),
 		"{count} cells copied": {
 			1: __("{count} cell copied"),
