@@ -1887,6 +1887,13 @@ Object.assign(frappe.utils, {
 	 *
 	 * @param {Object} obj - The object to mask passwords in.
 	 */
+	//// Neoffice — backport of upstream develop's helper: erpnext version-15's CRM Settings calls
+	//// frappe.utils.get_installed_apps(), absent from this frappe, and its form threw "is not a function"
+	//// at every refresh (maintenance#2805). Upstream maps frappe.boot.app_data; here app_data is the apps
+	//// switcher built from App Customization (boot.py), so the installed apps are read from boot.versions.
+	get_installed_apps() {
+		return Object.keys(frappe.boot.versions || {});
+	},
 	mask_passwords(obj) {
 		const KEYWORDS_TO_MASK = ["password", "passphrase"];
 		for (const key of Object.keys(obj)) {

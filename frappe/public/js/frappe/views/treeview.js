@@ -169,7 +169,12 @@ frappe.views.TreeView = class TreeView {
 			args: me.args,
 			callback: function (r) {
 				if (r.message) {
-					if (r.message.length > 1) {
+					//// Neoffice — a tree with no node at its root (CRM Territory on a site that has none)
+					//// answered [] and r.message[0]["value"] threw "Cannot read properties of undefined
+					//// (reading 'value')": the view stayed blank under its head. No node: the doctype is the
+					//// root, as when there are several, so the tree shows it and offers to add a child
+					//// (maintenance#2805). Upstream reads > 1.
+					if (r.message.length !== 1) {
 						me.root_label = me.doctype;
 						me.root_value = "";
 					} else {
