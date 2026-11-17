@@ -27,6 +27,37 @@ import "./grid_totals";
 //// an added file with no upstream equivalent; maintenance#1047).
 import "./form_dialog";
 import { UndoManager } from "./undo_manager";
+
+//// Neoffice — added: the form sidebar of a desk without one (see render_form). It draws nothing, outside
+//// the page; its members are the ones form scripts and frappe itself call on frm.sidebar.
+frappe.ui.form.quiet_sidebar = function (frm) {
+	const nowhere = () => $("<div>");
+	if (!frm.attachments) {
+		frm.attachments = new frappe.ui.form.Attachments({ parent: nowhere(), frm: frm });
+	}
+	return {
+		frm: frm,
+		quiet: true,
+		sidebar: nowhere(),
+		user_actions: nowhere(),
+		image_section: nowhere(),
+		image_wrapper: nowhere(),
+		make() {},
+		refresh() {},
+		reload_docinfo() {},
+		refresh_comments_count() {},
+		refresh_image() {},
+		refresh_like() {},
+		refresh_web_view_count() {},
+		clear_user_actions() {},
+		toggle() {},
+		add_user_action(label, click) {
+			return $("<a>")
+				.html(label)
+				.on("click", click || (() => {}));
+		},
+	};
+};
 import "./workflow";
 
 frappe.ui.form.Controller = class FormController {
@@ -619,6 +650,13 @@ frappe.ui.form.Form = class FrappeForm {
 					page: this.page,
 				});
 				this.sidebar.make();
+			} else {
+				//// Neoffice — without the form sidebar (the Desk Settings of the Simple mode) upstream leaves
+				//// frm.sidebar and frm.attachments undefined, and a form script that adds a sidebar action
+				//// (Web Form, Builder Page, Contact Us Settings), sets the image (Appraisal) or reads the
+				//// attachments (ZUGFeRD Wizard) threw at refresh, cutting the rest of it (maintenance#2805).
+				//// A sidebar that draws nothing answers them instead.
+				this.sidebar = frappe.ui.form.quiet_sidebar(this);
 			}
 
 			// clear layout message
