@@ -132,6 +132,11 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	}
 
 	setup_view() {
+		//// Neoffice — the user's column settings are read here, without blocking, before the first
+		//// setup_columns() (see neo_prefetch_report_settings below); upstream has no such call.
+		if (this.neo_report_settings_prefetched === undefined) {
+			return this.neo_prefetch_report_settings().then(() => this.setup_view());
+		}
 		this.setup_columns();
 		super.setup_new_doc_event();
 		this.setup_events();
@@ -1955,6 +1960,27 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		return Boolean(this.fields.find((f) => f[0] === df.fieldname && df.parent === f[1]));
 	}
 
+	//// Neoffice — added: setup_columns() below reads the user's saved columns with a SYNCHRONOUS call (see its
+	//// block marker), and a synchronous call holds the whole tab until the server answers. Opened while the
+	//// list's other requests (its count, the stock of its rows) took every worker, the Item list froze the tab
+	//// for 14 s and more (maintenance#2804). The first answer is now fetched asynchronously as the view is set
+	//// up, and the first setup_columns() takes it without the network; a later one (a column changed) still asks
+	//// the server, as before. undefined: not asked yet; null: asked, nothing came; false: taken.
+	neo_prefetch_report_settings() {
+		this.neo_report_settings_prefetched = null;
+		return frappe
+			.call({
+				method: "frappe.desk.reportview.get_user_report_settings",
+				args: { doctype: this.doctype },
+			})
+			.then((response) => {
+				this.neo_report_settings_prefetched = response || null;
+			})
+			.catch(() => {
+				this.neo_report_settings_prefetched = null;
+			});
+	}
+
 	setup_columns() {
 		// apply previous column width
 		let column_widths = null;
@@ -1983,7 +2009,14 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		////}
 
 		////
-		frappe.call({
+		//// Neoffice — the answer fetched ahead by neo_prefetch_report_settings() is taken once, without the
+		//// network; otherwise the synchronous call below, as before.
+		const neo_prefetched = this.neo_report_settings_prefetched;
+		this.neo_report_settings_prefetched = false;
+		const neo_settings_call = neo_prefetched
+			? (options) => options.callback(neo_prefetched)
+			: (options) => frappe.call(options);
+		neo_settings_call({
 			method: 'frappe.desk.reportview.get_user_report_settings',
 			args: {
 				doctype: doctype
