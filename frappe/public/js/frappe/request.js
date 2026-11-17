@@ -30,6 +30,44 @@ frappe.request.connection_lost = function () {
 window.addEventListener("pagehide", () => (frappe.request.leaving_page = true));
 window.addEventListener("pageshow", () => (frappe.request.leaving_page = false));
 
+//// Neoffice — added (no upstream equivalent). Who is signed in, asked of the server when a request is refused. A dead
+//// session and a missing right come back alike: frappe.is_whitelisted answers a Guest's call, and a signed-in person's
+//// call to a method not whitelisted, with the same 403 whose body is a redirection to /login (no JSON, no
+//// `session_expired`). The desk said « Not permitted » to people who had only been signed out (Jérémy, 17.11: « soit on
+//// n'a pas les accès […] ou soit on a été déconnecté, et là, il faut offrir une notion de login »). Resolves "alive",
+//// "expired" (the server answers Guest, 401 or 403) or "unknown" (no answer: a restart, the network). Plain $.ajax, not
+//// frappe.call: its own refusal must not come back through the handlers below. The refusals of one burst ask once.
+frappe.request.check_session = function () {
+	if (frappe.request.session_check) return frappe.request.session_check;
+	const check = new Promise((resolve) => {
+		$.ajax({
+			url: "/api/method/frappe.auth.get_logged_user",
+			type: "GET",
+			dataType: "json",
+			cache: false,
+			headers: { Accept: "application/json", "X-Frappe-CSRF-Token": frappe.csrf_token },
+		})
+			.done((r) => resolve(r && r.message && r.message !== "Guest" ? "alive" : "expired"))
+			.fail((xhr) => resolve([401, 403].includes(xhr.status) ? "expired" : "unknown"));
+	});
+	frappe.request.session_check = check;
+	check.then(() => setTimeout(() => (frappe.request.session_check = null), 2000));
+	return check;
+};
+
+//// Neoffice — added (no upstream equivalent). A refusal met by someone the page believes signed in: gone, the session gets
+//// the « You have been signed out » window (frappe.app.handle_session_expired, desk.js); still there, `refused` says what
+//// was refused, as before. `unknown_is_expired`: a 401 with no answer to the question is still a failed sign-in.
+frappe.request.on_refusal = function (refused, unknown_is_expired) {
+	const app = frappe.app;
+	if (app && app.session_expired_dialog && app.session_expired_dialog.display) return;
+	frappe.request.check_session().then((state) => {
+		const gone = state === "expired" || (state === "unknown" && unknown_is_expired);
+		if (gone && app && app.handle_session_expired) app.handle_session_expired();
+		else if (refused) refused();
+	});
+};
+
 frappe.xcall = function (method, params) {
 	return new Promise((resolve, reject) => {
 		frappe.call({
@@ -146,11 +184,11 @@ frappe.request.call = function (opts) {
 			opts.success_callback && opts.success_callback(data, xhr.responseText);
 		},
 		401: function (xhr) {
-			if (frappe.app.session_expired_dialog && frappe.app.session_expired_dialog.display) {
-				frappe.app.redirect_to_login();
-			} else {
-				frappe.app.handle_session_expired();
-			}
+			//// Neoffice — upstream sent every 401 straight to the sign-in page, and a second one while its window was open
+			//// too: the page was left mid-sentence. The server is now asked whether the session is gone (a wrong password
+			//// typed in a window answers 401 while the session lives); gone, ONE window says so (frappe.request.on_refusal).
+			frappe.request.on_refusal(null, true);
+			//// END Neoffice ////
 			opts.error_callback && opts.error_callback();
 		},
 		404: function (xhr) {
@@ -189,13 +227,19 @@ frappe.request.call = function (opts) {
 				//// (seen 2026-08-11 on nora.api.v2.memory.read_memory — the live voice
 				//// console reloaded the desk instead of saying anything). The
 				//// session-expired path above still covers the case it was written for.
-				frappe.msgprint({
-					title: __("Not permitted"),
-					indicator: "red",
-					message: __(
-						"You do not have enough permissions to access this resource. Please contact your manager to get access."
-					),
-				});
+				//// Neoffice — 17.11: but a 403 with no JSON is ALSO what a dead session gets (frappe.is_whitelisted answers a
+				//// Guest with a redirection to /login, status 403), and this message told a signed-out person « Not
+				//// permitted ». The server is asked first who is signed in (frappe.request.on_refusal): signed out, the
+				//// « You have been signed out » window; still signed in, this message.
+				frappe.request.on_refusal(() =>
+					frappe.msgprint({
+						title: __("Not permitted"),
+						indicator: "red",
+						message: __(
+							"You do not have enough permissions to access this resource. Please contact your manager to get access."
+						),
+					})
+				);
 				//// END Neoffice ////
 			} else {
 				//// return to login — the session really is gone (no user at all)

@@ -37340,3 +37340,15 @@ msgstr "Commande"
 msgctxt "Column menu of a table"
 msgid "Unfreeze"
 msgstr "Ne plus figer"
+
+#: frappe/public/js/frappe/desk.js:793
+msgid "A session closes after a while without activity. What was not saved is still on the screen."
+msgstr "Une session se ferme après un certain temps sans activité. Les modifications non enregistrées restent affichées à l'écran."
+
+#: frappe/public/js/frappe/desk.js:782
+msgid "You have been signed out"
+msgstr "Vous avez été déconnecté"
+
+#: frappe/public/js/frappe/desk.js:784
+msgid "Your session"
+msgstr "Votre session"

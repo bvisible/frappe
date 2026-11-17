@@ -88,6 +88,21 @@ class RealTimeClient {
 
 		this.socket.on("connect", function () {
 			me.reconnect_tries = 0;
+			// //// Neoffice — a RE-connection (a computer that wakes up, a network that comes back, a restart of the
+			// //// server) asks the server who is signed in (frappe.request.check_session, request.js): a session
+			// //// that died meanwhile opens the « You have been signed out » window before any click (17.11). The
+			// //// socket itself cannot tell: its middleware accepts a dead session as Guest (get_user_info is
+			// //// allow_guest). Not on the first connection, the page has just been served to a signed-in person.
+			if (
+				me.connected_before &&
+				frappe.request?.check_session &&
+				frappe.app?.handle_session_expired
+			) {
+				frappe.request.check_session().then((state) => {
+					if (state === "expired") frappe.app.handle_session_expired();
+				});
+			}
+			me.connected_before = true;
 		});
 
 		// //// Neoffice — a tab that comes back to the foreground reconnects at once instead of

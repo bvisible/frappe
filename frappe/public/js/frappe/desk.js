@@ -764,9 +764,42 @@ frappe.Application = class Application {
 			});
 		});
 	}
+	//// Neoffice — upstream sent the person to the sign-in page at once, mid-sentence and without a word. A window of the
+	//// model (design system §6.18: a message, size small, eyebrow « Your session ») now says « You have been signed out »,
+	//// that what was not saved is still on the screen, and « Sign in again » goes to /login and back to this page (Jérémy,
+	//// 17.11: « il faut offrir une notion de login pour que les personnes puissent se reconnecter. Et puis dire, vous
+	//// avez été déconnecté »). ONE window however many requests are refused together; closed (to copy what was typed),
+	//// the next refusal opens it again. Above any window already open: the refused click may have come from one.
 	handle_session_expired() {
-		frappe.app.redirect_to_login();
+		const shown = this.session_expired_dialog;
+		if (shown) {
+			if (!shown.display) shown.show();
+			frappe.ui.dialog_model?.stack_above?.(shown);
+			return;
+		}
+		if (!frappe.ui?.Dialog) return frappe.app.redirect_to_login();
+		const d = new frappe.ui.Dialog({
+			title: __("You have been signed out"),
+			// « Your session », not the bare « Session »: an app of the desk translates that one « Séance » (a workout).
+			eyebrow: __("Your session"),
+			size: "small",
+			primary_action_label: __("Sign in again"),
+			primary_action: () => frappe.app.redirect_to_login(),
+		});
+		d.confirm_dialog = true; // ui/keyboard.js: Enter signs in again
+		d.$wrapper.addClass("neo-session-expired");
+		$('<p class="dlg-question-text"></p>')
+			.text(
+				__(
+					"A session closes after a while without activity. What was not saved is still on the screen."
+				)
+			)
+			.appendTo(d.$body);
+		this.session_expired_dialog = d;
+		d.show();
+		frappe.ui.dialog_model?.stack_above?.(d);
 	}
+	//// END Neoffice ////
 	redirect_to_login() {
 		window.location.href = `/login?redirect-to=${encodeURIComponent(
 			window.location.pathname + window.location.search
