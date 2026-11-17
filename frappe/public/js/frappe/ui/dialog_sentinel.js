@@ -184,15 +184,21 @@ frappe.provide("frappe.ui.dialog_sentinel");
 	P.show = function () {
 		const r = show.apply(this, arguments);
 		if (on()) {
+			// A window is drawn after its fade (about a second on the desk): it is measured once it stands, 3 s at most.
 			const d = this;
-			setTimeout(() => {
+			const started = Date.now();
+			const look = () => {
 				try {
-					const m = measure(d);
-					if (m) send("window", m);
+					const W = d.$wrapper && d.$wrapper[0];
+					const standing = W && d.display && parseFloat(getComputedStyle(W).opacity) > 0.95;
+					const m = standing ? measure(d) : null;
+					if (m) return send("window", m);
 				} catch (e) {
-					// never in the way of a window
+					return; // never in the way of a window
 				}
-			}, 450);
+				if (d.display !== false && Date.now() - started < 3000) setTimeout(look, 250);
+			};
+			setTimeout(look, 450);
 		}
 		return r;
 	};
