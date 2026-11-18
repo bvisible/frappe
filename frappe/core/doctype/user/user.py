@@ -193,7 +193,8 @@ class User(Document):
 
 		if self.name not in STANDARD_USERS:
 			self.email = self.name
-			self.validate_email_type(self.name)
+			# //// Neoffice — a new user is named by an address alone (maintenance#2860), see validate_email_type.
+			self.validate_email_type(self.name, exact=self.is_new())
 
 		self.populate_role_profile_roles()
 		self.check_roles_added()
@@ -600,12 +601,26 @@ class User(Document):
 		if old_name in STANDARD_USERS:
 			throw(_("User {0} cannot be renamed").format(self.name))
 
-		self.validate_email_type(new_name)
+		# //// Neoffice — a renamed user too is named by an address alone (maintenance#2860).
+		self.validate_email_type(new_name, exact=True)
 
-	def validate_email_type(self, email):
-		from frappe.utils import validate_email_address
+	def validate_email_type(self, email, exact=False):
+		from frappe.utils import EMAIL_MATCH_PATTERN, validate_email_address
 
-		validate_email_address(email.strip(), True)
+		# //// Neoffice — `exact`: the name is an address and nothing else (maintenance#2860). validate_email_address
+		# //// finds an address in a string and returns that address, so on 18.11 a vulnerability scanner made 17
+		# //// enabled Website Users on a shop's signup named `sample@email.tst' and 2*3*8=6*8 and 'a9is'='a9is`,
+		# //// `sample@email.tst%c0%a7...` or a <script> payload. Only for a new or renamed user: an existing one keeps
+		# //// saving as before. Upstream checks the found address only, and its pattern only the beginning of it
+		# //// (`sample@email.tst&n948154=v924635` passed whole): the name must be the found address and match the whole
+		# //// pattern.
+		email = (email or "").strip()
+		found = validate_email_address(email, True)
+		if exact and ((found or "").lower() != email.lower() or not EMAIL_MATCH_PATTERN.fullmatch(email)):
+			throw(
+				_("{0} is not a valid Email Address").format(frappe.utils.escape_html(email)),
+				frappe.InvalidEmailAddressError,
+			)
 
 	def after_rename(self, old_name, new_name, merge=False):
 		tables = frappe.db.get_tables()
