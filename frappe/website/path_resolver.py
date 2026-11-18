@@ -104,6 +104,12 @@ def sees_through_maintenance() -> bool:
 	Staff was System Manager or Website Manager. In Neoffice System Manager belongs to Administrator alone, so that
 	locked every employee out of the pages and apps an instance in maintenance still runs (/pos, /drive, the mail
 	page…); a desk user is a member of staff. A customer (Website User) and a visitor meet the maintenance page."""
+	# //// Neoffice — the site build's own render sees the page it wrote (2026-11-18): builder's visual check looks at every page
+	# //// through the loopback, and neoffice_theme flags that request (server_side_render) only when it comes from the machine
+	# //// itself and names its site. The offline switch already honoured the flag; this gate did not, and every page of a site
+	# //// built while in maintenance was published without being looked at, the check seeing the maintenance page instead.
+	if frappe.local.flags.get("server_side_render"):
+		return True
 	user = frappe.session.user
 	if not user or user == "Guest":
 		return False

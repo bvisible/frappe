@@ -133,6 +133,24 @@ class TestWhoSeesThrough(MaintenanceCase):
 		self.assertOpen("me")
 
 
+class TestTheSiteBuildsOwnRender(MaintenanceCase):
+	"""The site build looks at every page it wrote through the loopback, as a visitor would (builder's visual check), and the
+	theme flags that request only when it comes from the machine itself and names its site. A site built while in maintenance
+	had every page published without being looked at: the check saw the maintenance page instead (2026-11-18)."""
+
+	def tearDown(self):
+		frappe.local.flags.pop("server_side_render", None)
+
+	def test_the_build_render_sees_the_page_behind_the_maintenance_page(self):
+		frappe.local.flags.server_side_render = True
+		self.assertOpen("")
+		self.assertOpen("about")
+
+	def test_a_visitor_without_the_flag_still_meets_the_maintenance_page(self):
+		self.assertClosed("")
+		self.assertClosed("about")
+
+
 class TestThroughTheRealRequest(FrappeTestCase):
 	"""The same answers through the request path, in another thread, as a visitor's browser gets them."""
 
