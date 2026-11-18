@@ -112,6 +112,18 @@ frappe.provide("frappe.ui.dialog_model");
 		$e.text(this.eyebrow).toggleClass("hide", !this.eyebrow);
 	};
 
+	// The size of a window already built (design system 6.18: small / default / large / extra-large = 440 / 560 / 800 /
+	// 1140): Frappe gives a size at construction only, and some windows are built by Frappe itself (a quick entry, the
+	// email composer), then made wider. A size named here is the model's, never a width of one's own.
+	P.set_size = function (size) {
+		const SIZES = { small: "modal-sm", large: "modal-lg", "extra-large": "modal-xl" };
+		this.size = SIZES[size] ? size : "";
+		const $d = this.$wrapper && this.$wrapper.find(".modal-dialog");
+		if (!$d || !$d.length) return;
+		$d.removeClass("modal-sm modal-lg modal-xl");
+		if (SIZES[size]) $d.addClass(SIZES[size]);
+	};
+
 	// A link at the left of the footer (« Ouvrir le formulaire complet », « Utiliser un modèle »).
 	P.add_footer_link = function (label, action, key) {
 		this.footer.removeClass("hide");
