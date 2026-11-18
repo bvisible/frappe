@@ -98,7 +98,13 @@ def get_permission_query_conditions(user=None):
 		((nc.type == "Report") & nc.report_name.isin(allowed_reports))
 		| ((nc.type == "Custom") & nc.document_type.isin(allowed_doctypes))
 		| ((nc.type == "Document Type") & nc.document_type.isin(allowed_doctypes))
-	) & (nc.module.isin(allowed_modules) | nc.module.isnull() | nc.module == "")
+		# //// Neoffice — upstream version-15 leaves the empty-module comparison below without brackets: Python
+		# //// reads it as `(… | nc.module) == ""`, and the SQL becomes `… AND module IN (…) OR module IS NULL OR
+		# //// module = ''`, so every card without a module reached every desk user's list whatever its document
+		# //// type, and its form (has_permission below, bracketed) then refused them: a cashier was listed a card
+		# //// of unpaid purchase invoices (neoffice-maintenance#2863). Upstream develop brackets it (frappe#39388,
+		# //// not in version-15): drop this when the fleet is on v16.
+	) & (nc.module.isin(allowed_modules) | nc.module.isnull() | (nc.module == ""))
 
 	return conditions.get_sql(quote_char="`")
 
