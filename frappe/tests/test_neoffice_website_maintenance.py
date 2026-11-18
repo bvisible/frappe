@@ -22,7 +22,9 @@ def resolved(path):
 	return PathResolver(path).resolve()[0]
 
 
-class MaintenanceCase(FrappeTestCase):
+# //// Neoffice — named …TestCase (2026-11-18): the fork's CI runs a class whose base names TestCase; under « MaintenanceCase »
+# //// every class of this file was left out of CI, only this empty base ran and passed
+class MaintenanceTestCase(FrappeTestCase):
 	def setUp(self):
 		enter_maintenance()
 		self.addCleanup(self._leave_maintenance)
@@ -39,7 +41,7 @@ class MaintenanceCase(FrappeTestCase):
 		self.assertNotEqual(resolved(path), OFFLINE, f"/{path} should stay open")
 
 
-class TestTheShowcaseCloses(MaintenanceCase):
+class TestTheShowcaseCloses(MaintenanceTestCase):
 	def test_the_showcase_is_closed_to_a_visitor(self):
 		for path in ("", "about", "contact", "_test-opener"):
 			with self.subTest(path=path):
@@ -55,7 +57,7 @@ class TestTheShowcaseCloses(MaintenanceCase):
 		self.assertOpen("about")
 
 
-class TestWhatAnAppDeclaresStaysOpen(MaintenanceCase):
+class TestWhatAnAppDeclaresStaysOpen(MaintenanceTestCase):
 	def test_a_route_an_app_declares_stays_open_with_what_follows_it(self):
 		with patch_hooks({"website_maintenance_open_routes": ["_test-open", "/_test-slashed/"]}):
 			for path in ("_test-open", "_test-open/abc", "_test-slashed", "_test-slashed/x/y"):
@@ -98,7 +100,7 @@ class TestWhatAnAppDeclaresStaysOpen(MaintenanceCase):
 			self.assertTrue(customer_service_route("/_test-portal/SO-0001"))
 
 
-class TestWhoSeesThrough(MaintenanceCase):
+class TestWhoSeesThrough(MaintenanceTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
@@ -133,7 +135,7 @@ class TestWhoSeesThrough(MaintenanceCase):
 		self.assertOpen("me")
 
 
-class TestTheSiteBuildsOwnRender(MaintenanceCase):
+class TestTheSiteBuildsOwnRender(MaintenanceTestCase):
 	"""The site build looks at every page it wrote through the loopback, as a visitor would (builder's visual check), and the
 	theme flags that request only when it comes from the machine itself and names its site. A site built while in maintenance
 	had every page published without being looked at: the check saw the maintenance page instead (2026-11-18)."""
