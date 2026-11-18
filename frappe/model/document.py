@@ -1572,11 +1572,14 @@ class Document(_DocumentBase):
 		val2 = doc.cast(val2, df)
 
 		if not compare(val1, condition, val2):
-			label = doc.meta.get_label(fieldname)
+			# //// Neoffice — the field's label in the person's language, and a space after the colon: the person read
+			# //// « Valeur incorrecte :Grand Total (Company Currency) doit être >= 0.0 » (neoffice-maintenance#2933).
+			label = _(doc.meta.get_label(fieldname), context=doc.doctype)
 			if doc.get("parentfield"):
-				msg = _("Incorrect value in row {0}:").format(doc.idx)
+				msg = _("Incorrect value in row {0}:").format(doc.idx) + " "
 			else:
-				msg = _("Incorrect value:")
+				# //// Neoffice — the space after the colon (neoffice-maintenance#2933).
+				msg = _("Incorrect value:") + " "
 
 			if condition == "in":
 				msg += _("{0} must be one of {1}").format(label, val2)

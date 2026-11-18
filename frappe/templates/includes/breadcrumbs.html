@@ -7,7 +7,9 @@
 			{% for parent in parents %}
 				<li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem" class="breadcrumb-item">
 					<a itemprop="item" href="{{ url_prefix }}{{ parent.route | abs_url }}">
-						<span itemprop="name">{{ parent.title or parent.label or parent.name or "" }}</span>
+						{# //// Neoffice — a parent's title in the page's language: the portal's routes set « Invoices »,
+						//// « Quotations », « Orders » in English (erpnext hooks), shown as is (neoffice-maintenance#2934). #}
+						<span itemprop="name">{{ _(parent.title or parent.label or parent.name or "") }}</span>
 						<meta itemprop="position" content="{{ loop.index }}" />
 					</a>
 				</li>

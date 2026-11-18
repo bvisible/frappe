@@ -26,7 +26,11 @@ frappe.ui.form.save = function (frm, action, callback, btn) {
 					callback(r);
 				},
 				error: function (r) {
-					callback(r);
+					//// Neoffice — a 502 or a 504 (the server restarting, or too slow) calls this with no answer at all:
+					//// after_save read `r.exc` of nothing, threw, and the promise of frm.save() never settled, so what waited
+					//// on it (the item picker's « Ajout des articles… ») stayed on screen for good (neoffice-maintenance#2934).
+					//// The message is already on screen (request.js); this only says the save did not happen.
+					callback(r || { exc: "no answer from the server" });
 				},
 				btn: btn,
 				freeze_message: freeze_message,

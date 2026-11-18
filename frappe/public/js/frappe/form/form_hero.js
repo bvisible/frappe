@@ -342,8 +342,12 @@ const HERO_REGISTRY = {
 		rank(doc) {
 			if (doc.docstatus === 2 || ["Cancelled", "Closed"].includes(doc.status)) return -1;
 			if (doc.docstatus === 0) return 1;
-			if (flt(doc.per_billed) >= 100) return 5;
-			if (flt(doc.per_delivered) >= 100) return 4;
+			// Billed before it was delivered (an order of services invoiced at once): the delivery is still what
+			// comes next. The bar ticked « Delivered » with nothing delivered, under a pill that read « To Deliver »
+			// (neoffice-maintenance#2934); the billing, done ahead, is drawn done by its date (render below).
+			const delivered = flt(doc.per_delivered) >= 100 || !!doc.skip_delivery_note;
+			if (flt(doc.per_billed) >= 100 && delivered) return 5;
+			if (delivered) return 4;
 			return 3;
 		},
 		actions(rank, frm) {
@@ -434,7 +438,8 @@ const HERO_REGISTRY = {
 		rank(doc) {
 			if (doc.docstatus === 2 || doc.status === "Closed") return -1;
 			if (doc.docstatus === 0) return 1;
-			if (flt(doc.per_billed) >= 100) return 5;
+			// Billed before the goods came: the receipt is still what comes next (the sales order's case, #2934).
+			if (flt(doc.per_billed) >= 100 && flt(doc.per_received) >= 100) return 5;
 			if (flt(doc.per_received) >= 100) return 4;
 			return 3;
 		},
@@ -992,6 +997,9 @@ frappe.ui.form.FormHero = class FormHero {
 				if (rank === -1) cls = "dead";
 				else if (n < rank) cls = "done";
 				else if (n === rank) cls = "current";
+				// A step that happened ahead of the one in progress (an order billed before it was delivered) is done:
+				// it has its date (neoffice-maintenance#2934).
+				else if (step.when) cls = "done";
 
 				const bubble =
 					cls === "done"

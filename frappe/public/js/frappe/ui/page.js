@@ -894,10 +894,12 @@ frappe.ui.Page = class Page {
 	}
 
 	set_inner_btn_group_as_primary(label) {
-		this.get_or_add_inner_group_button(label)
-			.find("button")
-			.removeClass("btn-default")
-			.addClass("btn-primary");
+		//// Neoffice — upstream created the group to style it, though nothing was put in it: erpnext calls this on every
+		//// sales order, and an accountant (who may create nothing from a billed order) got a « Créer » button opening
+		//// an empty list (neoffice-maintenance#2934). The group stays hidden until a button goes in (add_inner_button).
+		const $group = this.get_or_add_inner_group_button(label);
+		$group.find("button").removeClass("btn-default").addClass("btn-primary");
+		$group.toggleClass("hide", !$group.find(".dropdown-item").length);
 	}
 
 	btn_disable_enable(btn, response) {
@@ -954,6 +956,9 @@ frappe.ui.Page = class Page {
 		if (group) {
 			var $group = this.get_or_add_inner_group_button(group);
 			$(this.inner_toolbar).removeClass("hide");
+			//// Neoffice — a group made primary while still empty is hidden (set_inner_btn_group_as_primary): its first
+			//// button shows it again.
+			$group.removeClass("hide");
 
 			if (!this.is_in_group_button_dropdown($group.find(".dropdown-menu"), "a", label)) {
 				return $(
