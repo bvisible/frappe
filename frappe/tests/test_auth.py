@@ -1,7 +1,10 @@
 # Copyright (c) 2021, Frappe Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
+# //// Neoffice — upstream's `import inspect` (15.127.0) is not carried: only its two login-link job tests used it
+# //// (see the note above test_correct_cookie_expiry_set).
 import datetime
 import time
+from unittest.mock import patch
 
 import requests
 from werkzeug.test import EnvironBuilder
@@ -13,9 +16,11 @@ from frappe.core.doctype.user.user import generate_keys
 from frappe.frappeclient import AuthError, FrappeClient
 from frappe.sessions import Session, get_expired_sessions, get_expiry_in_seconds
 from frappe.tests.test_api import FrappeAPITestCase
+# //// Neoffice — without upstream's `change_settings`: only its two login-link job tests used it.
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import get_datetime, get_site_url, now
 from frappe.utils.data import add_to_date
+# //// Neoffice — `_send_login_link` and `send_login_link` are not imported: see the note above test_correct_cookie_expiry_set.
 from frappe.www.login import _generate_temporary_login_link
 
 
@@ -161,6 +166,11 @@ class TestAuth(FrappeTestCase):
 				break
 		else:
 			self.fail("Rate limting not working")
+
+	# //// Neoffice — upstream's two tests of the login link sent from a job (15.127.0) are not carried: they test
+	# //// `_send_login_link`, which our fork does not have. Our `send_login_link` is `passwordless.request_code`
+	# //// (maintenance#2370), which already mails from a job (`send_code_email` through `frappe.enqueue`) and answers
+	# //// the same for every address; frappe/tests/test_passwordless.py covers it.
 
 	def test_correct_cookie_expiry_set(self):
 		import pytz

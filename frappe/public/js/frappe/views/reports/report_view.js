@@ -818,6 +818,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	prepare_data(r) {
 		let data = r.message || {};
 		data = frappe.utils.dict(data.keys, data.values);
+		const row_key = this.get_row_key();
+		const checked = this.datatable && new Set(this.get_checked_items().map(row_key));
 
 		if (this.start === 0) {
 			this.data = data;
@@ -827,16 +829,30 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		//// Neoffice — added call + method (4e23539603, 2024-09-23, no message): rows the current user
 		//// has liked (_liked_by) are floated to the top of the page of data upstream just fetched.
 		//// Client-side only, so it reorders the CURRENT page, not the query — a liked row on page 3
-		//// stays on page 3. No upstream equivalent.
-		////
+		//// stays on page 3. No upstream equivalent. It runs before upstream's remap of the checked rows
+		//// (15.127.0) below, so the remap follows the order the rows are drawn in.
 		this.sort_data_by_likes();
+
+		// datatable tracks checked rows by index; remap them so new row order keeps the same rows
+		if (checked) {
+			this.datatable.rowmanager.checkMap = this.data.map((d) =>
+				d.name && checked.has(row_key(d)) ? 1 : 0
+			);
+		}
 	}
-	////
+
+	// a doc spans several rows when child table columns are shown
+	get_row_key() {
+		const cdts = this.get_unique_cdt_in_view();
+		return (d) => JSON.stringify([d.name, ...cdts.map((cdt) => d[`${cdt}:name`])]);
+	}
+
+	//// Neoffice — added method (see the call in prepare_data above).
 	sort_data_by_likes() {
 		this.data.sort((a, b) => {
 			const aLiked = JSON.parse(a._liked_by || "[]").includes(frappe.session.user);
 			const bLiked = JSON.parse(b._liked_by || "[]").includes(frappe.session.user);
-	
+
 			if (aLiked && !bLiked) {
 				return -1;
 			} else if (!aLiked && bLiked) {

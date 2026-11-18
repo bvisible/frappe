@@ -392,16 +392,19 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		});
 	}
 
-	update_checkbox(target) {
+	update_checkbox() {
 		if (!this.$checkbox_actions) return;
 
-		let $check_all_checkbox = this.$checkbox_actions.find(".list-check-all");
+		const checked_count = this.$checks?.length || 0;
+		this.$checkbox_actions.find(".list-check-all").prop({
+			checked: this.data.length > 0 && checked_count === this.data.length,
+			indeterminate: this.is_partly_checked(),
+		});
+	}
 
-		if ($check_all_checkbox.prop("checked") && target && !target.prop("checked")) {
-			$check_all_checkbox.prop("checked", false);
-		}
-
-		$check_all_checkbox.prop("checked", this.$checks.length === this.data.length);
+	is_partly_checked() {
+		const checked_count = this.$checks?.length || 0;
+		return checked_count > 0 && checked_count < this.data.length;
 	}
 
 	setup_freeze_area() {
@@ -798,7 +801,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 				<div class="level-left checkbox-actions">
 					<div class="level list-subject">
 						<input class="level-item list-check-all" type="checkbox"
-							title="${__("Select All")}">
+							title="${__("Unselect All")}">
 						<span class="level-item list-header-meta"></span>
 					</div>
 				</div>
@@ -1506,10 +1509,13 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 				$check.prop("checked", $target.prop("checked"));
 				$check.trigger("change");
 			} else if ($target.is(".checkbox-actions .list-check-all")) {
-				const $check = this.$result.find(".list-header-subject .list-check-all");
-				$check.prop("checked", $target.prop("checked"));
+				const checked = !this.is_partly_checked() && $target.prop("checked");
+				$target.prop("checked", checked);
 
-				this.$result.find(".list-row-checkbox").prop("checked", $target.prop("checked"));
+				const $check = this.$result.find(".list-header-subject .list-check-all");
+				$check.prop("checked", checked);
+
+				this.$result.find(".list-row-checkbox").prop("checked", checked);
 			} else if ($target.attr("data-parent")) {
 				this.$result
 					.find(`.${$target.attr("data-parent")}`)
@@ -1543,8 +1549,6 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 			}
 
 			this.$checkbox_cursor = $target;
-
-			this.update_checkbox($target);
 		});
 
 		let me = this;
@@ -1728,9 +1732,9 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 			return;
 		}
 
-		$.each(this.$checks, (i, el) => {
-			let docname = $(el).attr("data-name");
-			this.$result.find(`.list-row-checkbox[data-name='${docname}']`).prop("checked", true);
+		const names = new Set(Array.from(this.$checks, (el) => el.getAttribute("data-name")));
+		this.$result.find(".list-row-checkbox").each((i, el) => {
+			if (names.has(el.getAttribute("data-name"))) el.checked = true;
 		});
 		this.on_row_checked();
 	}
@@ -2019,7 +2023,6 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 					this.disable_list_update = true;
 					bulk_operations.assign(this.get_checked_items(true), () => {
 						this.disable_list_update = false;
-						this.clear_checked_items();
 						this.refresh();
 					});
 				},
@@ -2033,21 +2036,13 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 				action: () => {
 					//// Neoffice — upstream passes the confirmation text untranslated
 					//// (frappe.confirm does not translate its message); we translate it.
-					frappe.confirm(
-						__("Are you sure you want to clear the assignments?"),
-						() => {
-							this.disable_list_update = true;
-							bulk_operations.clear_assignment(this.get_checked_items(true), () => {
-								this.disable_list_update = false;
-								this.clear_checked_items();
-								this.refresh();
-							});
-						},
-						() => {
-							this.clear_checked_items();
+					frappe.confirm(__("Are you sure you want to clear the assignments?"), () => {
+						this.disable_list_update = true;
+						bulk_operations.clear_assignment(this.get_checked_items(true), () => {
+							this.disable_list_update = false;
 							this.refresh();
-						}
-					);
+						});
+					});
 				},
 				standard: true,
 			};
@@ -2058,11 +2053,14 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 				label: __("Apply Assignment Rule", null, "Button in list view actions menu"),
 				action: () => {
 					this.disable_list_update = true;
-					bulk_operations.apply_assignment_rule(this.get_checked_items(true), () => {
-						this.disable_list_update = false;
-						this.clear_checked_items();
-						this.refresh();
-					});
+					bulk_operations.apply_assignment_rule(
+						this.get_checked_items(true),
+						(queued) => {
+							this.disable_list_update = false;
+							if (queued) this.clear_checked_items();
+							this.refresh();
+						}
+					);
 				},
 				standard: true,
 			};
@@ -2075,7 +2073,6 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 					this.disable_list_update = true;
 					bulk_operations.add_tags(this.get_checked_items(true), () => {
 						this.disable_list_update = false;
-						this.clear_checked_items();
 						this.refresh();
 					});
 				},
@@ -2137,9 +2134,9 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 							),
 							() => {
 								this.disable_list_update = true;
-								bulk_operations.submit_or_cancel(docnames, "cancel", () => {
+								bulk_operations.submit_or_cancel(docnames, "cancel", (queued) => {
 									this.disable_list_update = false;
-									this.clear_checked_items();
+									if (queued) this.clear_checked_items();
 									this.refresh();
 								});
 							}
@@ -2164,9 +2161,9 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 							),
 							() => {
 								this.disable_list_update = true;
-								bulk_operations.submit_or_cancel(docnames, "submit", () => {
+								bulk_operations.submit_or_cancel(docnames, "submit", (queued) => {
 									this.disable_list_update = false;
-									this.clear_checked_items();
+									if (queued) this.clear_checked_items();
 									this.refresh();
 								});
 							}
@@ -2190,11 +2187,15 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 					});
 
 					this.disable_list_update = true;
-					bulk_operations.edit(this.get_checked_items(true), field_mappings, () => {
-						this.disable_list_update = false;
-						this.clear_checked_items();
-						this.refresh();
-					});
+					bulk_operations.edit(
+						this.get_checked_items(true),
+						field_mappings,
+						(queued) => {
+							this.disable_list_update = false;
+							if (queued) this.clear_checked_items();
+							this.refresh();
+						}
+					);
 				},
 				standard: true,
 			};
