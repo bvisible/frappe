@@ -247,6 +247,20 @@ class TestPasswordless(FrappeTestCase):
 		)
 		self.assertTrue(passwordless.verify_code(address, code)["ok"])  # the attempts are intact
 
+	def test_an_address_with_anything_around_it_is_refused_and_nothing_is_sent(self):
+		# //// Neoffice — what a scanner sent on 18.11.2026: the address followed by encoded quotes, and a line break that
+		# would have reached the mail's headers (neoffice-maintenance#2370).
+		for bad in (
+			"sample@email.tst%c0%a7%c0%a2%2527%2522'\"",
+			"sample@email.tst\r\nBcc: someone@example.com",
+			"sample@email.tst, other@example.com",
+			"<sample@email.tst>",
+		):
+			before = frappe.db.count("Email Queue")
+			self.assertEqual(passwordless.request_code(bad), {"ok": False, "reason": "invalid_address"}, bad)
+			self.assertEqual(frappe.db.count("Email Queue"), before, bad)
+		self.assertEqual(passwordless._normalise("  Sample@Email.tst "), "sample@email.tst")
+
 	def test_the_expiry_ends_the_code(self):
 		address = _address("expiry")
 		_make_user(address)

@@ -190,7 +190,17 @@ def _too_many(message: str):
 
 def _normalise(email) -> str:
 	address = email.strip().lower() if isinstance(email, str) else ""
-	if not address or len(address) > 140 or not validate_email_address(address, throw=False):
+	if not address or len(address) > 140:
+		return ""
+	# //// Neoffice — `validate_email_address` finds an address INSIDE a string and answers with what it found: an input
+	# with something around the address (« a@b.tst%c0%a7'" », sent by a scanner on 18.11.2026) passed, and the raw string
+	# went to the mail relay, which refused it (501, logged as « NeoMail API error »). Only an input that is exactly one
+	# address is one (neoffice-maintenance#2370); a list (« a@b.tst, c@d.tst ») comes back whole from it, so no separator,
+	# space or bracket either.
+	if (
+		any(char in address for char in ",;<> \t\r\n")
+		or validate_email_address(address, throw=False) != address
+	):
 		return ""
 	return address
 
