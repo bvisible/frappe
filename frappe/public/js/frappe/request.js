@@ -68,6 +68,25 @@ frappe.request.on_refusal = function (refused, unknown_is_expired) {
 	});
 };
 
+//// Neoffice — added (no upstream equivalent). The refusal (403) of a request marked `silent`, a reading the page makes
+//// in the background that no click asked for: said in the console, never in a window (neoffice-maintenance#3072). A
+//// session that may be gone is asked about as for any refusal (`on_refusal`): gone, ONE « You have been signed out »
+//// window, since that is about the person, not about the request. A refusal that carries the server's sentence comes
+//// from a session that lives, and is not asked about.
+frappe.request.refused_in_the_background = function (opts, xhr) {
+	const body = (xhr && xhr.responseJSON) || {};
+	console.warn(
+		"Refused in the background (403):",
+		opts.url || "",
+		body._error_message || body.exc_type || ""
+	);
+	if (frappe.session.user === "Guest" && frappe.session.logged_in_user !== "Guest") {
+		if (frappe.app && frappe.app.handle_session_expired) frappe.app.handle_session_expired();
+	} else if (!body._error_message && !body._server_messages) {
+		frappe.request.on_refusal(null);
+	}
+};
+
 frappe.xcall = function (method, params) {
 	return new Promise((resolve, reject) => {
 		frappe.call({
@@ -200,6 +219,17 @@ frappe.request.call = function (opts) {
 			opts.error_callback && opts.error_callback();
 		},
 		403: function (xhr) {
+			//// Neoffice — a request marked `silent` opens no window for its refusal (neoffice-maintenance#3072). A bare
+			//// `raise frappe.PermissionError()` answers with neither `_error_message` nor `_server_messages`, and fell to
+			//// « Not permitted » below: an employee opening his own record read it for a reading the page made in the
+			//// background (#2991). A request that is not silent goes on below unchanged: a refusal that carries its
+			//// sentence keeps it, a bare one says « Not permitted ».
+			if (opts.silent) {
+				frappe.request.refused_in_the_background(opts, xhr);
+				opts.error_callback && opts.error_callback();
+				return;
+			}
+			//// END Neoffice ////
 			if (frappe.session.user === "Guest" && frappe.session.logged_in_user !== "Guest") {
 				// session expired
 				frappe.app.handle_session_expired();
