@@ -1550,11 +1550,15 @@ frappe.ui.form.FormHero = class FormHero {
 			: `<span class="stock-chip email-chip ${email ? "" : "empty"}${
 					said_above ? " is-said-above" : ""
 			  }">${email ? frappe.utils.escape_html(email) : __("No email")}</span>`;
+		//// Neoffice — « Change Emails » only for whoever may write the customer: the theme removes its button otherwise,
+		//// and the hero's copy only answered « Action not available yet » (screen test of 19.11, an Accounts User).
 		const change_label = note
 			? note.action && note.action.label
 				? note.action.label
 				: ""
-			: __("Change Emails");
+			: frappe.model.can_write(this.frm.doctype)
+			? __("Change Emails")
+			: "";
 		$row.html(`
 			${chip}
 			${
