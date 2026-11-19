@@ -82,12 +82,26 @@ class Importer:
 		warnings = self.import_file.get_warnings()
 		warnings = [w for w in warnings if w.get("type") != "info"]
 
-		if warnings:
+		# //// Neoffice — upstream returns on ANY warning, so one row naming a customer that exists nowhere stopped the
+		# //// whole file: « Start Import » answered nothing, the status stayed « Pending », not one good row went in.
+		# //// A warning of a row (a value missing from its link, an option or a date it cannot read) now refuses that
+		# //// row alone, logged with its reason, and the other rows go in; the column summaries repeat what the rows
+		# //// say. Only a warning of the file itself (no row, no column) still stops everything.
+		refused_rows = {}
+		for w in warnings:
+			if w.get("row"):
+				refused_rows.setdefault(w["row"], []).append(w.get("message"))
+		blocking = [w for w in warnings if not w.get("row") and not w.get("col")]
+
+		if blocking:
 			if self.console:
 				self.print_grouped_warnings(warnings)
 			else:
 				self.data_import.db_set("template_warnings", json.dumps(warnings))
 			return
+		if warnings and not self.console:
+			# //// Neoffice — the rows refused for them still show their warnings on the form
+			self.data_import.db_set("template_warnings", json.dumps(warnings))
 
 		# setup import log
 		import_log = (
@@ -129,6 +143,23 @@ class Importer:
 				doc = payload.doc
 				row_indexes = [row.row_number for row in payload.rows]
 				current_index = (i + 1) + (batch_index * batch_size)
+
+				# //// Neoffice — a row with a warning is refused alone, with its reason (see refused_rows above)
+				refused = [m for index in row_indexes for m in refused_rows.get(index, [])]
+				if refused and not set(row_indexes).intersection(set(imported_rows)):
+					create_import_log(
+						self.data_import.name,
+						log_index,
+						{
+							"success": False,
+							"exception": "",
+							"messages": [{"message": m, "title": _("Warning")} for m in refused],
+							"row_indexes": row_indexes,
+						},
+					)
+					frappe.db.commit()  # nosemgrep
+					log_index += 1
+					continue
 
 				if set(row_indexes).intersection(set(imported_rows)):
 					print("Skipping imported rows", row_indexes)

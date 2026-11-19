@@ -158,6 +158,10 @@ def get_preview_from_template(
 def form_start_import(data_import: str):
 	di: DataImport = frappe.get_doc("Data Import", data_import)
 	di.check_permission("write")
+	# //// Neoffice — the import right of the reference doctype is asked of whoever STARTS the import too: upstream
+	# //// asks it only when the Data Import is saved, so an account that may write Data Import (Admin) but not import
+	# //// the doctype (an Activity Manager, for objects) could start one an administrator had saved.
+	di.validate_doctype()
 	return di.start_import()
 
 
