@@ -698,19 +698,28 @@ export default class Grid {
 
 		this.wrapper.trigger("change");
 
-		//// Neoffice — added (4c842a98fc, 2023-10-30 "First change v15"; the commit gives no rationale): after
-		//// every render, tags each .data-row containing an element with data-name="Freeline" / "Subtotal"
-		//// with a matching class, for the line styling of the erpnextswiss sales documents. It runs on EVERY
-		//// grid of EVERY doctype, inside the render path. TO REVIEW at the merge.
-		//// added to handle freeline and subtotal
-		//// Neoffice — the classes are first taken off every row, then put back where they belong: the grid reuses
-		//// its row nodes by POSITION (render_result_rows swaps `grid_row.doc` and keeps the node), so a node that
-		//// carried a Freeline or a Subtotal kept the class once another line took its place, and an article was
-		//// drawn as text after a line was inserted in the middle or moved (found 13.10.2026, neoffice-maintenance#1519).
+		//// Neoffice — the Freeline / Subtotal classes (neo_tag_layout_rows): render_result_rows puts them too, for a
+		//// change of page that calls it alone, but it can return before its end (a page shorter than its count).
+		this.neo_tag_layout_rows();
+	}
+
+	//// Neoffice — added (4c842a98fc, 2023-10-30 "First change v15"; the commit gives no rationale): after every
+	//// render, tags each .data-row containing an element with data-name="Freeline" / "Subtotal" with a matching
+	//// class, for the line styling of the erpnextswiss sales documents. It runs on EVERY grid of EVERY doctype,
+	//// inside the render path. TO REVIEW at the merge.
+	//// The classes are first taken off every row, then put back where they belong: a node that carried a Freeline
+	//// or a Subtotal kept the class once another line took its place, and an article was drawn as text after a
+	//// line was inserted in the middle or moved (found 13.10.2026, neoffice-maintenance#1519).
+	//// It ran at the end of refresh() only: a change of page (grid_pagination.go_to_page) renders its rows through
+	//// render_result_rows alone, so on page 2 of a long invoice no line was a Subtotal or a Free line. They were
+	//// drawn as articles, and the theme's running amount of each Subtotal, positioned against its row, fell to
+	//// the middle of the table: two Subtotals that follow each other wrote their amounts over one another
+	//// (19.11.2026, a 55-line invoice ending on « Sous-Total » and « Total avant acompte », neoffice-maintenance#3132).
+	neo_tag_layout_rows() {
+		if (!this.wrapper) return;
 		this.wrapper.find(".data-row").removeClass("freeline subtotal");
 		this.wrapper.find('[data-name="Freeline"]').parents(".data-row").addClass("freeline");
 		this.wrapper.find('[data-name="Subtotal"]').parents(".data-row").addClass("subtotal");
-		////
 	}
 
 	render_result_rows($rows) {
@@ -799,6 +808,9 @@ export default class Grid {
 		if (this.grid_rows.length > this.data.length) {
 			this.grid_rows.length = this.data.length;
 		}
+
+		//// Neoffice — after every render of the rows, a change of page included (neoffice-maintenance#3132).
+		this.neo_tag_layout_rows();
 	}
 
 	setup_toolbar() {
