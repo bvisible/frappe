@@ -203,6 +203,10 @@ class Importer:
 							"row_indexes": row_indexes,
 						},
 					)
+					# //// Neoffice — keep the refusal: upstream only commits after a success, so the rollback of the next
+					# //// refused row also took this row's log away, and a file refused row after row showed its last
+					# //// reason only (a list of 6 000 customers said nothing of the 5 999 others).
+					frappe.db.commit()  # nosemgrep
 
 					log_index += 1
 
@@ -677,6 +681,15 @@ class Row:
 			if value is not None:
 				doc[df.fieldname] = self.parse_value(value, col)
 
+		# //// Neoffice — a Dynamic Link (the party of an address or a contact, `links.link_name`) may name its record
+		# //// by its import key too, once the row says which doctype it is (find_by_import_key)
+		for col in columns:
+			df = col.df
+			party = doc.get(df.fieldname) if df.fieldtype == "Dynamic Link" else None
+			target = doc.get(df.options) if party else None
+			if target and frappe.db.exists("DocType", target) and not frappe.db.exists(target, party):
+				doc[df.fieldname] = find_by_import_key(target, party) or party
+
 		is_table = frappe.get_meta(doctype).istable
 		is_update = self.import_type == UPDATE
 		if is_table and is_update:
@@ -716,6 +729,12 @@ class Row:
 
 		elif df.fieldtype == "Link":
 			exists = self.link_exists(value, df)
+			# //// Neoffice — a value that names no record may name it by the key it had in the former software
+			# //// (`data_import_link_keys`, see find_by_import_key): « 1408 » in the customer column of a list of
+			# //// vehicles is the customer imported with the number 1408. Upstream drops the value here.
+			found = None if exists else find_by_import_key(df.options, value)
+			if found:
+				return found
 			if not exists:
 				msg = _("Value {0} missing for {1}").format(
 					frappe.bold(escape_html(cstr(value))), frappe.bold(df.options)
@@ -1011,6 +1030,9 @@ class Column:
 				transform(d.name) for d in frappe.get_all(self.df.options, filters={"name": ("in", values)})
 			]
 			not_exists = list(set(values) - set(exists))
+			# //// Neoffice — the values found by their import key are not missing (find_by_import_key)
+			found = import_key_matches(self.df.options, not_exists)
+			not_exists = [v for v in not_exists if transform(v) not in found]
 			if not_exists:
 				missing_values = ", ".join(escape_html(v) for v in not_exists)
 				message = _("The following values do not exist for {0}: {1}")
@@ -1270,6 +1292,43 @@ def df_as_json(df):
 
 def get_select_options(df):
 	return [d for d in (df.options or "").split("\n") if d]
+
+
+# //// Neoffice — added functions (no upstream equivalent): a Link column may name its record by an import key.
+def import_key_fields(doctype):
+	"""The fields of `doctype` that keep the key a record had in the software it was imported from.
+
+	Apps declare them in their hooks (`data_import_link_keys = ["import_id"]`); a field counts here only when
+	`doctype` has its column."""
+	fields = []
+	for fieldname in frappe.get_hooks("data_import_link_keys") or []:
+		if fieldname not in fields and frappe.db.has_column(doctype, fieldname):
+			fields.append(fieldname)
+	return fields
+
+
+def import_key_matches(doctype, values):
+	"""{value (lower case): name} for the values that name exactly one record of `doctype` by an import key."""
+	values = [cstr(v).strip() for v in values or [] if cstr(v).strip()]
+	found = {}
+	if not values:
+		return found
+	for fieldname in import_key_fields(doctype):
+		rows = frappe.get_all(doctype, filters={fieldname: ("in", values)}, fields=["name", fieldname])
+		by_key = {}
+		for row in rows:
+			by_key.setdefault(cstr(row.get(fieldname)).strip().lower(), set()).add(row.name)
+		for key, names in by_key.items():
+			# two records with the same former number: no guess, the value stays missing
+			if len(names) == 1 and key not in found:
+				found[key] = next(iter(names))
+	return found
+
+
+def find_by_import_key(doctype, value):
+	"""The one record of `doctype` whose import key is `value`, else None."""
+	key = cstr(value).strip()
+	return import_key_matches(doctype, [key]).get(key.lower()) if key else None
 
 
 def create_import_log(data_import, log_index, log_details):
