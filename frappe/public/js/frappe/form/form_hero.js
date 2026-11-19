@@ -102,6 +102,20 @@ frappe.ui.form.add_hero_value_note = function (doctype, provider) {
 		frappe.ui.form.hero_value_notes[doctype] || []).push(provider);
 };
 
+//// Neoffice — what an app knows of the customer's e-mail that the address alone does not say. An address of the form
+//// neoffice_theme gives a customer who has none (…@neoffice.invalid, a whole customer file imported without e-mails,
+//// 19.11) reaches nobody, and the card must push the office to replace it, as the quotation already does.
+//// The provider is called on every render with the form and the e-mail, and returns null or
+////   { text, title?, action?: { label, run(frm) } }
+//// The e-mail chip then says `text` in the status pills' warning tone, at every width (the detail line no longer says
+//// the address), and `action` takes the place of « Change Emails »: one gesture, the app's. Without an action, no button.
+//// Synchronous, and a throw is swallowed: the chip falls back to the address.
+////   frappe.ui.form.set_hero_email_note("Customer", (frm, email) => ({ text: __("…"), action: { label, run } }));
+frappe.ui.form.hero_email_notes = frappe.ui.form.hero_email_notes || {};
+frappe.ui.form.set_hero_email_note = function (doctype, provider) {
+	frappe.ui.form.hero_email_notes[doctype] = provider;
+};
+
 //// Neoffice: a full-width ROW under the hero, for something that concerns the
 //// document and needs to be both seen and acted on — a reminder set on it, today.
 //// The value-note registry above cannot serve here: it renders text next to the
@@ -1511,11 +1525,15 @@ frappe.ui.form.FormHero = class FormHero {
 		}
 
 		const email = (doc.email_id || "").trim();
+		//// Neoffice — what the app says of this e-mail (see set_hero_email_note): a provisional address is told as such,
+		//// with the gesture that replaces it, instead of being shown as if it reached the customer.
+		const note = this.hero_email_note(email);
 		//// Neoffice — the contact line of the detail block (see add_hero_detail) already says the
 		//// customer's e-mail: the chip beside the buttons repeated it (Daniel, 22.10: « ça fait doublon »).
 		//// The chip stays when it tells something the line does not: no e-mail at all, or another one -
 		//// and below 1200 px, where the detail block keeps only its icons (cockpit.css hides it from 1200 px up).
 		const said_above =
+			!note &&
 			!!email &&
 			(this.detail_lines || []).some(
 				(line) => line.icon === "user" && line.text.toLowerCase().includes(email.toLowerCase())
@@ -1523,13 +1541,29 @@ frappe.ui.form.FormHero = class FormHero {
 		const $row = $('<div class="form-hero-stockrow form-hero-custrow"></div>').appendTo(
 			this.$wrapper
 		);
+		//// Neoffice — a noted e-mail is a status pill of the warning tone (the five tones of the design system), its
+		//// address in the tooltip; its button is the note's action, or nothing.
+		const chip = note
+			? `<span class="indicator-pill yellow email-chip is-noted" title="${frappe.utils.escape_html(
+					note.title || note.text
+			  )}"><span>${frappe.utils.escape_html(note.text)}</span></span>`
+			: `<span class="stock-chip email-chip ${email ? "" : "empty"}${
+					said_above ? " is-said-above" : ""
+			  }">${email ? frappe.utils.escape_html(email) : __("No email")}</span>`;
+		const change_label = note
+			? note.action && note.action.label
+				? note.action.label
+				: ""
+			: __("Change Emails");
 		$row.html(`
-			<span class="stock-chip email-chip ${email ? "" : "empty"}${
-				said_above ? " is-said-above" : ""
-			}">${email ? frappe.utils.escape_html(email) : __("No email")}</span>
-			<button class="step-cta hero-change-emails">${STEP_ICONS.edit || ""}<span>${__(
-				"Change Emails"
-			)}</span></button>
+			${chip}
+			${
+				change_label
+					? `<button class="step-cta hero-change-emails">${
+							STEP_ICONS.edit || ""
+					  }<span>${frappe.utils.escape_html(change_label)}</span></button>`
+					: ""
+			}
 			<button class="step-cta accent hero-history">${STEP_ICONS.clock || ""}<span>${__(
 				"See everything",
 				null,
@@ -1540,7 +1574,9 @@ frappe.ui.form.FormHero = class FormHero {
 		//// anything, at the same address; its button says so, as the one the theme adds to every form.
 		$row.find(".hero-change-emails").on("click", (e) => {
 			e.preventDefault();
-			this.trigger_custom_button(__("Change Emails"));
+			if (note && note.action && typeof note.action.run === "function")
+				note.action.run(this.frm);
+			else this.trigger_custom_button(__("Change Emails"));
 		});
 		$row.find(".hero-history").on("click", (e) => {
 			e.preventDefault();
@@ -1565,6 +1601,19 @@ frappe.ui.form.FormHero = class FormHero {
 				this._native_btn_mo = new MutationObserver(hide_native);
 				this._native_btn_mo.observe(actions, { childList: true, subtree: true });
 			}
+		}
+	}
+
+	//// Neoffice — the app's word on this e-mail (see set_hero_email_note), or null: no provider, no e-mail, nothing
+	//// to say, or a provider that threw.
+	hero_email_note(email) {
+		const provider = frappe.ui.form.hero_email_notes[this.frm.doctype];
+		if (!email || typeof provider !== "function") return null;
+		try {
+			const note = provider(this.frm, email);
+			return note && note.text ? note : null;
+		} catch (e) {
+			return null;
 		}
 	}
 
