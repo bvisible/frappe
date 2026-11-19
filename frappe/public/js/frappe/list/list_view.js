@@ -1631,6 +1631,8 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 	}
 
 	disable_realtime_updates() {
+		// //// Neoffice — backport of upstream develop c3a77201a0 (neoffice-maintenance#3104), as written there: a
+		// //// second leave would use up the count of another view; drop at the merge of a frappe that carries it.
 		// The handler stays bound, so later updates land here again.
 		if (!this.realtime_events_setup) return;
 		frappe.realtime.doctype_unsubscribe(this.doctype);

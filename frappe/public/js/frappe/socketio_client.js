@@ -6,6 +6,8 @@ class RealTimeClient {
 	constructor() {
 		this.open_tasks = {};
 		this.open_docs = new Set();
+		// //// Neoffice — backport of upstream develop 1940c3e301 (neoffice-maintenance#3104), as written there;
+		// //// drop at the merge of a frappe that carries it.
 		// doctype -> number of views using its room
 		this.subscribed_doctypes = new Map();
 		// //// Neoffice — state of schedule_reconnect() below (neoffice-maintenance#889).
@@ -70,9 +72,6 @@ class RealTimeClient {
 			return;
 		}
 
-		// The server forgets a socket's rooms when it reconnects.
-		this.socket.io.on("reconnect", () => this.restore_subscriptions());
-
 		this.socket.on("connect_error", function (err) {
 			console.error("Error connecting to socket.io:", err.message);
 			// //// Neoffice — after a `bench restart` the socket server is back before the web
@@ -107,6 +106,16 @@ class RealTimeClient {
 					if (state === "expired") frappe.app.handle_session_expired();
 				});
 			}
+			// //// Neoffice — neoffice-maintenance#3104: the server forgets a socket's rooms when it reconnects,
+			// //// so a re-connection joins again every room the tab still follows, the documents of `open_docs`
+			// //// and the doctypes still counted (restore_subscriptions(), upstream develop 6b25ca0fa4, backported
+			// //// below), one rights check each, as upstream does. Upstream calls it on the manager's
+			// //// « reconnect »; it is called here because our schedule_reconnect() (#889) brings back a socket the
+			// //// server refused with socket.connect(), which fires « connect » and never « reconnect »: both paths
+			// //// join again here, once per re-connection, and the first connection joins nothing (form-load does).
+			// //// Drop with the backport when the fleet's frappe carries upstream's listener: then keep one of the
+			// //// two calls, never both.
+			if (me.connected_before) me.restore_subscriptions();
 			me.connected_before = true;
 		});
 
@@ -213,11 +222,16 @@ class RealTimeClient {
 	task_unsubscribe(task_id) {
 		this.emit("task_unsubscribe", task_id);
 	}
+	// //// Neoffice — backport of upstream develop 1940c3e301 (neoffice-maintenance#3104), as written there: a
+	// //// doctype's room is counted per view and left with the last one, so that restore_subscriptions() below
+	// //// joins again only the rooms still used. Drop at the merge of a frappe that carries it.
 	doctype_subscribe(doctype) {
 		this.subscribed_doctypes.set(doctype, (this.subscribed_doctypes.get(doctype) || 0) + 1);
 		this.emit("doctype_subscribe", doctype);
 	}
 	doctype_unsubscribe(doctype) {
+		// //// Neoffice — backport of upstream develop 1940c3e301 (neoffice-maintenance#3104), as written there;
+		// //// drop at the merge of a frappe that carries it.
 		const count = (this.subscribed_doctypes.get(doctype) || 0) - 1;
 		if (count > 0) {
 			this.subscribed_doctypes.set(doctype, count);
@@ -226,6 +240,8 @@ class RealTimeClient {
 		this.subscribed_doctypes.delete(doctype);
 		this.emit("doctype_unsubscribe", doctype);
 	}
+	// //// Neoffice — backport of upstream develop 6b25ca0fa4 (neoffice-maintenance#3104), as written there; called
+	// //// from the « connect » handler above. Drop at the merge of a frappe that carries it.
 	restore_subscriptions() {
 		for (const doctype of this.subscribed_doctypes.keys()) {
 			this.emit("doctype_subscribe", doctype);

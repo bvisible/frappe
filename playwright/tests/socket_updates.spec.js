@@ -31,6 +31,8 @@ test.describe("Realtime updates", () => {
 		await expect(page.getByText(updated).first()).toBeVisible();
 	});
 
+	// //// Neoffice — backport of upstream develop d72bfc61a2 (neoffice-maintenance#3104), as written there;
+	// //// drop at the merge of a frappe that carries it.
 	test("Keeps a doctype room while another view uses it", async ({ page, api }) => {
 		await doctype_room_joined(page, api, "ToDo");
 		await page.evaluate(() => {
@@ -40,6 +42,8 @@ test.describe("Realtime updates", () => {
 		await doctype_room_joined(page, api, "ToDo");
 	});
 
+	// //// Neoffice — backport of upstream develop 3dee46a77f (neoffice-maintenance#3104), as written there;
+	// //// drop at the merge of a frappe that carries it.
 	test("List view leaves its doctype room only once", async ({ page, api }) => {
 		await doctype_room_joined(page, api, "ToDo");
 		await page.evaluate(() => {
@@ -50,9 +54,11 @@ test.describe("Realtime updates", () => {
 		await doctype_room_joined(page, api, "ToDo");
 	});
 
+	// //// Neoffice — backport of upstream develop df73b79278 (neoffice-maintenance#3104); the form's route is
+	// //// version-15's /app/ where upstream develop has /desk/. Drop at the merge of a frappe that carries it.
 	test("Restores rooms after reconnect", async ({ page, api }) => {
 		const doc = await api.insert_doc("ToDo", { description: "reconnect" });
-		await page.goto(`/desk/todo/${doc.name}`);
+		await page.goto(`/app/todo/${doc.name}`);
 		await realtime_connected(page);
 		await page.evaluate(() => frappe.realtime.doctype_subscribe("ToDo"));
 		await doc_room_joined(page, api, "ToDo", doc.name);
@@ -65,6 +71,29 @@ test.describe("Realtime updates", () => {
 				})
 		);
 		await doctype_room_joined(page, api, "ToDo");
+		await doc_room_joined(page, api, "ToDo", doc.name);
+	});
+
+	// //// Neoffice — neoffice-maintenance#3104: the socket.connect() of our #889 brings a refused socket back with
+	// //// « connect » only, never the manager's « reconnect »: the rooms come back on that path too (the call in
+	// //// the « connect » handler of socketio_client.js). disconnect() then connect() is not the server's refusal
+	// //// of #889's real path (a middleware that refuses during a restart): it plays the same event on the client,
+	// //// « connect » with no « reconnect ». Drop with that call.
+	test("Restores rooms after a manual reconnect", async ({ page, api }) => {
+		const doc = await api.insert_doc("ToDo", { description: "manual reconnect" });
+		await page.goto(`/app/todo/${doc.name}`);
+		await realtime_connected(page);
+		await doc_room_joined(page, api, "ToDo", doc.name);
+
+		await page.evaluate(
+			() =>
+				new Promise((resolve) => {
+					const socket = frappe.realtime.socket;
+					socket.once("connect", resolve);
+					socket.disconnect();
+					socket.connect();
+				})
+		);
 		await doc_room_joined(page, api, "ToDo", doc.name);
 	});
 
