@@ -79,16 +79,27 @@ def get_print(
 	from frappe.website.serve import get_response_without_exception_handling
 
 	local = frappe.local
-	if "pdf_generator" not in local.form_dict:
-		# if arg is passed, use that, else get setting from print format
-		if pdf_generator is None:
-			pdf_generator = (
-				frappe.get_cached_value("Print Format", print_format, "pdf_generator") or "wkhtmltopdf"
-			)
-		local.form_dict.pdf_generator = pdf_generator
+	# //// Neoffice — the PDF engine is the one of the format that is printed, and it belongs to this call only
+	# //// (neoffice-maintenance#3092). Upstream read the engine of the format NAMED here: a caller that names none
+	# //// (frappe.attach_print from a mailer, a script, a replayed purchase) got wkhtmltopdf while printview renders
+	# //// the doctype's default format, so a Chrome-only Oslo invoice came out with its CSS ignored (the logo at full
+	# //// size and cut, the address over the metadata, the Swiss QR bill stacked). Upstream also wrote the engine into
+	# //// form_dict BEFORE the copy restored below, so it stuck to every later print of the same request or job, even
+	# //// one that asks for another engine. Same order as upstream (the request's own value, then the caller's, then
+	# //// the format's), but read for the format printview renders, and set in form_dict only while the page renders.
+	# //// Drop when upstream resolves the default format and stops leaking the engine.
+	rendered_format = _format_printview_renders(doctype, doc, print_format)
+	generator = (
+		local.form_dict.get("pdf_generator")
+		or pdf_generator
+		or (rendered_format and frappe.get_cached_value("Print Format", rendered_format, "pdf_generator"))
+		or "wkhtmltopdf"
+	)
 
 	original_form_dict = copy.deepcopy(local.form_dict)
 	try:
+		# //// Neoffice — #3092: printview reads the engine while it renders; restored with the rest just below
+		local.form_dict.pdf_generator = generator
 		local.form_dict.doctype = doctype
 		local.form_dict.name = name
 		local.form_dict.format = print_format
@@ -109,7 +120,8 @@ def get_print(
 	if not as_pdf:
 		return html
 
-	if local.form_dict.pdf_generator != "wkhtmltopdf":
+	# //// Neoffice — #3092: this call's engine, not form_dict's (restored above, it no longer carries it)
+	if generator != "wkhtmltopdf":
 		hook_func = frappe.get_hooks("pdf_generator")
 		for hook in hook_func:
 			"""
@@ -118,11 +130,13 @@ def get_print(
 			"""
 			pdf = frappe.call(
 				hook,
-				print_format=print_format,
+				# //// Neoffice — #3092: the format printed (the default one when none is named), which the Chrome
+				# //// generator reads (Browser: is it a Print Designer format); upstream passed the name given, or None
+				print_format=rendered_format,
 				html=html,
 				options=pdf_options,
 				output=output,
-				pdf_generator=local.form_dict.pdf_generator,
+				pdf_generator=generator,  # //// Neoffice — #3092: this call's engine
 			)
 			# if hook returns a value, assume it was the correct pdf_generator and return it
 			if pdf:
@@ -143,6 +157,18 @@ def get_print(
 	return get_pdf(html, options=pdf_options, output=output)
 
 
+# //// Neoffice — added (neoffice-maintenance#3092, see get_print): the format whose PDF engine a print uses.
+def _format_printview_renders(doctype=None, doc=None, print_format=None):
+	"""The print format printview renders for a get_print call: the one named, else the default print format of the
+	document's doctype (printview.get_print_format_doc reads form_dict.format, then meta.default_print_format)."""
+	if print_format:
+		return print_format
+	doctype = getattr(doc, "doctype", None) or doctype
+	if not doctype:
+		return None
+	return frappe.get_meta(doctype).default_print_format or None
+
+
 # //// Neoffice — attach_print() removed here (#205, 2026-09-08). It was a copy of
 # //// frappe.attach_print (frappe/__init__.py), dragged along by our backport of the Chrome PDF
 # //// generator; upstream version-15 has no attach_print in this module. Nothing imported it —
@@ -150,6 +176,7 @@ def get_print(
 # //// it calls cint() and cstr(), which this module never imports, so any call raised NameError.
 # //// Dead code that reads like a working alternative is worse than no code: the next reader
 # //// would have imported it.
+
 
 def setup_chromium():
 	"""Setup Chromium at the bench level."""
