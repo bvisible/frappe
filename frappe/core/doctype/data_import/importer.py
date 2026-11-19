@@ -185,6 +185,10 @@ class Importer:
 
 					# commit after every successful import
 					frappe.db.commit()
+					# //// Neoffice — a row that goes in leaves its notes behind: upstream clears the messages only after a
+					# //// refused row, so the note of a successful one (« renamed to … - 1 ») was logged as part of the
+					# //// next refused row's reason. Its messages are not logged (a success keeps its document only).
+					frappe.clear_messages()
 
 				except Exception:
 					messages = frappe.local.message_log
