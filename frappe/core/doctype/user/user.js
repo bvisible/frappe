@@ -295,7 +295,12 @@ frappe.ui.form.on("User", {
 		frm.trigger("time_zone");
 	},
 	validate: function (frm) {
-		if (frm.roles_editor) {
+		//// Neoffice — upstream copies the role editor's checks into the roles of any document, a new one too. The editor
+		//// is built for a saved account only (onload) and stays on the form: a new account reached by the browser's
+		//// history after another account was opened got that account's roles, while its own roles tab showed none
+		//// (maintenance#3087). A new account keeps its own roles (a role profile sets them); the editor writes a saved
+		//// account's only.
+		if (frm.roles_editor && !frm.is_new()) {
 			frm.roles_editor.set_roles_in_table();
 		}
 	},
