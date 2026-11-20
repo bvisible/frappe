@@ -1528,8 +1528,8 @@ frappe-charts@2.0.0-rc27:
   integrity sha512-J4WCrHYB6oR4Dfu28aaCxlUu64C/V+qJlNE1E0xpya2/yCeqDZ8LA6pS63SBMOdV2CTP8cJ6Isk5m+rZi9gElA==
 
 "frappe-datatable@github:bvisible/datatable":
-  version "1.22.0-neoffice.3"
-  resolved "https://codeload.github.com/bvisible/datatable/tar.gz/59a9207b62a6f4ea74189bc08c6da0753e32b2e3"
+  version "1.22.0-neoffice.4"
+  resolved "https://codeload.github.com/bvisible/datatable/tar.gz/b6ca9749241b4fb132e155c036ab475fe0a32068"
   dependencies:
     hyperlist "^1.0.0-beta"
     lodash "^4.17.5"
