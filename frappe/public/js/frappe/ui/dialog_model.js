@@ -8,6 +8,7 @@
 ////     (`add_footer_link`), four sizes (small / default / large / extra-large = 440 / 560 / 800 / 1140, drawn by the theme);
 ////   - steps (form A of the design system: named pills under the title, « ← Retour », « Suivant → »): `steps` with fields,
 ////     or `set_steps` / `go_to_step` / `set_back` for a wizard that draws its own content;
+////   - Nora's place under the title and the steps (`nora_about`, `set_nora`, 20.11.2026, neoffice-maintenance#2836);
 ////   - the keys, shown after the buttons' labels: ↵ the ink action, ⌘↵ / Ctrl+↵ from anywhere, Esc to leave, ⇧↵ « Retour »;
 ////   - leaving (moved here from neoffice_theme's « Dialog guard », #1191, 05.10): untouched, a click beside or Escape closes;
 ////     changed, they ask « Abandonner les modifications ? »; the cross closes (Jérémy, 05.10: « La croix, ben non »). A
@@ -393,6 +394,160 @@ frappe.provide("frappe.ui.dialog_model");
 				else d.on_step_click && d.on_step_click(i);
 			});
 	}
+
+	// ---- Nora's place ---------------------------------------------------------------------------------------------------
+
+	//// Neoffice — Nora's place in every window (design system 6.18, neoffice-maintenance#2836, 20.11.2026). Jérémy: « dans
+	//// la structure même du dialogue, on peut dire, voilà, c'est ici que Nora peut échanger des données […] compatible aussi
+	//// bien pour la vue simple que la vue avancée ». Under the title and the step bar, above the content. The window says what
+	//// it is about (`nora_about(doctype, name, context)`); Nora answers there with what she already says of that thing
+	//// elsewhere. The source is an app's (`frappe.ui.dialog_model.nora_source(doctype, name, context, dialog)`, a promise of
+	//// what to say or null): Frappe knows no Nora, neoffice_theme registers its answering bar. Nothing to say: no place.
+	//// `set_nora(said)` draws an answer given by hand, `set_nora(null)` takes it away. What is said:
+	////   { tone: "attention" | "info", sentence and detail: HTML with <b> only, items: [{ label, meta, amount, href, tone }]
+	////     unfolded in the place (each opens in a new tab: the window and what was typed stay), unfold: the label of the
+	////     gesture that unfolds them, more: { label, href }, actions: [{ label, action(dialog) }] }.
+	//// Nothing in it is a value of the window: a click there is never « something typed » for the leaving rules.
+	const NOT_BOLD = /<(?!\/?b>)[^>]*>/gi;
+	const only_bold = (html) =>
+		String(html || "")
+			.replace(NOT_BOLD, "")
+			.trim();
+	// Only a page of the desk: an item never leads anywhere else (javascript:, another site).
+	const desk_route = (href) =>
+		typeof href === "string" && /^\/app\/[^\s"'<>]*$/.test(href) ? href : null;
+
+	function nora_place(d) {
+		if (!d.$wrapper) return null;
+		let $n = d.$wrapper.find(".modal-nora");
+		if (!$n.length) {
+			$n = $('<div class="modal-nora hide" role="status" aria-live="polite"></div>');
+			const $steps = d.$wrapper.find(".modal-steps");
+			$n.insertAfter($steps.length ? $steps : d.header);
+		}
+		return $n;
+	}
+
+	function nora_item(item) {
+		const href = desk_route(item.href);
+		const inner =
+			"<b>" +
+			esc_html(item.label) +
+			"</b>" +
+			'<span class="modal-nora-meta">' +
+			esc_html(item.meta || "") +
+			"</span>" +
+			'<span class="modal-nora-amount">' +
+			esc_html(item.amount || "") +
+			"</span>";
+		const tone = ' data-tone="' + esc_html(item.tone || "") + '"';
+		if (!href) return '<span class="modal-nora-item"' + tone + ">" + inner + "</span>";
+		return (
+			'<a class="modal-nora-item"' +
+			tone +
+			' href="' +
+			esc_html(href) +
+			'" target="_blank" rel="noopener">' +
+			inner +
+			'<span class="modal-nora-out" aria-hidden="true">↗</span></a>'
+		);
+	}
+
+	P.set_nora = function (said) {
+		const d = this;
+		const $n = nora_place(d);
+		if (!$n) return;
+		const sentence = said ? only_bold(said.sentence) : "";
+		if (!sentence) {
+			d.nora_said = null;
+			$n.addClass("hide").empty().removeAttr("data-tone");
+			return;
+		}
+		d.nora_said = said;
+		const items = (said.items || []).filter((i) => i && i.label);
+		const more = said.more && desk_route(said.more.href) ? said.more : null;
+		const unfold = said.unfold || __("See the details");
+		let list = "";
+		if (items.length) {
+			list =
+				'<div class="modal-nora-list" hidden>' +
+				items.map(nora_item).join("") +
+				(more
+					? '<a class="modal-nora-more" href="' +
+					  esc_html(more.href) +
+					  '" target="_blank" rel="noopener">' +
+					  esc_html(more.label) +
+					  " ↗</a>"
+					: "") +
+				"</div>";
+		}
+		const actions = (said.actions || []).filter((a) => a && a.label);
+		const detail = only_bold(said.detail);
+		$n.attr("data-tone", said.tone === "attention" ? "attention" : "info").html(
+			'<span class="modal-nora-orb" aria-hidden="true"></span>' +
+				'<div class="modal-nora-body">' +
+				'<p class="modal-nora-say">' +
+				sentence +
+				"</p>" +
+				list +
+				(items.length || actions.length || detail
+					? '<div class="modal-nora-acts">' +
+					  (items.length
+							? '<button type="button" class="modal-nora-act modal-nora-unfold" aria-expanded="false">' +
+							  esc_html(unfold) +
+							  "</button>"
+							: "") +
+					  actions
+							.map(
+								(a, k) =>
+									'<button type="button" class="modal-nora-act" data-act="' +
+									k +
+									'">' +
+									esc_html(a.label) +
+									"</button>"
+							)
+							.join("") +
+					  (detail ? '<span class="modal-nora-detail">' + detail + "</span>" : "") +
+					  "</div>"
+					: "") +
+				"</div>"
+		);
+		$n.attr("aria-label", "Nora").removeClass("hide");
+		$n.find(".modal-nora-unfold").on("click", function () {
+			const $list = $n.find(".modal-nora-list");
+			const open = $list.prop("hidden");
+			$list.prop("hidden", !open);
+			$(this)
+				.attr("aria-expanded", open ? "true" : "false")
+				.text(open ? __("Hide") : unfold);
+		});
+		$n.find("[data-act]").on("click", function () {
+			const a = actions[parseInt(this.dataset.act, 10)];
+			if (a && typeof a.action === "function") a.action(d);
+		});
+	};
+
+	// The window says what it is about; the last thing asked wins (a customer changed twice in a row).
+	P.nora_about = function (doctype, name, context) {
+		const d = this;
+		const ask = (d.__nora_ask = (d.__nora_ask || 0) + 1);
+		const source = M.nora_source;
+		if (!doctype || !name || typeof source !== "function") {
+			d.set_nora(null);
+			return Promise.resolve(null);
+		}
+		return Promise.resolve()
+			.then(() => source(doctype, name, context || {}, d))
+			.then((said) => {
+				if (d.__nora_ask === ask) d.set_nora(said || null);
+				return said || null;
+			})
+			.catch(() => {
+				// Nora silent is a window as it was, never a broken one.
+				if (d.__nora_ask === ask) d.set_nora(null);
+				return null;
+			});
+	};
 
 	// ---- keys ---------------------------------------------------------------------------------------------------------
 
