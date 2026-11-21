@@ -268,15 +268,24 @@ def get_versions(doc: "Document") -> list[dict]:
 	from frappe.core.doctype.version.version import filter_version_json, readable_version_fields
 
 	readable = readable_version_fields(doc.doctype)
-	if readable is None:
-		return versions
-	readable_versions = []
-	for version in versions:
-		data = filter_version_json(version.data, readable)
-		if data is not None:
-			version.data = data
-			readable_versions.append(version)
-	return readable_versions
+	# //// Neoffice — upstream (and this fork until 21.11) returned here when nothing is hidden; the history now goes on to the
+	# //// document's own filter below in both cases (neoffice-maintenance#3205)
+	if readable is not None:
+		readable_versions = []
+		for version in versions:
+			data = filter_version_json(version.data, readable)
+			if data is not None:
+				version.data = data
+				readable_versions.append(version)
+		versions = readable_versions
+	# //// Neoffice — a document may keep from its history what its reader may not read of its ROWS: a method
+	# //// `readable_versions(versions)` of its controller (neoffice-maintenance#3205: the booking settings hold a line per
+	# //// company, and an account bound to one company reads only its own, the history included). No such method: the
+	# //// history as above. Upstream has no equivalent: keep these lines at the v16 merge.
+	narrow = getattr(doc, "readable_versions", None)
+	if callable(narrow):
+		versions = narrow(versions)
+	return versions
 
 
 @frappe.whitelist()
