@@ -545,7 +545,8 @@ from {tables}
 		# left join parent, child tables
 		for child in self.tables[1:]:
 			parent_name = cast_name(f"{self.tables[0]}.name")
-			child_join = f" {self.join} {child} on ({child}.parenttype = {frappe.db.escape(self.doctype)} and {child}.parent = {parent_name})"
+			# //// Neoffice — the child's own query conditions in the join (child_join_condition, neoffice-maintenance#3221)
+			child_join = f" {self.join} {child} on ({child}.parenttype = {frappe.db.escape(self.doctype)} and {child}.parent = {parent_name}{self.child_join_condition(child)})"
 			args.tables += child_join
 			self._user_tables += child_join
 
@@ -823,6 +824,23 @@ from {tables}
 					and table_name not in self.linked_table_aliases.values()
 				):
 					self.append_table(table_name)
+
+	# //// Neoffice — added (neoffice-maintenance#3221): a child table joined into its parent's list follows its own
+	# //// permission_query_conditions hook. Upstream joins it on the parent alone, so a column of a child row that a
+	# //// list of the child itself hides (a health answer of a booking, for a desk account that may not read health
+	# //// data) was read through the parent's report view. The condition goes in the join's ON clause: the parent row
+	# //// stays listed, the hidden child row's columns read empty. Only the child doctype's own hooks, not "*", and
+	# //// nothing under ignore_permissions. Keep at every merge while upstream joins child tables on parent alone.
+	def child_join_condition(self, child_table: str) -> str:
+		if self.flags.ignore_permissions:
+			return ""
+		doctype = child_table[4:-1]
+		conditions = []
+		for method in frappe.get_hooks("permission_query_conditions", {}).get(doctype, []):
+			condition = frappe.call(frappe.get_attr(method), self.user, doctype=doctype)
+			if condition and isinstance(condition, str):
+				conditions.append(f"({condition})")
+		return "".join(f" and {condition}" for condition in conditions)
 
 	def append_table(self, table_name):
 		self.tables.append(table_name)
