@@ -41,9 +41,10 @@ class TestAChildJoinedIntoItsParentsListFollowsItsOwnHook(FrappeTestCase):
 		self.held = set(held)
 		real = frappe.get_hooks
 
-		def hooks(hook=None, default=None, app_name=None):
-			got = real(hook, default, app_name)
-			if hook == "permission_query_conditions":
+		def hooks(*args, **kwargs):
+			# the call goes through as it came: get_hooks' own default for a hook no app declares is not None
+			got = real(*args, **kwargs)
+			if (args[0] if args else kwargs.get("hook")) == "permission_query_conditions":
 				got = dict(got or {})
 				got["Has Role"] = [HOOK]
 			return got
