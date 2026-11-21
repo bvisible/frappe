@@ -8,7 +8,8 @@ report view of the bookings). Those conditions are trusted hook conditions, whic
 query only, never in the user part that validate_generated_query checks. In both at first, every list of a parent with a
 column of such a child was refused as an « Illegal SQL Query » (osiris, 21.11).
 
-Played on User and its child table Has Role (Administrator's own rows), with a hook given for the test.
+The same holds for the child rows of a Data Export, which upstream reads by a raw query (a booking's health answers left through
+it). Played on User and its child table Has Role (Administrator's own rows), with a hook given for the test.
 """
 
 from unittest.mock import patch
@@ -69,3 +70,20 @@ class TestAChildJoinedIntoItsParentsListFollowsItsOwnHook(FrappeTestCase):
 	def test_nothing_is_narrowed_under_ignore_permissions(self):
 		roles = self.listed(frappe.get_all)
 		self.assertEqual(roles, self.held)
+
+	def test_an_export_holds_only_the_child_rows_its_hook_lets_through(self):
+		from frappe.core.doctype.data_export.exporter import export_data
+
+		frappe.local.response = frappe._dict()
+		export_data(
+			doctype="User",
+			select_columns=frappe.as_json({"User": ["name"], "Has Role": ["role"]}),
+			file_type="CSV",
+			template=False,
+			with_data=True,
+			filters=frappe.as_json({"name": "Administrator"}),
+		)
+		exported = frappe.local.response.result
+		self.assertIn(f'"{KEPT["role"]}"', exported)
+		for role in self.held - {KEPT["role"]}:
+			self.assertNotIn(f'"{role}"', exported)

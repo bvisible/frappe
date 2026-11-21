@@ -424,10 +424,33 @@ class DataExporter:
 						.where(child_doctype_table.parentfield == c["parentfield"])
 						.orderby(child_doctype_table.idx)
 					)
-					for ci, child in enumerate(data_row.run(as_dict=True)):
+					children = data_row.run(as_dict=True)
+					# //// Neoffice — the child rows of an export follow the child doctype's own permission_query_conditions
+					# //// hook, as a list of the child and the parent's report view do (neoffice-maintenance#3221): read
+					# //// by a raw query, a booking's health answers left through Data Export to an account that may not
+					# //// read them. Only for a child that has such a hook; anything else is exported as upstream does.
+					if (permitted := self.permitted_child_rows(c, doc.name)) is not None:
+						children = [child for child in children if child.name in permitted]
+					for ci, child in enumerate(children):
 						self.add_data_row(rows, c["doctype"], c["parentfield"], child, ci)
 			for row in rows:
 				self.writer.writerow(row)
+
+	# //// Neoffice — added (neoffice-maintenance#3221), see the call in add_data.
+	def permitted_child_rows(self, child: dict, parent: str) -> set | None:
+		"""The names of the rows of `child` under `parent` that the exporting account may list, or None when the child
+		doctype has no permission_query_conditions hook of its own (nothing to narrow)."""
+		if not frappe.get_hooks("permission_query_conditions", {}).get(child["doctype"]):
+			return None
+		return set(
+			frappe.get_list(
+				child["doctype"],
+				filters={"parent": parent, "parentfield": child["parentfield"]},
+				parent_doctype=self.doctype,
+				pluck="name",
+				limit_page_length=0,
+			)
+		)
 
 	def add_data_row(self, rows, dt, parentfield, doc, rowidx):
 		d = doc.copy()
