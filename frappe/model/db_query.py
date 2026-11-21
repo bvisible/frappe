@@ -545,10 +545,14 @@ from {tables}
 		# left join parent, child tables
 		for child in self.tables[1:]:
 			parent_name = cast_name(f"{self.tables[0]}.name")
-			# //// Neoffice — the child's own query conditions in the join (child_join_condition, neoffice-maintenance#3221)
-			child_join = f" {self.join} {child} on ({child}.parenttype = {frappe.db.escape(self.doctype)} and {child}.parent = {parent_name}{self.child_join_condition(child)})"
-			args.tables += child_join
-			self._user_tables += child_join
+			child_join = f" {self.join} {child} on ({child}.parenttype = {frappe.db.escape(self.doctype)} and {child}.parent = {parent_name}"
+			# //// Neoffice — the child's own query conditions in the join (child_join_condition, neoffice-maintenance#3221), in
+			# //// the executed query only: they are trusted hook conditions, which may hold subqueries, and the user part that
+			# //// validate_generated_query checks keeps the bare join (as the link tables' join_conditions below). In both
+			# //// parts at first, every list of a parent with a column of a child that has its own hook was refused as an
+			# //// « Illegal SQL Query » (osiris, 21.11).
+			args.tables += child_join + self.child_join_condition(child) + ")"
+			self._user_tables += child_join + ")"
 
 		# left join link tables
 		for link in self.link_tables:
