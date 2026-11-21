@@ -12,6 +12,8 @@ The same holds for the child rows of a Data Export, which upstream reads by a ra
 it). Played on User and its child table Has Role (Administrator's own rows), with a hook given for the test.
 """
 
+import csv
+import io
 from unittest.mock import patch
 
 import frappe
@@ -84,7 +86,13 @@ class TestAChildJoinedIntoItsParentsListFollowsItsOwnHook(FrappeTestCase):
 			with_data=True,
 			filters=frappe.as_json({"name": "Administrator"}),
 		)
-		exported = frappe.local.response.result
-		self.assertIn(f'"{KEPT["role"]}"', exported)
-		for role in self.held - {KEPT["role"]}:
-			self.assertNotIn(f'"{role}"', exported)
+		# the roles are read in their own column: a role may bear the name of the user exported (« Administrator »)
+		rows = list(csv.reader(io.StringIO(frappe.local.response.result)))
+		header = next(row for row in rows if row and row[0] == "Column Name:")
+		at = header.index("role")
+		exported = {
+			row[at]
+			for row in rows[rows.index(header) + 1 :]
+			if row and not row[0] and len(row) > at and row[at]
+		}
+		self.assertEqual(exported, {KEPT["role"]})
