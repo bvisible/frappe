@@ -1052,33 +1052,57 @@
 //    and form internals stay intact).
 // ---------------------------------------------------------------------------
 
+//// Neoffice — a table in full screen is a work surface of the window model (design system §6.18, « A work surface is
+//// the screen », 23.11.2026): the screen less its 16 px gutter, the window's paper, border, radius and shadow, the
+//// table's name as the window's title on one line with its tools beside it, only the rows scroll, the footer kept. It
+//// was 95vw × 95vh on a white card with its own 8 px corners and its own veil (Daniel, 23.11: « il faut enregistrer ça
+//// dans la charte graphique de telle manière qu'on ne code pas uniquement pour les articles »). The --dlg-* tokens are
+//// the theme's (neoffice_theme dialog_model.css); the fallbacks are their values.
 .grid-fullscreen-backdrop {
 	position: fixed;
 	inset: 0;
-	background: rgba(0, 0, 0, 0.4);
+	//// Neoffice — the veil of the window model (work surface, above)
+	background: var(--dlg-veil, rgba(40, 28, 18, 0.45));
+	opacity: var(--dlg-veil-opacity, 1);
 	z-index: 1049;
 }
 
 .grid-field.grid-fullscreen {
 	position: fixed !important;
-	top: 2.5vh !important;
-	left: 2.5vw !important;
-	width: 95vw !important;
-	height: 95vh !important;
+	//// Neoffice — the screen less the gutter of the window model (work surface, above)
+	top: var(--dlg-gutter, 16px) !important;
+	left: var(--dlg-gutter, 16px) !important;
+	width: calc(100vw - 2 * var(--dlg-gutter, 16px)) !important;
+	height: calc(100vh - 2 * var(--dlg-gutter, 16px)) !important;
+	height: calc(100dvh - 2 * var(--dlg-gutter, 16px)) !important;
 	max-width: none !important;
 	margin: 0 !important;
-	padding: 16px 20px !important;
-	background: var(--card-bg, var(--fg-color, #fff));
-	border-radius: var(--border-radius-lg, 8px);
-	box-shadow: 0 12px 60px rgba(0, 0, 0, 0.25);
+	//// Neoffice — the window's air, paper, border, radius and shadow (work surface, above)
+	padding: var(--dlg-work-pad-top, 20px) var(--dlg-pad, 32px) var(--dlg-work-pad-bottom, 20px) !important;
+	background: var(--dlg-bg, #fdfbf7);
+	border: 1px solid var(--dlg-border, #dcd4c7);
+	border-radius: var(--dlg-radius, 20px);
+	box-shadow: var(--dlg-shadow, 0 12px 24px rgba(40, 28, 18, 0.08), 0 32px 64px rgba(40, 28, 18, 0.16));
 	z-index: 1050;
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
 
-	// Make sure header (label + toggle button) doesn't shrink
+	//// Neoffice — the head on one line: the table's name as the window's title, its tools beside it (work surface)
 	> .d-flex.align-items-center {
 		flex: 0 0 auto;
+		flex-wrap: wrap;
+		gap: 8px 16px;
+		margin-bottom: var(--dlg-work-gap-title, 12px);
+		> .control-label {
+			font-family: "Forum", "Karla", serif;
+			font-size: var(--dlg-title, 26px);
+			font-weight: 400;
+			line-height: 1.15;
+			letter-spacing: 0.2px;
+			text-transform: none;
+			color: var(--text-color);
+		}
 	}
 
 	// The grid container expands to fill the available space and scrolls

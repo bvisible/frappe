@@ -5,7 +5,10 @@
 //// field that asked or did nothing. Imported by desk.bundle.js right after dialog.js, so every frappe.ui.Dialog (ours,
 //// ERPNext's, HRMS's) gets, without a line of its own:
 ////   - the shell: centred, an eyebrow above the title (`eyebrow`, `set_eyebrow`), footer links at the left
-////     (`add_footer_link`), four sizes (small / default / large / extra-large = 440 / 560 / 800 / 1140, drawn by the theme);
+////     (`add_footer_link`), four sizes (small / default / large / extra-large = 440 / 560 / 800 / 1140, drawn by the theme),
+////     and `full`, the screen less its gutter, for a work surface;
+////   - a work surface (`work_surface`, `set_work_surface`, 23.11.2026): the window in which one works through a list or a
+////     table takes the height of the screen and only that list scrolls, its head on one line, its tools and its foot kept;
 ////   - steps (form A of the design system: named pills under the title, « ← Retour », « Suivant → »): `steps` with fields,
 ////     or `set_steps` / `go_to_step` / `set_back` for a wizard that draws its own content;
 ////   - Nora's place under the title and the steps (`nora_about`, `set_nora`, 20.11.2026, neoffice-maintenance#2836);
@@ -94,6 +97,9 @@ frappe.provide("frappe.ui.dialog_model");
 		}
 		d.get_close_btn().attr({ title: __("Close") + " (Esc)", "aria-label": __("Close") });
 		if (d.eyebrow) d.set_eyebrow(d.eyebrow);
+		// Frappe draws the sizes it knows at construction; `full` is the model's.
+		if (d.size === "full") d.set_size("full");
+		if (d.work_surface) d.set_work_surface(d.work_surface);
 		// A window that rewrites its ink button (.text(), .html()) takes its key off with it: the key comes back.
 		const p = d.get_primary_btn()[0];
 		if (p && window.MutationObserver) {
@@ -115,14 +121,44 @@ frappe.provide("frappe.ui.dialog_model");
 
 	// The size of a window already built (design system 6.18: small / default / large / extra-large = 440 / 560 / 800 /
 	// 1140): Frappe gives a size at construction only, and some windows are built by Frappe itself (a quick entry, the
-	// email composer), then made wider. A size named here is the model's, never a width of one's own.
+	// email composer), then made wider. A size named here is the model's, never a width of one's own. `full` (23.11.2026)
+	// is the screen less its gutter, for a work surface whose content is a table (the lines of a document).
 	P.set_size = function (size) {
-		const SIZES = { small: "modal-sm", large: "modal-lg", "extra-large": "modal-xl" };
+		const SIZES = {
+			small: "modal-sm",
+			large: "modal-lg",
+			"extra-large": "modal-xl",
+			full: "modal-xl modal-full",
+		};
 		this.size = SIZES[size] ? size : "";
 		const $d = this.$wrapper && this.$wrapper.find(".modal-dialog");
 		if (!$d || !$d.length) return;
-		$d.removeClass("modal-sm modal-lg modal-xl");
+		$d.removeClass("modal-sm modal-lg modal-xl modal-full");
 		if (SIZES[size]) $d.addClass(SIZES[size]);
+	};
+
+	// A work surface (design system 6.18, « A work surface is the screen », 23.11.2026). The window in which one works
+	// through a list or a table (the item search of a document and its lines, a long selection, a table to fill) takes the
+	// height of the screen, and ONLY that list scrolls: the head on one line (the title, its eyebrow beside it), what sits
+	// above the list (a search, filters, the head of the columns), the tools under it and the foot keep their place,
+	// whatever the number of rows. First drawn for the item window of a sales document (19.11, neoffice-maintenance#3132:
+	// « les boutons qui sont au fond devraient rester visibles »), made the model's so that every window that needs it
+	// asks for it in one line rather than drawing its own (Daniel, 23.11).
+	//   `fieldname`: the field that scrolls (its wrapper and every box up to the window's content pass the height on);
+	//   `true`: the body itself scrolls under a fixed head and foot; false or nothing: an ordinary window again.
+	// The look is the theme's (dialog_model.css: .dlg-work, .dlg-fill, .dlg-fill-scroll).
+	P.set_work_surface = function (fieldname) {
+		this.work_surface = fieldname || false;
+		const $w = this.$wrapper;
+		if (!$w || !$w.length) return;
+		$w.find(".dlg-fill").removeClass("dlg-fill");
+		$w.find(".dlg-fill-scroll").removeClass("dlg-fill-scroll");
+		$w.toggleClass("dlg-work", !!fieldname);
+		if (!fieldname) return;
+		const field = typeof fieldname === "string" && this.fields_dict && this.fields_dict[fieldname];
+		const $scroll = field && field.$wrapper && field.$wrapper.length ? field.$wrapper : $w.find(".modal-body").first();
+		$scroll.addClass("dlg-fill-scroll");
+		$scroll.parentsUntil(".modal-content").addClass("dlg-fill");
 	};
 
 	// A link at the left of the footer (« Ouvrir le formulaire complet », « Utiliser un modèle »).

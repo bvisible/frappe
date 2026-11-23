@@ -250,7 +250,8 @@ export default class Grid {
 		const close_fullscreen = () => {
 			set_continuous(false);
 			grid_field.removeClass(FULLSCREEN_CLASS);
-			$(`body > .${BACKDROP_CLASS}`).remove();
+			//// Neoffice — the veil can be inside a window's layer now (see open_fullscreen)
+			$(`.${BACKDROP_CLASS}`).remove();
 			$(document).off("keydown.gridFullscreen");
 			toggle_btn.removeClass("btn-primary").addClass("btn-default");
 			// Drop the force flag so Frappe removes the filter row again
@@ -271,8 +272,15 @@ export default class Grid {
 			me.force_search_row = true;
 			$(me.parent).find(".grid-heading-row").addClass("force-with-filter");
 			// Backdrop catches clicks-outside and ESC.
+			//// Neoffice — a table of a window (« Matériel à prévoir » of the quick activity) is zoomed inside that window's
+			//// layer: a veil appended to the body sat under the window (1049 against 1050), which stayed bright and took
+			//// the clicks beside the table. Inside the window's .modal it covers the window, under the table
+			//// (design system §6.18, a work surface, 23.11.2026).
+			const $layer = grid_field.closest(".modal");
+			$(`.${BACKDROP_CLASS}`).remove();
 			const $backdrop = $(`<div class="${BACKDROP_CLASS}"></div>`)
-				.appendTo("body")
+				//// Neoffice — into the window's layer when the table is in a window (above)
+				.appendTo($layer.length ? $layer : "body")
 				.on("click", close_fullscreen);
 			$(document).on("keydown.gridFullscreen", (e) => {
 				if (e.key === "Escape") {
