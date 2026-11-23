@@ -951,8 +951,18 @@ def get_distinct_values(doctype, fieldname, limit=None):
 
 	return frappe.get_list(doctype, fields=[fieldname], distinct=True, limit=cint(limit) or None)
 
+# //// Neoffice — added (neoffice-maintenance#3291): the column layouts of the lists and the Excel file of the rows shown
+# //// are the desk's. These methods asked no right: a portal account (Website User) could write the layouts of every
+# //// desk account, and a file on the server. neoffice_theme's copy for a stock Frappe 16 (report_view.py) asks the same.
+def _neo_desk_user_only():
+	if frappe.get_cached_value("User", frappe.session.user, "user_type") != "System User":
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+
 @frappe.whitelist()
-def save_user_report_settings(doctype, settings):
+# //// Neoffice — typed, and a desk account only (#3291, see _neo_desk_user_only above).
+def save_user_report_settings(doctype: str, settings: str):
+	_neo_desk_user_only()
 	user = frappe.session.user
 	user_settings = frappe.db.get_value('User', user, 'report_settings') or '{}'
 	user_settings = frappe.parse_json(user_settings)
@@ -997,7 +1007,9 @@ def get_user_report_settings(doctype):
 	return global_defaults.get(doctype, {})
 
 @frappe.whitelist()
-def delete_user_report_settings(doctype):
+# //// Neoffice — typed, and a desk account only (#3291, see _neo_desk_user_only above).
+def delete_user_report_settings(doctype: str):
+	_neo_desk_user_only()
 	user = frappe.session.user
 	user_settings = frappe.db.get_value('User', user, 'report_settings') or '{}'
 	user_settings = frappe.parse_json(user_settings)
@@ -1011,7 +1023,9 @@ def delete_user_report_settings(doctype):
 		return {"message": f"No settings found for {doctype}"}
 
 @frappe.whitelist()
-def push_user_report_settings_to_all(doctype):
+# //// Neoffice — typed, and a desk account only (#3291, see _neo_desk_user_only above).
+def push_user_report_settings_to_all(doctype: str):
+	_neo_desk_user_only()
 	user = frappe.session.user
 	user_settings = frappe.db.get_value('User', user, 'report_settings') or '{}'
 	user_settings = frappe.parse_json(user_settings)
@@ -1031,10 +1045,17 @@ def push_user_report_settings_to_all(doctype):
 		return {"message": f"No settings found for {doctype}"}
 
 @frappe.whitelist()
-def get_comment_count(doctype, docnames):
+# //// Neoffice — typed (#3291).
+def get_comment_count(doctype: str, docnames: str | list):
 	"""Get comment counts from _comments field (includes both Comments and Communications)."""
+	# //// Neoffice — added (#3291): the rows were read by frappe.get_all, whatever the caller may read; the doctype's
+	# //// read right first, and the rows through get_list below.
+	frappe.has_permission(doctype, "read", throw=True)
 	if isinstance(docnames, str):
 		docnames = json.loads(docnames)
+	# //// Neoffice — a list, or nothing to count (#3291).
+	if not isinstance(docnames, list):
+		frappe.throw(_("Invalid data format"))
 
 	# //// Neoffice — a virtual doctype has no table, hence no _comments column: get_all handed the query to
 	# //// its controller, which answered 500 on every list of Bulk Transaction Log (maintenance#2805).
@@ -1044,7 +1065,8 @@ def get_comment_count(doctype, docnames):
 	comment_counts = {}
 
 	# Get _comments field for all docnames in one query
-	results = frappe.get_all(
+	# //// Neoffice — get_list, not get_all (#3291): only the rows the caller may read.
+	results = frappe.get_list(
 		doctype,
 		filters={"name": ["in", docnames]},
 		fields=["name", "_comments"],
@@ -1077,6 +1099,8 @@ _upstream_export_query = export_query
 @frappe.whitelist()
 def export_query(data=None, selected_items=None, file_format_type='Excel', title='Exported Data', 
                 start=0, page_length=20, filters=None, fields=None, doctype=None, order_by=None):
+    # //// Neoffice — a desk account only (#3291): the rows come from the caller and go into a file on the server.
+    _neo_desk_user_only()
     # //// Neoffice — no rows sent: upstream's export reads the list's request from form_dict (see above).
     if not data:
         return _upstream_export_query()
