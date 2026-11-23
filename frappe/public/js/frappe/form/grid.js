@@ -250,8 +250,9 @@ export default class Grid {
 		const close_fullscreen = () => {
 			set_continuous(false);
 			grid_field.removeClass(FULLSCREEN_CLASS);
-			//// Neoffice — the veil can be inside a window's layer now (see open_fullscreen)
+			//// Neoffice — the veil can be inside a window's layer now, and the cross goes (see open_fullscreen)
 			$(`.${BACKDROP_CLASS}`).remove();
+			grid_field.find(".grid-fullscreen-close").remove();
 			$(document).off("keydown.gridFullscreen");
 			toggle_btn.removeClass("btn-primary").addClass("btn-default");
 			// Drop the force flag so Frappe removes the filter row again
@@ -289,6 +290,14 @@ export default class Grid {
 				}
 			});
 			toggle_btn.removeClass("btn-default").addClass("btn-primary");
+			//// Neoffice — the window's cross at the right of the head, as every window of the model (design system §6.18)
+			grid_field.children(".d-flex.align-items-center").first().append(
+				$(
+					`<button type="button" class="btn btn-link grid-fullscreen-close" title="${__("Close")} (Esc)" aria-label="${__(
+						"Close"
+					)}">${frappe.utils.icon("close-alt", "sm", "close-alt")}</button>`
+				).on("click", close_fullscreen)
+			);
 			// Recompute column widths AND re-build the heading row so the
 			// header_search/filter-row gets re-created (it was removed by
 			// show_search_row when the row count was below threshold).
