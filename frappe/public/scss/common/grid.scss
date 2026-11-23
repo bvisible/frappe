@@ -1094,8 +1094,9 @@
 		flex-wrap: wrap;
 		gap: 8px 16px;
 		margin-bottom: var(--dlg-work-gap-title, 12px);
-		//// Neoffice — !important: the theme sizes every table's name with !important (document_views.css, 15 px)
-		> .control-label {
+		//// Neoffice — !important and one more class: the theme sizes every label of a form with !important
+		//// (document_views.css, `body.neoffice-cockpit .form-layout .frappe-control:not(...) .control-label`, 15 px)
+		> .control-label.control-label {
 			font-family: "Forum", "Karla", serif !important;
 			font-size: var(--dlg-title, 26px) !important;
 			font-weight: 400 !important;
