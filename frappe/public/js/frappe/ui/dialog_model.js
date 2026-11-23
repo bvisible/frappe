@@ -26,8 +26,11 @@ frappe.provide("frappe.ui.dialog_model");
 	const P = D.prototype;
 	const M = frappe.ui.dialog_model;
 
-	// Escape or a click beside first closes what is open inside the window: a list, a calendar, a menu.
-	const POPUP_OPEN = ".awesomplete > ul:not([hidden]), .datepicker.active, .dropdown-menu.show";
+	// Escape or a click beside first closes what is open inside the window: a list, a calendar, a menu, a table opened in
+	// full screen (23.11.2026: « Matériel à prévoir » of a quick activity, zoomed, stayed open on Escape, the window
+	// taking the key before the table's own handler).
+	const POPUP_OPEN =
+		".awesomplete > ul:not([hidden]), .datepicker.active, .dropdown-menu.show, .grid-field.grid-fullscreen";
 	// What a person types into: a key aimed at one of these outside the window belongs to it, not to the window.
 	const EDITABLE = "input, textarea, select, [contenteditable], [contenteditable] *";
 	const NOT_VALUES = new Set([
