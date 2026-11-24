@@ -13,6 +13,7 @@ from frappe import apps
 from frappe.tests.roles import as_role
 from frappe.tests.utils import FrappeTestCase
 
+PORTAL_USER = "app-a-person-starts-on-test@yopmail.com"
 MENU = [{"name": "selling", "route": "/app/selling"}, {"name": "accounting", "route": "/app/accounting"}]
 
 
@@ -82,8 +83,22 @@ class TestTheAppAPersonStartsOn(FrappeTestCase):
 			self.assertIsNone(self.starts_on("crm", [{"name": "crm", "route": "/app/frappe-crm"}]))
 
 	def test_a_portal_account_is_never_sent_to_an_app_of_the_staff(self):
-		with as_role("portal_customer"):
-			self.assertIsNone(self.starts_on("crm", [{"name": "crm", "route": "/crm"}]))
+		# An account of the portal by its type alone: a site without ERPNext has no role Customer to play
+		if not frappe.db.exists("User", PORTAL_USER):
+			user = frappe.get_doc(
+				{
+					"doctype": "User",
+					"email": PORTAL_USER,
+					"first_name": "Portal",
+					"user_type": "Website User",
+					"send_welcome_email": 0,
+				}
+			)
+			user.flags.no_welcome_mail = True
+			user.insert(ignore_permissions=True)
+		frappe.set_user(PORTAL_USER)
+		self.addCleanup(frappe.set_user, "Administrator")
+		self.assertIsNone(self.starts_on("crm", [{"name": "crm", "route": "/crm"}]))
 
 
 def refused():
