@@ -17,6 +17,14 @@ SCRIPT_TAG_PATTERN = re.compile(r"\<script[^<]*\</script\>")
 CLOSING_SCRIPT_TAG_PATTERN = re.compile(r"</script\>")
 
 
+# //// Neoffice — added function: what an app declares in app_include_js_first / app_include_css_first stands right after Frappe's
+# //// own files, before any other app's: the place of the cockpit and of its sheets when this fork carried them (neoffice_theme
+# //// first_assets.py, 24.11.2026, neoffice-maintenance#3262). To drop with the fork: on a stock Frappe the theme loads them itself.
+def with_first(includes, hook, hooks):
+	at = len(frappe.get_hooks(hook, app_name="frappe"))
+	return includes[:at] + hooks.get(f"{hook}_first", []) + includes[at:]
+
+
 def get_context(context):
 	if frappe.session.user == "Guest":
 		frappe.response["status_code"] = 403
@@ -46,6 +54,9 @@ def get_context(context):
 
 	include_js = hooks.get("app_include_js", []) + frappe.conf.get("app_include_js", [])
 	include_css = hooks.get("app_include_css", []) + frappe.conf.get("app_include_css", [])
+	# //// Neoffice — the cockpit and its sheets, the theme's, at the place they had when this fork carried them (with_first).
+	include_js = with_first(include_js, "app_include_js", hooks)
+	include_css = with_first(include_css, "app_include_css", hooks)
 	include_icons = hooks.get("app_include_icons", [])
 	frappe.local.preload_assets["icons"].extend(include_icons)
 

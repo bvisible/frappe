@@ -30,12 +30,8 @@
 @import "sidebar";
 @import "list_sidebar";
 @import "form_sidebar";
-//// Neoffice ▼▼▼ form-header-compact: pull cluster styles into the desk bundle
-@import "compact_header";
-//// Neoffice ▲▲▲ form-header-compact
-//// Neoffice ▼▼▼ floating-nav-arrows: pull side-arrow styles
-@import "floating_nav_arrows";
-//// Neoffice ▲▲▲ floating-nav-arrows
+//// Neoffice — the compact head, the floating arrows and the form dialog, imported here until 24.11.2026, are the theme's sheets
+//// (neoffice_theme first_assets.py, neoffice-maintenance#3262)
 @import "filters";
 @import "list";
 @import "report";
@@ -54,8 +50,7 @@
 @import "user_profile";
 @import "theme_switcher";
 @import "link_preview";
-/* //// Neoffice — added import: the form dialog (form/form_dialog.js), an added file. */
-@import "form_dialog";
+//// Neoffice — the form dialog's import stood here until 24.11.2026 (see above)
 @import "../common/quill";
 @import "plyr";
 @import "version";

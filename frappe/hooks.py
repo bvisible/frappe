@@ -52,19 +52,14 @@ app_include_js = [
 	"report.bundle.js",
 	"telemetry.bundle.js",
 	"billing.bundle.js",
-	# //// NEOFFICE PATCH — NeoCockpit unified chrome (default desk chrome).
-	# Self-contained React bundle (source: bvisible/frappe-sidebar-react);
-	# mounted by desk.js make_cockpit(). Re-vendor: cp dist/neocockpit.global.js here.
-	"/assets/frappe/js/lib/neocockpit.global.js?v=158",
-	# //// NEOFFICE PATCH — list/report filter sidebar → floating glass pill
-	"/assets/frappe/js/lib/cockpit_filter_pill.js?v=10",
+	# //// Neoffice — the cockpit's bundle (mounted by desk.js make_cockpit) and the pill of a list's filters are the theme's
+	# //// since 24.11.2026 (neoffice_theme first_assets.py, hooks app_include_js_first, read by www/app.py; #3262).
 ]
 
 app_include_css = [
 	"desk.bundle.css",
 	"report.bundle.css",
-	# //// NEOFFICE PATCH — cockpit desk shell (gray frame + floating panel)
-	"/assets/frappe/css/cockpit.css?v=91",
+	# //// Neoffice — the desk shell's sheet (cockpit.css) is the theme's since 24.11.2026 (app_include_css_first, www/app.py).
 ]
 app_include_icons = [
 	"frappe/icons/timeless/icons.svg",

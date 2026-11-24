@@ -27,25 +27,15 @@ added (no upstream equivalent), so it is not a divergence — see its header mar
 
 ## Lot F2 — frappe/public/js
 
-### Generated bundle: a marker there would be destroyed at the next build
+### Gone to the theme (2026-11-24): the cockpit and the sheets of its pieces
 
-| File | Why it carries no marker |
-|---|---|
-| `frappe/public/js/lib/neocockpit.global.js` | Minified build artefact, overwritten wholesale by `neoffice-devops/scripts/cockpit-release.sh` (`cp "$SRC/dist/neocockpit.global.js" frappe/public/js/lib/neocockpit.global.js`). Any comment added to it disappears at the next re-vendor, so it would be a marker that lies. |
-
-What it is: the vendored NeoCockpit React bundle — the desk chrome (single sidebar rail absorbing
-the header: search, NORA, notifications, user menu). Source repo `bvisible/frappe-sidebar-react`,
-built with tsup, copied here and served raw from `/assets/frappe/js/lib/neocockpit.global.js` with
-a `?v=N` cache-bust bumped in `frappe/hooks.py` by the same script. Added file, **no upstream
-equivalent in v15.120 or develop** — it cannot conflict at the merge, it can only be lost by
-someone deleting it.
-
-Introduced by `d0268ef91a` (2026-06-10, "feat(cockpit): NeoCockpit is the default desk chrome —
-single menu, no navbar"), then re-vendored 78 times up to `6ed439f1f6` (2026-09-02, `?v=79`);
-every one of those commits is a `feat/chore(cockpit): re-vendor bundle v=N (frappe-sidebar-react
-<sha>)` touching only this file and `hooks.py`. Consumers of the bundle and the release procedure:
-see `neoffice-devops/CLAUDE.md` § "NeoCockpit — carte des consommateurs + release". Never edit it
-by hand: change `frappe-sidebar-react` and run `cockpit-release.sh`.
+The cockpit's bundle (`public/js/lib/neocockpit.global.js`), its sheet (`public/css/cockpit.css`), the pill of a list's filters
+(`public/js/lib/cockpit_filter_pill.js`) and the sheets of a form's compact head, of the floating arrows, of the form dialog and
+of the search (`scss/desk/compact_header.scss`, `floating_nav_arrows.scss`, `form_dialog.scss`, and what we had added to
+`scss/common/awesomeplete.scss` and `scss/desk/frappe_datatable.scss`, upstream's again) have one copy, `neoffice_theme`'s
+(`first_assets.py`). This fork loads them at the place they had, right after Frappe's own files: `www/app.py` reads
+`app_include_css_first` and `app_include_js_first` (marked there). Nothing to record here any more; a merge that brings one of
+these files back has nothing of ours in it.
 
 ### Vendored third-party library: added files, no upstream equivalent
 
