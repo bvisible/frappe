@@ -5,12 +5,8 @@ import "./share";
 //// Upstream deleted document_follow.js (dff54f2744, dead code); following lives in our compact_header.js.
 import "./user_image";
 import "./form_sidebar_users";
-//// Neoffice ▼▼▼ form-header-compact: pull the compact header bundle
-import "./compact_header";
-//// Neoffice ▲▲▲ form-header-compact
-//// Neoffice ▼▼▼ floating-nav-arrows: pull the floating navigation arrows
-import "./floating_nav_arrows";
-//// Neoffice ▲▲▲ floating-nav-arrows
+//// Neoffice — the compact header and the floating arrows made below (make_compact_header, make_floating_nav_arrows) are the
+//// theme's since 24.11.2026 (neoffice_theme public/js/form_model.js, maintenance#3262): they were imported here.
 import { get_user_link, get_user_message } from "../footer/version_timeline_content_builder";
 
 frappe.ui.form.Sidebar = class {
@@ -67,6 +63,7 @@ frappe.ui.form.Sidebar = class {
 
 	//// Neoffice ▼▼▼ form-header-compact: helper invoked from make()
 	make_compact_header() {
+		if (!frappe.ui.form.CompactHeader) return;
 		this.compact_header = new frappe.ui.form.CompactHeader({
 			frm: this.frm,
 		});
@@ -75,6 +72,7 @@ frappe.ui.form.Sidebar = class {
 
 	//// Neoffice ▼▼▼ floating-nav-arrows: spawn the side carousel arrows
 	make_floating_nav_arrows() {
+		if (!frappe.ui.form.FloatingNavArrows) return;
 		this.floating_nav_arrows = new frappe.ui.form.FloatingNavArrows({
 			frm: this.frm,
 		});

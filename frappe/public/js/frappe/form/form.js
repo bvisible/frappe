@@ -3,10 +3,10 @@ frappe.provide("frappe.model.docinfo");
 
 //// Neoffice — the import block below diverges twice. (1) It was re-sorted by path (bd41f1e7a5,
 //// 2025-02-26 "Update neov2"; no rationale — an editor's organize-imports). (2) Three cockpit modules
-//// were added: ./form_hero (36d9015d6f), ./tab_slider (885fefba8d) and ./grid_totals (64f4614afc),
-//// all 2026-06-10, instantiated from form/toolbar.js refresh_hero() (marked there). These are
-//// side-effect imports, so the re-order is NOT provably inert: TO REVIEW at the merge — restore
-//// upstream's order and keep only the three added lines.
+//// were added on 2026-06-10 (./form_hero, ./tab_slider, ./grid_totals, then ./form_dialog of maintenance#1047): they are the
+//// theme's since 24.11.2026 (neoffice_theme public/js/form_model.js, one copy for Frappe 15 and 16, maintenance#3262), still
+//// instantiated from form/toolbar.js refresh_hero() (marked there). These are side-effect imports, so the re-order is NOT
+//// provably inert: TO REVIEW at the merge — restore upstream's order.
 import "./dashboard";
 import "./footer/footer";
 import "./form_tour";
@@ -20,12 +20,6 @@ import "./script_manager";
 import "./sidebar/form_sidebar";
 import "./success_action";
 import "./toolbar";
-import "./form_hero";
-import "./tab_slider";
-import "./grid_totals";
-//// Neoffice — added import: a link to another document opens its form in a dialog (./form_dialog,
-//// an added file with no upstream equivalent; maintenance#1047).
-import "./form_dialog";
 import { UndoManager } from "./undo_manager";
 
 //// Neoffice — added: the form sidebar of a desk without one (see render_form). It draws nothing, outside
