@@ -287,6 +287,13 @@ class LoginManager:
 		self.validate_hour()
 		self.get_user_info()
 		self.make_session(session_end=session_end, audit_user=audit_user)
+		# //// Neoffice — a browser that still holds an expired sid is resumed as Guest before its request runs, and that
+		# //// resume asks for its cookies to be deleted (sessions.py get_session_record). Upstream keeps that
+		# //// deletion when a sign-in follows in the SAME request (a sign-in link, an invitation, a new password, OAuth:
+		# //// `login_as`): flush_cookies wrote the new sid, then deleted it, and the person landed on /login though the
+		# //// link was spent. A sign-in of a real account cancels it; a sign-out still asks for it afterwards.
+		if self.user != "Guest":
+			frappe.local.cookie_manager.to_delete.clear()
 		self.setup_boot_cache()
 		self.set_user_info()
 
