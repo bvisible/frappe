@@ -26,10 +26,8 @@ frappe.ui.toolbar.Toolbar = class {
 
 	make() {
 		this.bind_events();
-		//// Neoffice — added (9999364ec6 2025-10-28 logo click → Home; cc297ec402 2025-11-03 navbar
-		//// hamburger → global sidebar toggle).
+		//// Neoffice — added (9999364ec6 2025-10-28): the logo goes to Home.
 		this.bind_logo_click();
-		this.bind_hamburger_click();
 		$(document).trigger("toolbar_setup");
 	}
 
@@ -42,19 +40,6 @@ frappe.ui.toolbar.Toolbar = class {
 			event.preventDefault();
 			event.stopPropagation();
 			frappe.set_route("home");
-			return false;
-		});
-	}
-
-	//// Neoffice — added (cc297ec402, 2025-11-03 "Move sidebar to right and add mobile toggle"): the
-	//// navbar hamburger (navbar.html .navbar-toggle-sidebar) opens / closes frappe.app.sidebar on mobile.
-	bind_hamburger_click() {
-		$(".navbar-toggle-sidebar").on("click", (event) => {
-			event.preventDefault();
-			event.stopPropagation();
-			frappe.app.sidebar.set_height();
-			frappe.app.sidebar.toggle_sidebar();
-			frappe.app.sidebar.prevent_scroll();
 			return false;
 		});
 	}
@@ -362,12 +347,6 @@ frappe.ui.toolbar.Toolbar = class {
 		if (frappe.boot.desk_settings.notifications && frappe.session.user !== "Guest") {
 			this.notifications = new frappe.ui.Notifications();
 		}
-	}
-
-	//// Neoffice — added (9999364ec6, 2025-10-28): called by frappe.ui.Sidebar.set_default_app() to
-	//// put the neoffice_theme logo in the navbar.
-	set_app_logo(logo_url) {
-		$(".navbar-brand .app-logo").attr("src", logo_url);
 	}
 };
 

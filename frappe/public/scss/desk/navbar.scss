@@ -15,21 +15,6 @@
 	.navbar-brand {
 		margin-right: 0;
 	}
-
-	//// Neoffice — added (cc297ec402, 2025-11-03 "Move sidebar to right and add mobile toggle"):
-	//// hamburger button in the navbar that toggles the sidebar on mobile devices.
-	.navbar-toggle-sidebar {
-		display: flex;
-		align-items: center;
-		padding: 8px;
-		margin-right: var(--margin-sm);
-		cursor: pointer;
-		color: var(--text-color);
-
-		&:hover {
-			color: var(--primary);
-		}
-	}
 	.navbar-nav {
 		.dropdown-item {
 			padding: 6px 8px !important;

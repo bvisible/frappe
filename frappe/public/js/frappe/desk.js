@@ -358,23 +358,19 @@ frappe.Application = class Application {
 	}
 	// //// NEOFFICE PATCH — NeoCockpit unified chrome (single menu, no navbar).
 	// Default chrome for every Neoffice desk: ONE React sidebar that absorbs the
-	// header (search, notifications bell, NORA, user menu). The legacy navbar +
-	// sidebar are NOT instantiated at all — no hidden DOM, no double chrome.
-	// Emergency kill-switch (legacy chrome): site_config `neoffice_cockpit_disable`.
+	// header (search, notifications bell, NORA, user menu). Frappe's navbar is NOT
+	// instantiated at all — no hidden DOM, no double chrome.
+	// Emergency kill-switch: site_config `neoffice_cockpit_disable` gives Frappe's navbar back, and the spaces page its
+	// own list of the spaces (workspace.js); so does the setup wizard.
 	make_chrome() {
 		if (frappe.boot.neoffice_cockpit_disable || frappe.boot.home_page === "setup-wizard") {
 			this.make_nav_bar();
-			this.make_sidebar();
 			return;
 		}
 		this.make_cockpit();
 	}
 
 	make_cockpit() {
-		// headless sidebar: workspace.js consumes it as its data source
-		// (setup_pages / all_pages / frappe.workspaces maps) — no DOM rendered.
-		this.sidebar = new frappe.ui.Sidebar({ headless: true });
-
 		document.body.classList.add("neoffice-cockpit");
 		const root = document.createElement("div");
 		root.id = "neoffice-cockpit-root";
@@ -639,13 +635,6 @@ frappe.Application = class Application {
 		if (frappe.boot && frappe.boot.home_page !== "setup-wizard") {
 			frappe.frappe_toolbar = new frappe.ui.toolbar.Toolbar();
 		}
-	}
-
-	//// Neoffice — added (9999364ec6 2025-10-28 "Refonte de l'interface utilisateur avec nouvelle sidebar
-	//// et apps switcher"): the legacy desk sidebar, now built only by make_chrome() when the cockpit is
-	//// disabled or during the setup wizard (d0268ef91a 2026-06-10).
-	make_sidebar() {
-		this.sidebar = new frappe.ui.Sidebar({});
 	}
 
 	logout() {

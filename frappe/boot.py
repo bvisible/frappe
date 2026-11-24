@@ -201,7 +201,7 @@ def load_desktop_data(bootinfo):
 	from frappe.desk.desktop import get_workspace_sidebar_items
 
 	# //// Neoffice — upstream sets only `allowed_workspaces = get_workspace_sidebar_items().get("pages")`.
-	# //// Ours keeps the whole answer as `sidebar_pages` for the redesigned sidebar and apps switcher, and the
+	# //// Ours keeps the whole answer as `sidebar_pages` (the cockpit's menu and the workspace view read it), and the
 	# //// page names for the app data below (9999364ec6 2025-10-28, sidebar and apps switcher redesign).
 	# New sidebar system
 	bootinfo.sidebar_pages = get_workspace_sidebar_items()

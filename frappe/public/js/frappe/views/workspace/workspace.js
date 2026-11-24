@@ -8,11 +8,10 @@ frappe.standard_pages["Workspaces"] = function () {
 		parent: wrapper,
 		name: "Workspaces",
 		title: __("Workspace"),
-		//// Neoffice — added (cc297ec402, 2025-11-03 "Move sidebar to right and add mobile toggle"):
-		//// upstream lets the Workspaces page keep the two-column layout so it can put its own sidebar
-		//// in .layout-side-section. That sidebar is now the global one (see the header), so the page
-		//// must not reserve a side column.
-		single_column: true,
+		//// Neoffice — added (cc297ec402, 2025-11-03): the cockpit lists the spaces, so the page keeps no side column and
+		//// upstream's own list of them (make_sidebar) is not drawn. With the emergency switch (site_config
+		//// neoffice_cockpit_disable) there is no cockpit: the column and that list are back.
+		single_column: !frappe.boot.neoffice_cockpit_disable,
 	});
 
 	frappe.workspace = new frappe.views.Workspace(wrapper);
@@ -22,34 +21,17 @@ frappe.standard_pages["Workspaces"] = function () {
 };
 
 ////////////////////////////////////////////////////////////////////////
-//// Neoffice — Workspace view: ~50 hunks vs upstream v15.89.0, each marked below. The map:
-////   9999364ec6 2025-10-28 + cc297ec402 2025-11-03 — the sidebar stopped belonging to this
-////     view. Upstream Workspace builds its own .desk-sidebar inside .layout-side-section and
-////     owns all_pages / public_pages / private_pages; ours delegates to the global
-////     frappe.app.sidebar (ui/sidebar.js, marked there) and reads its data. Every
-////     `this.sidebar.find(...)` therefore became `const $sidebar = this.sidebar.$sidebar ||
-////     this.sidebar` — the sidebar object is no longer a jQuery set.
-////   0634af137c 2025-11-13 + 84b6f7a10b 2025-11-09 — workspaces are scoped to the app they
-////     belong to: get_pages() sends the current workspace, show_page() resolves the owning app
-////     (boot.workspace_to_app_map › page.app › boot.module_app) and switches the app switcher,
-////     and pages are keyed by NAME instead of TITLE throughout (two workspaces of different
-////     apps can share a title).
-////   d0268ef91a 2026-06-10 — under the NeoCockpit chrome frappe.ui.Sidebar runs HEADLESS (data
-////     maps, no DOM), so every sidebar-DOM method here early-returns on this.sidebar.headless.
-////   Older, no rationale in the commits: 755884e049 2024-01-17 (custom_link),
-////     c3a2678c23 2024-01-24 (collapsed sections remembered in localStorage), 09d4ec114e /
-////     06517453c7 2024-10-07, bd41f1e7a5 2025-02-26, 9cd3ad12a4 2025-03-17.
-////   Later fixes: fb2a5ef11e 2025-11-08 (null current_page), a9959ef957 2026-01-31 (name !=
-////     title), 388383af3a 2026-03-12 (Edit/New moved from the footer to a header bar),
-////     07ee48dd37 2026-06-16 (deleting a widget from the UI).
-//// The console.log debug traces of 0634af137c / d0268ef91a (reload_sidebar_pages, make_sidebar)
-//// were removed on 2026-09-09 (neoffice-maintenance#205): they ran on every workspace load in
-//// production, printing page titles to the browser console. The single console.warn left in
-//// build_sidebar_section stays — it reports an abnormal state, it is not a trace.
-//// v16 merge note: upstream develop rewrote this file (Manage Workspaces rail, hidden-notice
-//// blocks, role-gated access) and ALSO moved to `this.sidebar = frappe.app.sidebar` — same
-//// direction, different code. Expect a whole-file conflict; re-apply our intent, do not merge
-//// line by line.
+//// Neoffice — Workspace view, each hunk marked below. The map:
+////   the pages are read from the boot the first time (get_pages), which the theme's boot hooks filter, and the
+////     spaces are found by NAME instead of TITLE (0634af137c 2025-11-13): two spaces can share a title, and
+////     "Simple - Ventes" is titled "Ventes".
+////   upstream's own list of the spaces (make_sidebar and the methods around it) is upstream's code: the cockpit draws
+////     the menu, the page has one column and that list is not drawn but under the emergency switch (single_column).
+////     Our global sidebar of 2025-10 (9999364ec6, cc297ec402, d0268ef91a) left this file on 24.11.2026.
+////   Also ours: c3a2678c23 2024-01-24 (collapsed sections remembered), 755884e049 2024-01-17 (custom_link),
+////     388383af3a 2026-03-12 (Edit/New in a header bar), a9959ef957 2026-01-31 (name != title), fb2a5ef11e
+////     2025-11-08 (null current_page), Edit and New for Administrator only, 07ee48dd37 2026-06-16 (deleted widgets).
+//// v16 merge note: upstream develop rewrote this file. Expect a whole-file conflict; re-apply our intent.
 ////////////////////////////////////////////////////////////////////////
 frappe.views.Workspace = class Workspace {
 	constructor(wrapper) {
@@ -85,30 +67,17 @@ frappe.views.Workspace = class Workspace {
 		];
 
 		this.prepare_container();
-		//// Neoffice — upstream: `this.setup_pages();` alone. Rewritten by 9999364ec6 (2025-10-28,
-		//// sidebar + apps-switcher rework): the pages now come from the global frappe.app.sidebar, and
-		//// public_pages / private_pages / has_access / cached_pages are derived from it here so the
-		//// rest of the class keeps working. this.show() is called explicitly because setup_pages() no
-		//// longer ends with it.
-		this.sidebar = frappe.app.sidebar;
-		this.sidebar.setup_pages();
-		this.cached_pages = $.extend(true, {}, frappe.boot.sidebar_pages);
-		this.has_access = frappe.boot.sidebar_pages.has_access;
-		this.has_create_access = frappe.boot.sidebar_pages.has_create_access;
-
-		// Define public_pages and private_pages from sidebar
-		this.public_pages = this.sidebar.all_pages.filter((page) => page.public);
-		this.private_pages = this.sidebar.all_pages.filter((page) => !page.public);
-
-		this.show();
+		this.setup_pages();
 		this.register_awesomebar_shortcut();
 	}
 
-	//// Neoffice — upstream creates the workspace's own sidebar DOM here (a .list-sidebar
-	//// .overlay-sidebar wrapper appended to .layout-side-section, with this.sidebar pointing at its
-	//// .desk-sidebar). Deleted by 9999364ec6 (2025-10-28): the sidebar is global now, this method
-	//// only keeps the body and the Edit/New buttons.
 	prepare_container() {
+		let list_sidebar = $(`
+			<div class="list-sidebar overlay-sidebar hidden-xs hidden-sm">
+				<div class="desk-sidebar list-unstyled sidebar-menu"></div>
+			</div>
+		`).appendTo(this.wrapper.find(".layout-side-section"));
+		this.sidebar = list_sidebar.find(".desk-sidebar");
 		this.body = this.wrapper.find(".layout-main-section");
 		this.prepare_new_and_edit();
 	}
@@ -132,27 +101,14 @@ frappe.views.Workspace = class Workspace {
 		if (this.all_pages) {
 			frappe.workspaces = {};
 			for (let page of this.all_pages) {
+				//// Neoffice — `name` added: our router goes to a space by its name (router.js).
 				frappe.workspaces[frappe.router.slug(page.name)] = {
+					name: page.name,
 					title: page.title,
 					public: page.public,
 				};
 			}
 			this.make_sidebar();
-
-			//// Neoffice — added (0634af137c, 2025-11-13 "Enhance workspace and app customization logic"):
-			//// upstream only ever SHOWS the sidebar edit controls (drag handles, per-item menus) when edit
-			//// mode starts, and never hides them again, so after a save they stayed on a read-only
-			//// sidebar. Every setup_pages now settles them both ways (hide_sidebar_actions is added
-			//// further down).
-			// Hide sidebar actions if not in edit mode
-			if (this.body && this.body.hasClass('edit-mode')) {
-				// In edit mode - show controls
-				this.show_sidebar_actions();
-			} else {
-				// Not in edit mode - hide controls
-				this.hide_sidebar_actions();
-			}
-
 			reload && this.show();
 		}
 	}
@@ -193,67 +149,28 @@ frappe.views.Workspace = class Workspace {
 		this.body.find(".btn-edit-workspace").on("click", async () => {
 			if (!this.editor || !this.editor.readOnly) return;
 			this.is_read_only = false;
-			//// Neoffice — entering edit mode, rewritten by 0634af137c (2025-11-13); block runs to the end
-			//// of the handler. Upstream: toggle_hidden_workspaces(true) BEFORE the toggle, then everything
-			//// else inside `this.editor.isReady.then(...)`. Ours awaits isReady and, before showing the
-			//// controls, reloads the pages from the server with the current workspace as context
-			//// (reload_sidebar_pages) and rebuilds the sidebar — the app-scoped page list is not the one
-			//// loaded at boot, and the edit controls only exist on freshly built items.
-			//// toggle_hidden_workspaces is not removed, it moved after that rebuild.
-			await this.editor.readOnly.toggle();
-			await this.editor.isReady;
-			this.body.addClass("edit-mode");
-			this.initialize_editorjs_undo();
-			this.setup_customization_buttons(this._page);
-			// Reload pages from server with current workspace context
-			await this.reload_sidebar_pages();
-			// Rebuild sidebar to ensure controls are created, then show them
-			this.make_sidebar();
 			this.toggle_hidden_workspaces(true);
-			this.show_sidebar_actions();
-			this.make_blocks_sortable();
+			await this.editor.readOnly.toggle();
+			this.editor.isReady.then(() => {
+				this.body.addClass("edit-mode");
+				this.initialize_editorjs_undo();
+				this.setup_customization_buttons(this._page);
+				this.show_sidebar_actions();
+				this.make_blocks_sortable();
+			});
 		});
 	}
 
-	//// Neoffice — get_pages rewritten and reload_sidebar_pages added (0634af137c, 2025-11-13; the
-	//// block runs to the end of that method). Upstream calls
-	//// frappe.desk.desktop.get_workspace_sidebar_items with no argument and gets every workspace
-	//// the user may see. Ours passes the current workspace (this._page, else
-	//// localStorage.current_page) so the server can return only the workspaces of the app that
-	//// workspace belongs to, and reload_sidebar_pages refreshes that list plus the frappe.workspaces
-	//// cache when the context changes.
 	get_pages() {
-		// Pass current workspace to backend so it can filter workspaces by app
-		// Use localStorage.current_page as fallback if this._page is not set yet
-		const current_workspace = (this._page && this._page.name) || localStorage.current_page || null;
-		return frappe.xcall("frappe.desk.desktop.get_workspace_sidebar_items", {
-			current_workspace: current_workspace
-		});
-	}
-
-	async reload_sidebar_pages() {
-		// Reload pages from server with current workspace context
-		//// Neoffice — removed a console.log("[reload_sidebar_pages] START...") debug trace (f28352c7f7
-		//// "fix(print,rename,workspace): three client names and a debug trace leave the framework"):
-		//// it ran on every workspace load in production, printing page counts to the browser console.
-		this.sidebar_pages = await this.get_pages();
-		this.all_pages = this.sidebar_pages.pages;
-		this.public_pages = this.all_pages.filter((page) => page.public);
-		this.private_pages = this.all_pages.filter((page) => !page.public);
-
-		//// Neoffice — removed a console.log("[reload_sidebar_pages] END...") debug trace (f28352c7f7
-		//// "fix(print,rename,workspace): three client names and a debug trace leave the framework"):
-		//// same reason as above, page titles printed on every load.
-		// Update frappe.workspaces cache
-		if (this.all_pages) {
-			frappe.workspaces = {};
-			for (let page of this.all_pages) {
-				frappe.workspaces[frappe.router.slug(page.name)] = {
-					title: page.title,
-					public: page.public,
-				};
-			}
+		//// Neoffice — the first time, the pages of the boot: the theme's boot hooks filter them (Simple mode, the apps a
+		//// person sees, the spaces' titles), the server's answer would not be filtered alike, and the space shows at once.
+		//// Upstream asks the server each time.
+		if (!this.boot_pages_read) {
+			this.boot_pages_read = true;
+			const boot = frappe.boot.sidebar_pages || {};
+			return Promise.resolve({ ...boot, pages: [...(boot.pages || [])] });
 		}
+		return frappe.xcall("frappe.desk.desktop.get_workspace_sidebar_items");
 	}
 
 	sidebar_item_container(item) {
@@ -299,22 +216,11 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	make_sidebar() {
-		//// Neoffice — make_sidebar, rewritten (block runs to remove_sidebar_skeleton below). Upstream
-		//// does `this.sidebar.find(".standard-sidebar-section").remove()` — this.sidebar was its own
-		//// jQuery set. Since 9999364ec6 it is the global frappe.ui.Sidebar object, hence the
-		//// `this.sidebar.$sidebar || this.sidebar` resolution repeated in every sidebar method, and
-		//// since d0268ef91a (2026-06-10) that object can be HEADLESS under the NeoCockpit chrome (data
-		//// maps, no DOM) — hence the early return. The NEOFFICE PATCH note below is from that commit.
-			// //// NEOFFICE PATCH — cockpit chrome: native sidebar DOM doesn't exist
-		if (!this.sidebar || this.sidebar.headless) return;
-		// Get the actual jQuery sidebar element
-		const $sidebar = this.sidebar.$sidebar || this.sidebar;
-
-		//// Neoffice — removed a console.log("[make_sidebar] START...") debug trace (f28352c7f7
-		//// "fix(print,rename,workspace): three client names and a debug trace leave the framework"):
-		//// it ran on every workspace load in production, printing page counts to the browser console.
-		// Remove all existing sidebar sections before rebuilding
-		$sidebar.find(".standard-sidebar-section").remove();
+		//// Neoffice — added: under the cockpit the page has no column (single_column above), the list has no place.
+		if (!document.body.contains(this.sidebar[0])) return;
+		if (this.sidebar.find(".standard-sidebar-section")[0]) {
+			this.sidebar.find(".standard-sidebar-section").remove();
+		}
 
 		this.sidebar_categories.forEach((category) => {
 			let root_pages = this.public_pages.filter(
@@ -326,30 +232,18 @@ frappe.views.Workspace = class Workspace {
 				);
 			}
 			root_pages = root_pages.uniqBy((d) => d.title);
-			//// Neoffice — removed a console.log("[make_sidebar] Building section...") debug trace
-			//// (f28352c7f7 "fix(print,rename,workspace): three client names and a debug trace leave
-			//// the framework"): it ran on every workspace load in production, printing page titles.
 			this.build_sidebar_section(category, root_pages);
 		});
 
 		// Scroll sidebar to selected page if it is not in viewport.
-		//// Neoffice — $sidebar, not upstream's this.sidebar: see the top of make_sidebar (9999364ec6).
-		$sidebar.find(".selected").length &&
-			!frappe.dom.is_element_in_viewport($sidebar.find(".selected")) &&
-			$sidebar.find(".selected")[0].scrollIntoView();
+		this.sidebar.find(".selected").length &&
+			!frappe.dom.is_element_in_viewport(this.sidebar.find(".selected")) &&
+			this.sidebar.find(".selected")[0].scrollIntoView();
 
 		this.remove_sidebar_skeleton();
 	}
 
 	build_sidebar_section(category, root_pages) {
-		//// Neoffice — added guard (0634af137c, 2025-11-13): build_sidebar_section can now be reached
-		//// before the global sidebar exists (it is owned by frappe.app, not by this view), where
-		//// upstream could assume its own DOM was already built.
-		if (!this.sidebar) {
-			console.warn('Workspace: sidebar not initialized in build_sidebar_section');
-			return;
-		}
-
 		let sidebar_section = $(
 			`<div class="standard-sidebar-section nested-container" data-title="${category.id}"></div>`
 		);
@@ -362,17 +256,7 @@ frappe.views.Workspace = class Workspace {
 			"aria-label": __("Toggle Section: {0}", [category.label]),
 			"aria-expanded": "true",
 		});
-		//// Neoffice — upstream: `this.prepare_sidebar(root_pages, sidebar_section, this.sidebar)` —
-		//// the section is appended by prepare_sidebar into the sidebar itself. Ours appends the section
-		//// to the resolved $sidebar first and passes the SECTION as the item container (9999364ec6 +
-		//// 0634af137c), because the global sidebar hosts other apps' sections too and items must land
-		//// inside their own section, not at the sidebar root.
-		// Get the actual jQuery sidebar element and append section to it
-		const $sidebar = this.sidebar.$sidebar || this.sidebar;
-
-		sidebar_section.appendTo($sidebar);
-
-		this.prepare_sidebar(root_pages, sidebar_section, sidebar_section);
+		this.prepare_sidebar(root_pages, sidebar_section, this.sidebar);
 
 		$title.on("click", (e) => {
 			const $e = $(e.target);
@@ -403,13 +287,6 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	prepare_sidebar(items, child_container, item_container) {
-		//// Neoffice — added guard (0634af137c, 2025-11-13): with the container now passed in by the
-		//// caller (see build_sidebar_section above) an undefined container is possible; upstream always
-		//// passed this.sidebar. Logs and returns instead of throwing mid-render.
-		if (!item_container) {
-			console.error('Workspace: item_container is undefined in prepare_sidebar');
-			return;
-		}
 		items.forEach((item) => this.append_item(item, child_container));
 		child_container.appendTo(item_container);
 	}
@@ -512,9 +389,7 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	show() {
-		//// Neoffice — upstream waits on `!this.all_pages`; the pages live on the global sidebar since
-		//// 9999364ec6, so the readiness test moved with them.
-		if (!this.sidebar || !this.sidebar.all_pages) {
+		if (!this.all_pages) {
 			// pages not yet loaded, call again after a bit
 			setTimeout(() => this.show(), 100);
 			return;
@@ -529,9 +404,8 @@ frappe.views.Workspace = class Workspace {
 		}
 
 		this.page.set_title(__(page.name));
-		//// Neoffice — upstream calls update_selected_sidebar(old, false) then (new, true) here to move
-		//// the .selected class. Dropped by 9999364ec6 (2025-10-28): the global sidebar highlights the
-		//// active item itself, from the route (ui/sidebar.js is_route_in_sidebar, marked there).
+		this.update_selected_sidebar(this.current_page, false); //remove selected from old page
+		this.update_selected_sidebar(page, true); //add selected on new page
 		this.show_page(page);
 	}
 
@@ -603,26 +477,26 @@ frappe.views.Workspace = class Workspace {
 				//// runs to the end of the method). Upstream compares page TITLES here and in the two branches
 				//// below (localStorage.current_page and all_pages[0]). Two workspaces of different apps can
 				//// share a title, and a workspace whose name differs from its title ("Simple - Ventes" titled
-				//// "Ventes") never matched — the view fell back to the first page. The pages themselves now
-				//// come from the global sidebar. The blank line further down is from the same commit.
+				//// "Ventes") never matched — the view fell back to the first page. The blank line further
+				//// down is from the same commit.
 				name: frappe.boot.user.default_workspace.name,
 				public: frappe.boot.user.default_workspace.public,
 			};
 		} else if (
 			localStorage.current_page &&
-			//// Neoffice — by NAME in the global sidebar's pages; upstream: this.all_pages by title (0634af137c, see above).
-			this.sidebar.all_pages.filter((page) => page.name == localStorage.current_page)
+			//// Neoffice — by NAME; upstream: by title (0634af137c, see above).
+			this.all_pages.filter((page) => page.name == localStorage.current_page)
 				.length != 0
 		) {
 			default_page = {
 				name: localStorage.current_page,
 				public: localStorage.is_current_page_public != "false",
 			};
-		} else if (Object.keys(this.sidebar.all_pages).length !== 0) {
-			//// Neoffice — the global sidebar's first page, by name; upstream: this.all_pages[0].title (0634af137c).
+		} else if (Object.keys(this.all_pages).length !== 0) {
+			//// Neoffice — the first page by name; upstream: this.all_pages[0].title (0634af137c).
 			default_page = {
-				name: this.sidebar.all_pages[0].name,
-				public: this.sidebar.all_pages[0].public,
+				name: this.all_pages[0].name,
+				public: this.all_pages[0].public,
 			};
 		} else {
 			default_page = { name: "Build", public: true };
@@ -642,48 +516,14 @@ frappe.views.Workspace = class Workspace {
 			`).appendTo(this.body.find(".editor-js-container"));
 		}
 
-		//// Neoffice — show_page rewritten (0634af137c 2025-11-13, 84b6f7a10b 2025-11-09; block runs
-		//// ~30 lines to `this.content && this.add_custom_cards_in_content()`). Upstream picks the page
-		//// out of public_pages/private_pages by TITLE and parses current_page.content on every call.
-		//// Ours finds it by NAME in the global sidebar's all_pages, then resolves which APP owns it —
-		//// boot.workspace_to_app_map (the fast map added by 84b6f7a10b) › page.app › boot.module_app of
-		//// its module › "frappe" — and tells the apps switcher to switch to it, so opening a workspace
-		//// from a search result or a direct URL also switches the sidebar to that app. content is
-		//// parsed once and cached on the page object instead of re-parsed at each show.
-		if (this.sidebar.all_pages.length) {
+		if (this.all_pages.length) {
 			this.create_page_skeleton();
 
-			//// Neoffice — by NAME in the global sidebar's all_pages; upstream: public_pages / private_pages by title.
-			let current_page = this.sidebar.all_pages.find((p) => p.name == page.name);
+			//// Neoffice — the page by NAME; upstream: from public_pages / private_pages by title (0634af137c, see
+			//// get_page_to_show).
+			let current_page = this.all_pages.find((p) => p.name == page.name);
 			this._page = current_page;
-
-			// set app
-			let app;
-			if (!this._page.public) {
-				app = "private";
-			} else {
-				// First check if workspace is mapped to a virtual app
-				if (frappe.boot.workspace_to_app_map && frappe.boot.workspace_to_app_map[this._page.name]) {
-					app = frappe.boot.workspace_to_app_map[this._page.name];
-				} else {
-					app = this._page.app;
-					if (!app && this._page.module) {
-						app = frappe.boot.module_app[frappe.router.slug(this._page.module)];
-					}
-					if (!app) app = "frappe";
-				}
-			}
-
-			// Update sidebar to show workspaces for this app
-			if (app && frappe.current_app !== app && frappe.app.sidebar?.apps_switcher) {
-				frappe.app.sidebar.apps_switcher.set_current_app(app);
-			}
-
-			if (typeof current_page.content == "string") {
-				current_page.content = JSON.parse(current_page.content);
-			}
-
-			this.content = current_page.content;
+			this.content = current_page && JSON.parse(current_page.content);
 
 			this.content && this.add_custom_cards_in_content();
 
@@ -795,9 +635,6 @@ frappe.views.Workspace = class Workspace {
 				() => {
 					this.clear_page_actions();
 					this.body.removeClass("edit-mode");
-					//// Neoffice — added (0634af137c, 2025-11-13): leaving edit mode through Save now also strips
-					//// the sidebar edit controls; upstream only removed the edit-mode class from the body.
-					this.hide_sidebar_actions();
 					this.save_page(page).then((saved) => {
 						if (!saved) return;
 						this.undo.readOnly = true;
@@ -811,8 +648,6 @@ frappe.views.Workspace = class Workspace {
 
 		this.page.set_secondary_action(__("Discard"), async () => {
 			this.body.removeClass("edit-mode");
-			//// Neoffice — same as on Save above (0634af137c): Discard also strips the sidebar controls.
-			this.hide_sidebar_actions();
 			this.discard = true;
 			this.clear_page_actions();
 			this.toggle_hidden_workspaces(false);
@@ -834,37 +669,9 @@ frappe.views.Workspace = class Workspace {
 		$(".desk-sidebar").toggleClass("show-hidden-workspaces", show);
 	}
 
-	//// Neoffice — upstream is one line, `this.sidebar.find(".standard-sidebar-section")
-	//// .addClass("show-control")` + make_sidebar_sortable(). Guarded and re-resolved for the
-	//// global / headless sidebar (9999364ec6, then d0268ef91a 2026-06-10).
 	show_sidebar_actions() {
-		if (!this.sidebar || this.sidebar.headless) return;
-		// Get the actual jQuery sidebar element
-		const $sidebar = this.sidebar.$sidebar || this.sidebar;
-		$sidebar.find(".standard-sidebar-section").addClass("show-control");
+		this.sidebar.find(".standard-sidebar-section").addClass("show-control");
 		this.make_sidebar_sortable();
-	}
-
-	//// Neoffice — added method (0634af137c, 2025-11-13): no upstream equivalent — upstream has no
-	//// way back out of edit mode for the sidebar, so drag handles, per-item menus and the Sortable
-	//// instance survived the save on a read-only sidebar. Called from setup_pages, Save and
-	//// Discard (all marked).
-	hide_sidebar_actions() {
-		if (!this.sidebar || this.sidebar.headless) return;
-		// Get the actual jQuery sidebar element
-		const $sidebar = this.sidebar.$sidebar || this.sidebar;
-		$sidebar.find(".standard-sidebar-section").removeClass("show-control");
-
-		// Remove all edit controls from the sidebar
-		$sidebar.find(".drag-handle").remove();
-		$sidebar.find(".setting-btn").remove();
-		$sidebar.find(".dropdown-list").remove();
-
-		// Destroy sortable if it exists
-		if (this.sidebar_sortable) {
-			this.sidebar_sortable.destroy();
-			this.sidebar_sortable = null;
-		}
 	}
 
 	add_sidebar_actions(item, sidebar_control, is_new) {
@@ -1132,12 +939,6 @@ frappe.views.Workspace = class Workspace {
 			from_pages.splice(old_item_index, 1);
 		}
 
-		//// Neoffice — added fallback (0634af137c, 2025-11-13): sidebar_pages is no longer necessarily
-		//// populated by this view (the global sidebar owns the fetch), and the line below assigns into
-		//// it unconditionally.
-		if (!this.sidebar_pages) {
-			this.sidebar_pages = { pages: [], has_access: true };
-		}
 		this.sidebar_pages.pages = [...this.public_pages, ...this.private_pages];
 		this.cached_pages = this.sidebar_pages;
 	}
@@ -1424,24 +1225,16 @@ frappe.views.Workspace = class Workspace {
 		});
 	}
 
-	//// Neoffice — same global/headless sidebar resolution as make_sidebar (9999364ec6 +
-	//// d0268ef91a): upstream calls this.sidebar.find(...) directly on the two lines below.
 	prepare_sorted_sidebar(is_public) {
-		if (!this.sidebar || this.sidebar.headless) return;
-		// Get the actual jQuery sidebar element
-		const $sidebar = this.sidebar.$sidebar || this.sidebar;
-
 		let pages = is_public ? this.public_pages : this.private_pages;
 		if (is_public) {
 			this.sorted_public_items = this.sort_sidebar(
-				//// Neoffice — $sidebar, not upstream's this.sidebar (see the marker above the method).
-				$sidebar.find(".standard-sidebar-section").last(),
+				this.sidebar.find(".standard-sidebar-section").last(),
 				pages
 			);
 		} else {
 			this.sorted_private_items = this.sort_sidebar(
-				//// Neoffice — $sidebar, as above.
-				$sidebar.find(".standard-sidebar-section").first(),
+				this.sidebar.find(".standard-sidebar-section").first(),
 				pages
 			);
 		}
@@ -1874,17 +1667,12 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	reload() {
-		//// Neoffice — reload(): the deleted-widget list is cleared for the next edit session
-		//// (07ee48dd37, 2026-06-16), and `this.discard = false` MOVED above setup_pages (0634af137c,
-		//// 2025-11-13 — upstream sets it after, so setup_pages still saw discard=true and skipped
-		//// get_pages(), reloading nothing; the trailing comment is the original author's).
+		//// Neoffice — the deleted-widget list is cleared for the next edit session (07ee48dd37, 2026-06-16).
 		frappe.workspace_deleted_widgets = {};
 		this.sorted_public_items = [];
 		this.sorted_private_items = [];
-		//// Neoffice — moved up from after setup_pages (0634af137c): see the marker at the top of reload().
-		this.discard = false;  // IMPORTANT: Set discard to false BEFORE setup_pages() so get_pages() is called
 		this.setup_pages(true);
-		//// Neoffice — upstream's `this.discard = false;` stood here, after setup_pages; moved above it (0634af137c).
+		this.discard = false;
 		this.undo.readOnly = true;
 	}
 
@@ -1901,23 +1689,14 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	create_sidebar_skeleton() {
-		//// Neoffice — added guard + $sidebar resolution (d0268ef91a, 2026-06-10 / 9999364ec6): there is
-		//// no sidebar DOM to put a loading skeleton in front of under the NeoCockpit chrome, and
-		//// upstream inserts it relative to this.sidebar as a jQuery set.
-		if (this.sidebar?.headless) return;
 		if ($(".workspace-sidebar-skeleton").length) return;
 
-		//// Neoffice — $sidebar, not upstream's this.sidebar (see the marker above).
-		const $sidebar = this.sidebar.$sidebar || this.sidebar;
-		$(frappe.render_template("workspace_sidebar_loading_skeleton")).insertBefore($sidebar);
-		$sidebar.addClass("hidden");
+		$(frappe.render_template("workspace_sidebar_loading_skeleton")).insertBefore(this.sidebar);
+		this.sidebar.addClass("hidden");
 	}
 
 	remove_sidebar_skeleton() {
-		//// Neoffice — the mirror of create_sidebar_skeleton above (d0268ef91a / 9999364ec6).
-		if (this.sidebar?.headless) return;
-		const $sidebar = this.sidebar.$sidebar || this.sidebar;
-		$sidebar.removeClass("hidden");
+		this.sidebar.removeClass("hidden");
 		$(".workspace-sidebar-skeleton").remove();
 	}
 

@@ -22,8 +22,13 @@ merge changed here). Since the merge,
 them with (bd41f1e7a5, 2025-02-26 "Update neov2"). It was put back at the merge, with upstream's
 import order in `FileUploader.vue`; nothing is left to record.
 
-`frappe/public/js/frappe/ui/apps_switcher.html` has no final newline either, but it is a file we
-added (no upstream equivalent), so it is not a divergence — see its header marker.
+### Gone (2026-11-24): the global left sidebar of 2025-10
+
+`frappe/public/js/frappe/ui/sidebar.js` is upstream's again; `ui/apps_switcher.js`, `ui/apps_switcher.html`,
+`ui/sidebar.html` and the three images of the switcher (`public/images/mobile-app.svg`, `web.svg`,
+`settings-gear.svg`) are gone, with the navbar's hamburger and most of `scss/desk/sidebar.scss`. The NeoCockpit had
+replaced that sidebar since 2026-06-10; `workspace.js` reads the spaces of the boot itself. A merge that brings one of
+these files back has nothing of ours in it.
 
 ## Lot F2 — frappe/public/js
 

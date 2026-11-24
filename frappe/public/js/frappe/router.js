@@ -189,9 +189,9 @@ frappe.router = {
 
 		if (frappe.workspaces[route[0]]) {
 			// public workspace
-			//// Neoffice — upstream routes by `.title`. Our sidebar (9999364ec6 2025-10-28 "Refonte de
-			//// l'interface utilisateur…") fills frappe.workspaces with {name, public} only, and the workspace
-			//// view looks pages up by NAME (a name may differ from its title); same change for private below.
+			//// Neoffice — upstream routes by `.title`. The workspace view looks pages up by NAME (a name may
+			//// differ from its title: "Simple - Ventes" is titled "Ventes"; 9999364ec6, 0634af137c), and
+			//// frappe.workspaces carries it (desk.js setup_workspaces, workspace.js); same change for private below.
 			route = ["Workspaces", frappe.workspaces[route[0]].name];
 		} else if (route[0] == "private") {
 			// private workspace
