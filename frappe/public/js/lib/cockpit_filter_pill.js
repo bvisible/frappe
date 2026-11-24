@@ -173,9 +173,14 @@
 		return head;
 	}
 
-	// The side section of the page that is actually visible (offsetParent guards
-	// against a stale hidden page-container in the desk SPA).
+	// The side section of the page that is actually visible: the page Frappe's container shows. Asking each
+	// side section of the desk whether it is displayed (offsetParent, kept below for the moment before a page is
+	// shown) laid out the whole page, 40 ms at each return to a list (24.11).
 	function visibleSide() {
+		var shown = window.frappe && frappe.container && frappe.container.page;
+		if (shown && shown.isConnected && shown.style && shown.style.display !== "none") {
+			return shown.querySelector(".layout-side-section");
+		}
 		var sides = document.querySelectorAll(".layout-side-section");
 		for (var i = 0; i < sides.length; i++) {
 			if (sides[i].offsetParent !== null) return sides[i];

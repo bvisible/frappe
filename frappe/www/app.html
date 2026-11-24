@@ -17,24 +17,11 @@
 		<meta name="apple-mobile-web-app-status-bar-style" content="white">
 		<meta name="mobile-web-app-capable" content="yes">
 		<title>{{ app_name }}</title>
-		{#- //// Neoffice — added (4c842a98fc "First change v15" for animate.min.css, f661ff2616
-		    //// 2025-03-28 "Add lottie and change sidebar" for the player, bd41f1e7a5 "Update neov2"):
-		    //// the desk shell pulls in animate.css and the dotLottie player so desk pages can use
-		    //// them without a bundle rebuild — dom.js draws the freeze overlay with one. Upstream
-		    //// loads neither.
-		    //// The player used to come straight from a public npm CDN: a third-party request on EVERY
-		    //// desk page load, and an install that broke offline or behind a restrictive CSP. Vendored on
-		    //// 2026-09-04 (#205) — same package, same version 2.7.12, same code-split ESM build, so
-		    //// the browser still fetches ~124 KB eagerly and the renderer only when a player plays.
-		    //// Kept type="module": it defers like the CDN tag did, so nothing new blocks the parser.
-		    //// Same tag in www/404.html — bump both ?v= together at a re-vendor. -#}
-		<!-- //// -->
+		{#- //// Neoffice — added (4c842a98fc "First change v15"): the desk shell pulls in animate.css so desk pages can use
+		    //// it without a bundle rebuild. Upstream does not. The dotLottie player it loaded too (#205) comes from the theme
+		    //// when a wait lasts (neoffice.desk.loader, called by dom.js), no longer with every page: 124 KB, and a loop
+		    //// left running at every frame (neoffice-maintenance#3262). The 404 page keeps its own tag. -#}
 		<link rel="stylesheet" href="/assets/frappe/css/animate.min.css"/>
-		<script
-		src="/assets/frappe/js/lib/dotlottie-player/dotlottie-player.mjs?v=2.7.12"
-		type="module"
-		></script>
-		<!-- //// -->
 		<link rel="shortcut icon"
 			href="{{ favicon or "/assets/frappe/images/frappe-favicon.svg" }}" type="image/x-icon">
 		<link rel="icon"

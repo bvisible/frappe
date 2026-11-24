@@ -1088,6 +1088,8 @@ frappe.ui.form.FormHero = class FormHero {
 			);
 		}
 		this.space_step_rows(); //// Neoffice — the rows of two steps never run over each other (see below)
+		//// Neoffice — said once drawn: what draws in the head (its slot of remarks) comes here, instead of watching the page.
+		$(document).trigger("neo-hero-drawn", [this.frm]);
 		if (all_actions.length) {
 			this.$wrapper.find(".step-cta").on("click", (e) => {
 				e.preventDefault();
@@ -1175,7 +1177,9 @@ frappe.ui.form.FormHero = class FormHero {
 			);
 		};
 		this.lay_out_step_rows = lay_out;
-		lay_out();
+		//// Neoffice — just before this frame is painted, once the whole head is there: measured here, in the middle of the
+		//// form's drawing, it had the browser lay the page out several times over (35 ms of each opening, #3262).
+		window.requestAnimationFrame ? window.requestAnimationFrame(lay_out) : lay_out();
 		if (typeof ResizeObserver === "undefined") return;
 		this.step_rows_observer = new ResizeObserver(() => window.requestAnimationFrame(lay_out));
 		this.step_rows_observer.observe(band);

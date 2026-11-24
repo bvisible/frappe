@@ -1030,32 +1030,55 @@ body.neoffice-cockpit .form-hero-step.current .bubble {
 	background: var(--card-bg, #fffdf8);
 	border-color: var(--nc-accent);
 	color: var(--nc-accent);
-	box-shadow: 0 0 0 4px rgba(var(--nc-accent-rgb), 0.16);
-	/* //// Neoffice — the halo breathes instead of sitting still: it is the one
-	   //// thing on the page that answers "where am I in this document". Slow
-	   //// (2.8s) and shallow (4px→7px, 0.16→0.08) on purpose — a stepper that
-	   //// blinks reads as an error, and this is a status, not an alarm. */
+	position: relative;
+}
+/* //// Neoffice — the halo breathes instead of sitting still: it is the one
+   //// thing on the page that answers "where am I in this document". Slow
+   //// (2.6s) and shallow on purpose — a stepper that blinks reads as an error,
+   //// and this is a status, not an alarm.
+   //// TWO shadows, and both matter. The flat ring (0 0 0 Npx) draws the edge;
+   //// the blurred one (0 0 Npx Mpx) is the glow — without it the halo only
+   //// changed size and nobody saw it, which is exactly the report we got. The
+   //// ring grows 4→8px while the glow goes 10px/0.38 → 22px/0.20: the mark
+   //// lights up and settles, it never flashes.
+   //// Two still halos that fade into each other, not one shadow that changes:
+   //// a fade is the graphics card's work, a changing shadow was drawn again by
+   //// the page 60 times a second, on every open document, for as long as it
+   //// stayed open (neoffice-maintenance#3262, 24.11). */
+body.neoffice-cockpit .form-hero-step.current .bubble::before,
+body.neoffice-cockpit .form-hero-step.current .bubble::after {
+	content: "";
+	position: absolute;
+	inset: -2px;
+	border-radius: 50%;
+	pointer-events: none;
+	will-change: opacity;
 	animation: neo-step-breathe 2.6s ease-in-out infinite;
 }
-/* //// Neoffice — TWO shadows, and both matter. The flat ring (0 0 0 Npx) is the
-   //// one that was already there: it draws the edge. The blurred one
-   //// (0 0 Npx Mpx) is the glow — without it the halo only changed size and
-   //// nobody saw it, which is exactly the report we got. The ring grows 4→8px
-   //// while the glow goes 10px/0.38 → 22px/0.20: the mark lights up and
-   //// settles, it never flashes. */
+body.neoffice-cockpit .form-hero-step.current .bubble::before {
+	box-shadow: 0 0 0 4px rgba(var(--nc-accent-rgb), 0.18), 0 0 10px 1px rgba(var(--nc-accent-rgb), 0.38);
+}
+body.neoffice-cockpit .form-hero-step.current .bubble::after {
+	opacity: 0;
+	box-shadow: 0 0 0 8px rgba(var(--nc-accent-rgb), 0.09), 0 0 22px 5px rgba(var(--nc-accent-rgb), 0.2);
+	animation-name: neo-step-breathe-out;
+}
 @keyframes neo-step-breathe {
-	0%,
-	100% {
-		box-shadow: 0 0 0 4px rgba(var(--nc-accent-rgb), 0.18), 0 0 10px 1px rgba(var(--nc-accent-rgb), 0.38);
-	}
 	50% {
-		box-shadow: 0 0 0 8px rgba(var(--nc-accent-rgb), 0.09), 0 0 22px 5px rgba(var(--nc-accent-rgb), 0.2);
+		opacity: 0;
+	}
+}
+@keyframes neo-step-breathe-out {
+	50% {
+		opacity: 1;
 	}
 }
 /* //// Neoffice — the travelled part of the bar carries a slow sheen, so the
    //// progress reads as something that happened rather than a painted line.
    //// One pass every 3.4s and a highlight at 45% opacity: at a glance you see
-   //// a green bar; only if you look do you catch the movement. */
+   //// a green bar; only if you look do you catch the movement. Four passes when
+   //// the document opens, then it rests: the highlight moves inside a 2px bar,
+   //// which only the page can draw, and it drew it all day long (#3262, 24.11). */
 body.neoffice-cockpit .form-hero-step.done::before,
 body.neoffice-cockpit .form-hero-step.current::before {
 	/* //// Neoffice — the travelled bar is 2px of flat green. The highlight has
@@ -1073,7 +1096,7 @@ body.neoffice-cockpit .form-hero-step.current::before {
 	);
 	background-size: 300% 100%;
 	background-repeat: no-repeat;
-	animation: neo-step-sheen 2.6s linear infinite;
+	animation: neo-step-sheen 2.6s linear 4;
 }
 @keyframes neo-step-sheen {
 	from {
@@ -1087,7 +1110,8 @@ body.neoffice-cockpit .form-hero-step.current::before {
    //// moved. Both animations stop; the halo and the bar keep their resting
    //// look, so nothing is lost besides the motion. */
 @media (prefers-reduced-motion: reduce) {
-	body.neoffice-cockpit .form-hero-step.current .bubble,
+	body.neoffice-cockpit .form-hero-step.current .bubble::before,
+	body.neoffice-cockpit .form-hero-step.current .bubble::after,
 	body.neoffice-cockpit .form-hero-step.done::before,
 	body.neoffice-cockpit .form-hero-step.current::before {
 		animation: none;
@@ -2356,7 +2380,9 @@ body.neoffice-cockpit.nf-list .layout-side-section.nf-pill-active .list-sidebar 
 	border-color: rgba(var(--nc-accent-rgb), 0.5);
 }
 body.neoffice-cockpit.nf-list .layout-side-section.nf-pill-active.nf-pill-collapsed .list-sidebar {
-	animation: nf-pill-glow 2.6s ease-in-out infinite;
+	/* four times when the list opens, then it rests: the accent of the border says the rest of the day that a filter is on,
+	   and a shadow that changes is drawn by the page at every frame (#3262, 24.11) */
+	animation: nf-pill-glow 2.6s ease-in-out 4;
 }
 @keyframes nf-pill-glow {
 	0%,

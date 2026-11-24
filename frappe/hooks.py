@@ -57,14 +57,14 @@ app_include_js = [
 	# mounted by desk.js make_cockpit(). Re-vendor: cp dist/neocockpit.global.js here.
 	"/assets/frappe/js/lib/neocockpit.global.js?v=156",
 	# //// NEOFFICE PATCH — list/report filter sidebar → floating glass pill
-	"/assets/frappe/js/lib/cockpit_filter_pill.js?v=9",
+	"/assets/frappe/js/lib/cockpit_filter_pill.js?v=10",
 ]
 
 app_include_css = [
 	"desk.bundle.css",
 	"report.bundle.css",
 	# //// NEOFFICE PATCH — cockpit desk shell (gray frame + floating panel)
-	"/assets/frappe/css/cockpit.css?v=90",
+	"/assets/frappe/css/cockpit.css?v=91",
 ]
 app_include_icons = [
 	"frappe/icons/timeless/icons.svg",

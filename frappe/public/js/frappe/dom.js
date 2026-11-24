@@ -158,14 +158,18 @@ frappe.dom = {
 				})
 				.appendTo("#body");
 
-			//// Neoffice — upstream shows only the message; ours adds an animated dotLottie loader above it
-			//// (bfd6894b1d 2025-03-26 "Changer loader", no rationale; player served by frappe/www/app.html).
+			//// Neoffice — upstream's line again: our loading animation no longer stands in it (see below)
 			freeze.html(
 				repl(
-					'<div class="freeze-message-container"><dotlottie-player src="/assets/frappe/lottie/loader.lottie" background="transparent" speed="1" style="width: 300px; height: 300px" loop autoplay></dotlottie-player><div class="freeze-message"><p class="lead">%(msg)s</p></div></div>',
+					'<div class="freeze-message-container"><div class="freeze-message"><p class="lead">%(msg)s</p></div></div>',
 					{ msg: msg || "" }
 				)
 			);
+			//// Neoffice — upstream shows only the message; ours adds the loading animation above it when the wait
+			//// lasts. It is the theme's (neoffice.desk.loader, desk_compat.js): its player comes when it is needed,
+			//// where app.html loaded it with every page of the desk, and left a loop running at every frame
+			//// (neoffice-maintenance#3262). Without the theme: the message, as upstream.
+			window.neoffice && neoffice.desk && neoffice.desk.loader && neoffice.desk.loader(freeze.find(".freeze-message-container")[0]);
 
 			setTimeout(function () {
 				freeze.addClass("in");

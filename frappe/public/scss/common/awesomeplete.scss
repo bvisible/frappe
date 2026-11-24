@@ -139,8 +139,8 @@
 			radial-gradient(ellipse 60% 80% at 15% 100%, rgba(99, 102, 241, 0.15) 0%, transparent 70%),
 			radial-gradient(ellipse 50% 70% at 50% 100%, rgba(139, 92, 246, 0.12) 0%, transparent 65%),
 			radial-gradient(ellipse 55% 75% at 85% 100%, rgba(168, 85, 247, 0.13) 0%, transparent 70%);
+		// //// Neoffice — its movement is under .active, below
 		filter: blur(35px);
-		animation: search-halo-1 8s ease-in-out infinite;
 	}
 
 	&::after {
@@ -155,13 +155,23 @@
 		background:
 			radial-gradient(ellipse 55% 75% at 25% 0%, rgba(236, 72, 153, 0.12) 0%, transparent 65%),
 			radial-gradient(ellipse 50% 70% at 75% 0%, rgba(6, 182, 212, 0.12) 0%, transparent 60%);
+		// //// Neoffice — its movement is under .active, below
 		filter: blur(35px);
-		animation: search-halo-2 10s ease-in-out infinite;
 	}
 
 	&.active::before,
 	&.active::after {
 		opacity: 1;
+	}
+
+	// //// Neoffice — the halo drifts while the panel is open only: closed, it was invisible and drawn all day long
+	// //// (neoffice-maintenance#3262, 24.11).
+	&.active::before {
+		animation: search-halo-1 8s ease-in-out infinite;
+	}
+
+	&.active::after {
+		animation: search-halo-2 10s ease-in-out infinite;
 	}
 
 	@keyframes search-halo-1 {
