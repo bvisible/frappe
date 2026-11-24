@@ -622,8 +622,9 @@ def get_link_title(doctype: str, docname: str | int):
 # ////   • search_by_amount (f131a66b4a, 2026-04-07 "feat(search): search by amount") finds an
 # ////     invoice or order by its total; accepts "12.00" and "12,00" and skips doctypes the
 # ////     user cannot read or that lack the amount column.
-# //// Upstream v15 has neither endpoint. Companions: public/js/frappe/ui/toolbar/awesome_bar.js
-# //// (lot F2), model/meta.py and utils/global_search.py (this lot).
+# //// Upstream v15 has neither endpoint. Companions: model/meta.py and utils/global_search.py (this lot). The search itself is
+# //// the theme's since 24.11.2026 (neoffice_theme search_model.js, desk_search.py, maintenance#3262): these two answer a desk
+# //// left open since before, and go once every instance has had the wave that follows.
 @frappe.whitelist()
 def resolve_document(name: str) -> list[dict]:
 	"""Resolve a document name/ID to its doctype and title.

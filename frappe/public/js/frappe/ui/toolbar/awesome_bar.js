@@ -3,700 +3,216 @@
 frappe.provide("frappe.search");
 frappe.provide("frappe.tags");
 
-////////////////////////////////////////////////////////////////////////
-//// Neoffice ▼▼▼ Awesome Bar V2 (the whole file diverges from upstream v15.89.0)
-////
-//// Upstream v15 AwesomeBar wraps the input in an Awesomplete dropdown (flat option list, a
-//// "Search for X" entry opening the global search dialog, a help table). Rewritten by 417d4f52cf
-//// (2026-04-02 "feat(search): redesign Awesome Bar with inline rich search results") into a custom
-//// .search-mega-panel appended to <body>: global search results rendered inline and grouped by
-//// DocType, 150 ms debounce, keyboard navigation, calculator / document link / custom providers
-//// kept. Only _deduplicate, _make_search_in_current, _make_random and the frappe.search.utils
-//// navigation options survive from the upstream logic. Styles: scss/common/awesomeplete.scss and
-//// scss/desk/navbar.scss (marked). Reference: neoffice-devops MEMORY → awesome-bar-v2-reference.md.
-//// Layers added on top (all Jérémy Christillin):
-////   dba8b1fd89 2026-04-02 two-column panel (results + sidebar), frappe.search.Analytics
-////     (localStorage recent searches / clicks / DocType frequency), home state on empty focus
-////   b54cc07267 / 25562da1fa 2026-04-02 math detection, boolean-mode operators sanitised (the
-////     fulltext MATCH AGAINST crashed on + - …), loading indicator, no footer for the calculator
-////   e9da79644d 2026-04-02 limit 50 (results diversified per DocType server-side)
-////   7ba725102e / 37d3dffb79 2026-04-02 recent searches (max 4) + Recently Visited from the live
-////     frappe.route_history; a single-char input no longer clears the bar
-////   83c12fbc65 / c3e92fa0cb / c7480a80c0 / 1f08f5cdd2 2026-04-02 help context (Nora Learn +
-////     Help Resources per DocType) via neoffice_theme.api.get_help_context, cached per DocType,
-////     tips only as fallback, pre-loaded on input
-////   8822b0ef36 / 2fb7b98d18 / 529db29093 / f18854c0fb / 8622b76fa3 / e72cb6ad20 2026-04-05
-////     "View all <DocType>" action from a (translated) DocType name, document link skipped when
-////     a DocType matched, term highlighting in labels, Learn / Docs in the left column, separate
-////     help caches for the page context vs the searched DocType
-////   ba9c178956 / 2ce8e161a9 / d39cf14bf1 / 43a36fa872 / cbc010fbd0 / 0a54fbf027 / fcd1372a1e /
-////     e6c6a9c7a9 / d1b63abc5c / 69a0372263 / f131a66b4a / 1e3b368c7b 2026-04-07 partial-number
-////     lookup, responsive 900px panel, scroll fade hint, Document Scan preview dialog (z-index
-////     above the panel, no close on dialog clicks), Quick Actions dropped, search by amount
-////   a3a2b04ebd / 5158cea267 2026-06-10 NeoCockpit centered search overlay (on_close host hook,
-////     .nc-search triggers whitelisted in the outside-click close)
-////   387fcb0da1 / b73d9fe958 / 6077ad4203 / ce9d44df14 / f9980ea85c 2026-06-15 i18n msgid
-////     disambiguation, recent records of the matched DocType, prefix DocType matching
-////     (_best_doctype_match), matched DocType deduped from fulltext results, "Create <DocType>"
-////     action opening the Quick Entry
-////   6645876a0b / cfaa702efe / d3e8df1362 2026-07-07 stale async responses never reopen the
-////     panel (request-id counters + _input_visible), Suite drive files + calendar appointments
-////     (neoffice_theme.api.search_drive_files / search_calendar_events / get_upcoming_events)
-////   maintenance#822 2026-09-29 « Ask Nora » and « Go to » sections first, fed by providers
-////     (default "Ask" / "GoTo" - neoffice_theme's catalogue of places), providers re-drawn alone
-////     when their data arrives late (refresh / _refresh_providers), on_select hooks (rank, delay),
-////     on_highlight hooks with the sidebar (the theme's quick card of an item, customer, supplier)
-////   2026-10-26 render hooks (render_hooks) and persistent nodes (.neo-persist): an app draws above
-////     the results and keeps its node across re-renders (neoffice_theme's answering bar)
-//// Server side: frappe/desk/search.py (resolve_document, search_by_amount) and
-//// frappe/utils/global_search.py carry their own markers.
-//// v16 merge note: upstream still ships the Awesomplete version (develop shares < 5% of these
-//// lines) — expect a whole-file conflict; keep ours and re-apply upstream fixes by hand.
-////////////////////////////////////////////////////////////////////////
-// ════════════════════════════════════════════════════════════
-// Search Analytics — localStorage-based user search profiling
-// ════════════════════════════════════════════════════════════
-//// Neoffice — added (dba8b1fd89, 2026-04-02): per-user localStorage search profile (recent
-//// searches / clicks / DocType frequency) feeding the home state and the "You search often" block.
-frappe.search.Analytics = class Analytics {
-	constructor() {
-		this._key = `search_profile_${frappe.session.user}`;
-		this._data = null;
-	}
-
-	_load() {
-		if (this._data) return this._data;
-		try {
-			this._data = JSON.parse(localStorage.getItem(this._key)) || this._empty();
-		} catch (e) {
-			this._data = this._empty();
-		}
-		return this._data;
-	}
-
-	_empty() {
-		return { recent_searches: [], recent_clicks: [], doctype_freq: {} };
-	}
-
-	_save() {
-		try {
-			localStorage.setItem(this._key, JSON.stringify(this._data));
-		} catch (e) {
-			// Storage full — clear old data
-			this._data.recent_searches = this._data.recent_searches.slice(0, 10);
-			this._data.recent_clicks = this._data.recent_clicks.slice(0, 20);
-			try {
-				localStorage.setItem(this._key, JSON.stringify(this._data));
-			} catch (e2) {
-				// pass
-			}
-		}
-	}
-
-	track_search(term) {
-		const d = this._load();
-		// Deduplicate — remove old occurrence of same term
-		d.recent_searches = d.recent_searches.filter((s) => s.term !== term);
-		d.recent_searches.unshift({ term, ts: Date.now() });
-		d.recent_searches = d.recent_searches.slice(0, 30);
-		this._save();
-	}
-
-	track_click(doctype, name, label) {
-		const d = this._load();
-		// Track click for frequency
-		d.doctype_freq[doctype] = (d.doctype_freq[doctype] || 0) + 1;
-		// Track recent click
-		d.recent_clicks = d.recent_clicks.filter(
-			(c) => !(c.doctype === doctype && c.name === name)
-		);
-		d.recent_clicks.unshift({ doctype, name, label, ts: Date.now() });
-		d.recent_clicks = d.recent_clicks.slice(0, 50);
-		this._save();
-	}
-
-	get_recent_searches() {
-		return this._load().recent_searches.slice(0, 8);
-	}
-
-	get_recent_clicks() {
-		return this._load().recent_clicks.slice(0, 8);
-	}
-
-	get_doctype_boost() {
-		return this._load().doctype_freq;
-	}
-};
-
-//// Neoffice — added (2026-10-05): the typed words are marked in one pass, at the start of a word, and the
-//// words that say nothing are left alone. Each word used to be replaced in turn anywhere in the text: « de »
-//// lit up « Vali-de-r » and « De-vis » in every result (the manual's pages first among them), and a word
-//// typed after another could match inside the <mark> tag the first had just written (« facture ma »).
-//// Tags and entities of the already-escaped text are never touched.
-const SEARCH_MARK_SKIP = new Set(
-	"a au aux ce d de des du en et l la le les ma mes mon ou par pour sa ses son sur un une the of to and or in".split(" ")
-);
-function mark_search_terms(html, txt) {
-	const words = (txt || "")
-		.split(/\s+/)
-		.filter((w) => w.length > 1 && !SEARCH_MARK_SKIP.has(w.toLowerCase()));
-	if (!html || !words.length) return html;
-	const alternation = words
-		.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-		.sort((a, b) => b.length - a.length)
-		.join("|");
-	const re = new RegExp(`(^|[^\\p{L}\\p{N}])(${alternation})`, "giu");
-	return String(html)
-		.split(/(<[^>]*>|&#?\w+;)/)
-		.map((part, i) => (i % 2 ? part : part.replace(re, "$1<mark>$2</mark>")))
-		.join("");
-}
-// ════════════════════════════════════════════════════════════
-// AwesomeBar — Main search bar class
-// ════════════════════════════════════════════════════════════
 frappe.search.AwesomeBar = class AwesomeBar {
-	//// Neoffice — setup: upstream builds the Awesomplete widget here (input.awesomplete, list,
-	//// item renderer); ours creates the mega panel (417d4f52cf) and the analytics profile (dba8b1fd89).
 	setup(element) {
+		var me = this;
+
 		$(".search-bar").removeClass("hidden");
-		this.$input = $(element);
-		this.input = this.$input.get(0);
+		var $input = $(element);
+		var input = $input.get(0);
+
 		this.options = [];
 		this.global_results = [];
-		//// Neoffice — panel state (417d4f52cf, request id 25562da1fa): keyboard selection, typed text,
-		//// analytics profile (dba8b1fd89). Upstream keeps only options / global_results.
-		this._search_id = 0;
-		this._search_pending = false;
-		this._selected = -1;
-		this._all_items = [];
-		this._current_txt = "";
-		this.analytics = new frappe.search.Analytics();
 
-		this._create_panel();
-		this._bind_events();
-		frappe.search.utils.setup_recent();
-		//// Neoffice — every palette of the page (the navbar's, the cockpit's overlay) can be re-drawn
-		//// when a provider's data arrives after the first keys (frappe.search.AwesomeBar.refresh).
-		frappe.search.AwesomeBar._instances.push(this);
-	}
+		var awesomplete = new Awesomplete(input, {
+			minChars: 0,
+			maxItems: 99,
+			autoFirst: true,
+			list: [],
+			filter: function (text, term) {
+				return true;
+			},
+			data: function (item, input) {
+				return {
+					label: item.index || "",
+					value: item.value,
+				};
+			},
+			item: function (item, term) {
+				const d = this.get_item(item.value);
+				let target = "#";
+				if (is_external_url(d.route) || is_in_app_path(d.route)) {
+					target = first_route(d.route);
+				} else if (d.route) {
+					target = frappe.router.make_url(
+						frappe.router.convert_from_standard_route(
+							frappe.router.get_route_from_arguments(
+								typeof d.route === "string" ? [d.route] : d.route
+							)
+						)
+					);
+				}
+				let html = `<span>${__(d.label || d.value)}</span>`;
 
-	//// Neoffice — the mega panel, appended to <body> (417d4f52cf); upstream renders an Awesomplete list.
-	// ── Panel creation ─────────────────────────────────────
-	_create_panel() {
-		this.$panel = $(`<div class="search-mega-panel"></div>`);
-		// Append to body for absolute positioning freedom
-		$("body").append(this.$panel);
-	}
+				if (d.description && d.value !== d.description) {
+					html +=
+						'<br><span class="text-muted ellipsis">' + __(d.description) + "</span>";
+				}
 
-	//// Neoffice — _input_visible: 6645876a0b (2026-07-07 "stale async results must not reopen the
-	//// mega-panel after close").
-	// The panel is positioned against the input: a hidden input (e.g. the
-	// cockpit search overlay after it closed) yields a 0×0 rect, which would
-	// pin the panel to the top-left corner. Never show the panel in that case.
-	_input_visible() {
-		const rect = this.$input.get(0).getBoundingClientRect();
-		return rect.width > 0 && rect.height > 0;
-	}
-
-	//// Neoffice — dba8b1fd89 (panel fixed under the input, centred), d39cf14bf1 (2026-04-07 responsive
-	//// 900 / 860 / 680px widths), b73d9fe958 (2026-06-15 18px gap under the floating input).
-	_position_panel() {
-		//// Neoffice — the answering bar (neoffice_theme, M5) places the panel itself on a phone: above its field,
-		//// which sits at the bottom of the screen. A hook that placed it returns true; none, the panel goes under.
-		const hooks = frappe.search.AwesomeBar.place_hooks || [];
-		if (hooks.some((hook) => hook(this) === true)) return;
-
-		//// Neoffice — the placement below is ours too (fixed under the input, centred: see the marker above _position_panel()).
-		const rect = this.$input.get(0).getBoundingClientRect();
-		const vw = window.innerWidth;
-
-		//// Neoffice — responsive widths (d39cf14bf1), see the marker above _position_panel().
-		// Responsive width: larger on wide screens
-		let panel_width;
-		if (vw >= 1400) {
-			panel_width = 900;
-		} else if (vw >= 1024) {
-			panel_width = Math.min(860, vw - 40);
-		} else if (vw >= 768) {
-			panel_width = Math.min(680, vw - 40);
-		} else {
-			panel_width = vw - 24; // Mobile: full width with margin
-		}
-
-		//// Neoffice — centred under the input, kept 12px inside the viewport (dba8b1fd89 / d39cf14bf1).
-		// Center under search bar
-		let left = rect.left + rect.width / 2 - panel_width / 2;
-		left = Math.max(12, Math.min(left, vw - panel_width - 12));
-
-		//// Neoffice — fixed under the input, 18px gap for the floating input (b73d9fe958).
-		this.$panel.css({
-			top: rect.bottom + 18,
-			left: left,
-			width: panel_width,
+				return $("<li></li>")
+					.data("item.autocomplete", d)
+					.html(`<a style="font-weight:normal" href="${target}">${html}</a>`)
+					.get(0);
+			},
+			sort: function (a, b) {
+				return b.label - a.label;
+			},
 		});
-	}
 
-	//// Neoffice — 417d4f52cf / dba8b1fd89: input (150 ms debounce), focus → home state or reopen
-	//// (b54cc07267: no empty panel on focus), keydown, outside-click close.
-	// ── Event binding ──────────────────────────────────────
-	_bind_events() {
-		const me = this;
+		// Added to aid UI testing of global search
+		input.awesomplete = awesomplete;
 
-		//// Neoffice — input → _handle_input, 150 ms debounce (417d4f52cf); upstream (100 ms) rebuilt the
-		//// Awesomplete options inline here.
-		this.$input.on(
+		this.awesomplete = awesomplete;
+
+		$input.on(
 			"input",
 			frappe.utils.debounce(function (e) {
-				me._handle_input(e.target.value);
-			}, 150)
+				var value = e.target.value;
+				var txt = value.trim().replace(/\s\s+/g, " ");
+				var last_space = txt.lastIndexOf(" ");
+				me.global_results = [];
+				me._hook_search_seq = (me._hook_search_seq || 0) + 1;
+
+				me.options = [];
+
+				if (txt && txt.length > 1) {
+					if (last_space !== -1) {
+						me.set_specifics(txt.slice(0, last_space), txt.slice(last_space + 1));
+					}
+					me.add_defaults(txt);
+					me.options = me.options.concat(me.build_options(txt));
+					me.options = me.options.concat(me.global_results);
+					if (frappe.boot.has_awesomebar_search) {
+						me.fetch_hook_results(txt, me._hook_search_seq);
+					}
+				} else {
+					me.options = me.options.concat(
+						me.deduplicate(frappe.search.utils.get_recent_pages(txt || ""))
+					);
+					me.options = me.options.concat(frappe.search.utils.get_frequent_links());
+				}
+				me.add_help();
+
+				awesomplete.list = me.deduplicate(me.options);
+			}, 100)
 		);
 
-		//// Neoffice — focus: home state on an empty input, else reopen the panel (dba8b1fd89, b54cc07267).
-		//// Replaces upstream's open_recent + awesomplete-open / -close / -select / -selectcomplete handlers:
-		//// the panel selects (_select_item) and closes (_close) itself.
-		this.$input.on("focus", () => {
-			const val = this.$input.val().trim();
-			if (!val) {
-				// Show recent searches/clicks on empty focus
-				this._show_home();
-			} else if (val.length > 1) {
-				this._position_panel();
-				this.$panel.addClass("active");
+		var open_recent = function () {
+			if (!this.autocomplete_open) {
+				$(this).trigger("input");
 			}
+		};
+		$input.on("focus", open_recent);
+
+		$input.on("awesomplete-open", function (e) {
+			me.autocomplete_open = e.target;
 		});
 
-		//// Neoffice — keydown → _handle_keydown (417d4f52cf); upstream's Awesomplete open / close / select
-		//// handlers that stood here are gone, see the focus marker above.
-		this.$input.on("keydown", (e) => this._handle_keydown(e));
-
-		//// Neoffice — dba8b1fd89 (outside-click close), fcd1372a1e (2026-04-07 keep open on preview-dialog
-		//// clicks), 5158cea267 (2026-06-10 .nc-search cockpit triggers whitelisted — see the note below).
-		// Close on outside click (but not when clicking on modals/dialogs).
-		// .nc-search = the NeoCockpit trigger inputs — their mousedown OPENS the
-		// centered overlay; without the whitelist this handler would close it
-		// again in the same event tick (the mousedown bubbles to document).
-		$(document).on("mousedown", (e) => {
-			if (
-				!$(e.target).closest(".search-bar").length &&
-				!$(e.target).closest(".nc-search").length &&
-				!$(e.target).closest(".search-mega-panel").length &&
-				//// Neoffice — a window the palette's conversation with Nora opens beside it (the document
-				//// she shows) is no click outside (the bar that answers, M4).
-				!$(e.target).closest(".neo-keeps-palette").length &&
-				!$(e.target).closest(".modal").length &&
-				!$(e.target).closest(".modal-backdrop").length
-			) {
-				this._close();
-			}
+		$input.on("awesomplete-close", function (e) {
+			me.autocomplete_open = false;
 		});
-		//// Neoffice — end of _bind_events (417d4f52cf), see the markers above.
-	}
 
-	//// Neoffice — 417d4f52cf: replaces the upstream input handler (set_specifics / add_defaults /
-	//// build_options / add_help → awesomplete.list); single-char input hides the panel without
-	//// clearing it (7ba725102e), help pre-loaded (1f08f5cdd2), search tracked (dba8b1fd89).
-	// ── Main input handler ─────────────────────────────────
-	_handle_input(raw) {
-		//// Neoffice — while the answering bar talks with Nora (M4), the field is its message box: the palette
-		//// searches nothing and keeps the conversation on screen. Never set without the bar.
-		if (this.neo_talking) return;
-		const txt = raw.trim().replace(/\s\s+/g, " ");
-		this._current_txt = txt;
+		$input.on("awesomplete-select", function (e) {
+			var o = e.originalEvent;
+			var value = o.text.value;
+			var item = awesomplete.get_item(value);
 
-		if (!txt || txt.length < 2) {
-			//// Neoffice — the server searches waiting for a pause (_schedule_server_searches) are for words gone.
-			this._drop_server_searches();
-			if (!txt) this._show_home();
-			else this.$panel.removeClass("active"); // Hide panel but don't clear input
-			return;
-		}
-
-		// Track search term
-		this.analytics.track_search(txt);
-		//// Neoffice — when the search began, for the delay measured at the opening (R6).
-		if (!this._started) this._started = Date.now();
-
-		// Pre-load help context (async, cached per doctype)
-		this._load_help_context();
-
-		// Build synchronous local options
-		this.options = [];
-		this._add_defaults(txt);
-		this.options = this.options.concat(this._build_nav_options(txt));
-
-		// Clear previous global results
-		this.global_results = [];
-
-		// Render local options immediately
-		this._render(txt);
-
-		//// Neoffice — the searches that ask the server (document, amount, Drive, agenda, full text) run from
-		//// _schedule_server_searches: at once, or once the keys rest where the answering bar sets a pause.
-		this._schedule_server_searches(txt);
-	}
-
-	//// Neoffice — 31.10 (neoffice_theme, the answering bar): each key sent five searches of the palette beside
-	//// the bar's own question - 24 requests for « garage favre » typed in four bursts, measured on a site of
-	//// 3 workers, all back together after 2.4 to 3.7 s. Where the bar owns the panel their rows are only
-	//// « Also found » under its answer: the bar sets frappe.search.AwesomeBar.server_pause_ms and they go once
-	//// the keys rest, for the last words only. 0 (any site without the bar): at once, as upstream does. Remove
-	//// with the bar's panel, or if upstream debounces its server searches apart from the drawing.
-	_schedule_server_searches(txt) {
-		this._drop_server_searches();
-		// a DocType named by the words is the row: no document link (read now, the drawing is done)
-		const link = !this.options.some((o) => o.default === "DocTypeAction");
-		const pause = frappe.search.AwesomeBar.server_pause_ms || 0;
-		if (!pause) return this._server_searches(txt, link);
-		// « Searching… » stands while the full-text search waits, as while it is on its way
-		this._search_pending = true;
-		this._server_timer = setTimeout(() => {
-			this._server_timer = null;
-			if (this._current_txt === txt && this.$panel.hasClass("active")) this._server_searches(txt, link);
-		}, pause);
-	}
-
-	_drop_server_searches() {
-		if (this._server_timer) clearTimeout(this._server_timer);
-		this._server_timer = null;
-	}
-
-	_server_searches(txt, link) {
-		if (link) this._make_document_link(txt);
-		this._make_amount_search(txt);
-		this._make_drive_search(txt);
-		this._make_calendar_search(txt);
-		// Fire async global search (skipped for math expressions)
-		this._search_global(txt);
-	}
-
-	//// Neoffice — home state on empty focus: dba8b1fd89 + 37d3dffb79 (2026-04-02), upcoming
-	//// appointments (cfaa702efe, 2026-07-07), help context with tips as fallback (c3e92fa0cb /
-	//// e72cb6ad20), "Search Tips" / "Type {0} for a password" msgids (387fcb0da1, 2026-06-15: bare
-	//// "Tips" and "Type" collided with other apps' translations at runtime).
-	//// Neoffice — the answering bar draws its answer at the top of the palette and keeps it across
-	//// re-renders (maintenance, the bar that answers); remove if upstream gains render hooks. Each hook of
-	//// frappe.search.AwesomeBar.render_hooks is called as hook(txt, $main, $sidebar, bar) at the end of
-	//// _render and _show_home, before the results are appended: a node it prepends to bar.$panel sits
-	//// above them. Nodes of the panel marked .neo-persist are detached, not emptied, so that a re-render
-	//// does not destroy what they hold (jQuery's .empty() drops their events and data); they are handed
-	//// back in bar._persisted. Without a hook the palette is exactly as before.
-	_empty_panel() {
-		this._persisted = this.$panel.children(".neo-persist").detach();
-		this.$panel.empty();
-	}
-
-	//// Neoffice — added (2026-10-26, render hooks of the palette): runs each hook an app registered in
-	//// AwesomeBar.render_hooks; a hook that throws is logged and the others still draw.
-	_run_render_hooks(txt, $main, $sidebar) {
-		for (const hook of frappe.search.AwesomeBar.render_hooks) {
-			try {
-				hook(txt, $main, $sidebar, this);
-			} catch (e) {
-				console.error("awesome bar render hook failed", e);
+			if (item.route_options) {
+				frappe.route_options = item.route_options;
 			}
-		}
-	}
 
-	// ── Show home state (recent searches + recently visited) ──
-	_show_home() {
-		if (!this._input_visible()) return;
-		this._position_panel();
-		//// Neoffice — render hooks: see the marker on _run_render_hooks().
-		this._empty_panel();
-		this._all_items = [];
-		this._selected = -1;
-
-		const $body = $(`<div class="search-panel-body">
-			<div class="search-panel-main"></div>
-			<div class="search-panel-sidebar"></div>
-		</div>`);
-
-		const $main = $body.find(".search-panel-main");
-		const $sidebar = $body.find(".search-panel-sidebar");
-
-		// ── LEFT: Recent searches (max 4) ──
-		const recent_searches = this.analytics.get_recent_searches().slice(0, 4);
-		if (recent_searches.length) {
-			const $section = $(`<div class="search-section">
-				<div class="search-section-header">${__("Recent Searches")}</div>
-			</div>`);
-			recent_searches.forEach((s) => {
-				const $item = $(
-					`<div class="search-item" role="option">
-						<div class="search-item-icon">
-							<svg class="icon icon-sm"><use href="#icon-search"></use></svg>
-						</div>
-						<div class="search-item-content">
-							<div class="search-item-label">${frappe.utils.xss_sanitise(s.term)}</div>
-						</div>
-					</div>`
-				);
-				const term = s.term;
-				$item.on("click", () => {
-					this.$input.val(term);
-					this._handle_input(term);
-				});
-				$item.attr("data-idx", this._all_items.length);
-				$section.append($item);
-				this._all_items.push({ $el: $item, data: { onclick: () => {
-					this.$input.val(term);
-					this._handle_input(term);
-				}}});
-			});
-			$main.append($section);
-		}
-
-		// ── LEFT: Recently visited (from frappe.route_history, live) ──
-		const recent_pages = this._get_route_history().slice(0, 6);
-		if (recent_pages.length) {
-			const $section = $(`<div class="search-section">
-				<div class="search-section-header">${__("Recently Visited")}</div>
-			</div>`);
-			recent_pages.forEach((r) => {
-				const $item = $(
-					`<div class="search-item" role="option">
-						<div class="search-item-icon">
-							<svg class="icon icon-sm"><use href="#icon-${r.icon}"></use></svg>
-						</div>
-						<div class="search-item-content">
-							<div class="search-item-label">${frappe.utils.xss_sanitise(r.label)}</div>
-							<div class="search-item-desc">${__(r.type)}</div>
-						</div>
-					</div>`
-				);
-				const route = r.route;
-				$item.on("click", () => {
-					frappe.set_route(...route);
-					this._close();
-				});
-				$item.attr("data-idx", this._all_items.length);
-				$section.append($item);
-				this._all_items.push({ $el: $item, data: {
-					onclick: () => { frappe.set_route(...route); this._close(); }
-				}});
-			});
-			$main.append($section);
-		}
-
-		// ── RIGHT: Upcoming appointments, then help context, tips as fallback ──
-		this._render_upcoming_into($sidebar, false);
-		this._load_upcoming_events();
-		this._render_help_into_sidebar($sidebar);
-		this._load_help_context();
-
-		// Tips only if no Learn/Doc available
-		const has_help = this._help_page_cache &&
-			((this._help_page_cache.learns && this._help_page_cache.learns.length) ||
-			 (this._help_page_cache.resources && this._help_page_cache.resources.length));
-		if (!has_help) {
-			$sidebar.append(
-				`<div class="search-section-header">${__("Search Tips")}</div>
-				<div class="search-sidebar-tip">${__("Type a name, ID, or keyword to search")}</div>
-				<div class="search-sidebar-tip">${__("Math expressions:")} <code>55+434/4</code></div>
-				<div class="search-sidebar-tip">${__("Type {0} for a password", ["<code>random</code>"])}</div>`
-			);
-		}
-
-		//// Neoffice — render hooks: see the marker on _run_render_hooks().
-		this._run_render_hooks("", $main, $sidebar);
-		this.$panel.append($body);
-		this.$panel.addClass("active");
-		this._check_scroll_hint();
-	}
-
-	//// Neoffice — 37d3dffb79 (2026-04-02): Recently Visited built from the live frappe.route_history
-	//// (Form / List / Workspace entries, deduplicated) instead of boot.user.recent.
-	// ── Get live route history ──────────────────────────────
-	_get_route_history() {
-		const seen = new Set();
-		const results = [];
-		const history = (frappe.route_history || []).slice().reverse();
-
-		for (const route of history) {
-			if (!route || route.length < 2) continue;
-			const [type, ...rest] = route;
-			let label, icon, rtype;
-
-			if (type === "Form" && rest.length >= 2) {
-				const key = `Form:${rest[0]}:${rest[1]}`;
-				if (seen.has(key)) continue;
-				seen.add(key);
-				label = `${rest[1]}`;
-				icon = "file";
-				rtype = __(rest[0]);
-			} else if (type === "List" && rest.length >= 1) {
-				const qualifier = rest[1] || "List";
-				const key = `List:${rest[0]}:${qualifier}`;
-				if (seen.has(key)) continue;
-				seen.add(key);
-				//// Neoffice — the qualifier was printed raw ("Devis Report", "Client Kanban") in the
-				//// Recently Visited list of a translated desk. It goes through __() like the DocType
-				//// name, and a report takes the catalogue's own word order ("{0} Report").
-				const doctype_label = __(rest[0]);
-				label =
-					qualifier === "Report"
-						? __("{0} Report", [doctype_label])
-						: `${doctype_label} ${qualifier !== "List" ? __(qualifier) : ""}`.trim();
-				icon = "list";
-				rtype = __(qualifier === "Report" ? "Report" : "List");
-			} else if (type === "Workspaces" && rest.length >= 1) {
-				const key = `WS:${rest[0]}`;
-				if (seen.has(key)) continue;
-				seen.add(key);
-				//// Neoffice — a workspace name is stored in English ("Home"): translated, as the
-				//// sidebar does, instead of printed raw in the Recently Visited list.
-				label = __(rest[0]);
-				icon = "grid";
-				rtype = __("Workspace");
-				//// Neoffice — see the _get_route_history marker above (37d3dffb79): any other route is skipped.
+			if (item.onclick) {
+				item.onclick(item.match);
+			} else if (is_external_url(item.route)) {
+				window.open(first_route(item.route), "_blank");
+			} else if (is_in_app_path(item.route)) {
+				navigate_in_app_path(first_route(item.route), o.originalEvent);
 			} else {
-				continue;
-			}
-
-			//// Neoffice — eight entries at most (37d3dffb79).
-			results.push({ label, icon, type: rtype, route });
-			if (results.length >= 8) break;
-		}
-		return results;
-	}
-
-	//// Neoffice — help context of the current page: 37d3dffb79 / 83c12fbc65 / c3e92fa0cb (2026-04-02),
-	//// through neoffice_theme.api.get_help_context (c7480a80c0 — frappe.client.get_list gave 403 to
-	//// non-admin users), page cache separated from the search cache (e72cb6ad20, 2026-04-05),
-	//// re-render on arrival (1f08f5cdd2). Core → neoffice_theme dependency; the call is caught, so
-	//// the panel keeps working without the app.
-	// ── Load help context for current PAGE (sidebar) ──────
-	_load_help_context() {
-		const route = frappe.get_route();
-		if (!route || route.length < 2) return;
-
-		const doctype =
-			route[0] === "Form" || route[0] === "List" ? route[1] : null;
-		if (!doctype) return;
-
-		if (this._help_page_cache && this._help_page_cache._doctype === doctype) return;
-
-		frappe.xcall("neoffice_theme.api.get_help_context", { doctype })
-			.then((data) => {
-				if (!data) return;
-				this._help_page_cache = { _doctype: doctype, ...data };
-				if (this.$panel.hasClass("active")) {
-					if (this._current_txt) {
-						this._render(this._current_txt);
-					} else {
-						this._show_home();
-					}
+				let event = o.originalEvent;
+				if (event.ctrlKey || event.metaKey) {
+					frappe.open_in_new_tab = true;
 				}
-			})
-			.catch(() => {});
-	}
-
-	//// Neoffice — c3e92fa0cb (2026-04-02): Learn + Documentation blocks in the sidebar; search cache
-	//// preferred over the page cache (ba9c178956, 2026-04-07).
-	// ── Render cached help into sidebar ──────────────────────
-	_render_help_into_sidebar($sidebar) {
-		// Prefer search cache (matched DocType) over page cache
-		const data = this._help_search_cache || this._help_page_cache;
-		if (!data) return;
-
-		if (data.learns && data.learns.length) {
-			$sidebar.append(
-				`<div class="search-section-header sidebar-section-spacer">${__("Learn")}</div>`
-			);
-			data.learns.forEach((l) => {
-				const duration = l.estimated_duration
-					? `<span class="sidebar-item-type">${l.estimated_duration} min</span>`
-					: "";
-				const $item = $(
-					`<div class="search-sidebar-item">
-						<a href="/app/${l.entry_route || "nora-learn/" + l.name}">
-							<span class="sidebar-item-label">${frappe.utils.xss_sanitise(l.title)}</span>
-							${duration}
-						</a>
-					</div>`
-				);
-				$item.find("a").on("click", (e) => {
-					e.preventDefault();
-					frappe.set_route(l.entry_route || "nora-learn/" + l.name);
-					this._close();
-				});
-				$sidebar.append($item);
-			});
-		}
-
-		if (data.resources && data.resources.length) {
-			$sidebar.append(
-				`<div class="search-section-header sidebar-section-spacer">${__("Documentation")}</div>`
-			);
-			data.resources.forEach((r) => {
-				const $item = $(
-					`<div class="search-sidebar-item">
-						<a href="${frappe.utils.xss_sanitise(r.url || "#")}" target="_blank">
-							<span class="sidebar-item-label">${frappe.utils.xss_sanitise(r.title)}</span>
-							<span class="sidebar-item-type">${__(r.resource_type || "Doc")}</span>
-						</a>
-					</div>`
-				);
-				$sidebar.append($item);
-			});
-		}
-	}
-
-	//// Neoffice — upstream add_defaults: global-search entry + search-in-current + calculator +
-	//// random. Ours: create action (f9980ea85c), DocType action (8822b0ef36), document link unless a
-	//// DocType matched (b6f135ea30 / 529db29093), amount search (f131a66b4a), drive + calendar search
-	//// (cfaa702efe), custom_providers extension point (b6f135ea30). _make_search_in_current is no
-	//// longer called (69a0372263 dropped the broken "Find X in Y" quick action).
-	// ── Local defaults (calculator, doc link, custom) ──────
-	_add_defaults(txt) {
-		this._make_create_action(txt);
-		this._make_calculator(txt);
-		this._make_random(txt);
-		this._make_doctype_action(txt);
-		//// Neoffice — 31.10: the document link (skipped when a DocType matched), amount, Drive and agenda
-		//// searches ask the server: they run from _schedule_server_searches, at once or at the pause.
-
-		// Custom search providers
-		this.options = this.options.concat(this._run_providers(txt));
-	}
-
-	//// Neoffice — the custom providers' loop, out of _add_defaults (maintenance#822): their results are
-	//// marked, so that a provider whose data arrives later re-draws only them (_refresh_providers)
-	//// instead of firing the document, amount, drive and calendar searches a second time.
-	_run_providers(txt) {
-		let out = [];
-		for (const provider of frappe.search.AwesomeBar.custom_providers) {
-			try {
-				const results = provider(txt);
-				if (Array.isArray(results)) {
-					//// Neoffice — see the block marker above: results tagged _provided
-					results.forEach((r) => (r._provided = true));
-					out = out.concat(results);
-				}
-			} catch (e) {
-				console.warn("Search provider error:", e);
+				frappe.set_route(item.route);
 			}
-			//// Neoffice — see the _run_providers marker above (maintenance#822).
-		}
-		return out;
+			$input.val("");
+			$input.trigger("blur");
+		});
+
+		$input.on("awesomplete-selectcomplete", function (e) {
+			$input.val("");
+		});
+
+		$input.on("keydown", (e) => {
+			if (e.key == "Escape") {
+				$input.trigger("blur");
+			}
+		});
+		frappe.search.utils.setup_recent();
 	}
 
-	//// Neoffice — see the block marker above: re-draws only provider results
-	_refresh_providers() {
-		const txt = this._current_txt;
-		if (!txt || txt.length < 2 || !this.$panel.hasClass("active")) return;
-		this.options = this.options.filter((o) => !o._provided).concat(this._run_providers(txt));
-		this._render(txt);
+	add_help() {
+		this.options.push({
+			value: __("Help on Search"),
+			index: -10,
+			default: "Help",
+			onclick: function () {
+				var txt =
+					'<table class="table table-bordered">\
+					<tr><td style="width: 50%">' +
+					__("Create a new record") +
+					"</td><td>" +
+					__("new type of document") +
+					"</td></tr>\
+					<tr><td>" +
+					__("List a document type") +
+					"</td><td>" +
+					__("document type..., e.g. customer") +
+					"</td></tr>\
+					<tr><td>" +
+					__("Search in a document type") +
+					"</td><td>" +
+					__("text in document type") +
+					"</td></tr>\
+					<tr><td>" +
+					__("Tags") +
+					"</td><td>" +
+					__("tag name..., e.g. #tag") +
+					"</td></tr>\
+					<tr><td>" +
+					__("Open a module or tool") +
+					"</td><td>" +
+					__("module name...") +
+					"</td></tr>\
+					<tr><td>" +
+					__("Calculate") +
+					"</td><td>" +
+					__("e.g. (55 + 434) / 4 or =Math.sin(Math.PI/2)...") +
+					"</td></tr>\
+				</table>";
+				frappe.msgprint(txt, __("Search Help"));
+			},
+		});
 	}
 
-	//// Neoffice — upstream build_options (tags shortcut, creatables / lists / pages / … options,
-	//// dedupe + sort by index), renamed by 417d4f52cf; logic unchanged.
-	// ── Navigation options ─────────────────────────────────
-	_build_nav_options(txt) {
-		if (txt.charAt(0) === "#") {
-			return frappe.tags.utils.get_tags(txt);
-		}
-		let options = frappe.search.utils
+	set_specifics(txt, end_txt) {
+		var me = this;
+		var results = this.build_options(txt);
+		results.forEach(function (r) {
+			if (r.type && r.type.toLowerCase().indexOf(end_txt.toLowerCase()) === 0) {
+				me.options.push(r);
+			}
+		});
+	}
+
+	add_defaults(txt) {
+		this.make_global_search(txt);
+		this.make_search_in_current(txt);
+		this.make_calculator(txt);
+		this.make_random(txt);
+	}
+
+	build_options(txt) {
+		var options = frappe.search.utils
 			.get_creatables(txt)
 			.concat(
 				frappe.search.utils.get_search_in_list(txt),
@@ -708,785 +224,16 @@ frappe.search.AwesomeBar = class AwesomeBar {
 				frappe.search.utils.get_recent_pages(txt || ""),
 				frappe.search.utils.get_executables(txt)
 			);
-		return this._deduplicate(options).sort((a, b) => b.index - a.index);
-	}
-
-	//// Neoffice — b54cc07267 (2026-04-02), 2ce8e161a9 (2026-04-07: "00079" is a document number, math
-	//// needs an operator).
-	// ── Check if text is a math expression ─────────────────
-	_is_math_expression(txt) {
-		if (txt.charAt(0) === "(" || txt.charAt(0) === "=") return true;
-		//// Neoffice — digits joined by hyphens are a code (« 03185-20 », an item), not a subtraction:
-		//// the document lookup and the full-text search were skipped for them (maintenance#822).
-		if (/^\d+(-\d+)+$/.test(txt)) return false;
-		// Only treat as math if it starts with a digit AND contains an operator
-		// "00079" is a document number, not math. "10+10" is math.
-		if (/^\d/.test(txt) && /[+\-*/%(]/.test(txt)) return true;
-		return false;
-	}
-
-	//// Neoffice — the "Search for X" entry and Enter on a bare query opened nothing: upstream creates
-	//// the search dialog in Toolbar.setup_help(), and with the NeoCockpit there is no upstream toolbar
-	//// (frappe.app.toolbar is false), so frappe.searchdialog was never defined and the click died on
-	//// "Cannot read properties of undefined (reading 'search')" - no dialog, no message, nothing.
-	//// The dialog is now built on first use. Drop this when the toolbar is back on every desk.
-	_open_global_search(txt) {
-		if (!frappe.searchdialog || !frappe.searchdialog.search) {
-			frappe.provide("frappe.searchdialog");
-			frappe.searchdialog.search = new frappe.search.SearchDialog();
+		if (txt.charAt(0) === "#") {
+			options = frappe.tags.utils.get_tags(txt);
 		}
-		frappe.searchdialog.search.init_search(txt, "global_search");
-	}
-	//// Neoffice — 417d4f52cf: frappe.utils.global_search.search fired on input (upstream only offered
-	//// a "Search for X" entry opening the dialog); math skipped + operators sanitised (b54cc07267),
-	//// limit 50 (e9da79644d), request id + closed / changed-query guards (25562da1fa, 6645876a0b).
-	// ── Async global search ────────────────────────────────
-	_search_global(txt) {
-		if (txt.charAt(0) === "#") return;
-
-		// Skip global search for math expressions
-		if (this._is_math_expression(txt)) {
-			this._search_pending = false;
-			return;
-		}
-
-		// Sanitize boolean mode operators
-		const safe = txt.replace(/[+\-<>~*"@()]/g, " ").trim();
-		if (!safe || safe.length < 2) {
-			this._search_pending = false;
-			return;
-		}
-
-		//// Neoffice — request id, loading flag and closed / changed-query guards (25562da1fa, 6645876a0b);
-		//// limit 50 (e9da79644d). See the marker above _search_global().
-		const search_id = ++this._search_id;
-		this._search_pending = true;
-
-		frappe.xcall("frappe.utils.global_search.search", {
-			text: safe,
-			limit: 50,
-		}).then((results) => {
-			if (search_id !== this._search_id) return;
-			this._search_pending = false;
-			this.global_results = results || [];
-			// Panel closed or query changed while the request was in flight
-			if (!this.$panel.hasClass("active") || this._current_txt !== txt) return;
-			this._render(this._current_txt);
+		var out = this.deduplicate(options);
+		return out.sort(function (a, b) {
+			return b.index - a.index;
 		});
 	}
 
-	//// Neoffice — _render, the panel body (417d4f52cf / dba8b1fd89). Section order: Ask Nora and Go to
-	//// (maintenance#822) › Create action
-	//// (f9980ea85c) › View all (8822b0ef36 / 2fb7b98d18) › recent records of the matched DocType
-	//// (b73d9fe958) › Go to Document, max 3 (529db29093 / 1f08f5cdd2) › amount matches (f131a66b4a) ›
-	//// appointments + files (cfaa702efe) › calculator (69a0372263) › global results grouped by DocType,
-	//// filtered on the typed words (1f08f5cdd2), matched DocType skipped (ce9d44df14) › Learn /
-	//// Documentation (f18854c0fb / 8622b76fa3 / e72cb6ad20) › Navigate › custom providers. Then the
-	//// sidebar (dba8b1fd89), the "Search for X" footer (hidden for math, 25562da1fa), the scroll hint
-	//// (43a36fa872) and the hidden-input guard (6645876a0b).
-	// ── Main render ────────────────────────────────────────
-	_render(txt) {
-		if (!this._input_visible()) return;
-		this._position_panel();
-		//// Neoffice — render hooks: see the marker on _run_render_hooks().
-		this._empty_panel();
-		this._all_items = [];
-		this._selected = -1;
-
-		const safe_txt = frappe.utils.xss_sanitise(txt);
-
-		// Two-column layout
-		const $body = $(`<div class="search-panel-body">
-			<div class="search-panel-main"></div>
-			<div class="search-panel-sidebar"></div>
-		</div>`);
-		const $main = $body.find(".search-panel-main");
-		const $sidebar = $body.find(".search-panel-sidebar");
-
-		// ── LEFT COLUMN: Results ──
-
-		//// Neoffice — a question and the places first (maintenance#822, search R5 / R1). A provider
-		//// (neoffice_theme awesome_bar_docs.js) answers a question with « Ask Nora » (default "Ask")
-		//// and names the places of the reader's spaces that match - a space, a tab, a view of a list,
-		//// a report - with "GoTo": where the reader wants to go comes before the documents that merely
-		//// contain the words. The best places first (index), six at most.
-		const ask = this.options.filter((o) => o.default === "Ask");
-		if (ask.length) {
-			this._render_section_into($main, "", ask.slice(0, 1), "ask");
-		}
-		const places = this.options
-			.filter((o) => o.default === "GoTo")
-			.sort((a, b) => (b.index || 0) - (a.index || 0));
-		if (places.length) {
-			// A context of its own: a bare « Go to » is already « Aller au » (a date) in French.
-			this._render_section_into($main, __("Go to", null, "Search palette section"), places.slice(0, 6), "goto-place");
-		}
-
-		// 0. Create action ("Create Customer" → Quick Entry) — prominent, first
-		const create_actions = this.options.filter((o) => o.default === "CreateAction");
-		if (create_actions.length) {
-			this._render_section_into($main, "", create_actions, "doctype-action");
-		}
-
-		// 1. DocType action ("View all Articles") — always first when matched
-		const dt_actions = this.options.filter((o) => o.default === "DocTypeAction");
-		if (dt_actions.length) {
-			this._render_section_into($main, "", dt_actions, "doctype-action");
-		}
-
-		// 1b. Recent records of the matched DocType (e.g. "document scan" → latest Document Scans)
-		const dt_match = dt_actions.length && dt_actions[0].route ? dt_actions[0].route[1] : null;
-		if (dt_match && this._dt_records && this._dt_records._doctype === dt_match && this._dt_records.records.length) {
-			const rec_items = this._dt_records.records.map((name) => ({
-				label: name,
-				route: ["Form", dt_match, name],
-				doctype: dt_match,
-			}));
-			this._render_section_into($main, __(dt_match), rec_items, "global");
-		}
-
-		// 2. Direct document matches (max 3)
-		const doc_links = this.options
-			.filter((o) => o.index >= 200 && o.default !== "DocTypeAction")
-			.slice(0, 3);
-		if (doc_links.length) {
-			this._render_section_into($main, __("Go to Document"), doc_links, "goto");
-		}
-
-		// 3. Amount matches (12.00 → invoices/orders with that total)
-		const amount_matches = this.options.filter((o) => o.default === "AmountMatch");
-		if (amount_matches.length) {
-			this._render_section_into($main, __("Documents matching amount"), amount_matches, "amount");
-		}
-
-		//// Neoffice — the user manual answers in the list itself (provider default "Docs",
-		//// neoffice_theme awesome_bar_docs.js): its pages, or a waiting line while the hub is asked, so
-		//// that « note de crédit » offers the page about credit notes without a click on a footer row.
-		//// A search that has nothing to say shows nothing. Placed before the files and
-		//// the appointments: eight files named « note_audio… » pushed it below the fold.
-		const manual = this.options.filter((o) => o.default === "Docs");
-		if (manual.length) {
-			const pages = manual.filter((o) => !o._searching);
-			if (pages.length) {
-				this._render_section_into($main, __("User manual"), pages, "docs");
-			} else if (!this._search_pending) {
-				$main.append(
-					`<div class="search-loading search-manual-loading">
-						<span class="text-extra-muted">${__("Searching the manual")}...</span>
-					</div>`
-				);
-			}
-		}
-		// 3b. Calendar appointments matching the query (Suite calendar)
-		const cal_events = this.options.filter((o) => o.default === "CalendarEvent");
-		if (cal_events.length) {
-			this._render_section_into($main, __("Appointments"), cal_events, "goto");
-		}
-
-		// 3c. Drive files matching the query (Suite drive)
-		const drive_files = this.options.filter((o) => o.default === "DriveFile");
-		if (drive_files.length) {
-			this._render_section_into($main, __("Files"), drive_files, "goto");
-		}
-
-		// 4. Calculator result
-		const specials = this.options.filter((o) => o.default === "Calculator");
-		if (specials.length) {
-			this._render_section_into($main, __("Calculator"), specials, "special");
-		}
-
-		// 5. Global search results grouped by DocType
-		if (this.global_results.length) {
-			// Filter: only show results where the search term actually appears
-			// in the content (prevents irrelevant fulltext matches)
-			const txt_lower = txt.toLowerCase();
-			const txt_words = txt_lower.split(/\s+/).filter((w) => w.length > 2);
-			const relevant = this.global_results.filter((r) => {
-				if (!r.content) return false;
-				const c = r.content.toLowerCase();
-				// At least one significant word must appear in content
-				return txt_words.length
-					? txt_words.some((w) => c.includes(w))
-					: c.includes(txt_lower);
-			});
-
-			const grouped = {};
-			relevant.forEach((r) => {
-				if (!grouped[r.doctype]) grouped[r.doctype] = [];
-				grouped[r.doctype].push(r);
-			});
-
-			for (const [doctype, results] of Object.entries(grouped)) {
-				// Skip the matched DocType — its recent records are already shown above
-				if (doctype === dt_match) continue;
-				const items = results.slice(0, 4).map((r) => ({
-					label: r.name,
-					description: this._format_content(r.content, txt),
-					route: ["Form", r.doctype, r.name],
-					image: r.image,
-					doctype: r.doctype,
-					_title: r.title || r.name,
-				}));
-				this._render_section_into($main, __(doctype), items, "global");
-			}
-		}
-
-		// 4. Learn & Documentation (in left column)
-		// Use search cache (DocType matched by search term) or page cache as fallback
-		const help_data = this._help_search_cache || this._help_page_cache;
-		if (help_data && txt) {
-			const txt_lower = txt.toLowerCase();
-			const dt_actions = this.options.filter((o) => o.default === "DocTypeAction");
-			// Show ALL learns when search matches the cached DocType
-			const is_doctype_search = dt_actions.length > 0 &&
-				help_data._doctype &&
-				dt_actions.some((o) => o.route && o.route[1] === help_data._doctype);
-
-			const matching_learns = (help_data.learns || []).filter(
-				(l) => is_doctype_search || (l.title && l.title.toLowerCase().includes(txt_lower))
-			);
-			if (matching_learns.length) {
-				const items = matching_learns.map((l) => ({
-					label: l.title,
-					description: l.estimated_duration ? `${l.estimated_duration} min` : "",
-					route: [l.entry_route || "nora-learn/" + l.name],
-					index: 0,
-				}));
-				this._render_section_into($main, __("Learn"), items, "learn");
-			}
-
-			const matching_docs = (help_data.resources || []).filter(
-				(r) => is_doctype_search || (r.title && r.title.toLowerCase().includes(txt_lower))
-			);
-			if (matching_docs.length) {
-				const items = matching_docs.map((r) => ({
-					label: r.title,
-					description: __(r.resource_type || "Documentation"),
-					onclick: () => { window.open(r.url, "_blank"); },
-					index: 0,
-				}));
-				this._render_section_into($main, __("Documentation"), items, "docs");
-			}
-		}
-
-		// 5. Navigation options
-		const nav = this.options.filter(
-			(o) =>
-				o.type &&
-				["List", "New", "Page", "Workspace", "Dashboard"].includes(o.type)
-		);
-		if (nav.length) {
-			this._render_section_into($main, __("Navigate"), nav.slice(0, 6), "nav");
-		}
-
-		// 6. Custom provider results
-		//// Neoffice — "Docs" has its own section above now (see « the user manual answers »).
-		const custom = this.options.filter((o) => o.default === "Custom");
-		if (custom.length) {
-			this._render_section_into($main, __("More"), custom, "custom");
-		}
-
-		// Loading indicator
-		if (this._search_pending && !this.global_results.length) {
-			$main.prepend(
-				`<div class="search-loading">
-					<span class="text-extra-muted">${__("Searching")}...</span>
-				</div>`
-			);
-		}
-
-		// ── RIGHT COLUMN: Sidebar ──
-		this._render_sidebar($sidebar, txt);
-
-		//// Neoffice — render hooks: see the marker on _run_render_hooks().
-		this._run_render_hooks(txt, $main, $sidebar);
-		this.$panel.append($body);
-
-		// Footer
-		if (txt && txt.length > 1 && !this._is_math_expression(txt)) {
-			const $footer = $(`<div class="search-panel-footer">
-				<a href="#" class="search-for-link">
-					<span>${__("Search for {0}", [safe_txt.bold()])}</span>
-					<kbd>↵</kbd>
-				</a>
-			</div>`);
-			$footer.find("a").on("click", (e) => {
-				e.preventDefault();
-				//// Neoffice — see the block marker on _open_global_search(): the dialog is built on first use
-				//// (effa923911 "fix(search): the "Search for X" row opens the dialog without the upstream toolbar,
-				//// and the user manual answers in the list").
-				this._open_global_search(txt);
-				this._close();
-			});
-			this.$panel.append($footer);
-		}
-
-		this.$panel.addClass("active");
-
-		// Detect scrollable content and add fade gradient
-		this._check_scroll_hint();
-
-		// Auto-select first item
-		if (this._all_items.length) {
-			this._selected = 0;
-			this._update_selection();
-		}
-	}
-
-	//// Neoffice — 43a36fa872 (2026-04-07 "visible scrollbar + fade gradient hint").
-	// ── Check if main column is scrollable, show/hide fade hint ──
-	_check_scroll_hint() {
-		requestAnimationFrame(() => {
-			const $body = this.$panel.find(".search-panel-body");
-			const main = this.$panel.find(".search-panel-main").get(0);
-			if (main && main.scrollHeight > main.clientHeight + 10) {
-				$body.addClass("has-scroll");
-				// Hide gradient when user scrolls to bottom
-				$(main).off("scroll.hint").on("scroll.hint", function () {
-					const atBottom = this.scrollTop + this.clientHeight >= this.scrollHeight - 20;
-					$body.toggleClass("has-scroll", !atBottom);
-				});
-			} else {
-				$body.removeClass("has-scroll");
-			}
-		});
-	}
-
-	//// Neoffice — dba8b1fd89 (Recently Visited + "You search often" from analytics), help context
-	//// (c3e92fa0cb / e72cb6ad20), live route history (37d3dffb79 / 7ba725102e), upcoming
-	//// appointments (cfaa702efe).
-	// ── Render sidebar ─────────────────────────────────────
-	_render_sidebar($sidebar, txt) {
-		let has_context = false;
-
-		// Learn + Documentation (from cache)
-		if (this._help_page_cache) {
-			const hc = this._help_page_cache;
-			if ((hc.learns && hc.learns.length) || (hc.resources && hc.resources.length)) {
-				has_context = true;
-			}
-		}
-		this._render_help_into_sidebar($sidebar);
-		this._load_help_context();
-
-		// Upcoming appointments (Suite calendar)
-		const has_upcoming = this._render_upcoming_into($sidebar, has_context);
-		this._load_upcoming_events();
-
-		// Recently visited — from live route history
-		const recent = this._get_route_history().slice(0, 5);
-		if (recent.length) {
-			$sidebar.append(
-				`<div class="search-section-header${
-					has_context || has_upcoming ? " sidebar-section-spacer" : ""
-				}">${__("Recently Visited")}</div>`
-			);
-			recent.forEach((r) => {
-				const route = r.route;
-				const $item = $(
-					`<div class="search-sidebar-item">
-						<a href="#">
-							<span class="sidebar-item-label">${frappe.utils.xss_sanitise(r.label)}</span>
-							<span class="sidebar-item-type">${r.type}</span>
-						</a>
-					</div>`
-				);
-				$item.find("a").on("click", (e) => {
-					e.preventDefault();
-					frappe.set_route(...route);
-					this._close();
-				});
-				$sidebar.append($item);
-			});
-		}
-
-		// Top DocTypes from analytics
-		const boost = this.analytics.get_doctype_boost();
-		const top_types = Object.entries(boost)
-			.sort((a, b) => b[1] - a[1])
-			.slice(0, 5);
-		if (top_types.length) {
-			$sidebar.append(
-				`<div class="search-section-header sidebar-section-spacer">${__("You search often")}</div>`
-			);
-			top_types.forEach(([dt, count]) => {
-				const $item = $(
-					`<div class="search-sidebar-stat">
-						<span class="stat-label">${__(dt)}</span>
-						<span class="stat-count">${count}</span>
-					</div>`
-				);
-				$item.on("click", () => {
-					frappe.set_route("List", dt);
-					this._close();
-				});
-				$sidebar.append($item);
-			});
-		}
-	}
-
-	//// Neoffice — 417d4f52cf / dba8b1fd89: one section per group, items registered in _all_items for
-	//// the keyboard navigation.
-	// ── Render section into a container ─────────────────────
-	_render_section_into($container, title, items, type) {
-		if (!items.length) return;
-
-		const $section = $(`<div class="search-section search-section-${type}"></div>`);
-		if (title) {
-			$section.append(
-				`<div class="search-section-header">${title}</div>`
-			);
-		}
-
-		items.forEach((item) => {
-			const idx = this._all_items.length;
-			const $item = this._render_item(item, type);
-			$item.attr("data-idx", idx);
-			$item.on("click", (e) => {
-				e.preventDefault();
-				this._select_item(item, e);
-			});
-			//// Neoffice — the result under the mouse is announced like the selected one (#822, R4).
-			$item.on("mouseenter", () => this._highlight(item));
-			$section.append($item);
-			this._all_items.push({ $el: $item, data: item });
-		});
-
-		$container.append($section);
-	}
-
-	//// Neoffice — 417d4f52cf; file icon + preview for Document Scan (cbc010fbd0, 2026-04-07), term
-	//// highlighting in labels of global / learn / docs / goto items (529db29093, f18854c0fb).
-	// ── Render a single result item ────────────────────────
-	_render_item(item, type) {
-		let inner = "";
-
-		// Document icon for Document Scan and other file-bearing doctypes
-		const file_doctypes = ["Document Scan"];
-		if (item.doctype && file_doctypes.includes(item.doctype) && type === "global") {
-			inner += `<div class="search-item-file-icon" data-doctype="${item.doctype}" data-name="${frappe.utils.xss_sanitise(item.label)}">
-				<svg class="icon icon-md"><use href="#icon-file"></use></svg>
-			</div>`;
-		}
-		// Avatar for global results (non-file doctypes)
-		else if (item.image !== undefined && type === "global") {
-			inner += `<div class="search-item-avatar">
-				${frappe.get_avatar("avatar-xs", item.label || "", item.image)}
-			</div>`;
-		}
-
-		// Type badge for navigation
-		if (item.type && type === "nav") {
-			inner += `<span class="search-item-badge">${__(item.type)}</span>`;
-		}
-
-		// Main content
-		inner += `<div class="search-item-content">`;
-		const label = item.label || item.value || "";
-		const clean_label = typeof label === "string" ? label.replace(/<[^>]*>/g, "") : label;
-		let display_label = frappe.utils.xss_sanitise(clean_label);
-		// Highlight search term in label
-		//// Neoffice — see the block marker above: goto-place items also highlighted
-		if (
-			this._current_txt &&
-			(type === "global" || type === "learn" || type === "docs" || type === "goto" || type === "goto-place")
-		) {
-			//// Neoffice — one pass at word starts, see mark_search_terms (2026-10-05)
-			display_label = mark_search_terms(display_label, this._current_txt);
-		}
-		inner += `<div class="search-item-label">${display_label}</div>`;
-		if (item.description) {
-			inner += `<div class="search-item-desc">${item.description}</div>`;
-		}
-		inner += `</div>`;
-
-		// DocType badge for global results
-		if (item.doctype && type === "global") {
-			inner += `<span class="search-item-doctype">${__(item.doctype)}</span>`;
-		}
-		//// Neoffice — what a place is (a list, a view, a report), on the right like a DocType (#822).
-		if (item.badge && type === "goto-place") {
-			inner += `<span class="search-item-doctype">${frappe.utils.xss_sanitise(item.badge)}</span>`;
-		}
-
-		const $item = $(`<div class="search-item" role="option">${inner}</div>`);
-
-		// Bind preview click on file icon (opens file without leaving search)
-		$item.find(".search-item-file-icon").on("click", (e) => {
-			e.stopPropagation();
-			this._preview_file(item.doctype, item.label);
-		});
-
-		return $item;
-	}
-
-	//// Neoffice — cbc010fbd0 (2026-04-07): inline PDF / image preview of a Document Scan (source_file)
-	//// without leaving the search; z-index 1070 above the panel (0a54fbf027).
-	// ── Preview file attachment in a dialog ─────────────────
-	_preview_file(doctype, name) {
-		// Load the file URL for this document
-		let file_field = "source_file"; // Document Scan
-		if (doctype === "Document Scan") {
-			file_field = "source_file";
-		}
-
-		frappe.xcall("frappe.client.get_value", {
-			doctype: doctype,
-			filters: { name: name },
-			fieldname: file_field,
-		}).then((data) => {
-			const file_url = data && data[file_field];
-			if (!file_url) {
-				frappe.show_alert(__("No file attached"));
-				return;
-			}
-
-			const is_pdf = file_url.toLowerCase().endsWith(".pdf");
-			const is_image = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(file_url);
-
-			const d = new frappe.ui.Dialog({
-				title: name,
-				size: "extra-large",
-			});
-
-			if (is_pdf) {
-				d.$body.html(
-					`<iframe src="${file_url}" style="width:100%; height:70vh; border:none;"></iframe>`
-				);
-			} else if (is_image) {
-				d.$body.html(
-					`<div style="text-align:center; padding:16px;">
-						<img src="${file_url}" style="max-width:100%; max-height:70vh; border-radius:8px;">
-					</div>`
-				);
-			} else {
-				d.$body.html(
-					`<div style="text-align:center; padding:32px;">
-						<p>${__("File preview not available")}</p>
-						<a href="${file_url}" target="_blank" class="btn btn-primary">${__("Download")}</a>
-					</div>`
-				);
-			}
-
-			d.show();
-			// Force z-index above the search mega-panel (1060)
-			d.$wrapper.css("z-index", 1070);
-			d.$wrapper.find(".modal-backdrop").css("z-index", 1065);
-		});
-	}
-
-	//// Neoffice — 417d4f52cf / dba8b1fd89: the " ||| "-separated global-search content → 3 fragments
-	//// with multi-word <mark> highlighting.
-	// ── Format global search content for display ───────────
-	_format_content(content, txt) {
-		if (!content) return "";
-		const parts = content.split(" ||| ");
-		const display = parts
-			.filter((p) => !p.startsWith("ID :"))
-			.slice(0, 3)
-			.map((p) => {
-				//// Neoffice — the field's label in the reader's language: the index keeps it in English
-				//// (global_search.py writes `field.label + " : " + value`), and a name searched on a French
-				//// desk read « Customer Name : … », « First Name : … », « Party Name : … » (maintenance#2161).
-				const colon = p.indexOf(" : ");
-				if (colon > 0) p = __(p.slice(0, colon)) + p.slice(colon);
-				//// Neoffice — one pass at word starts, see mark_search_terms (2026-10-05)
-				if (txt) p = mark_search_terms(p, txt);
-				return p;
-			});
-		return display.join(" · ");
-	}
-
-	//// Neoffice — 417d4f52cf (Awesomplete handled the keyboard upstream): Escape closes, arrows move
-	//// the selection (scrolled into view, dba8b1fd89), Enter opens the item or the global search dialog.
-	// ── Keyboard navigation ────────────────────────────────
-	_handle_keydown(e) {
-		const key = e.key;
-
-		if (key === "Escape") {
-			this._close();
-			this.$input.trigger("blur");
-			return;
-		}
-
-		if (key === "ArrowDown") {
-			e.preventDefault();
-			this._move_selection(1);
-			return;
-		}
-
-		if (key === "ArrowUp") {
-			e.preventDefault();
-			this._move_selection(-1);
-			return;
-		}
-
-		if (key === "Enter") {
-			e.preventDefault();
-			if (this._selected >= 0 && this._selected < this._all_items.length) {
-				const item = this._all_items[this._selected];
-				this._select_item(item.data, e);
-			} else {
-				const txt = this.$input.val().trim();
-				if (txt) {
-					//// Neoffice — see the block marker on _open_global_search(): Enter on a bare query opens the
-					//// dialog built on first use (effa923911 "fix(search): the "Search for X" row opens the dialog
-					//// without the upstream toolbar, and the user manual answers in the list").
-					this._open_global_search(txt);
-					this._close();
-				}
-			}
-			return;
-		}
-	}
-
-	_move_selection(delta) {
-		if (!this._all_items.length) return;
-		this._selected = Math.max(
-			0,
-			Math.min(this._all_items.length - 1, this._selected + delta)
-		);
-		this._update_selection();
-	}
-
-	_update_selection() {
-		this.$panel.find(".search-item").removeClass("selected");
-		if (this._selected >= 0 && this._selected < this._all_items.length) {
-			const $el = this._all_items[this._selected].$el;
-			$el.addClass("selected");
-			//// Neoffice — the selected result is announced to the apps (#822, search R4).
-			this._highlight(this._all_items[this._selected].data);
-			// Scroll into view within the main column
-			const scrollParent = $el.closest(".search-panel-main").get(0);
-			const item = $el.get(0);
-			if (scrollParent) {
-				if (item.offsetTop < scrollParent.scrollTop) {
-					scrollParent.scrollTop = item.offsetTop - 8;
-				} else if (
-					item.offsetTop + item.offsetHeight >
-					scrollParent.scrollTop + scrollParent.clientHeight
-				) {
-					scrollParent.scrollTop =
-						item.offsetTop + item.offsetHeight - scrollParent.clientHeight + 8;
-				}
-			}
-		}
-	}
-
-	//// Neoffice — the result the reader is on - selected with the keys, or under the mouse - is
-	//// announced to the apps with the sidebar and the palette (maintenance#822, search R4):
-	//// neoffice_theme shows there the key facts of an item, a customer or a supplier without
-	//// opening it, and closes the palette when one of its links is followed.
-	_highlight(item) {
-		const $sidebar = this.$panel.find(".search-panel-sidebar");
-		for (const hook of frappe.search.AwesomeBar.on_highlight) {
-			try {
-				hook(item, $sidebar, this);
-			} catch (err) {
-				console.warn("Search highlight hook error:", err);
-			}
-		}
-	}
-
-	//// Neoffice — 417d4f52cf: upstream's awesomplete-select handler (route_options, onclick, ctrl /
-	//// meta → new tab, https routes) + analytics click tracking (dba8b1fd89).
-	// ── Select / navigate ──────────────────────────────────
-	_select_item(item, e) {
-		if (item.route_options) {
-			frappe.route_options = item.route_options;
-		}
-
-		// Track click in analytics
-		if (item.doctype && item.route) {
-			this.analytics.track_click(
-				item.doctype,
-				item.route[2] || item.label,
-				item._title || item.label
-			);
-		} else if (item.route && item.route[0] === "Form") {
-			this.analytics.track_click(
-				item.route[1],
-				item.route[2],
-				item.label
-			);
-		}
-
-		//// Neoffice — tell the apps what was opened: its rank and how long after the first key
-		//// (maintenance#822, search R6). neoffice_theme measures it - never the typed text.
-		const rank = this._all_items.findIndex((x) => x.data === item);
-		const elapsed = this._started ? Date.now() - this._started : null;
-		for (const hook of frappe.search.AwesomeBar.on_select) {
-			try {
-				hook(item, { rank, elapsed, txt: this._current_txt });
-			} catch (err) {
-				console.warn("Search select hook error:", err);
-			}
-		}
-
-		if (item.onclick) {
-			//// Neoffice — the event too: a place opens in a new browser tab on Ctrl / Cmd (#822).
-			item.onclick(item.match, e);
-		} else if (item.route) {
-			if (e && (e.ctrlKey || e.metaKey)) {
-				frappe.open_in_new_tab = true;
-			}
-			if (item.route[0] && item.route[0].startsWith("https://")) {
-				window.open(item.route[0], "_blank");
-			} else {
-				frappe.set_route(item.route);
-			}
-		}
-
-		this._close();
-	}
-
-	//// Neoffice — 417d4f52cf / dba8b1fd89; request-id invalidation (6645876a0b, cfaa702efe), search
-	//// help cache cleared (e72cb6ad20), on_close host hook for the cockpit overlay (a3a2b04ebd).
-	// ── Close panel ────────────────────────────────────────
-	_close() {
-		// Invalidate every in-flight async search: a late response must not
-		// reopen the panel after navigation (the input may be hidden by then,
-		// so the panel would reposition against a 0×0 rect at top-left).
-		this._search_id++;
-		this._search_pending = false;
-		//// Neoffice — 31.10: nor do the server searches still waiting for a pause leave (_schedule_server_searches).
-		this._drop_server_searches();
-		this._current_txt = "";
-		//// Neoffice — see the block marker above: reset the first-key timer (#822, search R6)
-		this._started = null;
-		frappe.search.AwesomeBar._resolve_request_id++;
-		frappe.search.AwesomeBar._amount_search_id++;
-		frappe.search.AwesomeBar._drive_search_id++;
-		frappe.search.AwesomeBar._calendar_search_id++;
-		this.$panel.removeClass("active");
-		setTimeout(() => {
-			if (!this.$panel.hasClass("active")) {
-				//// Neoffice — the answering bar's nodes (.neo-persist: its answer, its conversation with Nora)
-				//// are detached, not destroyed, as a re-render does (_empty_panel): jQuery's .empty() dropped
-				//// the events of a conversation still waiting for its reply (the bar that answers, M4).
-				this._empty_panel();
-			}
-		}, 200);
-		this.$input.val("");
-		this._all_items = [];
-		this._selected = -1;
-		this._help_search_cache = null; // Clear search-specific help cache
-		// host hook (NeoCockpit centered overlay hides its shell here)
-		if (this.on_close) this.on_close();
-		//// Neoffice — the hooks of close_hooks are told (the answering bar leaves its conversation mode, M4).
-		for (const hook of frappe.search.AwesomeBar.close_hooks) {
-			try {
-				hook(this);
-			} catch (e) {
-				console.error("awesome bar close hook failed", e);
-			}
-		}
-	}
-
-	//// Neoffice — upstream deduplicate(), renamed by 417d4f52cf and only reformatted; the public
-	//// deduplicate() at the end of the class is kept as a compat alias.
-	// ── Deduplication ──────────────────────────────────────
-	_deduplicate(options) {
+	deduplicate(options) {
 		var out = [],
 			routes = [];
 		options.forEach(function (option) {
@@ -1498,11 +245,9 @@ frappe.search.AwesomeBar = class AwesomeBar {
 				) {
 					option.route.splice(2);
 				}
-				//// Neoffice — upstream's test, line-wrapped (417d4f52cf); the blank line above it dropped.
+
 				var str_route =
-					typeof option.route === "string"
-						? option.route
-						: option.route.join("/");
+					typeof option.route === "string" ? option.route : option.route.join("/");
 				if (routes.indexOf(str_route) === -1) {
 					out.push(option);
 					routes.push(str_route);
@@ -1520,66 +265,76 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		return out;
 	}
 
-	//// Neoffice — upstream make_calculator evaluated anything starting with a digit, "(" or "="; ours
-	//// only real math expressions (f131a66b4a, 2026-04-07 — a plain number is an amount search). Same
-	//// eval + msgprint otherwise. Upstream's make_global_search ("Search for X" option) is gone: the
-	//// panel footer plays that role.
-	// ── Calculator ─────────────────────────────────────────
-	_make_calculator(txt) {
-		// Only trigger for actual math expressions (must contain an operator)
-		// Plain numbers like "12.00" are amount searches, not calculations
-		if (!this._is_math_expression(txt)) return;
-
-		//// Neoffice — upstream strips "=" from `txt` itself; ours works on a copy (f131a66b4a), then the
-		//// same eval + msgprint, one level less indented (no enclosing first-character test).
-		let expr = txt;
-		if (expr.charAt(0) === "=") {
-			expr = expr.substr(1);
-		}
-		try {
-			var val = eval(expr);
-			var formatted_value = __("{0} = {1}", [
-				frappe.utils.xss_sanitise(expr),
-				(val + "").bold(),
-			]);
-			this.options.push({
-				label: formatted_value,
-				value: __("{0} = {1}", [frappe.utils.xss_sanitise(expr), val]),
-				match: val,
-				index: 80,
-				default: "Calculator",
-				onclick: function () {
-					frappe.msgprint(formatted_value, __("Result"));
-				},
-			});
-		} catch (e) {
-			// pass
-		}
+	set_global_results(global_results, txt) {
+		this.global_results = this.global_results.concat(global_results);
 	}
 
-	//// Neoffice — upstream make_random, renamed; default: "Calculator" added so it renders in the
-	//// Calculator section (417d4f52cf).
-	// ── Random password ────────────────────────────────────
-	_make_random(txt) {
-		if (txt.toLowerCase().includes("random")) {
-			this.options.push({
-				label: __("Generate Random Password"),
-				value: frappe.utils.get_random(16),
-				default: "Calculator",
-				onclick: function () {
-					frappe.msgprint(frappe.utils.get_random(16), __("Result"));
-				},
-			});
-		}
+	fetch_hook_results(txt, seq) {
+		frappe.call({
+			method: "frappe.desk.search.awesomebar_search",
+			args: { txt },
+			callback: (r) => {
+				if (seq !== this._hook_search_seq || !r.message?.length) return;
+				this.options = this.deduplicate(this.options.concat(r.message));
+				this.options.sort((a, b) => b.index - a.index);
+				this.awesomplete.list = this.options;
+			},
+		});
 	}
 
-	//// Neoffice — upstream make_search_in_current, renamed and reformatted (417d4f52cf); NOT called
-	//// since 69a0372263 (2026-04-07 "remove broken Quick Actions (Find X in Y)") — dead code kept for
-	//// compat. TO REVIEW at the merge: drop it or wire it back.
-	// ── Search in current list ─────────────────────────────
-	_make_search_in_current(txt) {
+	make_global_search(txt) {
+		// let search_text = $(this.awesomplete.ul).find('.search-text');
+
+		// if (txt.charAt(0) === "#" || !txt) {
+		// 	search_text && search_text.remove();
+		// 	return;
+		// }
+
+		// if (!search_text.length) {
+		// 	search_text = $(this.awesomplete.ul).prepend(`
+		// 		<div class="search-text">
+		// 			<span class="search-text"></span>
+		// 		<div>`
+		// 	).find(".search-text");
+		// }
+
+		// search_text.html(`
+		// 	<span class="flex justify-between">
+		// 		<span class="ellipsis">Search for ${frappe.utils.xss_sanitise(txt).bold()}</span>
+		// 		<kbd>↵</kbd>
+		// 	</span>
+		// `);
+
+		// search_text.click(() => {
+		// 	frappe.searchdialog.search.init_search(txt, "global_search");
+		// });
+
+		// REDESIGN TODO: Remove this as a selectable option
+		if (txt.charAt(0) === "#") {
+			return;
+		}
+
+		this.options.push({
+			label: `
+				<span class="flex justify-between text-medium">
+					<span class="ellipsis">${__("Search for {0}", [frappe.utils.xss_sanitise(txt).bold()])}</span>
+					<kbd>↵</kbd>
+				</span>
+			`,
+			value: __("Search for {0}", [frappe.utils.xss_sanitise(txt)]),
+			match: txt,
+			index: 100,
+			default: "Search",
+			onclick: function () {
+				frappe.searchdialog.search.init_search(txt, "global_search");
+			},
+		});
+	}
+
+	make_search_in_current(txt) {
 		var route = frappe.get_route();
 		if (route[0] === "List" && txt.indexOf(" in") === -1) {
+			// search in title field
 			const doctype = frappe.container.page?.list_view?.doctype;
 			if (!doctype) return;
 			var meta = frappe.get_meta(doctype);
@@ -1591,11 +346,7 @@ frappe.search.AwesomeBar = class AwesomeBar {
 					frappe.utils.xss_sanitise(txt).bold(),
 					__(route[1]).bold(),
 				]),
-				//// Neoffice — upstream's value, line-wrapped (417d4f52cf).
-				value: __("Find {0} in {1}", [
-					frappe.utils.xss_sanitise(txt),
-					__(route[1]),
-				]),
+				value: __("Find {0} in {1}", [frappe.utils.xss_sanitise(txt), __(route[1])]),
 				route_options: options,
 				onclick: function () {
 					cur_list.show();
@@ -1607,438 +358,82 @@ frappe.search.AwesomeBar = class AwesomeBar {
 		}
 	}
 
-	//// Neoffice — DocType action block, down to _load_help_for_doctype: 8822b0ef36 (2026-04-05, EN +
-	//// translated names), 2fb7b98d18 (single "View all" first), 6077ad4203 (2026-06-15 prefix scoring,
-	//// all-words fallback, threshold 50), f9980ea85c ("Create <DocType>" → frappe.new_doc / Quick
-	//// Entry, FR + EN verbs), b73d9fe958 (recent records via frappe.client.get_list), 8622b76fa3 /
-	//// e72cb6ad20 (help for the searched DocType).
-	// ── DocType action (type "devis"/"article"/"item" → "View all") ──
-	// Best readable DocType matching `txt` (EN name + translated name).
-	// Prefixes score high regardless of name length, so typing the start of a
-	// DocType name (e.g. "scan de" → "Scan de document") matches it.
-	_best_doctype_match(txt) {
-		const txt_lower = (txt || "").toLowerCase().trim();
-		if (txt_lower.length < 3) return null;
-		const txt_words = txt_lower.split(/\s+/).filter((w) => w.length > 1);
-		let best_match = null;
-		let best_score = 0;
-
-		for (const dt of frappe.boot.user.can_read || []) {
-			if (frappe.boot.single_types && frappe.boot.single_types.includes(dt)) continue;
-
-			const en = dt.toLowerCase();
-			const tr = __(dt).toLowerCase();
-			let score = 0;
-
-			if (en === txt_lower || tr === txt_lower) {
-				score = 100;
-			} else if (en.startsWith(txt_lower) || tr.startsWith(txt_lower)) {
-				// Prefix — strong; small bonus for shorter (more specific) names
-				const name = en.startsWith(txt_lower) ? en : tr;
-				score = 80 + (txt_lower.length / name.length) * 15;
-			} else if (en.includes(txt_lower) || tr.includes(txt_lower)) {
-				score = 58;
-			} else if (txt_words.length > 1 && txt_words.every((w) => en.includes(w) || tr.includes(w))) {
-				// All words present in any order — e.g. "scan document" → "Document Scan"
-				score = 55;
+	make_calculator(txt) {
+		var first = txt.substr(0, 1);
+		if (first == parseInt(first) || first === "(" || first === "=") {
+			if (first === "=") {
+				txt = txt.substr(1);
 			}
-
-			//// Neoffice — see the DocType action block marker above: the best score wins (8822b0ef36), an
-			//// exact name stops the scan (6077ad4203).
-			if (score > best_score) { best_match = dt; best_score = score; }
-			if (best_score === 100) break;
-		}
-
-		//// Neoffice — threshold 50 (6077ad4203): below it no DocType action is offered.
-		return best_score >= 50 ? best_match : null;
-	}
-
-	//// Neoffice — added (f9980ea85c 2026-06-15 "'Create X' action opens the Quick Entry"): a create verb
-	//// (FR + EN) followed by a DocType name offers "Create <DocType>" when the user may create it.
-	// ── Create action (type "créer client" / "new customer" → Quick Entry) ──
-	_make_create_action(txt) {
-		if (!txt || txt.length < 5) return;
-		const txt_lower = txt.toLowerCase().trim();
-		// "create"/"new" verb prefixes (FR + EN); the rest is the DocType name
-		const verbs = ["créer ", "creer ", "create ", "new ", "nouveau ", "nouvelle ", "ajouter ", "add "];
-		let rest = null;
-		for (const v of verbs) {
-			if (txt_lower.startsWith(v)) { rest = txt_lower.slice(v.length).trim(); break; }
-		}
-		//// Neoffice — see the _make_create_action marker above (f9980ea85c).
-		if (!rest || rest.length < 2) return;
-
-		const doctype = this._best_doctype_match(rest);
-		if (!doctype) return;
-		// Only when the user can actually create this DocType
-		if (frappe.model.can_create && !frappe.model.can_create(doctype)) return;
-
-		const translated = __(doctype);
-		this.options.push({
-			label: __("Create {0}", [translated]),
-			value: __("Create {0}", [translated]),
-			index: 260, // above "View all"
-			default: "CreateAction",
-			onclick: function () {
-				// new_doc opens the Quick Entry dialog when the DocType has one,
-				// otherwise the full form in new mode.
-				frappe.new_doc(doctype);
-			},
-		});
-	}
-
-	//// Neoffice — added: "View all <DocType>" first in the panel (8822b0ef36 / 2fb7b98d18). The diff
-	//// pairs this with the end of upstream's class and its route helpers (first_route, is_in_app_path…),
-	//// which this file does not carry; see the file header.
-	_make_doctype_action(txt) {
-		const doctype = this._best_doctype_match(txt);
-		if (!doctype) return;
-		const translated = __(doctype);
-		// Single prominent action — always first
-		this.options.push({
-			//// Neoffice — the doctype as the context: « Voir toutes les relances », not « Voir tous les Relance »
-			//// (translate.js, maintenance#2161).
-			label: __("View all {0}", [translated], doctype),
-			value: __("View all {0}", [translated], doctype),
-			route: ["List", doctype],
-			index: 250,
-			default: "DocTypeAction",
-		});
-
-		//// Neoffice — help for the searched DocType (8622b76fa3 2026-04-05).
-		// Load help context for the MATCHED DocType (not just the current page)
-		this._load_help_for_doctype(doctype);
-
-		//// Neoffice — recent records of the matched DocType (b73d9fe958 2026-06-15).
-		// Load recent records of the matched DocType so the user sees actual
-		// entries (e.g. typing "document scan" surfaces the latest Document Scans)
-		this._load_doctype_records(doctype);
-	}
-
-	//// Neoffice — added (b73d9fe958 2026-06-15): the five latest records of the matched DocType, fetched
-	//// once per DocType, the panel re-rendered when they arrive.
-	// ── Load recent records of the matched DocType ─────────
-	_load_doctype_records(doctype) {
-		// Skip if already loading or already loaded for this DocType
-		if (this._dt_records_loading === doctype) return;
-		if (this._dt_records && this._dt_records._doctype === doctype) return;
-		this._dt_records_loading = doctype;
-		frappe.call({
-			method: "frappe.client.get_list",
-			args: {
-				doctype: doctype,
-				fields: ["name"],
-				limit_page_length: 5,
-				order_by: "modified desc",
-			},
-			callback: (r) => {
-				this._dt_records_loading = null;
-				this._dt_records = {
-					_doctype: doctype,
-					records: (r.message || []).map((d) => d.name),
-				};
-				// Re-render if the panel is still open on the same query
-				if (this.$panel.hasClass("active") && this._current_txt) {
-					this._render(this._current_txt);
-				}
-			},
-			error: () => {
-				this._dt_records_loading = null;
-			},
-		});
-	}
-
-	//// Neoffice — added (8622b76fa3, own cache e72cb6ad20 2026-04-05): help for the searched DocType,
-	//// through neoffice_theme.api.get_help_context (call caught: optional app).
-	// ── Load help for a specific DocType (used by DocType action) ──
-	// ── Load help for SEARCHED DocType (left column) ──────
-	_load_help_for_doctype(doctype) {
-		if (!doctype) return;
-		if (this._help_search_cache && this._help_search_cache._doctype === doctype) return;
-
-		frappe.xcall("neoffice_theme.api.get_help_context", { doctype })
-			.then((data) => {
-				if (!data) return;
-				this._help_search_cache = { _doctype: doctype, ...data };
-				if (this.$panel.hasClass("active") && this._current_txt) {
-					this._render(this._current_txt);
-				}
-			})
-			.catch(() => {});
-	}
-
-	//// Neoffice — b6f135ea30 (2026-04-02 "Go to" entries from frappe.desk.search.resolve_document,
-	//// request-id guarded), numeric / partial ids (2ce8e161a9), stale guard (6645876a0b).
-	// ── Direct document navigation ─────────────────────────
-	_make_document_link(txt) {
-		// Trigger for document IDs: 3+ chars, no spaces, not a pure math expression
-		if (!txt || txt.length < 3 || /\s/.test(txt) || this._is_math_expression(txt)) {
-			return;
-		}
-
-		//// Neoffice — see the _make_document_link marker above (b6f135ea30, 6645876a0b).
-		const me = this;
-		const request_id = ++frappe.search.AwesomeBar._resolve_request_id;
-
-		frappe.xcall("frappe.desk.search.resolve_document", { name: txt }).then(
-			(results) => {
-				if (request_id !== frappe.search.AwesomeBar._resolve_request_id) return;
-				if (!results || !results.length) return;
-				// Panel closed or query changed while the request was in flight
-				if (!me.$panel.hasClass("active") || me._current_txt !== txt) return;
-
-				results.forEach((r) => {
-					const display_name =
-						r.title && r.title !== r.name
-							? `${r.title} (${r.name})`
-							: r.name;
-					me.options.push({
-						label: display_name,
-						value: display_name,
-						description: __(r.doctype),
-						route: ["Form", r.doctype, r.name],
-						index: 200,
-						match: r.name,
-					});
+			try {
+				var val = eval(txt);
+				var formatted_value = __("{0} = {1}", [
+					frappe.utils.xss_sanitise(txt),
+					(val + "").bold(),
+				]);
+				this.options.push({
+					label: formatted_value,
+					value: __("{0} = {1}", [frappe.utils.xss_sanitise(txt), val]),
+					match: val,
+					index: 80,
+					default: "Calculator",
+					onclick: function () {
+						frappe.msgprint(formatted_value, __("Result"));
+					},
 				});
-
-				me._render(me._current_txt);
+			} catch (e) {
+				// pass
 			}
-		);
-	}
-
-	//// Neoffice — f131a66b4a (2026-04-07): frappe.desk.search.search_by_amount (grand_total /
-	//// total_amount across invoices, orders, quotations, payments, Document Scan), dot or comma
-	//// decimals; stale guard 6645876a0b.
-	// ── Amount search (12.00 or 12,00 → find invoices/orders) ──
-	_make_amount_search(txt) {
-		if (!txt) return;
-		// Detect amount pattern: digits with optional dot/comma decimal
-		// Must look like a number, not a document ID
-		const normalized = txt.replace(",", ".");
-		if (!/^\d+(\.\d{1,2})?$/.test(normalized)) return;
-		const amount = parseFloat(normalized);
-		if (isNaN(amount) || amount <= 0) return;
-
-		const me = this;
-		const search_id = ++frappe.search.AwesomeBar._amount_search_id;
-
-		frappe.xcall("frappe.desk.search.search_by_amount", { amount: txt }).then(
-			(results) => {
-				if (search_id !== frappe.search.AwesomeBar._amount_search_id) return;
-				if (!results || !results.length) return;
-				// Panel closed or query changed while the request was in flight
-				if (!me.$panel.hasClass("active") || me._current_txt !== txt) return;
-
-				// Group by doctype
-				const grouped = {};
-				results.forEach((r) => {
-					if (!grouped[r.doctype]) grouped[r.doctype] = [];
-					grouped[r.doctype].push(r);
-				});
-
-				// Add to options with high priority
-				for (const [doctype, docs] of Object.entries(grouped)) {
-					docs.forEach((d) => {
-						const display = d.title ? `${d.title} (${d.name})` : d.name;
-						me.options.push({
-							label: display,
-							description: `${__(doctype)} · ${frappe.format(d.amount, { fieldtype: "Currency" })}`,
-							route: ["Form", doctype, d.name],
-							doctype: doctype,
-							index: 195,
-							default: "AmountMatch",
-						});
-					});
-				}
-
-				me._render(me._current_txt);
-			}
-		);
-	}
-
-	//// Neoffice — cfaa702efe (2026-07-07), from here down to _render_upcoming_into: Suite drive files,
-	//// calendar events and upcoming appointments via neoffice_theme.api.search_drive_files /
-	//// search_calendar_events / get_upcoming_events (calls caught — optional app); 60 s client memo
-	//// for the appointments (d3e8df1362).
-	// ── Drive file search (Suite drive, name match) ────────
-	_make_drive_search(txt) {
-		if (!txt || txt.length < 3) return;
-
-		const me = this;
-		const search_id = ++frappe.search.AwesomeBar._drive_search_id;
-
-		frappe
-			.xcall("neoffice_theme.api.search_drive_files", { query: txt })
-			.then((results) => {
-				if (search_id !== frappe.search.AwesomeBar._drive_search_id) return;
-				if (!results || !results.length) return;
-				// Panel closed or query changed while the request was in flight
-				if (!me.$panel.hasClass("active") || me._current_txt !== txt) return;
-
-				results.forEach((r) => {
-					const route = r.route;
-					me.options.push({
-						label: r.file_name || r.name,
-						description: r.file_type
-							? __(r.file_type)
-							: __("Drive"),
-						index: 120,
-						default: "DriveFile",
-						onclick: () => {
-							window.location.assign(route);
-						},
-					});
-				});
-
-				me._render(me._current_txt);
-			})
-			.catch(() => {});
-	}
-
-	// ── Calendar event search (Suite calendar via JMAP) ────
-	_format_event_when(ev) {
-		if (!ev.start) return "";
-		const m = moment(ev.start);
-		const day = m.format("ddd D MMM YYYY");
-		return ev.show_without_time ? day : `${day} · ${m.format("HH:mm")}`;
-	}
-
-	_make_calendar_search(txt) {
-		if (!txt || txt.length < 3) return;
-
-		const me = this;
-		const search_id = ++frappe.search.AwesomeBar._calendar_search_id;
-
-		frappe
-			.xcall("neoffice_theme.api.search_calendar_events", { query: txt })
-			.then((results) => {
-				if (search_id !== frappe.search.AwesomeBar._calendar_search_id) return;
-				if (!results || !results.length) return;
-				// Panel closed or query changed while the request was in flight
-				if (!me.$panel.hasClass("active") || me._current_txt !== txt) return;
-
-				results.forEach((ev) => {
-					const parts = [me._format_event_when(ev)];
-					if (ev.location) parts.push(ev.location);
-					if (ev.calendar) parts.push(ev.calendar);
-					const route = ev.route;
-					me.options.push({
-						label: ev.title || __("Untitled event"),
-						description: parts.filter(Boolean).join(" · "),
-						index: 121,
-						default: "CalendarEvent",
-						onclick: () => {
-							window.location.assign(route);
-						},
-					});
-				});
-
-				me._render(me._current_txt);
-			})
-			.catch(() => {});
-	}
-
-	// ── Upcoming appointments (Suite calendar) for the panel ──
-	//// Neoffice — added method (no upstream equivalent): the next appointments of the Suite calendar, asked of
-	//// neoffice_theme.api.get_upcoming_events and drawn in the panel's home; a one-minute client memo.
-	_load_upcoming_events() {
-		if (this._upcoming_events_loading) return;
-		// Client memo with a short TTL — an empty answer must not stick for the
-		// whole page lifetime (the user may create an appointment meanwhile)
-		if (
-			this._upcoming_events !== undefined &&
-			Date.now() - (this._upcoming_events_ts || 0) < 60000
-		) {
-			return;
 		}
-		//// Neoffice — part of the added method above (the request to the theme's endpoint).
-		this._upcoming_events_loading = true;
+	}
 
-		frappe
-			.xcall("neoffice_theme.api.get_upcoming_events", {})
-			.then((events) => {
-				this._upcoming_events_loading = false;
-				this._upcoming_events_ts = Date.now();
-				this._upcoming_events = events || [];
-				if (!this._upcoming_events.length) return;
-				// Refresh the open panel so the section appears
-				if (this.$panel.hasClass("active")) {
-					if (this._current_txt) {
-						this._render(this._current_txt);
-					} else {
-						this._show_home();
-					}
-				}
-			})
-			.catch(() => {
-				this._upcoming_events_loading = false;
-				this._upcoming_events_ts = Date.now();
-				this._upcoming_events = [];
+	make_random(txt) {
+		if (txt.toLowerCase().includes("random")) {
+			this.options.push({
+				label: __("Generate Random Password"),
+				value: frappe.utils.get_random(16),
+				onclick: function () {
+					frappe.msgprint(frappe.utils.get_random(16), __("Result"));
+				},
 			});
-	}
-
-	_render_upcoming_into($sidebar, with_spacer) {
-		const events = this._upcoming_events || [];
-		if (!events.length) return false;
-
-		$sidebar.append(
-			`<div class="search-section-header${
-				with_spacer ? " sidebar-section-spacer" : ""
-			}">${__("Upcoming appointments")}</div>`
-		);
-		events.slice(0, 5).forEach((ev) => {
-			const route = ev.route;
-			const $item = $(
-				`<div class="search-sidebar-item">
-					<a href="#">
-						<span class="sidebar-item-label">${frappe.utils.xss_sanitise(ev.title || __("Untitled event"))}</span>
-						<span class="sidebar-item-type">${this._format_event_when(ev)}</span>
-					</a>
-				</div>`
-			);
-			$item.find("a").on("click", (e) => {
-				e.preventDefault();
-				this._close();
-				window.location.assign(route);
-			});
-			$sidebar.append($item);
-		});
-		return true;
-	}
-
-	// Legacy compat
-	deduplicate(options) {
-		return this._deduplicate(options);
+		}
 	}
 };
 
-//// Neoffice — module-level state: custom_providers extension point (b6f135ea30 — apps register
-//// search sources, e.g. neoffice_theme awesome_bar_docs.js) and the request-id counters used to
-//// discard stale responses (b6f135ea30, f131a66b4a, cfaa702efe).
-// Extension point for custom search providers
-frappe.search.AwesomeBar.custom_providers = [];
-//// Neoffice — maintenance#822 (search R1 / R6): the palettes of the page, re-drawn by refresh() when
-//// a provider's data arrives late, and the hooks told what the reader opened.
-frappe.search.AwesomeBar._instances = [];
-frappe.search.AwesomeBar.on_select = [];
-frappe.search.AwesomeBar.on_highlight = [];
-//// Neoffice — render hooks: see the marker on _run_render_hooks().
-frappe.search.AwesomeBar.render_hooks = [];
-//// Neoffice — close hooks: hook(bar) when a palette closes (see _close()).
-frappe.search.AwesomeBar.close_hooks = [];
-//// Neoffice — placement hooks: hook(bar) === true when it placed the panel (see _position_panel()).
-frappe.search.AwesomeBar.place_hooks = [];
-frappe.search.AwesomeBar.refresh = function () {
-	for (const bar of frappe.search.AwesomeBar._instances) {
-		bar._refresh_providers();
-	}
-};
+function first_route(route) {
+	return Array.isArray(route) ? route[0] : route;
+}
 
-// Internal counter for discarding stale resolve_document responses
-frappe.search.AwesomeBar._resolve_request_id = 0;
-frappe.search.AwesomeBar._amount_search_id = 0;
-frappe.search.AwesomeBar._drive_search_id = 0;
-frappe.search.AwesomeBar._calendar_search_id = 0;
-//// Neoffice ▲▲▲ Awesome Bar V2 (END OF NEOFFICE BLOCK)
-////////////////////////////////////////////////////////////////////////
+function is_external_url(route) {
+	const first = first_route(route);
+	return (
+		typeof first === "string" && (first.startsWith("https://") || first.startsWith("http://"))
+	);
+}
+
+function is_in_app_path(route) {
+	const first = first_route(route);
+	return typeof first === "string" && first.startsWith("/") && !first.startsWith("//");
+}
+
+function is_desk_path(path) {
+	const pathname = path.split(/[?#]/)[0];
+	return (
+		pathname === "/desk" ||
+		pathname.startsWith("/desk/") ||
+		pathname === "/app" ||
+		pathname.startsWith("/app/")
+	);
+}
+
+function navigate_in_app_path(path, event) {
+	if (is_desk_path(path)) {
+		if (event.ctrlKey || event.metaKey) {
+			frappe.open_in_new_tab = true;
+		}
+		frappe.set_route(path);
+	} else if (event.ctrlKey || event.metaKey) {
+		window.open(path, "_blank");
+	} else {
+		window.location.href = path;
+	}
+}

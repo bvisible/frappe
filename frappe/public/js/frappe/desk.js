@@ -431,7 +431,7 @@ frappe.Application = class Application {
 					  }
 					: undefined,
 			});
-			this.setup_cockpit_awesomebar();
+			//// Neoffice — the palette (setup_cockpit_awesomebar) is set up by the theme at app_ready (search_model.js)
 			this.setup_cockpit_notifications();
 			if (has_synk) this.setup_cockpit_synk();
 		};
@@ -631,107 +631,7 @@ frappe.Application = class Application {
 		$(document).off("page-change.cockpit-notif");
 	}
 
-	setup_cockpit_awesomebar() {
-		// Drive-like centered search: the cockpit inputs are pure TRIGGERS; the
-		// real Awesome Bar input lives in a centered overlay (backdrop + pill),
-		// and the mega-panel anchors under it via the existing positioning.
-		if (!frappe.boot.desk_settings.search_bar) return;
-
-		// `search-bar` class keeps the box whitelisted by the Awesome Bar's
-		// outside-click close handler.
-		const $shell = $(`
-			<div class="cockpit-search-overlay" style="display: none;">
-				<div class="cockpit-search-box search-bar">
-					<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-						stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-						<circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>
-					</svg>
-					<input type="text" class="cockpit-search-field"
-						placeholder="${__("Search or type a command")}" />
-					<button type="button" class="cockpit-search-nora" title="${__("Ask Nora")}" tabindex="-1">
-						<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.94 14.66A2 2 0 0 0 8.5 13.2l-5.4-1.4a.5.5 0 0 1 0-1l5.4-1.4A2 2 0 0 0 9.94 8L11.34 2.6a.5.5 0 0 1 1 0L13.74 8a2 2 0 0 0 1.44 1.44l5.4 1.4a.5.5 0 0 1 0 1l-5.4 1.4a2 2 0 0 0-1.44 1.44l-1.4 5.4a.5.5 0 0 1-1 0z"></path><path d="M20 3v4"></path><path d="M22 5h-4"></path></svg>
-					</button>
-				</div>
-			</div>
-		`);
-		$("body").append($shell);
-		const field = $shell.find(".cockpit-search-field").get(0);
-
-		const awesome_bar = new frappe.search.AwesomeBar();
-		awesome_bar.setup(field);
-		awesome_bar.on_close = () => $shell.css("display", "none");
-
-		// "Ask Nora" button inside the search box → opens the Quick Chat with the query
-		const $nora_btn = $shell.find(".cockpit-search-nora");
-		if (!(frappe.ui.NoraQuickChat && frappe.ui.NoraQuickChat.ask)) {
-			$nora_btn.remove();
-		} else {
-			$nora_btn.on("mousedown", (e) => e.preventDefault());
-			$nora_btn.on("click", (e) => {
-				e.preventDefault();
-				e.stopPropagation();
-				const q = (field.value || "").trim();
-				$shell.css("display", "none");
-				if (awesome_bar._close) awesome_bar._close();
-				if (q) frappe.ui.NoraQuickChat.ask(q);
-				else frappe.ui.NoraQuickChat.show();
-			});
-		}
-		frappe.search.utils.make_function_searchable(
-			frappe.utils.generate_tracking_url,
-			__("Generate Tracking URL")
-		);
-
-		const open = () => {
-			$shell.css("display", "flex");
-			field.focus();
-			// belt: re-assert after the browser settles default focus handling
-			requestAnimationFrame(() => field.focus());
-		};
-		//// Neoffice — the page may open this palette: the answering bar holds the conversation with Nora
-		//// (M4), and frappe.ui.NoraQuickChat.show() / ask() open it here when the bar is on.
-		frappe.search.open_palette = open;
-
-		// Cmd/Ctrl+G opens the overlay directly (the cockpit input doesn't
-		// exist in the collapsed rail, so focusing it can't be the only path).
-		document.addEventListener("keydown", (e) => {
-			if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "g") {
-				e.preventDefault();
-				open();
-			}
-		});
-
-		// cockpit search boxes (desktop sidebar, drawer, mobile strip) appear
-		// after the React render — poll briefly, then turn them into overlay
-		// triggers. Bound on the CONTAINER so the collapsed rail (icon only,
-		// no input) opens the overlay too.
-		let tries = 0;
-		const wire = () => {
-			const boxes = document.querySelectorAll(".neocockpit .nc-search");
-			if (!boxes.length) {
-				if (tries++ < 60) setTimeout(wire, 50);
-				return;
-			}
-			boxes.forEach((box) => {
-				// mousedown + preventDefault: the trigger never takes focus, so
-				// there is no focus/blur race with the overlay field.
-				box.addEventListener("mousedown", (e) => {
-					e.preventDefault();
-					open();
-				});
-				const input = box.querySelector("input");
-				if (input) {
-					input.readOnly = true; // no inline typing, no mobile keyboard flash
-					// keyboard path (Tab / the cockpit's Cmd+G handler focuses it)
-					input.addEventListener("focus", () => {
-						input.blur();
-						open();
-					});
-				}
-			});
-		};
-		wire();
-	}
+	//// Neoffice — setup_cockpit_awesomebar (the cockpit's palette) is the theme's since 24.11.2026 (search_model.js, #3262).
 	// //// END NEOFFICE PATCH
 
 	make_nav_bar() {
