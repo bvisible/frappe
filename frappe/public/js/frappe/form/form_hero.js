@@ -399,7 +399,9 @@ const HERO_REGISTRY = {
 			// date of the invoice. tx.status("Paid") / doc.modified are technical
 			// timestamps that drift (doc.modified advances on any later edit), so
 			// a POS invoice born paid ended up showing its last-touched date.
-			{ label: __("Paid"), when: doc.posting_date || tx.status("Paid") || (doc.status === "Paid" ? doc.modified : null) },
+			//// Neoffice — only once it is paid: a step that has a date is drawn done (neoffice-maintenance#2934), and the posting
+			//// date is there from the first minute, so every draft and every unpaid invoice showed « Paid » checked (#3310).
+			{ label: __("Paid"), when: doc.status === "Paid" ? doc.posting_date || tx.status("Paid") || doc.modified : null },
 		],
 		rank(doc) {
 			if (doc.docstatus === 2 || doc.status === "Cancelled") return -1;
@@ -424,7 +426,9 @@ const HERO_REGISTRY = {
 			// date of the invoice. tx.status("Paid") / doc.modified are technical
 			// timestamps that drift (doc.modified advances on any later edit), so
 			// a POS invoice born paid ended up showing its last-touched date.
-			{ label: __("Paid"), when: doc.posting_date || tx.status("Paid") || (doc.status === "Paid" ? doc.modified : null) },
+			//// Neoffice — only once it is paid: a step that has a date is drawn done (neoffice-maintenance#2934), and the posting
+			//// date is there from the first minute, so every draft and every unpaid invoice showed « Paid » checked (#3310).
+			{ label: __("Paid"), when: doc.status === "Paid" ? doc.posting_date || tx.status("Paid") || doc.modified : null },
 		],
 		rank(doc) {
 			if (doc.docstatus === 2 || doc.status === "Cancelled") return -1;
