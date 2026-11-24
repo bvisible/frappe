@@ -270,29 +270,26 @@ def get_default_path(apps=None):
 
 
 # //// Neoffice — added (no upstream equivalent), for get_default_path() above: the page of its own an application declares
-# //// (`add_to_apps_screen`), when the person may open it; never a desk route (those are the menu's), never for a portal
-# //// account, and never past the person's own list of applications or what the site has not bought, which rule the menu.
+# //// (`add_to_apps_screen`), when the person may open it. Never a desk route (those are the menu's), never for a portal
+# //// account, never what the site has not bought. An application the menu does hold is the menu's to say: a person it is
+# //// hidden from (their own list, a permission) does not start on it.
 def _route_of_an_app_out_of_the_menu(app_name):
 	if app_name not in frappe.get_installed_apps():
 		return None
 	user = frappe.session.user
-	if user != "Administrator":
-		if frappe.get_cached_value("User", user, "user_type") != "System User":
-			return None
-		visible = (
-			frappe.get_all("User Visible App", filters={"parent": user, "parenttype": "User"}, pluck="app")
-			if frappe.db.table_exists("User Visible App")
-			else []
-		)
-		if visible and app_name not in visible:
-			return None
-		try:
-			from neoffice_theme.app_visibility import gated_customizations_to_hide
+	if user != "Administrator" and frappe.get_cached_value("User", user, "user_type") != "System User":
+		return None
+	if frappe.db.table_exists("App Customization") and frappe.db.exists(
+		"App Customization", {"app_name": app_name, "enabled": 1}
+	):
+		return None
+	try:
+		from neoffice_theme.app_visibility import gated_customizations_to_hide
 
-			if app_name in gated_customizations_to_hide():
-				return None
-		except ImportError:
-			pass
+		if app_name in gated_customizations_to_hide():
+			return None
+	except ImportError:
+		pass
 	for detail in frappe.get_hooks("add_to_apps_screen", app_name=app_name):
 		route = detail.get("route") or ""
 		if not route.startswith("/") or _DESK_ROUTE.match(route):

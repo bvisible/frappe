@@ -17,8 +17,9 @@ MENU = [{"name": "selling", "route": "/app/selling"}, {"name": "accounting", "ro
 
 
 class TestTheAppAPersonStartsOn(FrappeTestCase):
-	def starts_on(self, default_app, screen, installed=("frappe", "crm"), visible=(), hidden=()):
-		real_hooks, real_value, real_all = frappe.get_hooks, frappe.db.get_value, frappe.get_all
+	def starts_on(self, default_app, screen, installed=("frappe", "crm"), in_the_menu=False, hidden=()):
+		real_hooks, real_value, real_exists = frappe.get_hooks, frappe.db.get_value, frappe.db.exists
+		real_table = frappe.db.table_exists
 
 		def hooks(hook=None, *args, **kwargs):
 			if hook == "add_to_apps_screen":
@@ -30,8 +31,13 @@ class TestTheAppAPersonStartsOn(FrappeTestCase):
 				return default_app
 			return real_value(*args, **kwargs)
 
-		def rows(doctype, *args, **kwargs):
-			return list(visible) if doctype == "User Visible App" else real_all(doctype, *args, **kwargs)
+		def exists(*args, **kwargs):
+			if args[:1] == ("App Customization",):
+				return "row" if in_the_menu else None
+			return real_exists(*args, **kwargs)
+
+		def table(doctype, *args, **kwargs):
+			return doctype == "App Customization" or real_table(doctype, *args, **kwargs)
 
 		modules = {"neoffice_theme.app_visibility": _Gate(hidden)}
 		if importlib.util.find_spec("neoffice_theme") is None:
@@ -39,7 +45,8 @@ class TestTheAppAPersonStartsOn(FrappeTestCase):
 		with (
 			patch.object(frappe, "get_hooks", side_effect=hooks),
 			patch.object(frappe.db, "get_value", side_effect=value),
-			patch.object(frappe, "get_all", side_effect=rows),
+			patch.object(frappe.db, "exists", side_effect=exists),
+			patch.object(frappe.db, "table_exists", side_effect=table),
 			patch.object(frappe, "get_installed_apps", return_value=list(installed)),
 			patch.dict("sys.modules", modules),
 		):
@@ -65,7 +72,8 @@ class TestTheAppAPersonStartsOn(FrappeTestCase):
 		]
 		with as_role("sales_user"):
 			self.assertIsNone(self.starts_on("crm", screen))
-			self.assertIsNone(self.starts_on("crm", [{"name": "crm", "route": "/crm"}], visible=["selling"]))
+			# It has a row in the menu, and the menu does not show it to this person
+			self.assertIsNone(self.starts_on("crm", [{"name": "crm", "route": "/crm"}], in_the_menu=True))
 			self.assertIsNone(self.starts_on("crm", [{"name": "crm", "route": "/crm"}], hidden=["crm"]))
 			self.assertIsNone(self.starts_on("crm", [{"name": "crm", "route": "/crm"}], installed=["frappe"]))
 
