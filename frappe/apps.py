@@ -277,6 +277,7 @@ def _route_of_an_app_out_of_the_menu(app_name):
 	if app_name not in frappe.get_installed_apps():
 		return None
 	user = frappe.session.user
+	# //// Neoffice — see the block marker above: only a desk/System User may start on a gated app (cc754d696d "fix(apps): an application the menu has no row for is not refused by a person's list of the menu")
 	if user != "Administrator" and frappe.get_cached_value("User", user, "user_type") != "System User":
 		return None
 	if frappe.db.table_exists("App Customization") and frappe.db.exists(
@@ -286,6 +287,7 @@ def _route_of_an_app_out_of_the_menu(app_name):
 	try:
 		from neoffice_theme.app_visibility import gated_customizations_to_hide
 
+		# //// Neoffice — see the block marker above: respect the theme's own app-visibility gate (cc754d696d "fix(apps): an application the menu has no row for is not refused by a person's list of the menu")
 		if app_name in gated_customizations_to_hide():
 			return None
 	except ImportError:
