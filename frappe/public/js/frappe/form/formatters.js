@@ -53,12 +53,7 @@ frappe.form.formatters = {
 		return __(frappe.form.formatters["Data"](value, df));
 	},
 	Select: function (value, df) {
-		//// Neoffice — the option is translated with the field's DocType as its context, the way the
-		//// editable control does it (ControlSelect passes df.context || df.parent). Upstream looked the
-		//// bare word up, so a list cell, a read-only field or a grid row not being edited showed another
-		//// app's French for the same English word while the dropdown showed ours. The lookup falls back
-		//// to the bare key when no entry carries the context, so nothing that translated before changes.
-		return __(frappe.form.formatters["Data"](value, df), null, df && (df.context || df.parent));
+		return __(frappe.form.formatters["Data"](value, df));
 	},
 	Float: function (value, docfield, options, doc) {
 		if (value === null) {
@@ -167,15 +162,6 @@ frappe.form.formatters = {
 		}
 	},
 	Check: function (value) {
-		//// Neoffice — added guard, plus cint() on the class below (002e653a72, 2025-11-26 "fix: Check
-		//// formatter returns empty for null/empty values in total row"): upstream always renders a checkbox,
-		//// so the totals row we append to the Report View (views/reports/report_view.js, styled by
-		//// scss/desk/frappe_datatable.scss) showed an unchecked box in every Check column. An empty value now
-		//// yields an empty cell, and cint() reads the "0" / "1" strings the datatable hands back as numbers.
-		// Return empty for total row (value is empty string or null/undefined)
-		if (value === "" || value === null || value === undefined) {
-			return "";
-		}
 		return `<input type="checkbox" disabled
 			class="disabled-${cint(value) ? "selected" : "deselected"}">`;
 	},

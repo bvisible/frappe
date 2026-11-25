@@ -168,31 +168,6 @@ frappe.ui.form.Layout = class Layout {
 					this.fields.splice(1, 0, newname_field);
 				}
 			}
-
-			//// Neoffice — the thing's « Overview » (« Aperçu ») at the top of the form's first tab, for each kind
-			//// neoffice_theme lists in the boot (neoffice_everything.overview; Daniel's screen 4, 28.10): its answer, its
-			//// figures and the linked documents that wait, drawn by the theme (public/js/everything_overview.js) in this
-			//// HTML field. A section above the tab's fields, not a tab of its own (Jérémy, 29.10: the form opens on
-			//// « Details », the overview first, the fields below). Upstream has none of it: without the theme's boot key
-			//// nothing changes. The theme hides the field, so its section, on a new document and on a draft to submit;
-			//// a form shown in a dialog never gets it.
-			if (!new_fields && this.neo_wants_overview()) {
-				const tab = this.fields.indexOf(first_tab || default_tab);
-				const next = this.fields[tab + 1];
-				const overview = [
-					{ fieldtype: "Section Break", fieldname: "__neo_overview" },
-					{ fieldtype: "HTML", fieldname: "__neo_overview_html" },
-				];
-				// the tab's own fields keep a section of their own, below the overview's
-				if (next && !["Section Break", "Tab Break"].includes(next.fieldtype)) {
-					overview.push({
-						fieldtype: "Section Break",
-						fieldname: "__neo_overview_after",
-					});
-				}
-				this.fields.splice(tab + 1, 0, ...overview);
-			}
-			//// END Neoffice
 		}
 
 		fields.forEach((df) => {
@@ -218,18 +193,6 @@ frappe.ui.form.Layout = class Layout {
 			}
 		});
 	}
-
-	//// Neoffice — the kinds whose form shows its « Overview » (see render): the page's form only, once.
-	neo_wants_overview() {
-		const kinds = frappe.boot?.neoffice_everything?.overview || [];
-		return (
-			!!this.frm &&
-			!this.frm.form_dialog_uid &&
-			kinds.includes(this.doctype) &&
-			!this.fields.some((df) => df.fieldname === "__neo_overview")
-		);
-	}
-	//// END Neoffice
 
 	no_opening_section() {
 		return (
@@ -467,28 +430,13 @@ frappe.ui.form.Layout = class Layout {
 	}
 
 	set_tab_as_active() {
-		//// Neoffice — set_tab_as_active rewritten (b807db2347, 2025-11-04 "fix: Corrections multiples pour
-		//// sidebar et navigation tabs"; comments translated to English by cc2f59a5a6 the same day). Upstream
-		//// trusts frm.get_active_tab() alone, so editing a field on any tab but the first sent the user back
-		//// to the first tab at the next form refresh. Ours reads the DOM first (a tab already .active and
-		//// visible wins), falls back to memory, and additionally skips a remembered tab that is now hidden.
-		// First, check if a tab is already visually active in the DOM
-		let currently_active_tab = this.tabs.find((tab) => tab.is_active() && !tab.is_hidden());
-
-		if (currently_active_tab) {
-			// Keep the currently active tab and update memory
-			currently_active_tab.set_active();
-		} else {
-			// Otherwise, use the tab from memory
-			let frm_active_tab = this.frm?.get_active_tab?.();
-
-			if (frm_active_tab && !frm_active_tab.is_hidden()) {
-				frm_active_tab.set_active();
-			} else if (this.tabs.length) {
-				// set first tab as active when opening for first time, or new doc
-				let first_visible_tab = this.tabs.find((tab) => !tab.is_hidden());
-				first_visible_tab && first_visible_tab.set_active();
-			}
+		let frm_active_tab = this.frm?.get_active_tab?.();
+		if (frm_active_tab) {
+			frm_active_tab.set_active();
+		} else if (this.tabs.length) {
+			// set first tab as active when opening for first time, or new doc
+			let first_visible_tab = this.tabs.find((tab) => !tab.is_hidden());
+			first_visible_tab && first_visible_tab.set_active();
 		}
 	}
 

@@ -33,8 +33,10 @@ $.extend(frappe.model, {
 
 		frappe.model.add_to_locals(doc);
 
-		//// Neoffice — the mandatory child rows (with_mandatory_children) are made at the end of this
-		//// function, once the typed name and the route options belong to this document.
+		if (with_mandatory_children) {
+			frappe.model.create_mandatory_children(doc);
+		}
+
 		if (!parent_doc) {
 			doc.__run_link_triggers = 1;
 		}
@@ -63,15 +65,6 @@ $.extend(frappe.model, {
 				}
 			});
 			frappe.route_options = null;
-		}
-
-		//// Neoffice — moved here, after the name typed in a Link field (route_options.name_field) and
-		//// the route options have been given to THIS document. The mandatory child rows are new docs
-		//// too: made first, the first of them took the name for itself (and the route options), and a
-		//// doctype with a mandatory child table (a payment terms template, an attribute's values)
-		//// opened with an empty name field.
-		if (with_mandatory_children) {
-			frappe.model.create_mandatory_children(doc);
 		}
 
 		return doc;
@@ -287,20 +280,6 @@ $.extend(frappe.model, {
 
 	copy_doc: function (doc, from_amend, parent_doc, parentfield) {
 		let no_copy_list = ["name", "amended_from", "amendment_date", "cancel_reason"];
-		//// Neoffice — added (4c842a98fc, 2023-10-30 "First change v15"; the commit gives no rationale):
-		//// duplicating an Item also clears item_code, item_name and opening_stock, so the copy cannot be
-		//// saved over the original by accident. A duplicated Item cannot carry the original's code — that IS
-		//// its `name`, and it must be unique — nor its opening stock. Kept for that reason
-		//// (neoffice-maintenance#205).
-		//// It stays a framework chokepoint though: EVERY caller copying an Item (Duplicate, amend, any app
-		//// doing a client-side copy) gets those three fields emptied and nothing at the call site says so.
-		//// The day a caller other than Duplicate needs the label, the guard moves to a flag passed by the
-		//// caller — not to the doctype, which cannot tell them apart.
-		//// added if
-		if (doc.doctype == "Item"){
-			no_copy_list.push(...["item_code", "item_name", "opening_stock"]);
-		}
-		////
 		let newdoc = frappe.model.get_new_doc(doc.doctype, parent_doc, parentfield);
 
 		for (let key in doc) {

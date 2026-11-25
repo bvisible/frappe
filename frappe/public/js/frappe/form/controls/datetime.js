@@ -63,12 +63,7 @@ frappe.ui.form.ControlDatetime = class ControlDatetime extends frappe.ui.form.Co
 		return frappe.datetime.str_to_user(value, false);
 	}
 	set_description() {
-		//// Neoffice — translated before the time zone is added (upstream develop's fix, not yet in
-		//// version-15): « description<br>Europe/Paris » is in no catalogue, so every described
-		//// Datetime field showed its description in English (maintenance#1246).
-		const description = this.df.description
-			? __(this.df.description, null, this.df.parent)
-			: this.df.description;
+		const description = this.df.description;
 		const time_zone = this.get_user_time_zone();
 
 		if (!this.df.hide_timezone) {
@@ -78,7 +73,7 @@ frappe.ui.form.ControlDatetime = class ControlDatetime extends frappe.ui.form.Co
 			if (!description) {
 				this.df.description = time_zone;
 			} else if (!description.includes(time_zone)) {
-				this.df.description = description + "<br>" + time_zone;   //// Neoffice — the translated text, see above
+				this.df.description += "<br>" + time_zone;
 			}
 		}
 		super.set_description();

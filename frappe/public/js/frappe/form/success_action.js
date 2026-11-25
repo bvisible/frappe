@@ -32,24 +32,7 @@ frappe.ui.form.SuccessAction = class SuccessAction {
 		frappe.db.get_list(this.form.doctype, { limit: 2 }).then((result) => {
 			const count = result.length;
 			const setting = this.setting;
-			//// Neoffice — cherry-picked from upstream develop c7610ab39d, drop when the
-			//// fleet is on a release that has it. The stored message is composed and
-			//// saved in the language of the install (doctype name untranslated), so the
-			//// green alert after every submit stayed in English. The client now swaps
-			//// the doctype name for {0} and translates the template + the doctype name.
-			// Translate the configured message for the *current* language at display
-			// time -- previously it was shown as-is, so a value baked in (typically in
-			// English) once at install time could never reflect a later language change.
-			const doctype = setting.ref_doctype;
-			const stored = count === 1 ? setting.first_success_message : setting.message;
-			let message;
-			if (doctype && stored && stored.includes(doctype)) {
-				//// Neoffice — the doctype as the context (translate.js), so a catalogue may say the alert whole for one
-				//// doctype: « Facture de vente a été validé avec succès » could not agree with its noun (maintenance#2559).
-				message = __(stored.replace(doctype, "{0}"), [__(doctype)], doctype);
-			} else {
-				message = __(stored);
-			}
+			let message = count === 1 ? setting.first_success_message : setting.message;
 
 			const $buttons = this.get_actions().map((action) => {
 				const $btn = $(

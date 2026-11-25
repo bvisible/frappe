@@ -1,58 +1,19 @@
 frappe.provide("frappe.ui.form");
 frappe.provide("frappe.model.docinfo");
 
-//// Neoffice — the import block below diverges twice. (1) It was re-sorted by path (bd41f1e7a5,
-//// 2025-02-26 "Update neov2"; no rationale — an editor's organize-imports). (2) Three cockpit modules
-//// were added on 2026-06-10 (./form_hero, ./tab_slider, ./grid_totals, then ./form_dialog of maintenance#1047): they are the
-//// theme's since 24.11.2026 (neoffice_theme public/js/form_model.js, one copy for Frappe 15 and 16, maintenance#3262), still
-//// instantiated from form/toolbar.js refresh_hero() (marked there). These are side-effect imports, so the re-order is NOT
-//// provably inert: TO REVIEW at the merge — restore upstream's order.
+import "./quick_entry";
+import "./toolbar";
 import "./dashboard";
+import "./workflow";
+import "./save";
+import "./print_utils";
+import "./success_action";
+import "./script_manager";
+import "./script_helpers";
+import "./sidebar/form_sidebar";
 import "./footer/footer";
 import "./form_tour";
-import "./print_utils";
-//// Neoffice — re-sorted imports (see the block marker above).
-import "./quick_entry";
-import "./save";
-import "./script_helpers";
-//// Neoffice — re-sorted imports (see the block marker above).
-import "./script_manager";
-import "./sidebar/form_sidebar";
-import "./success_action";
-import "./toolbar";
 import { UndoManager } from "./undo_manager";
-
-//// Neoffice — added: the form sidebar of a desk without one (see render_form). It draws nothing, outside
-//// the page; its members are the ones form scripts and frappe itself call on frm.sidebar.
-frappe.ui.form.quiet_sidebar = function (frm) {
-	const nowhere = () => $("<div>");
-	if (!frm.attachments) {
-		frm.attachments = new frappe.ui.form.Attachments({ parent: nowhere(), frm: frm });
-	}
-	return {
-		frm: frm,
-		quiet: true,
-		sidebar: nowhere(),
-		user_actions: nowhere(),
-		image_section: nowhere(),
-		image_wrapper: nowhere(),
-		make() {},
-		refresh() {},
-		reload_docinfo() {},
-		refresh_comments_count() {},
-		refresh_image() {},
-		refresh_like() {},
-		refresh_web_view_count() {},
-		clear_user_actions() {},
-		toggle() {},
-		add_user_action(label, click) {
-			return $("<a>")
-				.html(label)
-				.on("click", click || (() => {}));
-		},
-	};
-};
-import "./workflow";
 
 frappe.ui.form.Controller = class FormController {
 	constructor(opts) {
@@ -123,15 +84,8 @@ frappe.ui.form.Form = class FrappeForm {
 		frappe.ui.make_app_page({
 			parent: this.wrapper,
 			single_column: is_single_column,
-			//// Neoffice — added (cc297ec402, 2025-11-03 "Move sidebar to right and add mobile toggle"): forms ask
-			//// frappe.ui.make_app_page for a right-hand side section. ui/page.js reads sidebar_position and swaps
-			//// the two flex columns (marked there); upstream v15 has no such option — the side section always
-			//// sits on the left of the Bootstrap grid.
-			sidebar_position: "Right",
 		});
 		this.page = this.wrapper.page;
-		//// Neoffice — a form dialog's page leaves the browser title to the page (ui/page.js).
-		if (this.form_dialog) this.page.set_document_title = false;
 		this.layout_main = this.page.main.get(0);
 
 		this.$wrapper.on("hide", () => {
@@ -149,9 +103,7 @@ frappe.ui.form.Form = class FrappeForm {
 		});
 
 		// navigate records keyboard shortcuts
-		//// Neoffice — not for a form shown in a form dialog (form/form_dialog.js): its ctrl+p is
-		//// registered for the whole desk and would print the dialog's document from the page.
-		if (!this.form_dialog) this.add_form_keyboard_shortcuts();
+		this.add_form_keyboard_shortcuts();
 
 		// 2 column layout
 		this.setup_std_layout();
@@ -447,9 +399,6 @@ frappe.ui.form.Form = class FrappeForm {
 			// check permissions
 			this.fetch_permissions();
 			if (!this.has_read_permission()) {
-				//// Neoffice — added: in a form dialog (form/form_dialog.js) the refusal closes the dialog;
-				//// frappe.show_not_permitted would replace the page behind it.
-				if (this.form_dialog) return this.form_dialog.refuse_from_form();
 				frappe.show_not_permitted(__(this.doctype) + " " + __(cstr(this.docname)));
 				return;
 			}
@@ -539,9 +488,7 @@ frappe.ui.form.Form = class FrappeForm {
 			}
 
 			if (typeof action === "string") {
-				//// Neoffice — upstream throws a template literal that is never translated;
-				//// we translate the template and pass the value as a parameter.
-				frappe.throw(__("Action {0} not found", [action]));
+				frappe.throw(`Action ${action} not found`);
 			}
 		}
 		if (action.action_type === "Server Action") {
@@ -623,8 +570,7 @@ frappe.ui.form.Form = class FrappeForm {
 				me.trigger_link_fields();
 			});
 
-			//// Neoffice — the breadcrumbs belong to the page, not to a form dialog (form/form_dialog.js).
-			if (!me.form_dialog) frappe.breadcrumbs.add(me.meta.module, me.doctype);
+			frappe.breadcrumbs.add(me.meta.module, me.doctype);
 		});
 
 		// update seen
@@ -644,13 +590,6 @@ frappe.ui.form.Form = class FrappeForm {
 					page: this.page,
 				});
 				this.sidebar.make();
-			} else {
-				//// Neoffice — without the form sidebar (the Desk Settings of the Simple mode) upstream leaves
-				//// frm.sidebar and frm.attachments undefined, and a form script that adds a sidebar action
-				//// (Web Form, Builder Page, Contact Us Settings), sets the image (Appraisal) or reads the
-				//// attachments (ZUGFeRD Wizard) threw at refresh, cutting the rest of it (maintenance#2805).
-				//// A sidebar that draws nothing answers them instead.
-				this.sidebar = frappe.ui.form.quiet_sidebar(this);
 			}
 
 			// clear layout message
@@ -711,8 +650,6 @@ frappe.ui.form.Form = class FrappeForm {
 	}
 
 	run_after_load_hook() {
-		//// Neoffice — a route hook was set for the page's form, not for a form dialog's.
-		if (this.form_dialog) return;
 		if (frappe.route_hooks.after_load) {
 			let route_callback = frappe.route_hooks.after_load;
 			delete frappe.route_hooks.after_load;
@@ -768,9 +705,7 @@ frappe.ui.form.Form = class FrappeForm {
 	refresh_header(switched) {
 		// set title
 		// main title
-		//// Neoffice — added `!this.form_dialog`: the browser tab keeps the page's title while a
-		//// form dialog is open (form/form_dialog.js).
-		if ((!this.meta.in_dialog || this.in_form) && !this.form_dialog) {
+		if (!this.meta.in_dialog || this.in_form) {
 			frappe.utils.set_title(this.meta.issingle ? this.doctype : this.docname);
 		}
 
@@ -784,8 +719,7 @@ frappe.ui.form.Form = class FrappeForm {
 		this.viewers.refresh();
 
 		this.dashboard.refresh();
-		//// Neoffice — the breadcrumbs belong to the page, not to a form dialog (form/form_dialog.js).
-		if (!this.form_dialog) frappe.breadcrumbs.update();
+		frappe.breadcrumbs.update();
 
 		this.show_submit_message();
 		this.clear_custom_buttons();
@@ -835,8 +769,7 @@ frappe.ui.form.Form = class FrappeForm {
 
 				me.script_manager.trigger("after_save");
 
-				//// Neoffice — added `!me.form_dialog`: the hook was set for the page's form.
-				if (frappe.route_hooks.after_save && !me.form_dialog) {
+				if (frappe.route_hooks.after_save) {
 					let route_callback = frappe.route_hooks.after_save;
 					delete frappe.route_hooks.after_save;
 
@@ -1280,8 +1213,7 @@ frappe.ui.form.Form = class FrappeForm {
 		delete this.opendocs[old];
 		this.opendocs[name] = true;
 
-		//// Neoffice — added `this.form_dialog`: a form dialog never changes the page's route.
-		if (this.meta.in_dialog || !this.in_form || this.form_dialog) {
+		if (this.meta.in_dialog || !this.in_form) {
 			return;
 		}
 
@@ -1314,8 +1246,6 @@ frappe.ui.form.Form = class FrappeForm {
 	}
 
 	navigate_records(prev) {
-		//// Neoffice — a form dialog shows one document; moving to the next would change the page.
-		if (this.form_dialog) return;
 		let filters, sort_field, sort_order;
 		let list_view = frappe.get_list_view(this.doctype);
 		if (list_view) {
@@ -1513,8 +1443,6 @@ frappe.ui.form.Form = class FrappeForm {
 	}
 
 	scroll_to_element() {
-		//// Neoffice — route options and the URL hash are the page's, not a form dialog's.
-		if (this.form_dialog) return;
 		if (frappe.route_options && frappe.route_options.scroll_to) {
 			var scroll_to = frappe.route_options.scroll_to;
 			delete frappe.route_options.scroll_to;
@@ -1540,8 +1468,6 @@ frappe.ui.form.Form = class FrappeForm {
 	}
 
 	show_success_action() {
-		//// Neoffice — after a save in a form dialog, the dialog closes: no « what next » banner.
-		if (this.form_dialog) return;
 		const route = frappe.get_route();
 		if (route[0] !== "Form") return;
 		if (this.meta.is_submittable && this.doc.docstatus !== 1) return;

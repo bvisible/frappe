@@ -26,11 +26,7 @@ frappe.ui.form.save = function (frm, action, callback, btn) {
 					callback(r);
 				},
 				error: function (r) {
-					//// Neoffice — a 502 or a 504 (the server restarting, or too slow) calls this with no answer at all:
-					//// after_save read `r.exc` of nothing, threw, and the promise of frm.save() never settled, so what waited
-					//// on it (the item picker's « Ajout des articles… ») stayed on screen for good (neoffice-maintenance#2934).
-					//// The message is already on screen (request.js); this only says the save did not happen.
-					callback(r || { exc: "no answer from the server" });
+					callback(r);
 				},
 				btn: btn,
 				freeze_message: freeze_message,
@@ -85,9 +81,7 @@ frappe.ui.form.save = function (frm, action, callback, btn) {
 		}
 
 		// ensure we remove new docs routes ONLY
-		//// Neoffice — added `!frm.form_dialog`: a document created in a form dialog (form/form_dialog.js)
-		//// has no route of its own, the one in the history is the page's.
-		if (frm.is_new() && !frm.form_dialog) {
+		if (frm.is_new()) {
 			frappe.ui.form.remove_old_form_route();
 		}
 		frappe.ui.form.is_saving = true;
@@ -257,21 +251,15 @@ frappe.ui.form.check_mandatory = function (frm) {
 	});
 
 	if (lines.length) {
-		//// Neoffice — the form may show what is missing in place (a pill in the head, the fields outlined and named:
-		//// neoffice_theme save_state.js) instead of this dialog, which asked for an OK after the fact. Its handler answers
-		//// true when it did; false, or no handler, leaves the desk's message as it was.
-		//// To remove when the fleet runs a desk that says what is missing in place itself.
-		if (!frm.$wrapper || frm.$wrapper.triggerHandler("neo_missing_required") !== true) {
-			frappe.msgprint({
-				message:
-					__("Please fill the following mandatory fields before saving:") +
-					"<br><br><ul><li>" +
-					lines.join("</li><li>") +
-					"</li></ul>",
-				indicator: "red",
-				title: __("Missing Fields"),
-			});
-		}
+		frappe.msgprint({
+			message:
+				__("Please fill the following mandatory fields before saving:") +
+				"<br><br><ul><li>" +
+				lines.join("</li><li>") +
+				"</li></ul>",
+			indicator: "red",
+			title: __("Missing Fields"),
+		});
 		frm.refresh();
 	}
 
@@ -322,16 +310,6 @@ frappe.ui.form.remove_old_form_route = () => {
 	);
 };
 
-//// Neoffice — added. Picking a value in a Link field's list fires a DOM `change` on its input; the
-//// return from a creation (set_value) did not, so whatever listens to the input - a quick entry that
-//// unfolds the next field once this one has a value - never heard that the value had arrived. Said
-//// once set_value has put the value in the input (its answer), so the listeners read the new one.
-function neo_announce_picked_link(control, done) {
-	Promise.resolve(done).then(() => {
-		if (control && control.$input && control.$input.trigger) control.$input.trigger("change");
-	});
-}
-
 frappe.ui.form.update_calling_link = (newdoc) => {
 	if (!frappe._from_link) return;
 	var doc = frappe.get_doc(frappe._from_link.doctype, frappe._from_link.docname);
@@ -362,11 +340,7 @@ frappe.ui.form.update_calling_link = (newdoc) => {
 									newdoc[meta.title_field]
 								);
 							}
-							//// Neoffice — see neo_announce_picked_link: the input's listeners hear the value too.
-							neo_announce_picked_link(
-								frappe._from_link,
-								frappe._from_link.set_value(newdoc.name)
-							);
+							frappe._from_link.set_value(newdoc.name);
 						}
 					}
 				);
@@ -378,11 +352,7 @@ frappe.ui.form.update_calling_link = (newdoc) => {
 						newdoc[meta.title_field]
 					);
 				}
-				//// Neoffice — see neo_announce_picked_link: the input's listeners hear the value too.
-				neo_announce_picked_link(
-					frappe._from_link,
-					frappe._from_link.set_value(newdoc.name)
-				);
+				frappe._from_link.set_value(newdoc.name);
 			}
 
 			// refresh field

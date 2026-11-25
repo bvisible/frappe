@@ -6,11 +6,6 @@ frappe.ui.form.LinkSelector = class LinkSelector {
 		/* help: Options: doctype, get_query, target */
 		$.extend(this, opts);
 
-		//// Neoffice — added (2868a5ef58, 2024-05-02 "Auto add first result"): remembers the values already
-		//// auto-clicked, so the auto-add below fires once per value. No upstream equivalent.
-		////
-		this.results_auto_add = [];
-
 		var me = this;
 		if (this.doctype != "[Select]") {
 			frappe.model.with_doctype(this.doctype, function (r) {
@@ -86,9 +81,7 @@ frappe.ui.form.LinkSelector = class LinkSelector {
 		) {
 			$.extend(args, this.target.fieldinfo[this.fieldname].get_query(cur_frm.doc));
 		}
-		
-		//// Neoffice — the blank line above kept trailing tabs when the auto-add was written (2868a5ef58,
-		//// 2024-05-02). Whitespace only, nothing else differs here: take upstream's line at the merge.
+
 		frappe.link_search(
 			this.doctype,
 			args,
@@ -135,23 +128,6 @@ frappe.ui.form.LinkSelector = class LinkSelector {
 								return false;
 							});
 					}
-					//// Neoffice — added (2868a5ef58, 2024-05-02 "Auto add first result"): when the search comes
-					//// back with exactly one row, its link is clicked automatically (once per value — see
-					//// results_auto_add in the constructor), so picking an item by exact code or barcode needs no
-					//// second click. Upstream always waits for the click.
-					//// Scoped to the picker it was written for: only the grid's bulk-add dialog passes a
-					//// `qty_fieldname` (form/grid.js), the advanced search opened from any Link field does not
-					//// (form/controls/link.js). It used to fire in EVERY LinkSelector, so a partial search that
-					//// happened to match one record for an instant chose it for the user, in any field of the desk
-					//// (neoffice-maintenance#205).
-					//// Auto add first result
-					if (results.length === 1 && me.qty_fieldname) {
-						var firstLink = parent.find('.row a').first();
-						if (!me.results_auto_add.includes(firstLink.attr('data-value'))) {
-							firstLink.click();
-							me.results_auto_add.push(firstLink.attr('data-value'));
-						}
-					}
 				} else {
 					$(
 						'<p><br><span class="text-muted">' +
@@ -159,8 +135,7 @@ frappe.ui.form.LinkSelector = class LinkSelector {
 							"</span>" +
 							(frappe.model.can_create(me.doctype)
 								? '<br><br><a class="new-doc btn btn-default btn-sm">' +
-								  //// Neoffice — the doctype as the context: its own words when a catalogue has them (translate.js).
-								  __("Create a new {0}", [__(me.doctype)], me.doctype) +
+								  __("Create a new {0}", [__(me.doctype)]) +
 								  "</a>"
 								: "") +
 							"</p>"
@@ -228,15 +203,8 @@ frappe.ui.form.LinkSelector = class LinkSelector {
 							]);
 						}
 					},
-					//// Neoffice — upstream passes __("Set Quantity") as both the dialog title and the button label
-					//// (452930ca60, 2024-05-02 'change title and btn for dialog "Set Quantity"'): both now name the row -
-					//// __("Set Quantity for {0}", [value]). Upstream's two lines are kept commented out just below.
-					/* //// 
 					__("Set Quantity"),
 					__("Set Quantity")
-					*/
-					__("Set Quantity for {0}", [value]),
-					__("Set Quantity for {0}", [value])
 				);
 			} else if (this.dynamic_link_field) {
 				let d = this.target.add_new_row();

@@ -160,12 +160,8 @@ function get_version_timeline_content(version_doc, frm) {
 					) {
 						parts.push(
 							__("{0} from {1} to {2} in row #{3}", [
-								//// Neoffice — upstream translates the child table's field label without a context; we
-								//// pass the child doctype as context, as the form does for a grid column.
 								__(
-									frappe.meta.get_label(frm.fields_dict[row[0]].df.options, p[0]),
-									null,
-									frm.fields_dict[row[0]].df.options
+									frappe.meta.get_label(frm.fields_dict[row[0]].df.options, p[0])
 								),
 								format_content_for_timeline(p[1]),
 								format_content_for_timeline(p[2]),

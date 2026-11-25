@@ -17,11 +17,6 @@ frappe.ui.form.Toolbar = class Toolbar {
 		this.page.clear_user_actions();
 		this.show_title_as_dirty();
 		this.set_primary_action();
-		//// Neoffice — two calls added to refresh() (98b48e36ff and 36d9015d6f, 2026-06-10): the promoted
-		//// Preview button and the cockpit hero / tab slider / grid totals refresh. Both methods are ours,
-		//// below.
-		this.setup_preview_button();
-		this.refresh_hero();
 
 		if (this.frm.meta.hide_toolbar) {
 			this.page.hide_menu();
@@ -49,8 +44,7 @@ frappe.ui.form.Toolbar = class Toolbar {
 	set_title() {
 		let title;
 		if (this.frm.is_new()) {
-			//// Neoffice — the doctype as the context: its own words when a catalogue has them (translate.js).
-			title = __("New {0}", [__(this.frm.meta.name)], this.frm.meta.name);
+			title = __("New {0}", [__(this.frm.meta.name)]);
 		} else if (this.frm.meta.title_field) {
 			let title_field = (this.frm.doc[this.frm.meta.title_field] || "").toString().trim();
 			title = strip_html(title_field || this.frm.docname);
@@ -75,9 +69,7 @@ frappe.ui.form.Toolbar = class Toolbar {
 		var me = this;
 		title = __(title);
 		this.page.set_title(title);
-		//// Neoffice — added `!this.frm.form_dialog`: the browser tab keeps the page's title while a
-		//// form dialog is open (form/form_dialog.js).
-		if (this.frm.meta.title_field && !this.frm.form_dialog) {
+		if (this.frm.meta.title_field) {
 			frappe.utils.set_title(title + " - " + this.frm.docname);
 		}
 		this.page.$title_area.toggleClass(
@@ -317,80 +309,6 @@ frappe.ui.form.Toolbar = class Toolbar {
 			this.page.clear_indicator();
 		}
 	}
-	//// Neoffice — two added methods, no upstream equivalent (NeoCockpit form chrome, all 2026-06-10).
-	//// refresh_hero() builds and refreshes frappe.ui.form.FormHero (36d9015d6f "form hero — identity card
-	//// + key value + business pipeline", turned into a dated stepper by b22d8750c8 and stripped of its
-	//// duplicate meta cluster by 2de9f7ad0c), frappe.ui.form.TabSlider (885fefba8d) and
-	//// frappe.ui.form.GridTotals (64f4614afc) — each behind its own existence check, so the desk still
-	//// boots when a module is missing. setup_preview_button() below comes from 98b48e36ff (compact
-	//// one-line head), then d44b8c1cbb (eye icon + "Preview / Print" label) and 2de9f7ad0c (prepended
-	//// into .standard-actions, the only anchor that survives workflow forms). The NEOFFICE PATCH note on
-	//// setup_preview_button is the original one.
-	refresh_hero() {
-		if (!frappe.ui.form.FormHero) return;
-		//// Neoffice — no hero in a form dialog (form/form_dialog.js): nothing above the tabs there
-		//// (Jérémy, 02.10, « sans la partie en haut »). The tab slider and the grid totals below stay.
-		if (!this.frm.form_dialog) {
-			if (!this.hero) this.hero = new frappe.ui.form.FormHero(this.frm);
-			this.hero.refresh();
-		}
-		if (frappe.ui.form.TabSlider) {
-			if (!this.tab_slider) this.tab_slider = new frappe.ui.form.TabSlider(this.frm);
-			this.tab_slider.refresh();
-		}
-		if (frappe.ui.form.GridTotals) {
-			if (!this.grid_totals) this.grid_totals = new frappe.ui.form.GridTotals(this.frm);
-			this.grid_totals.refresh();
-		}
-	}
-
-	// //// NEOFFICE PATCH — cockpit compact head: a promoted "Preview" button
-	// (eye) next to the primary action for printable doctypes, so the most
-	// common journey (see the PDF the customer receives) is one click.
-	setup_preview_button() {
-		if (!document.body.classList.contains("neoffice-cockpit")) return;
-		if (!this.$preview_btn) {
-			if (this.frm.meta.issingle || !frappe.model.can_print(null, this.frm)) return;
-			this.$preview_btn = $(`
-				<button class="btn btn-default btn-sm page-preview-btn">
-					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-						stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-						<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path>
-						<circle cx="12" cy="12" r="3"></circle>
-					</svg>${__("Preview")} / ${__("Print")}
-				</button>
-			`);
-			this.$preview_btn.on("click", () => this.frm.print_doc());
-			//// Neoffice — on a full head the button keeps its eye, the last of the head's buttons to fold (2026-11-17,
-			//// maintenance#2750): data-pao-shed for the head's overflow manager (page.js setup_actions_overflow), its
-			//// words in a .pao-label that folds, and in its title.
-			this.$preview_btn
-				.attr({ "data-pao-shed": "80", title: `${__("Preview")} / ${__("Print")}` })
-				.contents()
-				.filter((i, node) => node.nodeType === 3 && node.textContent.trim())
-				.wrap('<span class="pao-label"></span>');
-			// first slot of the actions group, so it survives workflow forms
-			// where the native primary/actions buttons are hidden
-			this.page.wrapper.find(".standard-actions").first().prepend(this.$preview_btn);
-		}
-		// hide on unsaved documents (nothing meaningful to print yet)
-		//// Neoffice — and wherever the menu's Print is not offered: the button stayed on a cancelled invoice while the
-		//// menu had no Print and the server refused the print (« Not allowed to print cancelled documents »). The same
-		//// rule as make_menu_items, read again at each refresh (maintenance#1472).
-		this.$preview_btn.toggleClass("hide", Boolean(this.frm.doc.__islocal) || !this.can_print_this_document());
-	}
-
-	//// Neoffice — added method (no upstream equivalent): the condition make_menu_items puts on its Print entry.
-	can_print_this_document() {
-		const docstatus = cint(this.frm.doc.docstatus);
-		if (!frappe.model.is_submittable(this.frm.doc.doctype) || docstatus == 1) return true;
-		const print_settings = frappe.model.get_doc(":Print Settings", "Print Settings");
-		// Not loaded (never seen, the boot carries it): the button as it was, the server still decides.
-		if (!print_settings) return true;
-		if (docstatus == 2) return Boolean(cint(print_settings.allow_print_for_cancelled));
-		return Boolean(cint(print_settings.allow_print_for_draft));
-	}
-
 	make_menu() {
 		this.page.clear_icons();
 		this.page.clear_menu();
@@ -449,21 +367,14 @@ frappe.ui.form.Toolbar = class Toolbar {
 					},
 					true
 				);
-				//// Neoffice — upstream adds the printer action icon unconditionally (0b0e8f0f18, 2026-06-10
-				//// "feat(cockpit): head button order + discreet Cancel + merged Preview/Print"): under the cockpit
-				//// chrome the promoted Preview / Print button already covers it, so the duplicate icon is skipped.
-				//// The legacy chrome still gets it — the block below is upstream's, only re-indented.
-				if (!document.body.classList.contains("neoffice-cockpit")) {
-					// cockpit: the promoted "Preview / Print" button covers this
-					this.print_icon = this.page.add_action_icon(
-						"printer",
-						function () {
-							me.frm.print_doc();
-						},
-						"",
-						__("Print")
-					);
-				}
+				this.print_icon = this.page.add_action_icon(
+					"printer",
+					function () {
+						me.frm.print_doc();
+					},
+					"",
+					__("Print")
+				);
 			}
 		}
 
@@ -619,8 +530,7 @@ frappe.ui.form.Toolbar = class Toolbar {
 		// New
 		if (p[CREATE] && !this.frm.meta.issingle && !this.frm.meta.in_create) {
 			this.page.add_menu_item(
-				//// Neoffice — the doctype as the context: its own words when a catalogue has them (translate.js).
-				__("New {0}", [__(me.frm.doctype)], me.frm.doctype),
+				__("New {0}", [__(me.frm.doctype)]),
 				function () {
 					frappe.new_doc(me.frm.doctype, true);
 				},
@@ -803,16 +713,6 @@ frappe.ui.form.Toolbar = class Toolbar {
 			);
 		} else if (status === "Cancel") {
 			let add_cancel_button = () => {
-				if (document.body.classList.contains("neoffice-cockpit")) {
-					//// Neoffice — added early return (0b0e8f0f18, 2026-06-10): upstream puts Cancel in the head's
-					//// secondary-action slot; under the cockpit it moves into the ... menu, a rare destructive act not
-					//// deserving a prominent button. Upstream's set_secondary_action call below is untouched and still
-					//// runs on the legacy chrome.
-					// cockpit: cancelling is a rare destructive act — keep it in
-					// the ... menu instead of a prominent button
-					this.page.add_menu_item(__(status), () => me.frm.savecancel(this), true);
-					return;
-				}
 				this.page.set_secondary_action(__(status), function () {
 					me.frm.savecancel(this);
 				});

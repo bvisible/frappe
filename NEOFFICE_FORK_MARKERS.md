@@ -30,6 +30,17 @@ import order in `FileUploader.vue`; nothing is left to record.
 replaced that sidebar since 2026-06-10; `workspace.js` reads the spaces of the boot itself. A merge that brings one of
 these files back has nothing of ours in it.
 
+### Gone to the theme (2026-11-25): the form
+
+Upstream's again: `form/form.js`, `layout.js`, `tab.js`, `save.js`, `link_selector.js`, `quick_entry.js`,
+`success_action.js`, `form_viewers.js`, `toolbar.js`, `workflow.js`, `sidebar/form_sidebar.js`, `controls/date.js`,
+`controls/datetime.js`, `controls/link.js`, `controls/text_editor.js`, `footer/base_timeline.js`,
+`footer/version_timeline_content_builder.js`, `formatters.js`, `model/create_new.js` and `ui/field_group.js`. Each method
+we had changed or added in them is put on Frappe 15's classes by `neoffice_theme/public/js/form_model_15.js`, as we wrote
+it, with Frappe 15's fingerprint of each method it replaces; the two constructors we had changed (the link selector's,
+the form viewers'), the form menu and the timeline are said there. The fork's test of the Preview / Print button moved
+with its methods (`neoffice_theme/tests/js/the_preview_button_follows_print.test.js`).
+
 ### Gone to the theme (2026-11-25): the table of a form
 
 `frappe/public/js/frappe/form/grid.js`, `grid_row.js` and `grid_row_form.js` are upstream's again. Each method we had

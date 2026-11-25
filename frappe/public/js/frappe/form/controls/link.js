@@ -5,10 +5,6 @@
 // custom queries
 // add_fetches
 import Awesomplete from "awesomplete";
-//// Neoffice — Awesomplete (node_modules, not ours) writes in English what a screen reader announces while one types in
-//// a link field: « 3 results found », « No results found », « <a choice>, list item 2 of 5 » (maintenance#2782). Said in
-//// the reader's language, once for the library: the two methods that write it are wrapped (every control imports this).
-neo_say_the_status_in_the_reader_s_language(Awesomplete);
 frappe.ui.form.recent_link_validations = {};
 
 frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlData {
@@ -35,25 +31,6 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 			me.$input.val("").focus();
 		});
 		this.$link_open = this.$link.find(".btn-open");
-		//// Neoffice — added: a click on the arrow opens the linked document's form in a dialog,
-		//// without leaving the page (form/form_dialog.js); the second click of a double click goes
-		//// there through the href, as upstream. What is saved in the dialog comes back into this
-		//// form (frm, the origin).
-		this.$link_open.on("click", (e) => {
-			const doctype = this.get_options();
-			const name = this.get_input_value();
-			if (
-				doctype &&
-				name &&
-				frappe.ui.form.FormDialog?.intercept(e, this.$link_open.get(0), {
-					doctype,
-					name,
-					frm: this.frm,
-				})
-			) {
-				return false;
-			}
-		});
 		this.set_input_attributes();
 		this.$input.on("focus", function () {
 			if (!me.$input.val()) {
@@ -66,9 +43,6 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 			// if this disappears immediately, the user's click
 			// does not register, hence timeout
 			setTimeout(function () {
-				//// Neoffice — added: kept while under the pointer, so that the arrow is still there
-				//// for the second click of a double click (form/form_dialog.js).
-				if (me.$input_area.is(":hover")) return;
 				me.$link.toggle(false);
 				me.hide_link_and_clear_buttons();
 			}, 250);
@@ -99,8 +73,6 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 			const name = this.get_input_value();
 			this.$link.toggle(true);
 			this.$link_open.attr("href", frappe.utils.get_form_link(doctype, name));
-			//// Neoffice — added: the document the arrow opens, read by the form dialog's prefetch.
-			this.$link_open.attr({ "data-dialog-doctype": doctype, "data-dialog-name": name });
 			this.$link_clear.toggle(true);
 		}
 	}
@@ -286,10 +258,6 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 				return 0;
 			},
 		});
-		//// Neoffice — Awesomplete (node_modules, not ours) writes its screen-reader status in English: « Begin typing for
-		//// results. » was read, hidden, on every link field (maintenance#2782). Said in the reader's language; the counts the
-		//// library writes while one types stay its own (it rewrites them at each search).
-		if (this.awesomplete.status) this.awesomplete.status.textContent = __("Begin typing for results.");
 
 		this.custom_awesomplete_filter && this.custom_awesomplete_filter(this.awesomplete);
 
@@ -356,19 +324,13 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 						if (!me.df.only_select) {
 							if (frappe.model.can_create(doctype)) {
 								// new item
-								//// Neoffice — the doctype as the context: its own words when a catalogue has them (translate.js).
-								const create_label = __(
-									"Create a new {0}",
-									[__(me.get_options())],
-									me.get_options()
-								);
 								r.message.push({
 									html:
 										"<span class='link-option'>" +
 										"<i class='fa fa-plus' style='margin-right: 5px;'></i> " +
-										create_label + //// Neoffice — see above
+										__("Create a new {0}", [__(me.get_options())]) +
 										"</span>",
-									label: create_label, //// Neoffice — see above
+									label: __("Create a new {0}", [__(me.get_options())]),
 									value: "create_new__link_option",
 									action: me.new_doc,
 								});
@@ -513,21 +475,10 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 	 * @returns {boolean} - True if input matches the label, value, or description.
 	 */
 	input_matches_item(input, item) {
-		//// Neoffice — accents are folded on both sides. The search behind the dropdown compares without them
-		//// (MariaDB's utf8mb4_unicode_ci), so « revisio » lists « Révision chaudière »; upstream compared the raw
-		//// lowercase strings, refused that row, and Enter or Tab on it did nothing (09.11). Remove when upstream
-		//// folds accents here.
-		const fold = (value) =>
-			cstr(value)
-				.normalize("NFD")
-				.replace(/[\u0300-\u036f]/g, "")
-				.toLowerCase();
-		const typed = fold(input);
 		return (
 			input &&
 			[this.get_translated(item.label ?? item.value), item.value, item.description].some(
-				//// Neoffice — compared folded, as said above
-				(value) => fold(value).includes(typed)
+				(value) => cstr(value).toLowerCase().includes(input)
 			)
 		);
 	}
@@ -918,32 +869,4 @@ if (Awesomplete) {
 			return item.value === value;
 		});
 	};
-}
-
-//// Neoffice — added function (no upstream equivalent): the wrapper called at the top of this file (maintenance#2782).
-function neo_say_the_status_in_the_reader_s_language(Library) {
-	const proto = Library && Library.prototype;
-	if (!proto || proto.__neo_status_said) return;
-	proto.__neo_status_said = true;
-	const say = (status) => {
-		const text = status && status.textContent;
-		let found;
-		if (!text) return;
-		if (text === "No results found") {
-			status.textContent = __("No results found");
-		} else if ((found = /^(\d+) results found$/.exec(text))) {
-			status.textContent = __("{0} results found", [found[1]]);
-		} else if ((found = /^(.*), list item (\d+) of (\d+)$/.exec(text))) {
-			status.textContent = __("{0}, list item {1} of {2}", [found[1], found[2], found[3]]);
-		}
-	};
-	["evaluate", "goto"].forEach((method) => {
-		const own = proto[method];
-		if (typeof own !== "function") return;
-		proto[method] = function (...args) {
-			const result = own.apply(this, args);
-			say(this.status);
-			return result;
-		};
-	});
 }

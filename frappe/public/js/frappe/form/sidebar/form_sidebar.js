@@ -1,12 +1,9 @@
 import "./assign_to";
 import "./attachments";
 import "./share";
-//// Neoffice — no `import "./review"`: our sidebar redesign (9999364ec6, 2025-10-28) has no review section.
-//// Upstream deleted document_follow.js (dff54f2744, dead code); following lives in our compact_header.js.
+import "./review";
 import "./user_image";
 import "./form_sidebar_users";
-//// Neoffice — the compact header and the floating arrows made below (make_compact_header, make_floating_nav_arrows) are the
-//// theme's since 24.11.2026 (neoffice_theme public/js/form_model.js, maintenance#3262): they were imported here.
 import { get_user_link, get_user_message } from "../footer/version_timeline_content_builder";
 
 frappe.ui.form.Sidebar = class {
@@ -27,57 +24,41 @@ frappe.ui.form.Sidebar = class {
 			.html(sidebar_content)
 			.appendTo(this.page.sidebar.empty());
 
-		//// Neoffice — sidebar redesign (9999364ec6, 2025-10-28), ported from upstream develop's sidebar rework
-		//// (1d678146a9 2024-08-13 "fix(styles): cleaner sidebars for list and form"): no comment counter, likes,
-		//// follow or review here, nor their bind_events(); follow lives in our compact header (compact_header.js).
+		this.comments = this.sidebar.find(".form-sidebar-stats .comments");
 		this.user_actions = this.sidebar.find(".user-actions");
 		this.image_section = this.sidebar.find(".sidebar-image-section");
 		this.image_wrapper = this.image_section.find(".sidebar-image-wrapper");
 		this.make_assignments();
 		this.make_attachments();
-		//// Neoffice — upstream's make_review() removed (see the marker above).
+		this.make_review();
 		this.make_shared();
 
 		this.make_tags();
-		//// Neoffice — upstream's make_like(), make_follow() and bind_events() removed (see the marker above).
+		this.make_like();
+		this.make_follow();
 
+		this.bind_events();
 		this.setup_keyboard_shortcuts();
 		this.show_auto_repeat_status();
 		frappe.ui.form.setup_user_image_event(this.frm);
 
-		//// Neoffice ▼▼▼ form-header-compact: spin up the .page-actions cluster
-		// Compact header cluster lives in .page-actions, alongside the
-		// classic sidebar. Phase 1 renders an attachment gallery only;
-		// Phase 2 ships the full meta cluster (avatars, chips, follow,
-		// share). Phase 3 introduces the toggle that hides the native
-		// sidebar entirely. Phase 4 brings the modal + responsive.
-		this.make_compact_header();
-		//// Neoffice ▲▲▲ form-header-compact
-
-		//// Neoffice ▼▼▼ floating-nav-arrows: side carousel arrows
-		this.make_floating_nav_arrows();
-		//// Neoffice ▲▲▲ floating-nav-arrows
-
 		this.refresh();
 	}
 
-	//// Neoffice ▼▼▼ form-header-compact: helper invoked from make()
-	make_compact_header() {
-		if (!frappe.ui.form.CompactHeader) return;
-		this.compact_header = new frappe.ui.form.CompactHeader({
-			frm: this.frm,
-		});
-	}
-	//// Neoffice ▲▲▲ form-header-compact
+	bind_events() {
+		var me = this;
 
-	//// Neoffice ▼▼▼ floating-nav-arrows: spawn the side carousel arrows
-	make_floating_nav_arrows() {
-		if (!frappe.ui.form.FloatingNavArrows) return;
-		this.floating_nav_arrows = new frappe.ui.form.FloatingNavArrows({
-			frm: this.frm,
+		// scroll to comments
+		this.comments.on("click", function () {
+			frappe.utils.scroll_to(me.frm.footer.wrapper.find(".comment-box"), true);
+		});
+
+		this.like_icon.on("click", function () {
+			frappe.ui.toggle_like(me.like_wrapper, me.frm.doctype, me.frm.doc.name, function () {
+				me.refresh_like();
+			});
 		});
 	}
-	//// Neoffice ▲▲▲ floating-nav-arrows
 
 	setup_keyboard_shortcuts() {
 		// add assignment shortcut
@@ -98,95 +79,42 @@ frappe.ui.form.Sidebar = class {
 
 			this.frm.tags && this.frm.tags.refresh(this.frm.get_docinfo().tags);
 
-			//// Neoffice — sidebar redesign (9999364ec6, ported from upstream develop 1d678146a9): upstream v15 fills
-			//// .pageview-count / .modified-by / .created-by inline and refreshes likes, follow and the comment count;
-			//// ours calls the two methods below (page views, then an avatar group with creation/modification popovers).
-			this.refresh_web_view_count();
-			this.refresh_creation_modified();
+			if (this.frm.doc.route && cint(frappe.boot.website_tracking_enabled)) {
+				let route = this.frm.doc.route;
+				frappe.utils.get_page_view_count(route).then((res) => {
+					this.sidebar
+						.find(".pageview-count")
+						.html(__("{0} Web page views", [String(res.message).bold()]));
+				});
+			}
+
+			this.sidebar
+				.find(".modified-by")
+				.html(
+					get_user_message(
+						this.frm.doc.modified_by,
+						__("You last edited this", null),
+						__("{0} last edited this", [get_user_link(this.frm.doc.modified_by)])
+					) +
+						" · " +
+						comment_when(this.frm.doc.modified)
+				);
+			this.sidebar
+				.find(".created-by")
+				.html(
+					get_user_message(
+						this.frm.doc.owner,
+						__("You created this", null),
+						__("{0} created this", [get_user_link(this.frm.doc.owner)])
+					) +
+						" · " +
+						comment_when(this.frm.doc.creation)
+				);
+
+			this.refresh_like();
+			this.refresh_follow();
+			this.refresh_comments_count();
 			frappe.ui.form.set_user_image(this.frm);
-		}
-		//// Neoffice ▼▼▼ form-header-compact: keep the cluster in sync
-		this.compact_header && this.compact_header.refresh();
-		//// Neoffice ▲▲▲ form-header-compact
-		//// Neoffice ▼▼▼ floating-nav-arrows: refresh visibility
-		this.floating_nav_arrows && this.floating_nav_arrows.refresh();
-		//// Neoffice ▲▲▲ floating-nav-arrows
-	}
-
-	//// Neoffice — added methods (9999364ec6, 2025-10-28), taken from upstream develop's sidebar rework (1d678146a9,
-	//// 2d4ea4bf23 "fix(minor): show only one avatar in form sidebar if created and updated by the same user").
-	//// TO REVIEW: our form_sidebar.html is still upstream v15's — it has no .created-modified-section.
-	refresh_web_view_count() {
-		if (this.frm.doc.route && cint(frappe.boot.website_tracking_enabled)) {
-			let route = this.frm.doc.route;
-			frappe.utils.get_page_view_count(route).then((res) => {
-				this.sidebar
-					.find(".pageview-count")
-					.removeClass("hidden")
-					.html(__("{0} Web page views", [String(res.message).bold()]));
-			});
-		}
-	}
-
-	refresh_creation_modified() {
-		let user_list = [this.frm.doc.owner, this.frm.doc.modified_by];
-		if (this.frm.doc.owner === this.frm.doc.modified_by) {
-			user_list = [this.frm.doc.owner];
-		}
-
-		let avatar_group = frappe.avatar_group(user_list, 5, {
-			align: "left",
-			overlap: true,
-		});
-
-		this.sidebar.find(".created-modified-section").append(avatar_group);
-
-		//// Neoffice — TO REVIEW: the cint(…) || cint(…) test is not parenthesised, so the ternary's condition is the
-		//// whole "message · 0" string (always truthy): both messages reduce to the bare date. Upstream develop
-		//// parenthesises it (d90034f10e 2025-06-05, 063d3000d5 2026-05-10).
-		let creation_message =
-			get_user_message(
-				this.frm.doc.owner,
-				__("You created this", null),
-				__("{0} created this", [get_user_link(this.frm.doc.owner)])
-			) +
-				" · " +
-				cint(frappe.boot.user.show_absolute_datetime_in_timeline) ||
-			cint(frappe.boot.sysdefaults.show_absolute_datetime_in_timeline)
-				? frappe.datetime.str_to_user(this.frm.doc.creation)
-				: comment_when(this.frm.doc.creation);
-		let modified_message =
-			get_user_message(
-				this.frm.doc.modified_by,
-				__("You last edited this", null),
-				__("{0} last edited this", [get_user_link(this.frm.doc.modified_by)])
-			) +
-				" · " +
-				cint(frappe.boot.user.show_absolute_datetime_in_timeline) ||
-			cint(frappe.boot.sysdefaults.show_absolute_datetime_in_timeline)
-				? frappe.datetime.str_to_user(this.frm.doc.modified)
-				: comment_when(this.frm.doc.modified);
-
-		if (user_list.length === 1) {
-			// same user created and edited
-
-			avatar_group.find(".avatar").popover({
-				trigger: "hover",
-				html: true,
-				content: creation_message + "<br>" + modified_message,
-			});
-		} else {
-			avatar_group.find(".avatar:first-child").popover({
-				trigger: "hover",
-				html: true,
-				content: creation_message,
-			});
-
-			avatar_group.find(".avatar:last-child").popover({
-				trigger: "hover",
-				html: true,
-				content: modified_message,
-			});
 		}
 	}
 
@@ -203,14 +131,10 @@ frappe.ui.form.Sidebar = class {
 					fieldname: ["frequency"],
 				},
 				callback: function (res) {
-					//// Neoffice — sidebar redesign (9999364ec6): the frequency goes in the status's <span> and its
-					//// .sidebar-section is revealed; upstream v15 writes the <li> itself. TO REVIEW: our template is
-					//// still upstream's (no <span>, no .sidebar-section), so the text is never shown.
-					let el = me.sidebar.find(".auto-repeat-status");
-					el.find("span").html(__("Repeats {0}", [__(res.message.frequency)]));
-					el.closest(".sidebar-section").removeClass("hidden");
-					el.show();
-					el.on("click", function () {
+					me.sidebar
+						.find(".auto-repeat-status")
+						.html(__("Repeats {0}", [__(res.message.frequency)]));
+					me.sidebar.find(".auto-repeat-status").on("click", function () {
 						frappe.set_route("Form", "Auto Repeat", me.frm.doc.auto_repeat);
 					});
 				},
@@ -261,12 +185,8 @@ frappe.ui.form.Sidebar = class {
 	add_user_action(label, click) {
 		return $("<a>")
 			.html(label)
-			//// Neoffice — sidebar redesign (9999364ec6): a <div> row where upstream v15 appends an <li> to the
-			//// .user-actions <ul> (as in upstream develop's sidebar rework, 77b11dd1ce 2024-08-26).
 			.appendTo(
-				$('<div class="user-action-row"></div>').appendTo(
-					this.user_actions.removeClass("hidden")
-				)
+				$('<li class="user-action-row">').appendTo(this.user_actions.removeClass("hidden"))
 			)
 			.on("click", click);
 	}
@@ -276,11 +196,78 @@ frappe.ui.form.Sidebar = class {
 		this.user_actions.find(".user-action-row").remove();
 	}
 
-	//// Neoffice — upstream's make_like, make_follow, refresh_follow, refresh_like and refresh_comments_count are
-	//// removed with the redesigned sidebar (9999364ec6; see the marker in make()).
+	make_like() {
+		this.like_wrapper = this.sidebar.find(".liked-by");
+		this.like_icon = this.sidebar.find(".liked-by .like-icon");
+		this.like_count = this.sidebar.find(".liked-by .like-count");
+		frappe.ui.setup_like_popover(this.sidebar.find(".form-stats-likes"), ".like-icon");
+	}
+
+	make_follow() {
+		this.follow_button = this.sidebar.find(".form-sidebar-stats .form-follow");
+
+		this.follow_button.on("click", () => {
+			let is_followed = this.frm.get_docinfo().is_document_followed;
+			frappe
+				.call("frappe.desk.form.document_follow.update_follow", {
+					doctype: this.frm.doctype,
+					doc_name: this.frm.doc.name,
+					following: !is_followed,
+				})
+				.then(() => {
+					frappe.model.set_docinfo(
+						this.frm.doctype,
+						this.frm.doc.name,
+						"is_document_followed",
+						!is_followed
+					);
+					this.refresh_follow(!is_followed);
+				});
+		});
+	}
+
+	refresh_follow(follow) {
+		if (follow == null) {
+			follow = this.frm.get_docinfo().is_document_followed;
+		}
+		this.follow_button.text(follow ? __("Unfollow") : __("Follow"));
+	}
+
+	refresh_like() {
+		if (!this.like_icon) {
+			return;
+		}
+
+		this.like_wrapper.attr("data-liked-by", this.frm.doc._liked_by);
+		const liked = frappe.ui.is_liked(this.frm.doc);
+		this.like_wrapper
+			.toggleClass("not-liked", !liked)
+			.toggleClass("liked", liked)
+			.attr("data-doctype", this.frm.doctype)
+			.attr("data-name", this.frm.doc.name);
+
+		this.like_count && this.like_count.text(JSON.parse(this.frm.doc._liked_by || "[]").length);
+	}
+
+	refresh_comments_count() {
+		let count = (this.frm.get_docinfo().comments || []).length;
+		this.comments.find(".comments-count").html(count);
+	}
+
 	refresh_image() {}
 
-	//// Neoffice — upstream's make_review removed: the redesigned sidebar has no review section (9999364ec6).
+	make_review() {
+		const review_wrapper = this.sidebar.find(".form-reviews");
+		if (frappe.boot.energy_points_enabled && !this.frm.is_new()) {
+			this.frm.reviews = new frappe.ui.form.Review({
+				parent: review_wrapper,
+				frm: this.frm,
+			});
+		} else {
+			review_wrapper.remove();
+		}
+	}
+
 	reload_docinfo(callback) {
 		frappe.call({
 			method: "frappe.desk.form.load.get_docinfo",
