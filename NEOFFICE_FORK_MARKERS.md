@@ -14,6 +14,19 @@ merge changed here). Since the merge,
 `python3 neoffice-ci/scripts/fork_markers.py check --base v15.124.0 --head version-15
 --upstream-base v15.124.0` answers 0 unmarked hunks.
 
+## Before changing what a user sees: not here
+
+Since 2026-11-25 the desk's interface of this fork (`frappe/public`: JS, SCSS, HTML, Vue) is upstream Frappe 15's text,
+but for 7 files kept on purpose (`socketio_client.js`, `scanner/index.js`, `jquery-bootstrap.js`,
+`views/kanban/kanban_board.bundle.js`, `web_form/web_form_list.js`, `file_uploader/FileUploader.vue`,
+`scss/login.bundle.scss`; their reasons are below). What Neoffice changes in the desk lives in the `neoffice_theme` app, on
+Frappe 15 and 16 alike: on Frappe 15 its `public/js/*_15.js` files put our text on Frappe's classes through
+`neoffice.desk.patcher`, and `public/css/desk_fork_15.css` carries what our SCSS added; on Frappe 16 its models do the
+same work. A change of the desk made here is lost on Frappe 16 without a word, and the theme's CI refuses it
+(`scripts/interface_sources.py check`: a file of `frappe/public` marked `////` that its list does not know). One of the 7
+files changes here, with its `////` marker, then the theme's `interface_sources.py carried <file>`. The server side (Python,
+templates) still changes here, marked, as below.
+
 ## Lot F1 — frappe/public/js
 
 ### Final newline dropped — restored at the v15.123.1 merge
