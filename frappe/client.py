@@ -215,7 +215,7 @@ def set_value(doctype: str, name: str | int, fieldname: str | dict[str, Any], va
 	if not frappe.get_meta(doctype).istable:
 		doc = frappe.get_doc(doctype, name)
 		# //// Neoffice — GHSA-2c6h-wv85-fxvj, see _refuse_changed_standard_fields below.
-		_refuse_changed_standard_fields(doc, values)
+		_refuse_changed_standard_fields(doc, values, may_change=_FIELDS_A_DOCUMENT_MAY_CHANGE)
 		doc.update(values)
 	else:
 		doc = frappe.db.get_value(doctype, name, ["parenttype", "parent"], as_dict=True)
@@ -247,10 +247,21 @@ _FIELDS_SET_VALUE_NEVER_CHANGES = frozenset(frappe.model.default_fields + frappe
 }
 
 
-def _refuse_changed_standard_fields(doc: "Document", values: Any) -> None:
+# //// Neoffice — `docstatus` of a document, never of a child row, is how frappe-ui submits and cancels
+# //// (`setValue.submit({ docstatus: 1 })`: the HR app of the phone, the roster). save() guards that change itself:
+# //// check_docstatus_transition lets a draft become submitted and a submitted document cancelled, nothing else, each
+# //// with its own right (submit, cancel). Refused here from 13.11, it left every request approved on a phone a draft
+# //// (neoffice-maintenance#3348).
+_FIELDS_A_DOCUMENT_MAY_CHANGE = frozenset({"docstatus"})
+
+
+def _refuse_changed_standard_fields(
+	doc: "Document", values: Any, may_change: frozenset = frozenset()
+) -> None:
 	if not isinstance(values, dict):
 		return
-	for field in _FIELDS_SET_VALUE_NEVER_CHANGES.intersection(values):
+	# //// Neoffice — `may_change`: the fields a caller lets move, see _FIELDS_A_DOCUMENT_MAY_CHANGE above.
+	for field in (_FIELDS_SET_VALUE_NEVER_CHANGES - may_change).intersection(values):
 		if cstr(values[field]) != cstr(doc.get(field)):
 			frappe.throw(_("Cannot edit standard fields"))
 
