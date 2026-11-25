@@ -30,6 +30,15 @@ import order in `FileUploader.vue`; nothing is left to record.
 replaced that sidebar since 2026-06-10; `workspace.js` reads the spaces of the boot itself. A merge that brings one of
 these files back has nothing of ours in it.
 
+### Gone to the theme (2026-11-25): the table of a form
+
+`frappe/public/js/frappe/form/grid.js`, `grid_row.js` and `grid_row_form.js` are upstream's again. Each method we had
+changed or added in them (the full-screen table, the in-table « + Add row », the pinned columns, the widths without the
+11-column cap, the horizontal scroll, the bulk edit, the duplicated rows, the backport of upstream frappe#22862) is put on
+Frappe 15's classes by `neoffice_theme/public/js/grid_model_15.js`, as we wrote it, with Frappe 15's fingerprint of
+each method it replaces (a merge that rewrites one is said in the desk's console). `scss/common/grid.scss` stays here
+until the theme carries the sheets. A merge that changes the three files has nothing of ours in them.
+
 ### Gone to the theme (2026-11-25): the e-mail composer and what the desk says about a request
 
 `frappe/public/js/frappe/views/communication.js` and `frappe/public/js/frappe/request.js` are upstream's again. The

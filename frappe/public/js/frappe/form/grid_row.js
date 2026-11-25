@@ -36,11 +36,6 @@ export default class GridRow {
 				if (me.grid.allow_on_grid_editing() && me.grid.is_editable()) {
 					// pass
 				} else {
-					//// Neoffice — added: in a read-only table, a document link of a cell opens that
-					//// document's form in a dialog and a double click goes to it
-					//// (form/form_dialog.js), instead of opening the row. Upstream never followed
-					//// such a link: the row view took the click.
-					if (frappe.ui.form.FormDialog?.grid_click(e)) return false;
 					me.toggle_view();
 					return false;
 				}
@@ -91,11 +86,7 @@ export default class GridRow {
 		this.wrapper
 			.find(".grid-row-check")
 			.prop("checked", this.doc ? !!this.doc.__checked : false);
-		//// Neoffice — upstream: `this.grid.refresh_remove_rows_button();` (0642910c2f, 2026-07-25): backport
-		//// of upstream frappe#22862 — refresh_check() runs once per row per render and the callee re-scans
-		//// the whole grid body, so the direct call was O(rows^2). The debounced field is declared in grid.js
-		//// (marked there).
-		this.grid.debounced_refresh_remove_rows_button();
+		this.grid.refresh_remove_rows_button();
 	}
 	remove() {
 		var me = this;
@@ -192,9 +183,7 @@ export default class GridRow {
 				$(me.frm.wrapper).trigger("grid-move-row", [me.frm, me]);
 			},
 			__("Move To"),
-			//// Neoffice — upstream passes the primary button label as a bare English literal,
-			//// and frappe.prompt does not translate it; we translate it.
-			__("Update")
+			"Update"
 		);
 	}
 	refresh() {
@@ -253,25 +242,15 @@ export default class GridRow {
 				? this.doc.idx
 				: __("No.", null, "Title of the 'row number' column");
 
-			//// Neoffice — upstream appends the .row-check cell unconditionally, AFTER the header_row branch below
-			//// (4e23539603, 2024-09-23, then 8a044787a8, 2025-11-07 "Add full-width toggle to grid and improve
-			//// VAT Declaration handling"): a read-only child table no longer gets a select checkbox at all, and
-			//// the block was moved up. TO REVIEW at the merge: because it now runs BEFORE the header_row branch,
-			//// the `tabindex="-1"` upstream sets on the header checkbox is applied to row_check_html after the
-			//// header row has already been built — the header checkbox stays focusable.
-			if (!this.parent_df.read_only) {
-				//// added if condition
-				this.row_check = $(
-					`<div class="row-check sortable-handle col">
-						${this.row_check_html}
-					</div>`
-				).appendTo(this.row);
-			} ////
 			if (this.header_row) {
 				this.row_check_html = $(this.row_check_html).attr("tabindex", -1).get(0).outerHTML;
 			}
-			//// Neoffice — upstream's unconditional .row-check append stood here; it moved above, behind the
-			//// read_only test (see the marker above the `if (!this.parent_df.read_only)` block).
+
+			this.row_check = $(
+				`<div class="row-check sortable-handle col">
+					${this.row_check_html}
+				</div>`
+			).appendTo(this.row);
 
 			this.row_index = $(
 				`<div class="row-index sortable-handle col">
@@ -346,11 +325,7 @@ export default class GridRow {
 
 	add_open_form_button() {
 		var me = this;
-		//// Neoffice — upstream condition: `if (this.doc && !this.grid.df.in_place_edit)` (8a044787a8,
-		//// 2025-11-07): a read-only child table no longer gets the "open row" button; the else-if below puts
-		//// an empty cell in its place so the rows still line up with the header's configure button.
-		if (this.doc && !this.grid.df.in_place_edit && !this.parent_df.read_only) {
-			//// added && !this.parent_df.read_only
+		if (this.doc && !this.grid.df.in_place_edit) {
 			// remove row
 			if (!this.open_form_button) {
 				this.open_form_button = $('<div class="col"></div>').appendTo(this.row);
@@ -388,24 +363,11 @@ export default class GridRow {
 					me.open_form_button.parent().focus();
 				});
 			}
-		//// Neoffice — added branch (816ba9d500, 2025-11-30 "fix: add empty column for read_only tables to
-		//// align with header configure button"): the placeholder cell replacing the open-row button that the
-		//// condition above removes. No upstream equivalent.
-		} else if (this.doc && this.parent_df.read_only && this.frm) {
-			// Add empty column for read_only tables to align with header's configure button
-			if (!this.empty_action_col) {
-				this.empty_action_col = $('<div class="col grid-static-col"></div>').appendTo(this.row);
-			}
 		}
 	}
 
 	add_column_configure_button() {
 		if (this.grid.df.in_place_edit && !this.frm) return;
-		//// Neoffice — two comment lines added (6ad5147164, 2025-11-30 "fix: allow column configuration for
-		//// read_only tables"). They are inert: upstream has no read_only early return here either, so they
-		//// only record that adding one was considered and rejected. Drop them at the merge.
-		// Allow column configuration even for read_only tables (for display purposes)
-		// if (this.parent_df.read_only) return;
 
 		if (this.configure_columns && this.frm) {
 			this.configure_columns_button = $(`
@@ -459,106 +421,6 @@ export default class GridRow {
 			this.reset_user_settings_for_grid();
 			this.grid_settings_dialog.hide();
 		});
-
-		//// Neoffice — added block, no upstream equivalent (f9f2732fa6, 2026-03-19 "feat(ui): add Appliquer au
-		//// JSON + Pousser buttons in Configure Columns"; then 643ec3c5e4 the same day — clear the GridView
-		//// user settings and reload so "Reset to default" reads the new JSON — and 0ea0b60163, 2026-04-17,
-		//// reload delay 500 ms -> 300 ms). Administrator-only footer buttons that write the column layout
-		//// straight into the child DocType's .json through neoffice_custom_fields.api.apply_columns_to_json,
-		//// optionally git-pushing it: a core -> neoffice_custom_fields dependency (the call fails on an
-		//// instance without that app. The call is now GATED on the app being installed
-		//// (frappe.boot.versions carries every installed app's version), so the framework degrades
-		//// to upstream's dialog instead of offering a button that answers 404 — the dependency is
-		//// still there, but it can no longer be reached where it does not exist. The msgids are
-		//// English again and the French lives in locale/fr.po, where it belongs
-		//// (neoffice-maintenance#205).
-		//// neoffice: "Apply to JSON" + "Apply and Push" buttons for Administrator
-		if (frappe.session.user === 'Administrator' && frappe.boot.versions?.neoffice_custom_fields) {
-			const grid = this.grid;
-			const get_columns_config = () => {
-				this.validate_columns_width();
-				return this.selected_columns_for_grid.map(col => ({
-					fieldname: col.fieldname,
-					columns: cint(col.columns)
-				}));
-			};
-
-			const apply_to_json = (git_push) => {
-				const columns_config = get_columns_config();
-				//// Neoffice — see the block marker above: msgids restored English
-				const action_label = git_push ? __("Apply and Push") : __("Apply to JSON");
-
-				frappe.call({
-					method: "neoffice_custom_fields.api.apply_columns_to_json",
-					args: {
-						child_doctype: grid.doctype,
-						columns_config: JSON.stringify(columns_config),
-						git_push: git_push ? 1 : 0
-					},
-					freeze: true,
-					freeze_message: git_push
-						//// Neoffice — see the block marker above: msgids restored English
-						? __("Updating the JSON and pushing to git...")
-						: __("Updating the JSON..."),
-					callback: (r) => {
-						//// Neoffice — msgids were French, now English (house rule); the French screen is unchanged, served by the translation catalogue.
-						if (r.message && r.message.success) {
-							let msg = __("{0}: {1} fields updated in {2}", [
-								grid.doctype,
-								r.message.fields_updated,
-								r.message.json_path
-							]);
-							if (r.message.git_pushed) {
-								//// Neoffice — see the marker above: msgid now English, the French is served by the catalogue
-								//// (f702c41e79 "refactor(i18n): English source strings for the form hero steps and the grid
-								//// column dialog").
-								msg += "<br>" + __("Pushed to git \u2713");
-							}
-							frappe.show_alert({ message: msg, indicator: "green" });
-							// Reset user settings so "Reset to default" reads from updated JSON
-							this.columns = {};
-							frappe.model.user_settings.save(this.frm.doctype, "GridView", null);
-							this.grid_settings_dialog.hide();
-							setTimeout(() => location.reload(), 300);
-						} else {
-							//// Neoffice — see the marker above: msgids now English, the French is served by the catalogue
-							//// (f702c41e79 "refactor(i18n): English source strings for the form hero steps and the grid
-							//// column dialog").
-							frappe.msgprint({
-								title: __("Error"),
-								message: r.message ? r.message.error : __("Unknown error"),
-								indicator: "red"
-							});
-						}
-					}
-				});
-			};
-
-			// Add buttons to dialog footer
-			const $footer = this.grid_settings_dialog.$wrapper.find(".modal-footer");
-
-			//// Neoffice — see the block marker above: msgid restored English
-			const $btnJson = $(`<button class="btn btn-warning btn-sm" style="margin-right: 8px;">
-				${__("Apply to JSON")}
-			</button>`);
-			$btnJson.on("click", () => apply_to_json(false));
-
-			//// Neoffice — see the block marker above: msgid restored English
-			const $btnPush = $(`<button class="btn btn-danger btn-sm" style="margin-right: auto;">
-				${__("Apply and Push")}
-			</button>`);
-			$btnPush.on("click", () => {
-				//// Neoffice — see the block marker above: msgid restored English
-				frappe.confirm(
-					__("This will edit the JSON, commit and push to git. Continue?"),
-					() => apply_to_json(true)
-				);
-			});
-
-			$footer.prepend($btnPush);
-			$footer.prepend($btnJson);
-		}
-		////
 	}
 
 	setup_columns_for_dialog() {
@@ -567,20 +429,10 @@ export default class GridRow {
 			this.selected_columns_for_grid.push({
 				fieldname: row[0].fieldname,
 				columns: row[0].columns || row[0].colsize,
-				//// Neoffice — sticky columns, the feature 051206fa6b (2025-11-08 "fix: Grid fullwidth toggle with
-				//// horizontal scroll") added to this file — 117 lines, despite the title. Upstream has no sticky
-				//// column: a per-column checkbox in Configure Columns is stored in the GridView user settings (this
-				//// line), grid.js carries it into visible_columns (marked there) and the checked columns are pinned
-				//// left with a computed offset while the grid is in horizontal-scroll mode. Every marker below that
-				//// says "sticky columns" belongs to this one feature; the CSS lives in scss/common/grid.scss.
-				sticky: row[0].sticky || false,
 			});
 		});
 	}
 
-	//// Neoffice — sticky columns (051206fa6b, 2025-11-08): the dialog header template below gains a
-	//// "Sticky" column, the two existing ones narrowing from col-6/col-4 to col-5/col-3 to make room.
-	//// Markup only, and a marker cannot live inside the template literal — hence this one.
 	prepare_wrapper_for_columns() {
 		this.fields_html_wrapper = this.grid_settings_dialog.get_field("fields_html").$wrapper[0];
 
@@ -588,17 +440,11 @@ export default class GridRow {
 			<div class='form-group'>
 				<div class='row' style='margin-bottom:10px;'>
 					<div class='col-1'></div>
-					<!-- //// Neoffice — sticky columns (051206fa6b 2025-11-08): upstream's col-6 narrowed to col-5 (see the marker above prepare_wrapper_for_columns) -->
-					<div class='col-5' style='padding-left:20px;'>
+					<div class='col-6' style='padding-left:20px;'>
 						${__("Fieldname").bold()}
 					</div>
-					<!-- //// Neoffice — sticky columns (051206fa6b 2025-11-08): upstream's col-4 narrowed to col-3 -->
-					<div class='col-3'>
+					<div class='col-4'>
 						${__("Column Width").bold()}
-					</div>
-					<!-- //// Neoffice — sticky columns (051206fa6b 2025-11-08): added "Sticky" header column -->
-					<div class='col-2'>
-						${__("Sticky").bold()}
 					</div>
 					<div class='col-1'></div>
 				</div>
@@ -719,10 +565,6 @@ export default class GridRow {
 		return fields;
 	}
 
-	//// Neoffice — sticky columns (051206fa6b, 2025-11-08): the per-field row template below gains the
-	//// sticky checkbox (.sticky-column, wired by update_sticky_column() further down), with the same
-	//// col-6/col-4 -> col-5/col-3 narrowing as in the header. Markup only; marker kept outside the
-	//// template literal.
 	render_selected_columns() {
 		let fields = "";
 		if (this.selected_columns_for_grid) {
@@ -740,23 +582,14 @@ export default class GridRow {
 							<div class='col-1' style='padding-top: 4px;'>
 								<a style='cursor: grabbing;'>${frappe.utils.icon("drag", "xs")}</a>
 							</div>
-							<!-- //// Neoffice — sticky columns (051206fa6b 2025-11-08): upstream's col-6 narrowed to col-5 (see the marker above render_selected_columns) -->
-							<div class='col-5' style='padding-top: 5px;'>
+							<div class='col-6' style='padding-top: 5px;'>
 								${__(docfield.label, null, docfield.parent)}
 							</div>
-							<!-- //// Neoffice — sticky columns (051206fa6b 2025-11-08): upstream's col-4 narrowed to col-3 -->
-							<div class='col-3' style='padding-top: 2px; margin-top:-2px;' title='${__("Columns")}'>
+							<div class='col-4' style='padding-top: 2px; margin-top:-2px;' title='${__("Columns")}'>
 								<input class='form-control column-width my-1 input-xs text-right'
 								style='height: 24px; max-width: 80px; background: var(--bg-color);'
 									value='${cint(d.columns) || docfield.columns}'
 									data-fieldname='${docfield.fieldname}' style='background-color: var(--modal-bg); display: inline'>
-							</div>
-							<!-- //// Neoffice — sticky columns (051206fa6b 2025-11-08): added per-column sticky checkbox (update_sticky_column) -->
-							<div class='col-2' title='${__("Sticky")}'>
-								<input type='checkbox' class='sticky-column'
-									style='margin-top: 8px'
-									${d.sticky ? "checked" : ""}
-									data-fieldname='${docfield.fieldname}'>
 							</div>
 							<div class='col-1' style='padding-top: 3px;'>
 								<a class='text-muted remove-field' data-fieldname='${docfield.fieldname}'>
@@ -773,8 +606,6 @@ export default class GridRow {
 		this.prepare_handler_for_sort();
 		this.select_on_focus();
 		this.update_column_width();
-		//// Neoffice — sticky columns (051206fa6b): added call, next to upstream's update_column_width().
-		this.update_sticky_column();
 		this.remove_selected_column();
 	}
 
@@ -826,21 +657,6 @@ export default class GridRow {
 			});
 	}
 
-	//// Neoffice — sticky columns (051206fa6b): added method, the sticky checkbox counterpart of
-	//// upstream's update_column_width() above. No upstream equivalent.
-	update_sticky_column() {
-		$(this.fields_html_wrapper)
-			.find(".sticky-column")
-			.change((event) => {
-				this.selected_columns_for_grid.forEach((row) => {
-					if (row.fieldname === event.target.dataset.fieldname) {
-						row.sticky = cint(event.target.checked);
-						event.target.defaultValue = cint(event.target.checked);
-					}
-				});
-			});
-	}
-
 	validate_columns_width() {
 		let total_column_width = 0.0;
 
@@ -850,12 +666,9 @@ export default class GridRow {
 			}
 		});
 
-		//// Neoffice — upstream throws __("The total column width cannot be more than 10.") here (051206fa6b,
-		//// 2025-11-08): with the column cap lifted in grid.js (limit_colsize, marked there) a total above 10
-		//// is now the normal case, so the guard was removed. validate_columns_width() only sums; it never
-		//// rejects — which is why the Configure Columns dialog accepts any width.
-		// Validation removed to support unlimited columns with horizontal scroll
-		// The grid will automatically enable scroll mode when total_column_width > 10
+		if (total_column_width && total_column_width > 10) {
+			frappe.throw(__("The total column width cannot be more than 10."));
+		}
 	}
 
 	remove_selected_column() {
@@ -906,21 +719,6 @@ export default class GridRow {
 				? this.grid.user_defined_columns
 				: this.docfields;
 
-		//// Neoffice — sticky columns (051206fa6b, 2025-11-08): the running left offset of the pinned columns.
-		//// The 64px start is the width of the row-check (28px) and row-index (36px) cells, set by 95b0366b48
-		//// (2026-02-08 "fix: Use smaller fixed widths for row-check (28px) and row-index (36px)"; it was 80 =
-		//// 40+40 before). col_sizes maps a Bootstrap colsize to pixels — an approximation, not measured from
-		//// the DOM.
-		let total_colsize = 0;
-		let sticky_left_position = 64; // Start after checkbox (28px) and row number (36px)
-
-		// Column size mappings (Bootstrap colsize to pixels)
-		const col_sizes = {
-			1: 60,   2: 100,  3: 140,  4: 200,
-			5: 250,  6: 300,  7: 350,  8: 400,
-			9: 450,  10: 500, 11: 550, 12: 600
-		};
-
 		this.grid.visible_columns.forEach((col, ci) => {
 			// to get update df for the row
 			let df = this.get_column_docfield(fields, col[0].fieldname);
@@ -928,8 +726,6 @@ export default class GridRow {
 			this.set_dependant_property(df);
 
 			let colsize = col[1];
-			//// Neoffice — horizontal-scroll switch (051206fa6b, 2025-11-08): sum the column sizes, read after the loop.
-			total_colsize += colsize;
 
 			let txt = this.doc
 				? frappe.format(this.doc[df.fieldname], df, null, this.doc)
@@ -940,26 +736,12 @@ export default class GridRow {
 			}
 			let column;
 			if (!this.columns[df.fieldname] && !this.show_search) {
-				//// Neoffice — sticky columns (051206fa6b): upstream calls make_column(df, colsize, txt, ci); the
-				//// offset is passed on and advanced for each pinned column, in both branches below.
-				// Pass sticky position to make_column
-				column = this.make_column(df, colsize, txt, ci, sticky_left_position);
-
-				// If this column is sticky, increment the position for the next sticky column
-				if (df.sticky) {
-					sticky_left_position += col_sizes[colsize] || 100;
-				}
+				column = this.make_column(df, colsize, txt, ci);
 			} else if (!this.columns[df.fieldname] && this.show_search) {
 				column = this.make_search_column(df, colsize);
 			} else {
 				column = this.columns[df.fieldname];
 				this.refresh_field(df.fieldname, txt);
-				//// Neoffice — sticky columns (051206fa6b): advance the offset for an already-rendered column too.
-
-				// Track sticky position for existing columns too
-				if (df.sticky) {
-					sticky_left_position += col_sizes[colsize] || 100;
-				}
 			}
 
 			// background color for cell
@@ -979,31 +761,6 @@ export default class GridRow {
 			// last empty column
 			$(`<div class="col grid-static-col search"></div>`).appendTo(this.row);
 		}
-
-		//// Neoffice — added (051206fa6b, 2025-11-08): switches the grid to horizontal scroll past 10 columns
-		//// of width — .column-limit-reached on .form-grid-container and .has-horizontal-scroll on the parent
-		//// .frappe-control, the hook the SCSS needs since upstream's .frappe-control has overflow-x: clip,
-		//// which was cutting off the fullwidth toggle's negative margins. The 100 ms setTimeout waits for the
-		//// row to be in the DOM, and runs after EVERY row render.
-		// Enable horizontal scroll mode when total columns exceed 10
-		// Use setTimeout to ensure DOM is fully rendered
-		let me = this;
-		setTimeout(function() {
-			let current_grid = $(
-				`div[data-fieldname="${me.grid.df.fieldname}"] .form-grid-container`
-			);
-
-			if (total_colsize > 10) {
-				current_grid.addClass("column-limit-reached");
-				// Also add to parent for better CSS targeting
-				current_grid.closest('.frappe-control').addClass("has-horizontal-scroll");
-			} else if (current_grid.hasClass("column-limit-reached")) {
-				// Reset scroll when below limit
-				$(current_grid).children(".form-grid").css("left", 0);
-				current_grid.removeClass("column-limit-reached");
-				current_grid.closest('.frappe-control').removeClass("has-horizontal-scroll");
-			}
-		}, 100);
 	}
 
 	get_column_docfield(fields, fieldname) {
@@ -1091,13 +848,7 @@ export default class GridRow {
 				: this.default_rows_threshold_for_grid_search;
 		this.show_search =
 			this.show_search &&
-			//// Neoffice — upstream: `(this.grid?.data?.length >= show_length || this.grid.filter_applied)`
-			//// (c31e75693c, 2026-05-08 "feat(grid): force search row visible in fullscreen via force_search_row
-			//// flag"): grid.js sets the flag when the fullscreen overlay opens, so the per-column search row
-			//// stays even when the table holds fewer rows than the threshold.
-			(this.grid?.force_search_row ||
-				this.grid?.data?.length >= show_length ||
-				this.grid.filter_applied);
+			(this.grid?.data?.length >= show_length || this.grid.filter_applied);
 		!this.show_search && this.wrapper.remove();
 		return this.show_search;
 	}
@@ -1167,9 +918,7 @@ export default class GridRow {
 		return $col;
 	}
 
-	//// Neoffice — sticky columns (051206fa6b): upstream signature is make_column(df, colsize, txt, ci).
-	//// The extra argument is the left offset computed by render_row above.
-	make_column(df, colsize, txt, ci, sticky_left_position) {
+	make_column(df, colsize, txt, ci) {
 		let me = this;
 		var add_class =
 			["Text", "Small Text"].indexOf(df.fieldtype) !== -1
@@ -1180,12 +929,6 @@ export default class GridRow {
 				? " text-right"
 				: "";
 		add_class += ["Check"].indexOf(df.fieldtype) !== -1 ? " text-center" : "";
-
-		//// Neoffice — sticky columns (051206fa6b): the class the SCSS pins with position: sticky.
-		// Add sticky class if this column is marked as sticky
-		if (df.sticky) {
-			add_class += " sticky-grid-col";
-		}
 
 		let grid;
 		let grid_container;
@@ -1199,59 +942,32 @@ export default class GridRow {
 		let vertical = false;
 		let horizontal = false;
 
-		//// Neoffice — on_input_focus rewritten (051206fa6b, 2025-11-08): upstream scrolls the grid on every
-		//// focus; ours returns early unless the grid is in horizontal-scroll mode (.column-limit-reached) and
-		//// guards `parseFloat(grid.style.left)` with `|| 0`, which is NaN before the first scroll. The rest is
-		//// upstream's logic with el.width() hoisted and explanatory comments added. Note this col_sizes copy
-		//// is never read inside make_column — the live one is in render_row above.
-		// Column size mappings for auto-scroll calculations
-		let col_sizes = {
-			1: 60,   2: 100,  3: 140,  4: 200,
-			5: 250,  6: 300,  7: 350,  8: 400,
-			9: 450,  10: 500, 11: 550, 12: 600
-		};
-
-		// Prevent random layout shifts caused by widgets and on-click position elements inside view (UX).
-		// Enhanced auto-scroll to focused fields in horizontal scroll mode
+		// prevent random layout shifts caused by widgets and on click position elements inside view (UX).
 		function on_input_focus(el) {
 			input_in_focus = true;
 
-			//// Neoffice — on_input_focus rewrite (see the marker above): scroll only in horizontal-scroll mode.
-			// Check if we're in column-limit-reached mode
-			let is_scroll_mode = $(grid_container).hasClass("column-limit-reached");
-			if (!is_scroll_mode) return;
-
 			let container_width = grid_container.getBoundingClientRect().width;
 			let container_left = grid_container.getBoundingClientRect().left;
-			//// Neoffice — `|| 0`: style.left is empty (NaN) before the first scroll (051206fa6b).
-			let grid_left = parseFloat(grid.style.left) || 0;
+			let grid_left = parseFloat(grid.style.left);
 			let element_left = el.offset().left;
 			let fieldtype = el.data("fieldtype");
-			//// Neoffice — el.width() hoisted into element_width, used just below (051206fa6b; same value as upstream).
-			let element_width = el.width();
 
-			let offset_right = container_width - (element_left + element_width);
+			let offset_right = container_width - (element_left + el.width());
 			let offset_left = 0;
 			let element_screen_x = element_left - container_left;
 			let element_position_x = container_width - (element_left - container_left);
 
-			// Additional space needed for dropdown widgets
 			if (["Date", "Time", "Datetime"].includes(fieldtype)) {
 				offset_left = element_position_x - 220;
 			}
 			if (["Link", "Dynamic Link"].includes(fieldtype)) {
 				offset_left = element_position_x - 250;
 			}
-
-			// Adjust scroll position to bring element into view
 			if (element_screen_x < 0) {
-				// Element is off-screen to the left
 				grid.style.left = `${grid_left - element_screen_x}px`;
 			} else if (offset_left < 0) {
-				// Dropdown would be cut off on the right
 				grid.style.left = `${grid_left + offset_left}px`;
 			} else if (offset_right < 0) {
-				// Element is off-screen to the right
 				grid.style.left = `${grid_left + offset_right}px`;
 			}
 		}
@@ -1282,17 +998,7 @@ export default class GridRow {
 			.attr("data-fieldname", df.fieldname)
 			.attr("data-fieldtype", df.fieldtype)
 			.data("df", df)
-			.appendTo(this.row);
-
-		//// Neoffice — sticky columns (051206fa6b): upstream chains .appendTo(this.row) straight into the
-		//// event handlers; the chain is split so the pinned column can get its left offset in between. The
-		//// handlers below are upstream's, resumed on $col.
-		// Apply left position for sticky columns
-		if (df.sticky && sticky_left_position !== undefined) {
-			$col.css('left', sticky_left_position + 'px');
-		}
-
-		$col
+			.appendTo(this.row)
 			// initialize grid for horizontal scroll on mobile devices.
 			.on("touchstart", function (event) {
 				grid_container = $(event.currentTarget).closest(".form-grid-container")[0];
@@ -1346,36 +1052,6 @@ export default class GridRow {
 				vertical = false;
 				horizontal = false;
 			})
-			//// Neoffice — added handler (c3b448ae32, 2025-11-29 "fix: improve grid column settings save
-			//// reliability and dropdown positioning"): in horizontal-scroll mode the awesomplete dropdown of a
-			//// Link / Dynamic Link cell was cut off by the scrolling container, so it is re-positioned fixed to
-			//// the viewport. No upstream equivalent; the 300 ms sleep waits for awesomplete to build its <ul>.
-			.on("focusin", function (event) {
-				// Reposition dropdown for Link/Dynamic Link fields in horizontal scroll mode
-				if (df.fieldtype === "Link" || df.fieldtype === "Dynamic Link") {
-					frappe.utils.sleep(300).then(() => {
-						let $dropdown = $(this).find(".awesomplete > ul:first-of-type");
-						let $grid_container = $(this).closest(".form-grid-container");
-
-						// Only reposition if in column-limit-reached (scroll) mode
-						if ($grid_container.hasClass("column-limit-reached") && $dropdown.length) {
-							let element_position = event.target.getBoundingClientRect();
-							let container_position = $grid_container[0].getBoundingClientRect();
-
-							// Position dropdown fixed relative to viewport
-							$dropdown.css({
-								position: "fixed",
-								top: `${element_position.bottom + 5}px`,
-								left: `${element_position.left}px`,
-								width: "250px",
-								"z-index": 1050,
-								"max-height": "300px",
-								"overflow-y": "auto"
-							});
-						}
-					});
-				}
-			})
 			.on("click", function (event) {
 				if (frappe.ui.form.editable_row !== me) {
 					var out = me.toggle_editable_row();
@@ -1416,16 +1092,6 @@ export default class GridRow {
 
 		$col.df = df;
 		$col.column_index = ci;
-
-		//// Neoffice — sticky columns (051206fa6b): second pass, this time reading the flag from
-		//// grid.user_defined_columns (the user's saved layout) rather than from the docfield.
-		// Apply sticky class if column is marked as sticky
-		if (df.sticky || (this.grid.user_defined_columns && this.grid.user_defined_columns.length > 0)) {
-			let user_column = this.grid.user_defined_columns?.find(col => col.fieldname === df.fieldname);
-			if (user_column && user_column.sticky) {
-				$col.addClass("sticky-grid-col");
-			}
-		}
 
 		this.columns[df.fieldname] = $col;
 		this.columns_list.push($col);
@@ -1764,11 +1430,8 @@ export default class GridRow {
 			!frappe.dom.is_element_in_viewport(this.wrapper) &&
 			!frappe.dom.is_element_in_modal(this.wrapper)
 		) {
-			//// Neoffice — upstream: `frappe.utils.scroll_to(this.wrapper, true, -15);` ("-15 offset to make form
-			//// look visually centered"). -15 puts the top of the form 15px UNDER the sticky page head; with the
-			//// cockpit page head that hides the "Editing Row" title. +15 leaves the form 15px below the head,
-			//// which is where hide_form() puts the row when the form closes.
-			frappe.utils.scroll_to(this.wrapper, true, 15); //// frappe.utils.scroll_to(this.wrapper, true, -15);
+			// -15 offset to make form look visually centered
+			frappe.utils.scroll_to(this.wrapper, true, -15);
 		}
 
 		if (this.frm) {

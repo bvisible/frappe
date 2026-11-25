@@ -60,28 +60,9 @@ export default class Grid {
 	}
 
 	make() {
-		//// Neoffice — the grid-field template below carries four additions and nothing else; a marker cannot
-		//// live inside a template literal, hence this single block:
-		////   — the "Toggle Full Width" button beside the label, in a .d-flex wrapper (8a044787a8, 2025-11-07
-		////     "Add full-width toggle to grid and improve VAT Declaration handling") — setup_fullwidth_toggle()
-		////     below wires it. Upstream renders a bare <label class="control-label">;
-		////   — the .grid-append-row CTA inside the table (64f4614afc, 2026-06-10 "feat(cockpit): grid
-		////     redesign"), the cockpit's in-table "+ Add Row"; it shares the footer button's handler
-		////     (setup_add_row, marked) and its visibility rules (refresh_remove_rows_button, marked);
-		////   — inline SVG icons on Add Row / Add Multiple and icon-only Download / Upload (same commit), the
-		////     labels surviving as title / aria-label;
-		////   — the alt text of the empty-grid image goes through __() (upstream hard-codes "Grid Empty State" in
-		////     English, so it showed as an English tooltip in a French UI).
 		let template = `
 			<div class="grid-field">
-				<div class="d-flex align-items-center">
-				<label class="control-label mb-0">${__(this.df.label || "", null, this.df.parent)}</label>
-				<button type="button" class="btn btn-xs btn-default ml-2 grid-toggle-fullwidth" title="${__(
-					"Toggle Full Width"
-				)}" style="padding: 3px 5px; display: flex; margin-bottom: 3px;">
-					<svg class="icon icon-xs"><use href="#es-line-expand"></use></svg>
-				</button>
-			</div>
+				<label class="control-label">${__(this.df.label || "", null, this.df.parent)}</label>
 				<span class="help"></span>
 				<p class="text-muted small grid-description"></p>
 				<div class="grid-custom-buttons"></div>
@@ -91,19 +72,13 @@ export default class Grid {
 						<div class="grid-body">
 							<div class="rows"></div>
 							<div class="grid-empty text-center">
-								<!-- //// Neoffice — the empty state's alt text goes through __() (1e42eee4de "fix(i18n): alt texts of the empty states and of the report toolbar icons go through __()") -->
 								<img
 									src="/assets/frappe/images/ui-states/grid-empty-state.svg"
-									alt="${__("Grid Empty State")}"
+									alt="Grid Empty State"
 									class="grid-empty-illustration"
 								>
 								${__("No Data")}
 							</div>
-							<!-- //// Neoffice — added: the cockpit's in-table "+ Add Row" CTA (64f4614afc 2026-06-10 "feat(cockpit): grid redesign"; see the marker above make()) -->
-							<button type="button" class="grid-append-row hidden">
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-									stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>${__("Add Row")}
-							</button>
 						</div>
 					</div>
 				</div>
@@ -120,32 +95,20 @@ export default class Grid {
 							</button>
 							<!-- hack to allow firefox include this in tabs -->
 							<button type="button" class="btn btn-xs btn-secondary grid-add-row">
-								<!-- //// Neoffice — inline icon before the label (64f4614afc 2026-06-10, cockpit grid redesign); upstream shows the label only -->
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-									stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>${__("Add Row")}
+								${__("Add Row")}
 							</button>
 							<button type="button" class="grid-add-multiple-rows btn btn-xs btn-secondary hidden">
-								<!-- //// Neoffice — inline icon before the label (64f4614afc 2026-06-10, cockpit grid redesign); upstream shows the label only -->
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-									stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>${__(
-				"Add Multiple"
-			)}
+								${__("Add Multiple")}</a>
 							</button>
 						</div>
 						<div class="grid-pagination">
 						</div>
 						<div class="grid-bulk-actions text-right">
-							<!-- //// Neoffice — icon-only Download button, the label kept as title / aria-label (64f4614afc 2026-06-10, cockpit grid redesign) -->
-							<button type="button" class="grid-download btn btn-xs btn-secondary grid-icon-btn hidden"
-								title="${__("Download")}" aria-label="${__("Download")}">
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-									stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+							<button type="button" class="grid-download btn btn-xs btn-secondary hidden">
+								${__("Download")}
 							</button>
-							<!-- //// Neoffice — icon-only Upload button, the label kept as title / aria-label (64f4614afc 2026-06-10, cockpit grid redesign) -->
-							<button type="button" class="grid-upload btn btn-xs btn-secondary grid-icon-btn hidden"
-								title="${__("Upload")}" aria-label="${__("Upload")}">
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-									stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+							<button type="button" class="grid-upload btn btn-xs btn-secondary hidden">
+								${__("Upload")}
 							</button>
 						</div>
 					</div>
@@ -175,209 +138,9 @@ export default class Grid {
 
 		this.setup_allow_bulk_edit();
 		this.setup_check();
-		//// Neoffice — added call (8a044787a8, 2025-11-07): wires the Toggle Full Width button of the template
-		//// above. The method it calls is ours too, right below.
-		this.setup_fullwidth_toggle();
-		//// Neoffice — added call (maintenance#2001): a mainly vertical swipe that starts over a grid in
-		//// horizontal-scroll mode moves the page instead of sticking to the grid. The method is ours, below.
-		this.setup_vertical_wheel_handoff();
 		if (this.df.on_setup) {
 			this.df.on_setup(this);
 		}
-	}
-
-	//// Neoffice — added method, no upstream equivalent (v15 or develop): expands a child table to a
-	//// 95vw x 95vh overlay. History, because the shape matters at the merge: 8a044787a8 (2025-11-07)
-	//// shipped an inline "full width" toggle, 56c29f4324 (2026-05-08) made it a modal dialog and
-	//// 5a4bfb7b7c the same day dropped the DOM transplant it needed — moving the grid-field detached the
-	//// listeners bound to the form column, breaking Add Row and the sub-dialogs. Since then the
-	//// grid-field never moves: only a class (position: fixed) plus a backdrop. Then dccea87d29 and
-	//// c31e75693c (force_search_row, read by grid_row.js#show_search_row — marked there) forced the
-	//// per-column search row visible, and on 2026-07-28 7bde977a72 / b793769888 / 9e59d27acf made the
-	//// overlay a continuous scroll: unbounded page length (a length frozen at open time re-paginated as
-	//// soon as a row was added) and rows beyond the page window dropped on close, since truncate_rows()
-	//// only fires when the data shrinks. Styles in scss/common/grid.scss.
-	setup_fullwidth_toggle() {
-		// Zoom the grid to a near-fullscreen overlay WITHOUT moving it in
-		// the DOM. We just toggle a class on the grid-field that makes it
-		// `position: fixed` 95vw × 95vh, plus a backdrop. This keeps every
-		// JS reference, every event binding, and the parent form layout
-		// intact — Add Row, calc, save, sub-dialogs (item search, batch
-		// picker, etc.) all keep working as if nothing changed.
-		const toggle_btn = this.wrapper.find(".grid-toggle-fullwidth");
-		const grid_field = this.wrapper;
-		const me = this;
-
-		const BACKDROP_CLASS = "grid-fullscreen-backdrop";
-		const FULLSCREEN_CLASS = "grid-fullscreen";
-
-		// Continuous flow in fullscreen: the whole table in one scroll, no
-		// "page 1 / 2" past 50 rows. Pagination stays ON in the inline grid,
-		// where it is what keeps a 500-row form responsive (it bounds every
-		// re-render to one page).
-		const set_continuous = (on) => {
-			const gp = me.grid_pagination;
-			if (!gp) return;
-			const default_length = me.meta?.grid_page_length || 50;
-			if (on) {
-				// A fixed length taken at open time breaks as soon as a row is
-				// added while in fullscreen (total_pages would become 2 and a
-				// single row would show). An effectively unbounded page keeps
-				// the view continuous whatever happens to the data.
-				gp.page_length = 1e6;
-			} else {
-				gp.page_length = default_length;
-				// Drop the rows rendered beyond the page window. truncate_rows()
-				// only fires when the DATA shrinks, so without this the inline
-				// grid would keep every fullscreen row in the DOM and lose the
-				// very benefit pagination provides. They are rebuilt on demand
-				// when the user pages forward.
-				if (me.grid_rows && me.grid_rows.length > default_length) {
-					for (let i = default_length; i < me.grid_rows.length; i++) {
-						const gr = me.grid_rows[i];
-						if (!gr) continue;
-						if (gr.wrapper) gr.wrapper.remove();
-						if (gr.doc && me.grid_rows_by_docname) {
-							delete me.grid_rows_by_docname[gr.doc.name];
-						}
-					}
-					me.grid_rows.splice(default_length);
-				}
-			}
-			gp.page_index = 1;
-		};
-
-		const close_fullscreen = () => {
-			set_continuous(false);
-			grid_field.removeClass(FULLSCREEN_CLASS);
-			//// Neoffice — the veil can be inside a window's layer now, and the cross goes (see open_fullscreen)
-			$(`.${BACKDROP_CLASS}`).remove();
-			grid_field.find(".grid-fullscreen-close").remove();
-			$(document).off("keydown.gridFullscreen");
-			toggle_btn.removeClass("btn-primary").addClass("btn-default");
-			// Drop the force flag so Frappe removes the filter row again
-			// if there aren't enough rows to justify it
-			me.force_search_row = false;
-			$(me.parent).find(".grid-heading-row").removeClass("force-with-filter");
-			// Recompute column widths in the original container, also
-			// re-evaluates whether the search row should stay
-			me.refresh();
-		};
-
-		const open_fullscreen = () => {
-			set_continuous(true);
-			grid_field.addClass(FULLSCREEN_CLASS);
-			// Force the per-column filter/search row visible, even when
-			// the row count is below Frappe's default threshold. The flag
-			// is read by GridRow#show_search_row.
-			me.force_search_row = true;
-			$(me.parent).find(".grid-heading-row").addClass("force-with-filter");
-			// Backdrop catches clicks-outside and ESC.
-			//// Neoffice — a table of a window (« Matériel à prévoir » of the quick activity) is zoomed inside that window's
-			//// layer: a veil appended to the body sat under the window (1049 against 1050), which stayed bright and took
-			//// the clicks beside the table. Inside the window's .modal it covers the window, under the table
-			//// (design system §6.18, a work surface, 23.11.2026).
-			const $layer = grid_field.closest(".modal");
-			$(`.${BACKDROP_CLASS}`).remove();
-			const $backdrop = $(`<div class="${BACKDROP_CLASS}"></div>`)
-				//// Neoffice — into the window's layer when the table is in a window (above)
-				.appendTo($layer.length ? $layer : "body")
-				.on("click", close_fullscreen);
-			$(document).on("keydown.gridFullscreen", (e) => {
-				if (e.key === "Escape") {
-					e.preventDefault();
-					close_fullscreen();
-				}
-			});
-			toggle_btn.removeClass("btn-default").addClass("btn-primary");
-			//// Neoffice — the window's cross at the right of the head, as every window of the model (design system §6.18)
-			grid_field.children(".d-flex.align-items-center").first().append(
-				$(
-					`<button type="button" class="btn btn-link grid-fullscreen-close" title="${__("Close")} (Esc)" aria-label="${__(
-						"Close"
-					)}">${frappe.utils.icon("close-alt", "sm", "close-alt")}</button>`
-				).on("click", close_fullscreen)
-			);
-			// Recompute column widths AND re-build the heading row so the
-			// header_search/filter-row gets re-created (it was removed by
-			// show_search_row when the row count was below threshold).
-			setTimeout(() => {
-				me.make_head();
-				me.refresh();
-			}, 50);
-		};
-
-		toggle_btn.on("click", () => {
-			if (grid_field.hasClass(FULLSCREEN_CLASS)) {
-				close_fullscreen();
-			} else {
-				open_fullscreen();
-			}
-		});
-	}
-	//// Neoffice — added method, no upstream equivalent (v15 or develop), for maintenance#2001. Past ten
-	//// columns our grid scrolls sideways (.column-limit-reached: overflow-x scroll, overflow-y hidden, set in
-	//// grid_row.js), and a browser picks the scroller of a WHOLE wheel gesture from its first event (scroll
-	//// latching). A trackpad or Magic Mouse swipe that starts over the table with the slightest sideways
-	//// drift latched onto the table, which cannot move vertically: the page stopped with the table under the
-	//// pointer, and what follows it (taxes, totals) looked missing until a reload. Once the table had moved
-	//// sideways, a drift either way latched. Measured on a Sales Invoice with a synthetic gesture (600 px
-	//// down, 20 px sideways): page 0 px, table 20 px. A mainly vertical gesture the table would capture is
-	//// handed to the nearest scroller that can move vertically (.main-section in the cockpit layout); a
-	//// mainly sideways one still scrolls the table, and a gesture that starts straight down is left to the
-	//// browser, which already scrolls the page.
-	setup_vertical_wheel_handoff() {
-		const container = this.wrapper.find(".form-grid-container").get(0);
-		if (!container) return;
-		const grid_field = this.wrapper;
-		const HANDOFF_GAP = 150; // ms without a wheel event that ends a handed-off gesture
-		let handing_off_until = 0;
-
-		const can_scroll_x = (el, dx) =>
-			dx < 0 ? el.scrollLeft > 0 : el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
-		const can_scroll_y = (el, dy) => {
-			const overflow_y = getComputedStyle(el).overflowY;
-			if (!["auto", "scroll", "overlay"].includes(overflow_y)) return false;
-			return dy < 0
-				? el.scrollTop > 0
-				: el.scrollTop + el.clientHeight < el.scrollHeight - 1;
-		};
-		// A scroller between the pointer and the grid (a long text in an open row) keeps the gesture
-		const inner_scroller = (target, dy) => {
-			for (let el = target; el && el !== container; el = el.parentElement) {
-				if (el.nodeType === 1 && can_scroll_y(el, dy)) return true;
-			}
-			return false;
-		};
-		const page_scroller = (dy) => {
-			for (let el = container.parentElement; el; el = el.parentElement) {
-				if (el === document.body || el === document.documentElement) break;
-				if (can_scroll_y(el, dy)) return el;
-			}
-			return document.scrollingElement;
-		};
-
-		container.addEventListener(
-			"wheel",
-			(e) => {
-				// Not cancelable: the browser already latched this gesture elsewhere. ctrlKey: a pinch-zoom.
-				// The fullscreen overlay scrolls both ways by itself, over a page that must stay still.
-				if (!e.cancelable || e.ctrlKey || grid_field.hasClass("grid-fullscreen")) return;
-				if (e.timeStamp > handing_off_until) {
-					const mainly_vertical = Math.abs(e.deltaY) > Math.abs(e.deltaX);
-					if (!mainly_vertical || !e.deltaX || !can_scroll_x(container, e.deltaX))
-						return;
-					if (can_scroll_y(container, e.deltaY) || inner_scroller(e.target, e.deltaY))
-						return;
-				}
-				e.preventDefault();
-				handing_off_until = e.timeStamp + HANDOFF_GAP;
-				const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? window.innerHeight : 1;
-				const scroller = page_scroller(e.deltaY);
-				if (scroller) scroller.scrollTop += e.deltaY * unit;
-			},
-			{ passive: false }
-		);
 	}
 	set_grid_description() {
 		let description_wrapper = $(this.parent).find(".grid-description");
@@ -567,17 +330,6 @@ export default class Grid {
 		this.remove_all_rows_button.toggleClass("hidden", !show_delete_all_btn);
 	}
 
-	//// Neoffice — added field (0642910c2f, 2026-07-25): backport of upstream frappe#22862 into our v15.
-	//// grid_row.js#refresh_check calls the debounced version instead of refresh_remove_rows_button()
-	//// (marked there), which re-scans the whole grid body on every call — O(rows^2) on a large table.
-	//// Drop this once the fork reaches an upstream release that carries #22862.
-	// Backport of frappe/frappe#22862 (perf): refresh_check() runs once per row
-	// per render, and each call re-scans the whole grid body — O(rows²).
-	debounced_refresh_remove_rows_button = frappe.utils.debounce(
-		this.refresh_remove_rows_button,
-		100
-	);
-
 	get_selected() {
 		return (this.data || []).filter((doc) => doc.__checked).map((doc) => doc.name);
 	}
@@ -714,29 +466,6 @@ export default class Grid {
 		this.refresh_remove_rows_button();
 
 		this.wrapper.trigger("change");
-
-		//// Neoffice — the Freeline / Subtotal classes (neo_tag_layout_rows): render_result_rows puts them too, for a
-		//// change of page that calls it alone, but it can return before its end (a page shorter than its count).
-		this.neo_tag_layout_rows();
-	}
-
-	//// Neoffice — added (4c842a98fc, 2023-10-30 "First change v15"; the commit gives no rationale): after every
-	//// render, tags each .data-row containing an element with data-name="Freeline" / "Subtotal" with a matching
-	//// class, for the line styling of the erpnextswiss sales documents. It runs on EVERY grid of EVERY doctype,
-	//// inside the render path. TO REVIEW at the merge.
-	//// The classes are first taken off every row, then put back where they belong: a node that carried a Freeline
-	//// or a Subtotal kept the class once another line took its place, and an article was drawn as text after a
-	//// line was inserted in the middle or moved (found 13.10.2026, neoffice-maintenance#1519).
-	//// It ran at the end of refresh() only: a change of page (grid_pagination.go_to_page) renders its rows through
-	//// render_result_rows alone, so on page 2 of a long invoice no line was a Subtotal or a Free line. They were
-	//// drawn as articles, and the theme's running amount of each Subtotal, positioned against its row, fell to
-	//// the middle of the table: two Subtotals that follow each other wrote their amounts over one another
-	//// (19.11.2026, a 55-line invoice ending on « Sous-Total » and « Total avant acompte », neoffice-maintenance#3132).
-	neo_tag_layout_rows() {
-		if (!this.wrapper) return;
-		this.wrapper.find(".data-row").removeClass("freeline subtotal");
-		this.wrapper.find('[data-name="Freeline"]').parents(".data-row").addClass("freeline");
-		this.wrapper.find('[data-name="Subtotal"]').parents(".data-row").addClass("subtotal");
 	}
 
 	render_result_rows($rows) {
@@ -825,9 +554,6 @@ export default class Grid {
 		if (this.grid_rows.length > this.data.length) {
 			this.grid_rows.length = this.data.length;
 		}
-
-		//// Neoffice — after every render of the rows, a change of page included (neoffice-maintenance#3132).
-		this.neo_tag_layout_rows();
 	}
 
 	setup_toolbar() {
@@ -859,14 +585,6 @@ export default class Grid {
 		this.wrapper
 			.find(".grid-add-row, .grid-add-multiple-rows, .grid-upload")
 			.toggleClass("d-none", !is_editable);
-		//// Neoffice — added (e901cfb70a, 2026-06-10 "fix(cockpit): grid totals first-paint + append-row CTA
-		//// visibility"): drives the visibility of the in-table CTA (.grid-append-row of the template above),
-		//// which upstream does not have. The class alone decides (no jQuery .toggle(), whose inline display
-		//// surfaced it on the legacy chrome over the stylesheet), and cannot_add_rows folds into the same
-		//// condition.
-		const append_row_hidden =
-			!is_editable || this.cannot_add_rows || (this.df && this.df.cannot_add_rows);
-		this.wrapper.find(".grid-append-row").toggleClass("hidden", Boolean(append_row_hidden));
 	}
 
 	setup_fields() {
@@ -1136,10 +854,7 @@ export default class Grid {
 	}
 
 	setup_add_row() {
-		//// Neoffice — upstream binds only ".grid-add-row" (64f4614afc, 2026-06-10): the cockpit CTA row
-		//// shares the footer button's handler, so both open a new row exactly the same way.
-		// .grid-append-row = the in-table CTA row (cockpit), same action
-		this.wrapper.find(".grid-add-row, .grid-append-row").click(() => {
+		this.wrapper.find(".grid-add-row").click(() => {
 			this.add_new_row(null, null, true, null, true);
 			this.set_focus_on_row();
 
@@ -1273,19 +988,6 @@ export default class Grid {
 
 		this.visible_columns = [];
 
-		//// Neoffice — upstream hardcodes 11 as the cap on the sum of the column sizes (`if (total_colsize >
-		//// 11) return false;` below), which silently drops the in-list-view columns past it. 4e23539603
-		//// (2024-09-23 "last updates") first introduced limit_colsize as a VAT Declaration special case (20
-		//// instead of 11); 051206fa6b (2025-11-08 "fix: Grid fullwidth toggle with horizontal scroll")
-		//// generalised it to 999 — no column is dropped any more, and grid_row.js switches the grid to
-		//// horizontal scroll past 10 (.column-limit-reached, marked there).
-		//// Measured 2026-09-09 (neoffice-maintenance#205): `VAT Detail` carries 16 in-list-view columns,
-		//// `VAT Declaration Summary` 13, `Booking Extra` 11 — upstream's cap of 10 would HIDE six columns
-		//// of the Swiss VAT detail grid. The price is that every in-list-view column renders on every
-		//// child table; that is the price of showing the columns the user marked. Kept, deliberately.
-		// No limit on column size - horizontal scroll will be enabled automatically
-		let limit_colsize = 999;
-
 		for (var ci in fields) {
 			var _df = fields[ci];
 
@@ -1322,16 +1024,12 @@ export default class Grid {
 				}
 
 				total_colsize += df.colsize;
-				//// Neoffice — 4e23539603 (2024-09-23) replaced upstream's literal 11 with limit_colsize, now 999 (see
-				//// the marker above). The redistribute loop that follows is upstream's again: 051206fa6b reverted the
-				//// three other substitutions 4e23539603 had made in it, so only its two comment lines are ours.
-				if (total_colsize > limit_colsize) return false; //// replaced 11 with limit_colsize
+				if (total_colsize > 11) return false;
 				this.visible_columns.push([df, df.colsize]);
 			}
 		}
 
-		// Redistribute column sizes only for small tables (< 11 columns)
-		// For larger tables, horizontal scroll will be enabled
+		// redistribute if total-col size is less than 12
 		var passes = 0;
 		while (total_colsize < 11 && passes < 12) {
 			for (var i in this.visible_columns) {
@@ -1385,10 +1083,6 @@ export default class Grid {
 					if (column) {
 						column.in_list_view = 1;
 						column.columns = row.columns;
-						//// Neoffice — added (051206fa6b, 2025-11-08): carries the per-column "sticky" flag of the user's
-						//// GridView settings into visible_columns. grid_row.js pins those columns to the left while the grid
-						//// is in horizontal-scroll mode (marked there). Upstream has no sticky columns.
-						column.sticky = row.sticky || false;
 						return column;
 					}
 				})
