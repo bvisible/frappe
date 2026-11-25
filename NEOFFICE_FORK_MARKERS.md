@@ -30,6 +30,18 @@ import order in `FileUploader.vue`; nothing is left to record.
 replaced that sidebar since 2026-06-10; `workspace.js` reads the spaces of the boot itself. A merge that brings one of
 these files back has nothing of ours in it.
 
+### Gone to the theme (2026-11-25): the e-mail composer and what the desk says about a request
+
+`frappe/public/js/frappe/views/communication.js` and `frappe/public/js/frappe/request.js` are upstream's again. The
+composer as Neoffice has it (CC / BCC on one row, the template beside the schedule, the signature looked up only by
+who may read Email Account) is `neoffice_theme/public/js/communication_composer.js`, on Frappe 15 and 16; its drafts
+moved from IndexedDB to localStorage, an old one read and carried over the first time it is asked for. `frappe.call`
+(no « Connection Lost » from navigator.onLine) and `frappe.request.call` (one « Connection Lost » for a request that
+reached no server, the refusal that asks whether the session lives, the `silent` reading refused in the console) are
+`neoffice_theme/public/js/request_model.js`, put through the theme's patcher with Frappe 15's fingerprints; its test
+(`neoffice_theme/tests/test_a_background_refusal_opens_no_window.py`) replaces the fork's. A merge that changes either
+file has nothing of ours in it; a rewritten `frappe.call` or `frappe.request.call` is said in the desk's console.
+
 ## Lot F2 — frappe/public/js
 
 ### Gone to the theme (2026-11-24): the cockpit and the sheets of its pieces

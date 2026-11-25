@@ -36,12 +36,7 @@ frappe.views.CommunicationComposer = class {
 			minimizable: true,
 		});
 
-		//// Neoffice — the section that holds the recipients, not the dialog's first one. An app
-		//// that adds a section above them (the SMS channel of neoffice_theme) took the class, and
-		//// the CC/BCC toggle fell under the « To » field as a lone, tiny chevron (2026-10-07).
-		this.dialog.fields_dict.recipients.$wrapper.closest(".form-section").addClass("to_section");
-		//// Neoffice — a hook for the composer's own spacing (modal.scss), other dialogs untouched.
-		this.dialog.$wrapper.addClass("communication-composer");
+		$(this.dialog.$wrapper.find(".form-section").get(0)).addClass("to_section");
 
 		this.prepare();
 		this.dialog.show();
@@ -61,15 +56,9 @@ frappe.views.CommunicationComposer = class {
 				fieldname: "recipients",
 				default: this.get_default_recipients("recipients"),
 			},
-			//// Neoffice — a compact head (2026-10-07: « ça prend beaucoup de place à l'écran »).
-			//// Upstream stacked CC, BCC, the schedule and the template one under the other behind
-			//// an unlabelled chevron, and a default template opened them all. Here the toggle says
-			//// what it opens (CC / BCC), CC and BCC share one row, and the template and the
-			//// schedule share another that always shows: a template is applied on its own and the
-			//// user must see which one.
 			{
 				fieldtype: "Button",
-				label: this.more_options_label(false),
+				label: frappe.utils.icon("down", "xs"),
 				fieldname: "option_toggle_button",
 				click: () => {
 					this.toggle_more_options();
@@ -86,26 +75,30 @@ frappe.views.CommunicationComposer = class {
 				fieldname: "cc",
 				default: this.get_default_recipients("cc"),
 			},
-			//// Neoffice — see the block marker above: CC/BCC on one row.
-			{ fieldtype: "Column Break", fieldname: "bcc_column" },
 			{
 				label: __("BCC", null, "Email Recipients"),
 				fieldtype: "MultiSelect",
 				fieldname: "bcc",
 				default: this.get_default_recipients("bcc"),
 			},
-			//// Neoffice — removed the standalone "Schedule Send At" field here (0651b3f9d "feat(email):
-			//// a compact composer head: a labelled CC / BCC toggle, CC and BCC side by side, the
-			//// template beside the schedule"): it now sits beside the template, after
-			//// "send_after_column" below, instead of being stacked under CC/BCC.
-			//// Neoffice — upstream's "Use HTML" check (b64bc20f7b) follows the schedule, which now sits beside the
-			//// template (see below): it moved with it, out of the CC / BCC section that stays closed.
+			{
+				label: __("Schedule Send At"),
+				fieldtype: "Datetime",
+				fieldname: "send_after",
+			},
+			{
+				label: __("Use HTML"),
+				fieldtype: "Check",
+				fieldname: "use_html",
+				default: 0,
+				onchange: () => {
+					me.on_use_html_toggle();
+				},
+			},
 			{
 				fieldtype: "Section Break",
 				fieldname: "email_template_section_break",
-				//// Neoffice — removed "hidden: 1," here (0651b3f9d "feat(email): a compact composer
-				//// head..."): the template row now always shows, beside the schedule, since a
-				//// template is applied on its own and the user must see which one.
+				hidden: 1,
 			},
 			{
 				label: __("Email Template"),
@@ -117,27 +110,6 @@ frappe.views.CommunicationComposer = class {
 				fieldtype: "HTML",
 				label: __("Clear & Add template"),
 				fieldname: "clear_and_add_template",
-			},
-			//// Neoffice — the schedule now sits beside the template (0651b3f9d "feat(email): a
-			//// compact composer head: a labelled CC / BCC toggle, CC and BCC side by side, the
-			//// template beside the schedule"): template and schedule share this row, always
-			//// visible, instead of being stacked behind the toggle.
-			{ fieldtype: "Column Break", fieldname: "send_after_column" },
-			{
-				label: __("Schedule Send At"),
-				fieldtype: "Datetime",
-				fieldname: "send_after",
-			},
-			//// Neoffice — upstream's "Use HTML" check, here so that a draft reopened in HTML mode shows the switch
-			//// back (the CC / BCC section above only opens for a copy).
-			{
-				label: __("Use HTML"),
-				fieldtype: "Check",
-				fieldname: "use_html",
-				default: 0,
-				onchange: () => {
-					me.on_use_html_toggle();
-				},
 			},
 			{ fieldtype: "Section Break" },
 			{
@@ -282,17 +254,10 @@ frappe.views.CommunicationComposer = class {
 	toggle_more_options(show_options) {
 		show_options = show_options || this.dialog.fields_dict.more_options.df.hidden;
 		this.dialog.set_df_property("more_options", "hidden", !show_options);
-		//// Neoffice — the template row stays visible (see get_fields); the toggle says what it opens.
-		this.dialog.get_field("option_toggle_button").set_label(this.more_options_label(show_options));
-	}
+		this.dialog.set_df_property("email_template_section_break", "hidden", !show_options);
 
-	//// Neoffice — « CC / BCC » and a chevron, rather than a chevron alone nobody recognised.
-	more_options_label(open) {
-		const text = `${__("CC", null, "Email Recipients")} / ${__("BCC", null, "Email Recipients")}`;
-		return `<span>${frappe.utils.escape_html(text)}</span> ${frappe.utils.icon(
-			open ? "up-line" : "down",
-			"xs"
-		)}`;
+		const label = frappe.utils.icon(show_options ? "up-line" : "down", "xs");
+		this.dialog.get_field("option_toggle_button").set_label(label);
 	}
 
 	prepare() {
@@ -540,8 +505,7 @@ frappe.views.CommunicationComposer = class {
 			await this.dialog.set_value("email_template", email_template);
 		}
 
-		//// Neoffice — only a copy opens CC / BCC: the template has its own row now.
-		for (const fieldname of ["cc", "bcc"]) {
+		for (const fieldname of ["email_template", "cc", "bcc"]) {
 			if (this.dialog.get_value(fieldname)) {
 				this.toggle_more_options(true);
 				break;
@@ -958,20 +922,11 @@ frappe.views.CommunicationComposer = class {
 				filters["default_outgoing"] = 1;
 			}
 
-			//// Neoffice — the signature is looked up in the Email Account list, which only a few roles may read (Inbox
-			//// User, System Manager, Admin, helpdesk agents). For everybody else the call was refused (403) and the
-			//// refusal escaped set_values(): the composer opened with NO text at all — not the message a button passed
-			//// in, not the default e-mail template — only because a signature could not be looked up. Without the right
-			//// to list the accounts there is no signature to add, and the rest of the composer goes on. Upstream
-			//// version-15 has the same code (checked 2026-10-08): drop this guard when upstream tolerates a refusal.
-			let email_accounts = [];
-			if (frappe.model.can_read("Email Account")) {
-				email_accounts = await frappe.db.get_list("Email Account", {
-					filters: filters,
-					fields: ["signature", "email_id"],
-					limit: 1,
-				});
-			}
+			const email_accounts = await frappe.db.get_list("Email Account", {
+				filters: filters,
+				fields: ["signature", "email_id"],
+				limit: 1,
+			});
 
 			let filtered_email = null;
 			if (email_accounts.length) {
