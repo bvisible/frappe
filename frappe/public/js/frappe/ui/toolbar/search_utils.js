@@ -164,9 +164,8 @@ frappe.search.utils = {
 				if (level) {
 					out.push({
 						type: "New",
-						//// Neoffice — the doctype as the context: its own words when a catalogue has them (translate.js).
-						label: __("New {0}", [search_result.marked_string || __(item)], item),
-						value: __("New {0}", [__(item)], item),
+						label: __("New {0}", [search_result.marked_string || __(item)]),
+						value: __("New {0}", [__(item)]),
 						index: 1 + level,
 						match: item,
 						onclick: function () {
@@ -215,9 +214,8 @@ frappe.search.utils = {
 						var match = item;
 						out.push({
 							type: "New",
-							//// Neoffice — the doctype as the context: its own words when a catalogue has them (translate.js).
-							label: __("New {0}", [search_result.marked_string || __(item)], item),
-							value: __("New {0}", [__(item)], item),
+							label: __("New {0}", [search_result.marked_string || __(item)]),
+							value: __("New {0}", [__(item)]),
 							index: score + 0.015,
 							match: item,
 							onclick: function () {
@@ -226,11 +224,10 @@ frappe.search.utils = {
 						});
 					}
 
-					//// Neoffice — upstream also pushes a "Report" option here (can_get_report → ["List", item,
-					//// "Report"], score 0.04); removed by f18854c0fb (2026-04-05 "remove Report from nav": the List
-					//// view already exposes the report view) after b6f135ea30 (2026-04-02) had re-ranked it.
-					// Show List only (reports are accessed via List view)
 					out.push(option("List", ["List", item], 0.05));
+					if (frappe.model.can_get_report(item)) {
+						out.push(option("Report", ["List", item, "Report"], 0.04));
+					}
 				}
 			}
 		});
@@ -405,9 +402,7 @@ frappe.search.utils = {
 								index + field_length / 2 < field_value.length ? "..." : "";
 							field_value = field_data;
 						}
-						//// Neoffice — the label in the reader's language: the index keeps it in English
-						//// (global_search.py writes `field.label + " : " + value`), see awesome_bar.js (maintenance#2161).
-						var field_name = __(part.slice(0, colon_index));
+						var field_name = part.slice(0, colon_index);
 
 						// Find remaining result_length and add field length to result_current_length
 						var remaining_length = result_max_length - result_current_length;

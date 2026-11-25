@@ -117,9 +117,7 @@ frappe.views.KanbanView = class KanbanView extends frappe.views.ListView {
 				action: () => {
 					frappe.confirm(__("Are you sure you want to proceed?"), () => {
 						frappe.db.delete_doc("Kanban Board", this.board_name).then(() => {
-							//// Neoffice — upstream shows a template literal that is never translated;
-							//// we translate the template and pass the value as a parameter.
-							frappe.show_alert(__("Kanban Board {0} deleted.", [this.board_name]));
+							frappe.show_alert(`Kanban Board ${this.board_name} deleted.`);
 							frappe.set_route("List", this.doctype, "List");
 						});
 					});

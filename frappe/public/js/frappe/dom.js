@@ -34,24 +34,6 @@ frappe.dom = {
 	},
 	remove_script_and_style: function (txt) {
 		const evil_tags = ["script", "style", "noscript", "title", "meta", "base", "head"];
-		//// Neoffice — added (0642910c2f 2026-07-25 "perf(grid): backport frappe#22862 - skip DOMParser in
-		//// remove_script_and_style unless unsafe tags present"): upstream v15 always parses; see below.
-		const unsafe_tags = ["link"];
-
-		// Backport of frappe/frappe#22862 (perf): skip the expensive DOMParser
-		// round-trip unless the string actually contains a tag we would strip.
-		// This runs inside every frappe.format() call, so grids invoke it
-		// thousands of times per refresh.
-		if (!this.unsafe_tags_regex) {
-			const evil_and_unsafe_tags = evil_tags.concat(unsafe_tags);
-			const regex_str = evil_and_unsafe_tags.map((t) => `<([\\s]*)${t}`).join("|");
-			this.unsafe_tags_regex = new RegExp(regex_str, "im");
-		}
-
-		if (!txt || !this.unsafe_tags_regex.test(txt)) {
-			return txt;
-		}
-
 		const parser = new DOMParser();
 		const doc = parser.parseFromString(txt, "text/html");
 		const body = doc.body;
@@ -158,18 +140,12 @@ frappe.dom = {
 				})
 				.appendTo("#body");
 
-			//// Neoffice — upstream's line again: our loading animation no longer stands in it (see below)
 			freeze.html(
 				repl(
 					'<div class="freeze-message-container"><div class="freeze-message"><p class="lead">%(msg)s</p></div></div>',
 					{ msg: msg || "" }
 				)
 			);
-			//// Neoffice — upstream shows only the message; ours adds the loading animation above it when the wait
-			//// lasts. It is the theme's (neoffice.desk.loader, desk_compat.js): its player comes when it is needed,
-			//// where app.html loaded it with every page of the desk, and left a loop running at every frame
-			//// (neoffice-maintenance#3262). Without the theme: the message, as upstream.
-			window.neoffice && neoffice.desk && neoffice.desk.loader && neoffice.desk.loader(freeze.find(".freeze-message-container")[0]);
 
 			setTimeout(function () {
 				freeze.addClass("in");
@@ -190,133 +166,6 @@ frappe.dom = {
 		if (!frappe.dom.freeze_count) {
 			var freeze = $("#freeze").removeClass("in").remove();
 		}
-	},
-	//// Neoffice — added (no upstream equivalent). Self-healing sweep for the
-	//// full-screen overlays that block every click when they outlive the thing
-	//// they belong to. Both are INVISIBLE when orphaned, so the user only sees
-	//// a dead page and a "forbidden" cursor, and only a reload fixes it:
-	////   • `.modal-backdrop` — Bootstrap tears it down on its own `hide`
-	////     transition; if a dialog is hidden mid-transition or the tab is
-	////     suspended (laptop sleep / network drop) the teardown never runs and
-	////     an `opacity:0, z-index:1040, pointer-events:auto` layer stays.
-	////   • `#freeze` — `unfreeze()` bails out when `freeze_count` is already 0,
-	////     so a `#freeze` div nobody owns can never be cleaned by frappe itself
-	////     (base CSS is `opacity:0`, only `.in` makes it visible).
-	//// Deliberately conservative: it only ever runs when NOTHING is displayed,
-	//// so it cannot strip a live dialog's backdrop (a blind purge did exactly
-	//// that once — see erpnext journal_entry.js). Call it AFTER Bootstrap's
-	//// 300ms hide transition, never during.
-	////
-	//// ⚠ "Nothing is displayed" is not enough on its own, because BOOTSTRAP
-	//// CREATES THE BACKDROP BEFORE THE MODAL. For a few frames there is a
-	//// backdrop and no modal at all — which looks exactly like an orphan.
-	//// Measured on osiris: a sweep fired 500ms after a route change saw
-	//// `0 modals, open_dialogs [], 1 backdrop` and stripped the backdrop of a
-	//// dialog that was opening. Any dialog shown in `onload_post_render` (the
-	//// job wizards) lands inside that window, so the overlay was missing on
-	//// every new Project — nothing looked broken, the page was simply flat.
-	//// The cure is to stop judging on a single instant: the FIRST look never
-	//// removes anything, it only books a second one 900ms later. Two
-	//// consecutive verdicts are needed before anything is torn down — a dialog
-	//// being born has its modal by the second look, a real orphan still does
-	//// not.
-	////
-	//// A first attempt marked the element instead (`data-neo-seen-orphan`) and
-	//// was worse than nothing: the mark was never cleared, so a backdrop seen
-	//// orphaned once and then saved kept it for life, and the next time it was
-	//// caught mid-birth it was removed with no reprieve — hence the reported
-	//// intermittence, sometimes fine and sometimes flat. Keeping the state on
-	//// the element was the mistake; the confirmation pass carries it now.
-	////
-	//// ⚠ (05.10, maintenance#1202) Two looks were still not enough: a dialog shown
-	//// a little before the SECOND look was stripped as well. Frappe builds a dialog
-	//// detached and Bootstrap appends it to the page only after the backdrop's
-	//// fade-in, so a dialog being born is a backdrop with no modal at all, in the
-	//// page or out of it, and nothing on screen tells it from an orphan. Measured
-	//// on osiris: 5 dialogs out of 6 opened ~850 ms after a first look lost their
-	//// backdrop (the page behind them stayed bright). The first look now hands the
-	//// backdrops it saw to the second, which removes only those: a backdrop born in
-	//// between belongs to a dialog on its way, and the second look leaves the page
-	//// alone.
-	//// Neoffice — re-run of the sweep after the reprieve above. Single shot in
-	//// flight: a burst of route changes must not queue a dozen timers.
-	_resweep: function (reason, seen) {
-		if (frappe.dom._resweep_timer) return;
-		frappe.dom._resweep_timer = setTimeout(() => {
-			frappe.dom._resweep_timer = null;
-			frappe.dom.sweep_orphan_overlays((reason || "sweep") + " (recheck)", true, seen); //// Neoffice — `seen`: the first look's backdrops (#1202)
-		}, 900);
-	},
-	sweep_orphan_overlays: function (reason, confirming, seen) { //// Neoffice — `seen` added (#1202)
-		let removed = [];
-
-		// Is any modal actually on screen? Modals are `position:fixed`, so
-		// `offsetParent` is always null — computed `display` is the reliable test.
-		let modal_visible = Array.from(document.querySelectorAll(".modal")).some(
-			(m) => window.getComputedStyle(m).display !== "none"
-		);
-		// NOT `open_dialogs.length`: that array only pops its LAST entry on hide,
-		// so a dialog closed out of order (a msgprint stacked on top of it, the
-		// Quick Entry hidden while another opens) stays in it forever. Each
-		// dialog's own `display` flag is set to false by its `hide.bs.modal`
-		// handler, so it stays accurate whatever the closing order.
-		let dialogs_open = (frappe.ui.open_dialogs || []).some((d) => d && d.display);
-
-		if (!modal_visible && !dialogs_open) {
-			//// Neoffice — the FIRST look never removes anything, it only books
-			//// a second one. Bootstrap creates the backdrop BEFORE the modal,
-			//// so "no modal on screen" is also exactly what a dialog looks
-			//// like one frame after `show()`.
-			let backdrops = Array.from(document.querySelectorAll(".modal-backdrop")).filter(
-				(el) => el.id !== "freeze" // owned by freeze/unfreeze below
-			);
-			if (!confirming) {
-				//// Neoffice — the backdrops this look saw go to the second one.
-				frappe.dom._resweep(reason, new Set(backdrops));
-				return removed;
-			}
-			//// Neoffice — a backdrop the first look did not see belongs to a dialog
-			//// being born (see above): leave the page alone this time.
-			if (backdrops.some((el) => !(seen && seen.has(el)))) return removed;
-			backdrops.forEach((el) => {
-				el.remove();
-				removed.push(".modal-backdrop");
-			});
-			if (document.body.classList.contains("modal-open")) {
-				document.body.classList.remove("modal-open");
-				removed.push("body.modal-open");
-			}
-			// frappe.ui.Dialog.hide_scrollbar() locks body scroll on show and
-			// restores it on hide — same leak, same cure.
-			if (document.body.style.overflow === "hidden") {
-				document.body.style.overflow = "auto";
-				removed.push("body[overflow:hidden]");
-			}
-			// Nothing is on screen, so the closed-out-of-order leftovers in
-			// open_dialogs are stale by definition. Dropping them keeps
-			// cur_dialog and the escape-key handling pointing at reality.
-			if (frappe.ui.open_dialogs && frappe.ui.open_dialogs.length) {
-				frappe.ui.open_dialogs.length = 0;
-				window.cur_dialog = null;
-			}
-		}
-
-		// A freeze div nobody is waiting on. `freeze_count > 0` means a real
-		// request is still in flight — leave it alone.
-		let freeze = document.getElementById("freeze");
-		if (freeze && !frappe.dom.freeze_count) {
-			freeze.remove();
-			removed.push("#freeze");
-		}
-
-		if (removed.length) {
-			console.warn(
-				"[neoffice] removed orphan click-blocking overlay(s):",
-				removed.join(", "),
-				`(${reason || "sweep"})`
-			);
-		}
-		return removed;
 	},
 	save_selection: function () {
 		// via http://stackoverflow.com/questions/5605401/insert-link-in-contenteditable-element

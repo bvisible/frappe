@@ -46,26 +46,11 @@ frappe.ui.Page = class Page {
 	}
 
 	setup_scroll_handler() {
-		//// Neoffice — added (00a173124b, 2026-06-12 "fix(cockpit): kill the hide-on-scroll page-head
-		//// dance"): early return under the NeoCockpit chrome (body.neoffice-cockpit) — see the note below.
-		// Neoffice cockpit: this legacy hide-on-scroll dance mutates the
-		// sticky .page-head (class toggle + inline top) every 500ms WHILE a
-		// trackpad gesture is latched — recompositing a sticky element
-		// mid-gesture kills the latch on macOS and the scroll freezes until
-		// the user pauses or grabs the scrollbar. The cockpit head is
-		// permanently sticky at top:0 (the inline top is dead anyway under
-		// the cockpit !important), so there is nothing to animate — skip.
-		if (document.body.classList.contains("neoffice-cockpit")) return;
 		let last_scroll = 0;
-		//// Neoffice — upstream listens on $(window) and reads document.documentElement.scrollTop; with the
-		//// v16-style layout the scrolling element is .main-section, so the handler reads e.target.scrollTop
-		//// (9999364ec6, 2025-10-28 sidebar + apps-switcher rework — same lines as frappe develop page.js at
-		//// 6bf7d45e6e, 2025-09-02 "refactor: Sidebar"; develop has since changed this handler again).
-		$(".main-section").scroll(
-			frappe.utils.throttle((e) => {
-				let main_section = e.target;
-				let current_scroll = main_section.scrollTop;
-				$(".page-head").toggleClass("drop-shadow", !!current_scroll);
+		$(window).scroll(
+			frappe.utils.throttle(() => {
+				$(".page-head").toggleClass("drop-shadow", !!document.documentElement.scrollTop);
+				let current_scroll = document.documentElement.scrollTop;
 				if (current_scroll > 0 && last_scroll <= current_scroll) {
 					$(".page-head").css("top", "-15px");
 				} else {
@@ -109,35 +94,18 @@ frappe.ui.Page = class Page {
 				</div>'
 			);
 		} else {
-			//// Neoffice — upstream markup: <div class="row layout-main"> / .col-lg-2 .layout-side-section /
-			//// .col .layout-main-section-wrapper (Bootstrap grid). Replaced by the flex .layout-main
-			//// .layout-two-column template below + the sidebar_position === "Right" swap that follows it
-			//// (cc297ec402, 2025-11-03 "Move sidebar to right and add mobile toggle") — verbatim from frappe
-			//// develop (v16) page.js; sidebar_position comes from frappe.make_page (views/factory.js, same
-			//// commit) and page.scss lays the flex row out (marked there).
 			this.add_view(
-				//// Neoffice — the template below is the flex .layout-two-column of develop (v16), not upstream's
-				//// Bootstrap row: see the marker above (cc297ec402).
 				"main",
 				`
-				<div class="layout-main layout-two-column">
-					<div class="layout-side-section"></div>
-					<div class="layout-main-section-wrapper">
+				<div class="row layout-main">
+					<div class="col-lg-2 layout-side-section"></div>
+					<div class="col layout-main-section-wrapper">
 						<div class="layout-main-section"></div>
 						<div class="layout-footer hide"></div>
 					</div>
 				</div>
 			`
 			);
-
-			//// Neoffice — added (cc297ec402, 2025-11-03): sidebar_position "Right" moves the main section
-			//// before the side section and tags the side section .right; upstream always keeps it on the left.
-			if (this.sidebar_position === "Right") {
-				this.wrapper
-					.find(".layout-main-section-wrapper")
-					.insertBefore(this.wrapper.find(".layout-side-section"));
-				this.wrapper.find(".layout-side-section").addClass("right");
-			}
 		}
 
 		this.setup_page();
@@ -175,10 +143,6 @@ frappe.ui.Page = class Page {
 		this.page_form = $('<div class="page-form row hide"></div>').prependTo(this.main);
 		this.inner_toolbar = this.custom_actions;
 		this.icon_group = this.page_actions.find(".page-icon-group");
-
-		//// Neoffice — added (f22856d195, 2026-06-10): starts the cockpit head overflow manager (see the
-		//// NEOFFICE PATCH block at setup_actions_overflow below).
-		this.setup_actions_overflow();
 
 		if (this.make_page) {
 			this.make_page();
@@ -235,29 +199,10 @@ frappe.ui.Page = class Page {
 				trigger: "hover",
 			});
 			sidebar_toggle.click(() => {
-				//// Neoffice — sidebar toggle rework, 2025-12-01 (322196d195, 1d3d2142d8, 903060daff, 18c533ab42,
-				//// 4cea88af71, f28ac55bc3). Upstream: `if (frappe.utils.is_xs() || frappe.utils.is_sm())` then
-				//// `sidebar_wrapper.toggle()`. Ours: the overlay sidebar below 992px (tablet + phone), and on
-				//// desktop the list's own toggle_side_bar() (persists the choice and re-fits the DataTable) with
-				//// the Ctrl+K logic (localStorage.show_sidebar + .no-list-sidebar on body and wrapper) as fallback
-				//// for pages without a list — a plain jQuery toggle() left the table at its old width.
-				if (window.innerWidth < 992) {
+				if (frappe.utils.is_xs() || frappe.utils.is_sm()) {
 					this.setup_overlay_sidebar();
 				} else {
-					//// Neoffice — replaces upstream's `sidebar_wrapper.toggle();` (f28ac55bc3, 903060daff, 18c533ab42):
-					//// see the marker at the top of this handler.
-					// Use cur_list.toggle_side_bar() if available (handles datatable refresh)
-					if (cur_list && cur_list.toggle_side_bar) {
-						cur_list.toggle_side_bar();
-					} else {
-						// Fallback: manual toggle like Ctrl+K
-						let show_sidebar = JSON.parse(localStorage.show_sidebar || "true");
-						show_sidebar = !show_sidebar;
-						localStorage.show_sidebar = show_sidebar;
-						$(document.body).toggleClass("no-list-sidebar", !show_sidebar);
-						this.wrapper.toggleClass("no-list-sidebar", !show_sidebar);
-						$(document.body).trigger("toggleListSidebar");
-					}
+					sidebar_wrapper.toggle();
 				}
 				$(document.body).trigger("toggleSidebar");
 				this.update_sidebar_icon();
@@ -644,231 +589,6 @@ frappe.ui.Page = class Page {
 		return $('<li class="dropdown-divider"></li>').appendTo(this.menu);
 	}
 
-	// //// NEOFFICE PATCH — cockpit head priority overflow.
-	//
-	// The compact head is ONE line: custom buttons that don't fit would get
-	// clipped by the scroll container. Instead, overflowing buttons (taken
-	// from the LEFT — the rightmost ones stay, they sit next to the primary
-	// action) are hidden and their pre-existing menu duplicates (the
-	// hidden-xl items frappe already creates for mobile) are revealed in
-	// the ⋯ menu. Re-runs on resize and whenever buttons are (re)added.
-	//
-	//// Neoffice — the whole head, not only the custom buttons (2026-11-17, maintenance#2750). On a draft invoice
-	//// the meta icons (attachments, comments, tags, follow) covered the document's name: the standard cluster (the
-	//// save pill, « Save » drawn grey beside « Submit », Preview / Print, Side preview) never gave way and the row
-	//// overflowed to the left, over the title. What gives way now, first to last:
-	////   1. an element marked data-pao-shed below 50 goes (`pao-dropped`), once the trail would be cut: it only
-	////      repeats what is shown (« Save » grey while the pill says « Saved »);
-	////   2. the trail fades under its end (a form's title keeps its name: --pao-title-floor, cockpit.css);
-	////   3. the custom buttons go into ⋯, as before;
-	////   4. an element marked data-pao-shed 50 or more folds to its icon (`pao-folded`, its `.pao-label` hidden),
-	////      lowest first, while the actions still reach over the title.
-	//// Never the name covered, never a button cut in half.
-	setup_actions_overflow() {
-		if (!this.custom_actions.length || !window.ResizeObserver) return;
-		const run = frappe.utils.debounce(() => this.redistribute_custom_actions(), 120);
-		this._overflow_observer = new MutationObserver(run);
-		this._overflow_observer.observe(this.custom_actions[0], { childList: true });
-		//// Neoffice — the standard cluster's buttons come and go (the save pill, the twin), and a name read later
-		//// changes the room the title needs (maintenance#2750).
-		if (this.standard_actions[0]) {
-			this._overflow_observer.observe(this.standard_actions[0], { childList: true });
-		}
-		//// Neoffice — and the page's own action going quiet or live (save_state.js), which decides where a script's
-		//// ink button stands (maintenance#2804). Only this attribute: the head's own passes change classes.
-		if (this.btn_primary && this.btn_primary[0]) {
-			this._overflow_observer.observe(this.btn_primary[0], {
-				attributes: true,
-				attributeFilter: ["data-neo-ss-btn"],
-			});
-		}
-		const title_area = this.wrapper.find(".page-head .title-area")[0];
-		if (title_area) {
-			this._overflow_observer.observe(title_area, {
-				childList: true,
-				subtree: true,
-				characterData: true,
-			});
-		}
-		this._overflow_resizer = new ResizeObserver(run);
-		this._overflow_resizer.observe(this.page_actions[0]);
-		//// Neoffice — and the head itself: where the title takes the room the actions leave (a form, cockpit.css),
-		//// the actions' box does not change when the window narrows until they are pressed.
-		const head = this.wrapper.find(".page-head-content")[0];
-		if (head) this._overflow_resizer.observe(head);
-	}
-
-	//// Neoffice — added method (maintenance#2750): the width the title cannot go under, everything in its row but
-	//// the trail (the back button, the name, the star), set as --pao-title-floor for cockpit.css. Returns the trail.
-	set_title_floor() {
-		const title = this.wrapper.find(".page-head .page-title")[0];
-		if (!title || !title.offsetWidth) return null;
-		const crumbs = title.querySelector(".page-breadcrumbs");
-		const name = title.querySelector(".title-text");
-		const row = (name || crumbs) && (name || crumbs).parentElement;
-		if (!row) return null;
-		const left = title.getBoundingClientRect().left;
-		const outer = (el) => {
-			const cs = getComputedStyle(el);
-			return (
-				el.getBoundingClientRect().width +
-				(parseFloat(cs.marginLeft) || 0) +
-				(parseFloat(cs.marginRight) || 0)
-			);
-		};
-		let right = left;
-		for (const el of row.children) {
-			if (el === crumbs || !el.offsetWidth) continue;
-			const r = el.getBoundingClientRect().right;
-			right = Math.max(right, r + (parseFloat(getComputedStyle(el).marginRight) || 0));
-		}
-		const trail = crumbs && crumbs.offsetWidth ? outer(crumbs) : 0;
-		const pad = parseFloat(getComputedStyle(title).paddingRight) || 0;
-		const floor = Math.ceil(right - left + pad - trail);
-		title.style.setProperty("--pao-title-floor", Math.max(floor, 0) + "px");
-		return crumbs;
-	}
-
-	redistribute_custom_actions() {
-		if (!document.body.classList.contains("neoffice-cockpit")) return;
-		const $actions = this.page_actions;
-		if (!$actions[0] || !$actions[0].clientWidth) return; // page hidden
-		const ca = this.custom_actions[0];
-
-		// reset: show all buttons, demote previously promoted menu items
-		this.custom_actions.children().removeClass("pao-overflowed");
-		this.menu.find("li.pao-promoted").addClass("hidden-xl").removeClass("pao-promoted");
-		this.menu_btn_group.find(".pao-count").remove();
-		if (this._pao_unhid_menu) {
-			this.menu_btn_group.addClass("hidden-xl");
-			this._pao_unhid_menu = false;
-		}
-		//// Neoffice — maintenance#2750: give back what an earlier pass dropped or folded, then measure the title.
-		const sheddable = [...$actions[0].querySelectorAll("[data-pao-shed]")];
-		sheddable.forEach((el) => el.classList.remove("pao-dropped", "pao-folded"));
-		this.wrapper.find(".page-head .page-breadcrumbs").removeClass("pao-trail-gone");
-		//// Neoffice — the main action is the ink one and the last of the head (design system 6.17, maintenance#2804).
-		//// Where the page's own action is hidden (a tool: Bank Clearance) or quiet (a saved document's « Save »,
-		//// save_state.js data-neo-ss-btn), a script's visible ink button is the main one: its group goes after the
-		//// standard cluster (`neo-own-primary-last`, neoffice_theme document_views.css). Read on what is drawn: a
-		//// script's button may be hidden by a rule and keep its class (a submitted document).
-		const page_primary = this.btn_primary && this.btn_primary[0];
-		const page_primary_live =
-			!!page_primary &&
-			!!page_primary.offsetWidth &&
-			!["quiet", "outline"].includes(page_primary.getAttribute("data-neo-ss-btn"));
-		// a form only (a tool is a form of its own): a list's ink button is its tab's « + Create », drawn after this pass
-		const on_form = !!this.wrapper.find(".form-layout").length;
-		// the ink button itself, or a group whose button is one (« Add participants ▾ »)
-		const own_ink = [...ca.children].some(
-			(el) =>
-				el.offsetWidth &&
-				(el.classList.contains("btn-primary") || !!el.querySelector(":scope > .btn-primary"))
-		);
-		$actions[0].classList.toggle("neo-own-primary-last", on_form && !page_primary_live && own_ink);
-		const crumbs = this.set_title_floor();
-		const rank = (el) => parseFloat(el.getAttribute("data-pao-shed")) || 0;
-		const shed_order = (low, high) =>
-			sheddable
-				.filter((el) => rank(el) >= low && rank(el) < high && el.offsetWidth)
-				.sort((a, b) => rank(a) - rank(b));
-		// the trail is cut when its words are wider than its box
-		const trail_cut = () => !!crumbs && crumbs.scrollWidth > crumbs.clientWidth + 1;
-		// the actions reach over the title when one of them starts left of their own box (they are aligned right)
-		const actions_overflow = () => {
-			const edge = $actions[0].getBoundingClientRect().left - 1;
-			return [...$actions[0].children].some(
-				(el) => el.offsetWidth && el.getBoundingClientRect().left < edge
-			);
-		};
-		for (const el of shed_order(0, 50)) {
-			if (!trail_cut() && !actions_overflow()) break;
-			el.classList.add("pao-dropped");
-			void ca.offsetWidth;
-		}
-		this.redistribute_custom_buttons(ca);
-		for (const el of shed_order(50, Infinity)) {
-			if (!actions_overflow()) break;
-			el.classList.add("pao-folded");
-			void ca.offsetWidth;
-		}
-		if (crumbs) {
-			crumbs.classList.toggle("pao-trail-cut", trail_cut());
-			// narrower than its fade, a trail shows nothing one can read: it goes, with the « › » before the name
-			// (measured above with it, so the title keeps that room and is never pressed by this)
-			crumbs.classList.toggle("pao-trail-gone", trail_cut() && crumbs.clientWidth < 24);
-		}
-	}
-
-	//// Neoffice — the custom buttons' part of redistribute_custom_actions, unchanged, made its own method so that
-	//// the head's later steps run after it (maintenance#2750; it used to return early when everything fitted).
-	redistribute_custom_buttons(ca) {
-		// Overflow is decided by MEASUREMENT, not a width budget: a budget
-		// calc that's off by a few px leaves one button clipped (the "…Stamp"
-		// cut-off). We compare the buttons' NATURAL total width (they carry
-		// flex:0 0 auto, so offsetWidth is their real width even while the
-		// flex parent squeezes the row to a stub) against the width the row
-		// is actually allotted, evicting one button at a time and re-checking
-		// after each — so the row is guaranteed never to clip a button.
-		const GAP = 6;
-		const overflows = () => {
-			const kids = [...ca.children].filter(
-				(el) => el.offsetWidth && !el.classList.contains("pao-overflowed")
-			);
-			if (!kids.length) return false;
-			const needed =
-				kids.reduce((s, el) => s + el.offsetWidth, 0) + GAP * (kids.length - 1);
-			return needed > ca.clientWidth + 1;
-		};
-		if (!overflows()) return; // everything fits
-
-		// eviction order: dropdown GROUPS first (a menu relocated into ⋯
-		// loses almost nothing), then plain buttons (direct actions like
-		// Acompte matter more), the primary group last. Within a tier:
-		// data-pao-priority desc (higher sticks around), then left first.
-		const children = [...ca.children].filter((el) => el.offsetWidth);
-		const tier = (el) => {
-			if (el.querySelector(".btn-primary")) return 2;
-			return el.classList.contains("inner-group-button") ? 0 : 1;
-		};
-		const prio = (el) => parseFloat(el.getAttribute("data-pao-priority")) || 0;
-		const order = [...children].sort(
-			(a, b) =>
-				tier(a) - tier(b) ||
-				prio(a) - prio(b) ||
-				children.indexOf(a) - children.indexOf(b)
-		);
-
-		let promoted_entries = 0;
-		for (const el of order) {
-			if (!overflows()) break;
-			const key = el.getAttribute("data-label");
-			const $dupes = key ? this.menu.find(`li[data-overflow-key="${key}"]`) : $();
-			// never hide a button we cannot represent in the menu
-			if (!$dupes.length) continue;
-			el.classList.add("pao-overflowed");
-			$dupes
-				.removeClass("hidden-xl")
-				.addClass("pao-promoted")
-				// legacy re-adds left hidden-xl on the inner <a> too
-				.find(".hidden-xl")
-				.removeClass("hidden-xl");
-			promoted_entries += $dupes.length;
-			// force a synchronous reflow so the next overflows() re-measures
-			void ca.offsetWidth;
-		}
-		if (promoted_entries) {
-			if (this.menu_btn_group.hasClass("hidden-xl")) {
-				this.menu_btn_group.removeClass("hidden-xl");
-				this._pao_unhid_menu = true;
-			}
-			// count pill on the ⋯ button: how many actions moved inside
-			this.menu_btn_group
-				.children("button")
-				.append(`<span class="pao-count">${promoted_entries}</span>`);
-		}
-	}
-
 	get_or_add_inner_group_button(label) {
 		var $group = this.inner_toolbar.find(
 			`.inner-group-button[data-label="${encodeURIComponent(label)}"]`
@@ -894,12 +614,10 @@ frappe.ui.Page = class Page {
 	}
 
 	set_inner_btn_group_as_primary(label) {
-		//// Neoffice — upstream created the group to style it, though nothing was put in it: erpnext calls this on every
-		//// sales order, and an accountant (who may create nothing from a billed order) got a « Créer » button opening
-		//// an empty list (neoffice-maintenance#2934). The group stays hidden until a button goes in (add_inner_button).
-		const $group = this.get_or_add_inner_group_button(label);
-		$group.find("button").removeClass("btn-default").addClass("btn-primary");
-		$group.toggleClass("hide", !$group.find(".dropdown-item").length);
+		this.get_or_add_inner_group_button(label)
+			.find("button")
+			.removeClass("btn-default")
+			.addClass("btn-primary");
 	}
 
 	btn_disable_enable(btn, response) {
@@ -935,20 +653,7 @@ frappe.ui.Page = class Page {
 		// Add actions as menu item in Mobile View
 		let menu_item_label = group ? `${group} > ${label}` : label;
 		let menu_item = this.add_menu_item(menu_item_label, _action, false, false, false);
-		//// Neoffice — upstream: `menu_item.parent().addClass("hidden-xl");`. Rewritten by f22856d195 +
-		//// 10ed2baef8 (2026-06-10, cockpit head overflow): the mobile duplicate <li> is tagged with
-		//// data-overflow-key so redistribute_custom_actions() can reveal it when the toolbar button is
-		//// evicted from the one-line head; closest("li") because add_menu_item returns the inner <span>
-		//// on re-adds (see the note below).
-		// add_menu_item returns the <a> on first add but the inner <span>
-		// when the item already exists — closest() lands on the <li> in
-		// both cases (.parent() used to mis-tag the <a> on re-adds)
-		menu_item
-			.closest("li")
-			.addClass("hidden-xl")
-			// NEOFFICE cockpit: the overflow manager reveals this duplicate
-			// when the matching toolbar button doesn't fit the head
-			.attr("data-overflow-key", encodeURIComponent(group || label));
+		menu_item.parent().addClass("hidden-xl");
 		if (this.menu_btn_group.hasClass("hide")) {
 			this.menu_btn_group.removeClass("hide").addClass("hidden-xl");
 		}
@@ -956,9 +661,6 @@ frappe.ui.Page = class Page {
 		if (group) {
 			var $group = this.get_or_add_inner_group_button(group);
 			$(this.inner_toolbar).removeClass("hide");
-			//// Neoffice — a group made primary while still empty is hidden (set_inner_btn_group_as_primary): its first
-			//// button shows it again.
-			$group.removeClass("hide");
 
 			if (!this.is_in_group_button_dropdown($group.find(".dropdown-menu"), "a", label)) {
 				return $(
@@ -1048,10 +750,7 @@ frappe.ui.Page = class Page {
 			title = strip_html(title);
 		}
 		this.title = title;
-		//// Neoffice — honours set_document_title, a flag upstream sets (constructor) and never reads: a
-		//// form shown in a form dialog (form/form_dialog.js) turns it off, and the browser tab keeps
-		//// the page's title.
-		if (this.set_document_title !== false) frappe.utils.set_title(tab_title || title);
+		frappe.utils.set_title(tab_title || title);
 		if (icon) {
 			title = `${frappe.utils.icon(icon)} ${title}`;
 		}
@@ -1082,21 +781,14 @@ frappe.ui.Page = class Page {
 
 	add_button(label, click, opts) {
 		if (!opts) opts = {};
-		//// Neoffice — data-label added (10ed2baef8, 2026-06-10): the key the cockpit overflow manager uses
-		//// to match this button with its ⋯-menu duplicate (data-overflow-key below).
-		let button = $(`<button data-label="${encodeURIComponent(label)}"
+		let button = $(`<button
 			class="btn ${opts.btn_class || "btn-default"} ${opts.btn_size || "btn-sm"} ellipsis">
 				${opts.icon ? frappe.utils.icon(opts.icon) : ""}
 				${label}
 		</button>`);
 		// Add actions as menu item in Mobile View (similar to "add_custom_button" in forms.js)
 		let menu_item = this.add_menu_item(label, click, false);
-		//// Neoffice — upstream: `menu_item.parent().addClass("hidden-xl");` — same closest("li") +
-		//// data-overflow-key tagging as in add_inner_button above (f22856d195 + 10ed2baef8, 2026-06-10).
-		menu_item
-			.closest("li")
-			.addClass("hidden-xl")
-			.attr("data-overflow-key", encodeURIComponent(label));
+		menu_item.parent().addClass("hidden-xl");
 
 		button.appendTo(this.custom_actions);
 		button.on("click", click);

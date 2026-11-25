@@ -7,17 +7,6 @@ frappe.utils.datatable.get_translations = function () {
 		"Sort Descending": __("Sort Descending"),
 		"Reset sorting": __("Reset sorting"),
 		"Remove column": __("Remove column"),
-		//// Neoffice — the column menu of frappe-datatable also offers « Freeze » / « Unfreeze ». This table
-		//// REPLACES the datatable's own entry for the language (its TranslationManager does a shallow
-		//// Object.assign), so a string missing here reads in English whatever the datatable ships
-		//// (maintenance#2421). Upstream lists neither, in v15 or develop.
-		Freeze: __("Freeze", null, "Column menu of a table"),
-		Unfreeze: __("Unfreeze", null, "Column menu of a table"),
-		//// Neoffice — the tooltip of a column's filter (« Filter based on Groupe de clients »), written as an
-		//// English template literal in frappe-datatable until its 1.22.0-neoffice.3 (rowmanager.js,
-		//// getFilterInput): it asks this table for both keys (maintenance#2559).
-		"Filter based on {column}": __("Filter based on {column}"),
-		Index: __("Index"),
 		"No Data": __("No Data"),
 		"{count} cells copied": {
 			1: __("{count} cell copied"),
@@ -27,41 +16,6 @@ frappe.utils.datatable.get_translations = function () {
 			1: __("{count} row selected"),
 			default: __("{count} rows selected"),
 		},
-		//// Neoffice — added block (f1656d6600, 2025-06-17 "add trad and remove +1000"): upstream ships
-		//// only the seven frappe-datatable strings above. These extra msgids are handed to the
-		//// datatable so its own UI chrome (search box, "Show more") and the Select/Status cell values
-		//// it renders itself come out translated — the datatable does not go through frappe's __()
-		//// at render time, it looks values up in this table. The bare //// fence is the original
-		//// author's. No upstream equivalent in v15.120 or develop.
-		//// add traductions for other languages here
-		"Search...": __("Search..."),
-		"Show more": __("Show more"),
-		"Showing": __("Showing"),
-		
-		"Open": __("Open"),
-		"Closed": __("Closed"),
-		"Pending": __("Pending"),
-		"Draft": __("Draft"),
-		"Submitted": __("Submitted"),
-		"Cancelled": __("Cancelled"),
-		"Completed": __("Completed"),
-		"Active": __("Active"),
-		"Inactive": __("Inactive"),
-		"Paid": __("Paid"),
-		"Unpaid": __("Unpaid"),
-		"Approved": __("Approved"),
-		"Rejected": __("Rejected"),
-		"In Progress": __("In Progress"),
-		"On Hold": __("On Hold"),
-		"Yes": __("Yes"),
-		"No": __("No"),
-		"Consolidated": __("Consolidated"),
-		"Credit Note Issued": __("Credit Note Issued"),
-		"Overdue": __("Overdue"),
-		"Overdue and Discounted": __("Overdue and Discounted"),
-		"Return": __("Return"),
-		"Partly Paid": __("Partly Paid"),
-		"Unpaid and Discounted": __("Unpaid and Discounted")
 	};
 
 	return translations;

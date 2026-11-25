@@ -41,14 +41,6 @@ $("body").on("click", "a", function (e) {
 		return;
 	}
 
-	//// Neoffice — added: a link drawn for a field (Link, Dynamic Link, a table or report cell)
-	//// opens that document's form in a dialog on a single click, without leaving the page
-	//// (form/form_dialog.js). It declines a double click's second click, a modified click and any
-	//// other link, which this handler then follows as upstream does.
-	if (frappe.ui.form?.FormDialog?.intercept(e, target_element)) {
-		return false;
-	}
-
 	const override = (route) => {
 		e.preventDefault();
 		frappe.set_route(route);
@@ -189,10 +181,7 @@ frappe.router = {
 
 		if (frappe.workspaces[route[0]]) {
 			// public workspace
-			//// Neoffice — upstream routes by `.title`. The workspace view looks pages up by NAME (a name may
-			//// differ from its title: "Simple - Ventes" is titled "Ventes"; 9999364ec6, 0634af137c), and
-			//// frappe.workspaces carries it (desk.js setup_workspaces, workspace.js); same change for private below.
-			route = ["Workspaces", frappe.workspaces[route[0]].name];
+			route = ["Workspaces", frappe.workspaces[route[0]].title];
 		} else if (route[0] == "private") {
 			// private workspace
 			let private_workspace = route[1] && `${route[1]}-${frappe.user.name.toLowerCase()}`;
@@ -210,8 +199,7 @@ frappe.router = {
 				);
 				return ["Workspaces"];
 			}
-			//// Neoffice — upstream: `.title`; by NAME as for the public workspace above (9999364ec6).
-			route = ["Workspaces", "private", frappe.workspaces[private_workspace].name];
+			route = ["Workspaces", "private", frappe.workspaces[private_workspace].title];
 		} else if (this.routes[route[0]]) {
 			// route
 			route = await this.set_doctype_route(route);
@@ -226,48 +214,21 @@ frappe.router = {
 	},
 
 	set_doctype_route(route) {
-		//// Neoffice — the whole method is re-routed: opening a doctype lands on the
-		//// REPORT view, not the list. Upstream defaults to List; our users work in
-		//// columns (totals, grouping, column picking), so List was a detour everyone
-		//// clicked past. Note the consequence, and the bug it caused for months:
-		//// default_view_load is pinned to "Report" here, which silently mangles any
-		//// doctype whose own default_view is a top-level route — see the tree case
-		//// below. Marker was "//// Changed for re-routing list to report", true but
-		//// mute on the why.
 		let doctype_route = this.routes[route[0]];
 
 		return frappe.model.with_doctype(doctype_route.doctype).then(() => {
 			// doctype route
 			let meta = frappe.get_meta(doctype_route.doctype);
-			//// Neoffice — list→report re-routing, see the method marker above (4e23539603 2024-09-23 "bvisible
-			//// last updates", no rationale in the commit): a bare /app/<doctype> is treated as /view/list.
-			let default_view_load = "Report";
 
-			if (route.length === 1) {
-				route.push('view', 'list');
-			}
-
-			//// Neoffice — upstream goes straight to `if (route[1] && route[1] === "view" && route[2])`. Ours turns
-			//// /view/list into ["List", doctype, "Report"]; another view keeps upstream's choice (forced default_view).
-			if (route[2] === "list") {
-				default_view_load = "Report";
-				route = ['List', doctype_route.doctype, default_view_load];
-			} else {
-				default_view_load = meta.force_re_route_to_default_view && meta.default_view
-					? meta.default_view
-					: route[2];
-			}
-	
-			if (route[1] && route[1] === "view" && route[2] && route[2] !== "list") {
+			if (route[1] && route[1] === "view" && route[2]) {
 				route = this.get_standard_route_for_list(
 					route,
 					doctype_route,
-					//// Neoffice — upstream passes the forced default_view or null; same result (4e23539603).
-					default_view_load
+					meta.force_re_route_to_default_view && meta.default_view
+						? meta.default_view
+						: null
 				);
-				//// Neoffice — `route[2] !== "Report"` added (4e23539603): the rewritten ["List", doctype, "Report"]
-				//// must not be read as a form route for a document named "<doctype>/Report".
-			} else if (route[1] && route[1] !== "view" && route[2] !== "Report") {
+			} else if (route[1] && route[1] !== "view") {
 				let docname = route[1];
 				if (route.length > 2) {
 					docname = route.slice(1).join("/");
@@ -275,50 +236,19 @@ frappe.router = {
 				route = ["Form", doctype_route.doctype, docname];
 			} else if (frappe.model.is_single(doctype_route.doctype)) {
 				route = ["Form", doctype_route.doctype, doctype_route.doctype];
-			} else if (meta.default_view && default_view_load !== "list") {
-				//// Neoffice — Tree is a TOP-LEVEL route (["Tree", doctype]), not a
-				//// sub-view of List like Report or Kanban. Our list→report re-routing
-				//// above pins default_view_load to "Report", so a doctype whose
-				//// default_view is "Tree" came out as ["Report", doctype, "Tree"] —
-				//// i.e. /view/report/Tree, a request for a REPORT NAMED "Tree". None
-				//// exists, so the page rendered blank with no error.
-				//// First hit with wiki v3, which brought the fleet's first
-				//// is_tree + default_view="Tree" doctype (Wiki Document): clicking
-				//// "Wiki Document" from the Training workspace showed an empty page.
-				//// get_standard_route_for_list() below already special-cases tree the
-				//// same way; this branch bypasses it, hence the duplicated check.
-				//// Neoffice — the view goes in the THIRD place, under "List" (as upstream
-				//// writes it). Our pinned default_view_load ("Report") used to lead the
-				//// route: a doctype whose default_view is "List" came out as
-				//// ["Report", doctype, "List"] — ReportFactory then set_route'd a SECOND
-				//// history entry (/view/report/List), and Back landed on /view/list,
-				//// which re-routed to the report again: a loop the user could not leave
-				//// (every doctype of ours with a default_view — Activity, …). "List"
-				//// still opens the Report view (our re-routing); Kanban, Calendar…
-				//// keep their own view.
-				const dv = meta.default_view.toLowerCase();
-				if (dv === "tree") {
+			} else if (meta.default_view) {
+				if (meta.default_view === "Tree") {
 					route = ["Tree", doctype_route.doctype];
-					//// Neoffice — see the block marker above: List/Report route fix
-				} else if (dv === "list" || dv === "report") {
-					route = ["List", doctype_route.doctype, "Report"];
 				} else {
-					//// Neoffice — see the block marker above: List/Report route fix
-					route = ["List", doctype_route.doctype, this.list_views_route[dv]];
+					route = [
+						"List",
+						doctype_route.doctype,
+						this.list_views_route[meta.default_view.toLowerCase()],
+					];
 				}
-			} else if (default_view_load === "Report") {
-				route = ["List", doctype_route.doctype, "Report"];
+			} else {
+				route = ["List", doctype_route.doctype, "List"];
 			}
-			
-			//// Neoffice — added (4e23539603 2024-09-23, no rationale in the commit; upstream has no such case):
-			//// ToDo opens on the Kanban board named "ToDo" and Event on its default Calendar instead of a
-			//// list or report. Assumes that board exists on the site (see kanban_board.bundle.js). TO REVIEW.
-			if (doctype_route.doctype === "ToDo" && (route[2] === "List" || route[2] === "Report")) {
-				route = ['List', 'ToDo', 'Kanban', 'ToDo'];
-			} else if (doctype_route.doctype === "Event" && (route[2] === "List" || route[2] === "Report")) {
-				route = ['List', 'Event', 'Calendar', 'default'];
-			} 
-	
 			// reset the layout to avoid using incorrect views
 			this.doctype_layout = doctype_route.doctype_layout;
 			return route;

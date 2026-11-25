@@ -8,10 +8,6 @@ frappe.standard_pages["Workspaces"] = function () {
 		parent: wrapper,
 		name: "Workspaces",
 		title: __("Workspace"),
-		//// Neoffice — added (cc297ec402, 2025-11-03): the cockpit lists the spaces, so the page keeps no side column and
-		//// upstream's own list of them (make_sidebar) is not drawn. With the emergency switch (site_config
-		//// neoffice_cockpit_disable) there is no cockpit: the column and that list are back.
-		single_column: !frappe.boot.neoffice_cockpit_disable,
 	});
 
 	frappe.workspace = new frappe.views.Workspace(wrapper);
@@ -20,19 +16,6 @@ frappe.standard_pages["Workspaces"] = function () {
 	});
 };
 
-////////////////////////////////////////////////////////////////////////
-//// Neoffice — Workspace view, each hunk marked below. The map:
-////   the pages are read from the boot the first time (get_pages), which the theme's boot hooks filter, and the
-////     spaces are found by NAME instead of TITLE (0634af137c 2025-11-13): two spaces can share a title, and
-////     "Simple - Ventes" is titled "Ventes".
-////   upstream's own list of the spaces (make_sidebar and the methods around it) is upstream's code: the cockpit draws
-////     the menu, the page has one column and that list is not drawn but under the emergency switch (single_column).
-////     Our global sidebar of 2025-10 (9999364ec6, cc297ec402, d0268ef91a) left this file on 24.11.2026.
-////   Also ours: c3a2678c23 2024-01-24 (collapsed sections remembered), 755884e049 2024-01-17 (custom_link),
-////     388383af3a 2026-03-12 (Edit/New in a header bar), a9959ef957 2026-01-31 (name != title), fb2a5ef11e
-////     2025-11-08 (null current_page), Edit and New for Administrator only, 07ee48dd37 2026-06-16 (deleted widgets).
-//// v16 merge note: upstream develop rewrote this file. Expect a whole-file conflict; re-apply our intent.
-////////////////////////////////////////////////////////////////////////
 frappe.views.Workspace = class Workspace {
 	constructor(wrapper) {
 		this.wrapper = $(wrapper);
@@ -101,9 +84,7 @@ frappe.views.Workspace = class Workspace {
 		if (this.all_pages) {
 			frappe.workspaces = {};
 			for (let page of this.all_pages) {
-				//// Neoffice — `name` added: our router goes to a space by its name (router.js).
 				frappe.workspaces[frappe.router.slug(page.name)] = {
-					name: page.name,
 					title: page.title,
 					public: page.public,
 				};
@@ -114,32 +95,22 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	prepare_new_and_edit() {
-		//// Neoffice — upstream markup: <div class="editor-js-container"> first, then a
-		//// <div class="workspace-footer"> holding the New and Edit buttons. Swapped by 388383af3a
-		//// (2026-03-12 "move edit/new buttons from footer to header"): in the footer they sat behind
-		//// the chat widgets and could not be clicked. The editor container now comes after this block,
-		//// the class is .workspace-header-actions (scss/desk/desktop.scss, marked there) and the New
-		//// button lost .ellipsis / gained .btn-sm to match the Edit one.
-		//// (Comment kept OUTSIDE the template literal: inside it, jQuery read the string as a
-		//// selector and threw "Syntax error, unrecognized expression" — the marker pass of 03.09.)
 		this.$page = $(`
-		<div class="workspace-header-actions">
-			<button data-label="New" class="btn btn-default btn-sm btn-new-workspace">
+		<div class="editor-js-container"></div>
+		<div class="workspace-footer">
+			<button data-label="New" class="btn btn-default ellipsis btn-new-workspace">
 				<svg class="es-icon es-line icon-xs" style="" aria-hidden="true">
 					<use class="" href="#es-line-add"></use>
 				</svg>
 				<span class="hidden-xs" data-label="New">${__("New")}</span>
 			</button>
-			<!-- //// Neoffice — Edit button: upstream's mr-2 dropped (the header bar's flex gap spaces the buttons) and the double space in the svg class collapsed (388383af3a) -->
-			<button class="btn btn-default btn-sm btn-edit-workspace" data-label="Edit">
-				<svg class="es-icon es-line icon-xs" style="" aria-hidden="true">
+			<button class="btn btn-default btn-sm mr-2 btn-edit-workspace" data-label="Edit">
+				<svg class="es-icon es-line  icon-xs" style="" aria-hidden="true">
 					<use class="" href="#es-line-edit"></use>
 				</svg>
 				<span class="hidden-xs" data-label="Edit">${__("Edit")}</span>
 			</button>
 		</div>
-		<!-- //// Neoffice — the editor container now comes after the header bar; upstream renders it first, above the footer (388383af3a) -->
-		<div class="editor-js-container"></div>
 	`).appendTo(this.body);
 
 		this.body.find(".btn-new-workspace").on("click", () => {
@@ -162,28 +133,12 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	get_pages() {
-		//// Neoffice — the first time, the pages of the boot: the theme's boot hooks filter them (Simple mode, the apps a
-		//// person sees, the spaces' titles), the server's answer would not be filtered alike, and the space shows at once.
-		//// Upstream asks the server each time.
-		if (!this.boot_pages_read) {
-			this.boot_pages_read = true;
-			const boot = frappe.boot.sidebar_pages || {};
-			return Promise.resolve({ ...boot, pages: [...(boot.pages || [])] });
-		}
 		return frappe.xcall("frappe.desk.desktop.get_workspace_sidebar_items");
 	}
 
 	sidebar_item_container(item) {
 		item.indicator_color =
 			item.indicator_color || this.indicator_colors[Math.floor(Math.random() * 12)];
-
-		//// Neoffice — added (755884e049, 2024-01-17 "change link by view_interface", no message):
-		//// upstream builds the href inline from item.public and the slugged TITLE. Hoisted into a
-		//// `link` const so a workspace can override its destination with item.custom_link — used to
-		//// point a sidebar entry at a page that is not the workspace itself. The bare //// note is the
-		//// original author's; the href below reads that const.
-		//// add link and change link in return
-		const link = item.custom_link || (item.public ? frappe.router.slug(item.title) : "private/" + frappe.router.slug(item.title));
 
 		return $(`
 			<div
@@ -194,9 +149,12 @@ frappe.views.Workspace = class Workspace {
 				item-is-hidden="${item.is_hidden || 0}"
 			>
 				<div class="desk-sidebar-item standard-sidebar-item ${item.selected ? "selected" : ""}">
-					<!-- //// Neoffice — the href below reads the link const built above (item.custom_link, 755884e049) -->
 					<a
-						href="/app/${link}"
+						href="/app/${
+							item.public
+								? frappe.router.slug(item.title)
+								: "private/" + frappe.router.slug(item.title)
+						}"
 						class="item-anchor ${item.is_editable ? "" : "block-click"}" title="${__(item.title)}"
 					>
 						<span class="sidebar-item-icon" item-icon=${item.icon || "folder-normal"}>
@@ -216,8 +174,6 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	make_sidebar() {
-		//// Neoffice — added: under the cockpit the page has no column (single_column above), the list has no place.
-		if (!document.body.contains(this.sidebar[0])) return;
 		if (this.sidebar.find(".standard-sidebar-section")[0]) {
 			this.sidebar.find(".standard-sidebar-section").remove();
 		}
@@ -345,46 +301,13 @@ frappe.views.Workspace = class Workspace {
 		) {
 			$drop_icon.removeClass("hidden");
 		}
-
-		//// Neoffice — added (c3a2678c23, 2024-01-24 "updates to simplify menu", no message; block runs
-		//// to the end of the click handler). Upstream always renders a nested sidebar section collapsed
-		//// and forgets the choice on the next page load. The open sections are kept in the
-		//// localStorage key list_sidebar_open (a JSON array of item titles) and restored here. Keyed by
-		//// TITLE, so a translated or renamed workspace loses its state — TO REVIEW. The bare ////
-		//// notes and the commented-out lines are the original author's.
-		//// Check local storage for saved state
-		let existingArray = JSON.parse(localStorage.getItem("list_sidebar_open") || '[]');
-		if (existingArray.includes(item.title)) {
-			$child_item_section.removeClass("hidden");
-			$drop_icon.find("use").attr("href", "#es-line-up");
-		} else {
-			$child_item_section.addClass("hidden");
-			$drop_icon.find("use").attr("href", "#es-line-down");
-		}
-
 		$drop_icon.on("click", () => {
-			//// Neoffice — re-read on each click to save the open/closed state (c3a2678c23, see the marker above).
-			let existingArray = JSON.parse(localStorage.getItem("list_sidebar_open") || '[]');
 			let icon =
 				$drop_icon.find("use").attr("href") === "#es-line-down"
 					? "#es-line-up"
 					: "#es-line-down";
 			$drop_icon.find("use").attr("href", icon);
 			$child_item_section.toggleClass("hidden");
-			//// Save state to local storage
-			if($drop_icon.find("use").attr("href") === "#es-line-down") {
-				if (existingArray.includes(item.title)) {
-					existingArray.splice(existingArray.indexOf(item.title), 1);
-					localStorage.setItem("list_sidebar_open", JSON.stringify(existingArray));
-				}
-				//localStorage.setItem(item.title, "closed");
-			} else {
-				if (!existingArray.includes(item.title)) {
-					existingArray.push(item.title);
-					localStorage.setItem("list_sidebar_open", JSON.stringify(existingArray));
-				}
-				//localStorage.setItem(item.title, "open");
-			}
 		});
 	}
 
@@ -473,31 +396,19 @@ frappe.views.Workspace = class Workspace {
 
 		if (frappe.boot.user.default_workspace) {
 			default_page = {
-				//// Neoffice — get_page_to_show, keyed by NAME instead of TITLE (0634af137c, 2025-11-13; block
-				//// runs to the end of the method). Upstream compares page TITLES here and in the two branches
-				//// below (localStorage.current_page and all_pages[0]). Two workspaces of different apps can
-				//// share a title, and a workspace whose name differs from its title ("Simple - Ventes" titled
-				//// "Ventes") never matched — the view fell back to the first page. The blank line further
-				//// down is from the same commit.
-				name: frappe.boot.user.default_workspace.name,
+				name: frappe.boot.user.default_workspace.title,
 				public: frappe.boot.user.default_workspace.public,
 			};
 		} else if (
 			localStorage.current_page &&
-			//// Neoffice — by NAME; upstream: by title (0634af137c, see above).
-			this.all_pages.filter((page) => page.name == localStorage.current_page)
-				.length != 0
+			this.all_pages.filter((page) => page.title == localStorage.current_page).length != 0
 		) {
 			default_page = {
 				name: localStorage.current_page,
 				public: localStorage.is_current_page_public != "false",
 			};
 		} else if (Object.keys(this.all_pages).length !== 0) {
-			//// Neoffice — the first page by name; upstream: this.all_pages[0].title (0634af137c).
-			default_page = {
-				name: this.all_pages[0].name,
-				public: this.all_pages[0].public,
-			};
+			default_page = { name: this.all_pages[0].title, public: this.all_pages[0].public };
 		} else {
 			default_page = { name: "Build", public: true };
 		}
@@ -505,7 +416,6 @@ frappe.views.Workspace = class Workspace {
 		const route = frappe.get_route();
 		const page = (route[1] == "private" ? route[2] : route[1]) || default_page.name;
 		const is_public = route[1] ? route[1] != "private" : default_page.public;
-
 		return { name: page, public: is_public };
 	}
 
@@ -519,9 +429,9 @@ frappe.views.Workspace = class Workspace {
 		if (this.all_pages.length) {
 			this.create_page_skeleton();
 
-			//// Neoffice — the page by NAME; upstream: from public_pages / private_pages by title (0634af137c, see
-			//// get_page_to_show).
-			let current_page = this.all_pages.find((p) => p.name == page.name);
+			let pages =
+				page.public && this.public_pages.length ? this.public_pages : this.private_pages;
+			let current_page = pages.filter((p) => p.title == page.name)[0];
 			this._page = current_page;
 			this.content = current_page && JSON.parse(current_page.content);
 
@@ -580,11 +490,7 @@ frappe.views.Workspace = class Workspace {
 
 	setup_actions(page) {
 		let pages = page.public ? this.public_pages : this.private_pages;
-		//// Neoffice — added (a9959ef957, 2026-01-31 "Allow editing workspaces where name differs from
-		//// title"): upstream matches on p.title only, so the Edit button never appeared on a workspace
-		//// renamed after creation. Matches on either.
-		// Use p.name instead of p.title to handle workspaces where name != title (e.g., "Simple - Ventes" with title "Ventes")
-		let current_page = pages.filter((p) => p.name == page.name || p.title == page.name)[0];
+		let current_page = pages.filter((p) => p.title == page.name)[0];
 
 		if (!this.is_read_only) {
 			this.setup_customization_buttons(current_page);
@@ -592,22 +498,14 @@ frappe.views.Workspace = class Workspace {
 		}
 
 		this.clear_page_actions();
-		//// Neoffice — two changes on this line and on has_create_access a few lines below. The null
-		//// guard is fb2a5ef11e (2025-11-08 "Support virtual apps with translated workspace names"):
-		//// current_page can be undefined when the lookup above misses, and upstream read .is_editable
-		//// off it straight away. The `frappe.session.user == "Administrator"` condition is ours too
-		//// (the trailing //// notes are the original author's, no commit message explains it): editing
-		//// and creating workspaces is reserved to Administrator on our instances — upstream gates them
-		//// on the Workspace Manager role alone. TO REVIEW at the merge: this is a UI-only gate; the
-		//// server still authorises whoever holds the role.
-		if (current_page && current_page.is_editable && frappe.session.user == "Administrator") { //// add check if user is administrator
+		if (current_page.is_editable) {
 			this.body.find(".btn-edit-workspace").removeClass("hide");
 		} else {
 			this.body.find(".btn-edit-workspace").addClass("hide");
 		}
 
 		// need to add option for icons in inner buttons as well
-		if (this.has_create_access && frappe.session.user == "Administrator") { //// add check if user is administrator
+		if (this.has_create_access) {
 			this.body.find(".btn-new-workspace").removeClass("hide");
 		} else {
 			this.body.find(".btn-new-workspace").addClass("hide");
@@ -1591,9 +1489,7 @@ frappe.views.Workspace = class Workspace {
 
 	save_page(page) {
 		let me = this;
-		//// Neoffice — upstream: `{ name: page.title, ... }`. Keyed by NAME (9999364ec6 / 0634af137c),
-		//// like get_page_to_show and show_page above — the title is not an identifier.
-		this.current_page = { name: page.name, public: page.public };
+		this.current_page = { name: page.title, public: page.public };
 
 		return this.editor
 			.save()
@@ -1634,17 +1530,10 @@ frappe.views.Workspace = class Workspace {
 				frappe.call({
 					method: "frappe.desk.doctype.workspace.workspace.save_page",
 					args: {
-						//// Neoffice — two changes in this call. `title: page.name` (9999364ec6 / 0634af137c): the
-						//// server's save_page takes the workspace identifier, and upstream sent the display title.
-						//// `deleted_widgets` (07ee48dd37, 2026-06-16, added below): the list of widgets the user
-						//// explicitly deleted, so the server can drop those child rows before clean_up() re-adds them
-						//// (see workspace/blocks/block.js record_widget_deletion, marked there).
-						title: page.name,
+						title: page.title,
 						public: page.public || 0,
 						new_widgets: new_widgets,
 						blocks: JSON.stringify(blocks),
-						//// Neoffice — deleted_widgets: added by 07ee48dd37, see the marker at the top of args.
-						deleted_widgets: JSON.stringify(frappe.workspace_deleted_widgets || {}),
 					},
 					callback: function (res) {
 						if (res.message) {
@@ -1667,8 +1556,6 @@ frappe.views.Workspace = class Workspace {
 	}
 
 	reload() {
-		//// Neoffice — the deleted-widget list is cleared for the next edit session (07ee48dd37, 2026-06-16).
-		frappe.workspace_deleted_widgets = {};
 		this.sorted_public_items = [];
 		this.sorted_private_items = [];
 		this.setup_pages(true);

@@ -98,14 +98,11 @@ frappe.search.SearchDialog = class {
 	}
 
 	put_placeholder(status_text) {
-		//// Neoffice — upstream hard-codes this image's alt text in English, so it shows as a tooltip (and is
-		//// read out) in English in a French UI. Passed through __() so the catalogue can translate it.
 		var $placeholder = $(`<div class="row search-results hide">
 			<div class="empty-state">
 				<div class="text-center">
-					<!-- //// Neoffice — the empty state's alt text goes through __() (1e42eee4de "fix(i18n): alt texts of the empty states and of the report toolbar icons go through __()") -->
 					<img src="/assets/frappe/images/ui-states/search-empty-state.svg"
-						alt="${__("Generic Empty State")}"
+						alt="Generic Empty State"
 						class="null-state"
 					>
 					<div class="empty-state-text">${status_text}</div>

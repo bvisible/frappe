@@ -153,37 +153,6 @@ export default class Block {
 		});
 	}
 
-	//// Neoffice — added method (07ee48dd37, 2026-06-16 "fix(workspace): allow deleting
-	//// shortcuts/widgets from the UI"): no upstream equivalent. Since 00e69dcfa7 made
-	//// desktop.py clean_up() non-destructive (it re-adds any child-table widget missing from the
-	//// content JSON, to stop the editor silently losing widgets), deleting a shortcut from the
-	//// editor was impossible — the block went away and clean_up put it straight back. An explicit
-	//// Delete now records the widget name in frappe.workspace_deleted_widgets; workspace.js
-	//// save_page forwards it and the server drops that child row before clean_up runs. An
-	//// accidental editor drop is not in the list, so the anti-loss guard still holds.
-	record_widget_deletion() {
-		// Track explicit widget deletions so the server removes the child-table row.
-		// clean_up() re-adds widgets present in the child table but missing from content
-		// (anti widget-loss guard, 00e69dc), otherwise shortcuts cannot be deleted from
-		// the UI. Accidental editor drops never reach this explicit path.
-		try {
-			const types = ["shortcut", "chart", "quick_list", "number_card", "custom_block"];
-			for (const t of types) {
-				const name = this.wrapper && this.wrapper.getAttribute(t + "_name");
-				if (name) {
-					frappe.workspace_deleted_widgets = frappe.workspace_deleted_widgets || {};
-					frappe.workspace_deleted_widgets[t] = frappe.workspace_deleted_widgets[t] || [];
-					if (!frappe.workspace_deleted_widgets[t].includes(name)) {
-						frappe.workspace_deleted_widgets[t].push(name);
-					}
-					break;
-				}
-			}
-		} catch (e) {
-			// best-effort; never block the delete
-		}
-	}
-
 	add_settings_button() {
 		let me = this;
 		this.dropdown_list = [
@@ -191,12 +160,7 @@ export default class Block {
 				label: "Delete",
 				title: "Delete Block",
 				icon: frappe.utils.icon("delete-active", "sm"),
-				//// Neoffice — upstream: action: () => this.api.blocks.delete(). Wrapped by 07ee48dd37 so the
-				//// explicit Delete is recorded before the block goes (see record_widget_deletion above).
-				action: () => {
-					this.record_widget_deletion();
-					this.api.blocks.delete();
-				},
+				action: () => this.api.blocks.delete(),
 			},
 			{
 				label: "Expand",

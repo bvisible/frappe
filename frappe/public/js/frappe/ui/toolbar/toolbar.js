@@ -26,22 +26,7 @@ frappe.ui.toolbar.Toolbar = class {
 
 	make() {
 		this.bind_events();
-		//// Neoffice — added (9999364ec6 2025-10-28): the logo goes to Home.
-		this.bind_logo_click();
 		$(document).trigger("toolbar_setup");
-	}
-
-	//// Neoffice — added (9999364ec6, 2025-10-28; "home" route by 0634af137c, 2025-11-13 "ensures
-	//// correct navigation to home"): the navbar logo routes to the Home workspace instead of
-	//// following the plain /app link.
-	bind_logo_click() {
-		$(".navbar-brand .app-logo").on("click", (event) => {
-			// On desktop and mobile, navigate to home
-			event.preventDefault();
-			event.stopPropagation();
-			frappe.set_route("home");
-			return false;
-		});
 	}
 
 	bind_events() {
@@ -114,9 +99,7 @@ frappe.ui.toolbar.Toolbar = class {
 			}
 		});
 
-		//// Neoffice — upstream: `function ()`. The `e` parameter is unused, added with the help dropdown
-		//// rework marked below (b1d77644c6, 2024-09-27 "update", no rationale in the commit).
-		$(document).on("page-change", function (e) {
+		$(document).on("page-change", function () {
 			var $help_links = $(".dropdown-help #help-links");
 			$help_links.html("");
 
@@ -137,176 +120,20 @@ frappe.ui.toolbar.Toolbar = class {
 				$help_links.next().show();
 			}
 
-			//// Neoffice ▼▼▼ help dropdown rework (b1d77644c6, 2024-09-27 "update" — no rationale in the
-			//// commit; the unused (e) parameter of the page-change handler above is from it too). Upstream
-			//// lists the DocType's help links as plain external <a target="_blank">. Ours (fenced by the
-			//// bare //// lines): each link opens the matching Neoffice wiki page in a dialog with an "Open
-			//// in New Tab" button (82c7849f54 + 23b940312a, 2026-01-07 — absolute
-			//// https://neoservice.neoffice.me/wiki URL), a count badge on the Help menu and an "Open Full
-			//// Documentation" entry. loadFormTour / addFormTourLink / startFormTour (Form Tour restart via
-			//// neoffice_theme.events.reset_tour_for_current_user) are defined but their call is commented
-			//// out (bd41f1e7a5, 2025-02-26 "Update neov2") — dead code, TO REVIEW at the merge.
-			////
 			for (let i = 0; i < links.length; i++) {
-				(function (url, label) {
-					// Convert ERPNext docs URL to local wiki route
-					var wiki_route = url_to_wiki_route(url);
-					$("<a>", {
-						href: "#",
-						class: "dropdown-item",
-						text: __(label),
-						click: function (e) {
-							e.preventDefault();
-							openWikiDocDialog(wiki_route, label);
-						}
-					}).appendTo($help_links);
-				})(links[i].url, links[i].label);
+				var link = links[i];
+				var url = link.url;
+				$("<a>", {
+					href: url,
+					class: "dropdown-item",
+					text: __(link.label),
+					target: "_blank",
+				}).appendTo($help_links);
 			}
-
-			if($(".dropdown-help .help-links-count").length === 0) {
-				$("<span>", {
-					class: "text-muted small text-center help-links-count",
-					text: links.length,
-					style: "position: absolute; top: -12px; right: -3px; background-color: var(--group-mention-bg-color); border-radius: 50%; width: 16px; font-size: 12px; line-height: 18px; text-align: center;",
-				}).appendTo($(".dropdown-help"));
-			} else {
-				$(".dropdown-help .help-links-count").text(links.length);
-			}
-
-			if (links.length > 0) {
-				$("<hr>").appendTo($help_links);
-				$(".dropdown-help .help-links-count").show();
-			} else {
-				$(".dropdown-help .help-links-count").hide();
-			}
-
-			$("<a>", {
-				href: "#",
-				class: "dropdown-item",
-				text: __("Open Full Documentation"),
-				click: function(e) {
-					e.preventDefault();
-					openWikiDocDialog("https://neoservice.neoffice.me/wiki/utilisateur", __("Documentation"));
-				}
-			}).appendTo($help_links);
-
-			////loadFormTour();
 
 			$(".dropdown-help .dropdown-menu").on("click", "a", show_results);
 		});
 
-		// Convert ERPNext docs URL to Neoffice wiki URL
-		function url_to_wiki_route(url) {
-			// Extract path from URL (e.g., https://docs.erpnext.com/docs/user/manual/en/customer -> customer)
-			var path = url;
-			if (url.indexOf('://') > -1) {
-				path = url.split('://')[1];
-				path = path.substring(path.indexOf('/'));
-			}
-			// Remove common prefixes
-			path = path.replace(/^\/?docs\//, '');
-			// Build absolute wiki URL (wiki is hosted on neoservice)
-			return 'https://neoservice.neoffice.me/wiki/docs/' + path.replace(/^\//, '');
-		}
-
-		function openWikiDocDialog(wiki_route, title) {
-			var dialog = new frappe.ui.Dialog({
-				'title': title || __('Documentation'),
-				'size': 'large',
-				'fields': [
-					{
-						'fieldname': 'html',
-						'fieldtype': 'HTML'
-					}
-				],
-				'primary_action_label': __('Open in New Tab'),
-				'primary_action': function() {
-					window.open(wiki_route, '_blank');
-				}
-			});
-
-			var iframe_url = wiki_route + (wiki_route.indexOf('?') > -1 ? '&' : '?') + 'iframe=1';
-			var iframe_html = '<iframe src="' + iframe_url + '" style="width:100%; height:calc(100vh - 250px); border:none;"></iframe>';
-			dialog.fields_dict.html.$wrapper.html(iframe_html);
-
-			dialog.show();
-
-			dialog.$wrapper.find('.modal-dialog').attr("style", "max-width: 90vw!important");
-		}
-
-		function loadFormTour() {
-			setTimeout(function() {
-				if (frappe.router && frappe.router.current_route && frappe.router.current_route[0]) {
-					if (frappe.router.current_route[0] == "Workspaces") {
-						let workspace_name = frappe?.workspace?.current_page?.name;
-						if (workspace_name) {
-							frappe.call({
-								method: "frappe.client.get_list",
-								args: {
-									doctype: "Form Tour",
-									filters: {
-										workspace_name: workspace_name
-									},
-									fields: ["workspace_name"]
-								},
-								callback: function(response) {
-									if (response && response.message && response.message.length > 0) {
-										addFormTourLink("workspace_name", workspace_name);
-									}
-								}
-							});
-						}
-					} else if (frappe.router.current_route[0] == "Form" || frappe.router.current_route[0] == "List") {
-						let doctype = frappe.router.current_route[1];
-						frappe.call({
-							method: "frappe.client.get_list",
-							args: {
-								doctype: "Form Tour",
-								filters: {
-									reference_doctype: doctype
-								},
-								fields: ["reference_doctype"]
-							},
-							callback: function(response) {
-								if (response && response.message && response.message.length > 0) {
-									addFormTourLink(doctype, frappe.router.current_route[0]);
-								}
-							}
-						});
-					}
-				}
-			}, 1000);
-		}
-
-		function addFormTourLink(doctype, route) {
-			$("<a>", {
-				href: "#",
-				class: "dropdown-item",
-				text: __("Start Tour for ") + __(doctype),
-				click: function(e) {
-					e.preventDefault();
-					startFormTour(name, route);
-				}
-			}).appendTo($(".dropdown-help #help-links"));
-		}
-
-		function startFormTour(doctype, route) {
-			frappe.call({
-				method: 'neoffice_theme.events.reset_tour_for_current_user',
-				args: {
-					'type': 'reference_doctype',
-					'name': doctype,
-					'view': route
-				},
-				callback: function(r) {
-					frappe.dom.freeze();
-					location.reload();
-				}
-			});
-		}
-		////
-
-		//// Neoffice ▲▲▲ end of the help dropdown rework (the bare //// above closes it).
 		var $result_modal = frappe.get_modal("", "");
 		$result_modal.addClass("help-modal");
 

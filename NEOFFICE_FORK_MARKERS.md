@@ -30,6 +30,23 @@ import order in `FileUploader.vue`; nothing is left to record.
 replaced that sidebar since 2026-06-10; `workspace.js` reads the spaces of the boot itself. A merge that brings one of
 these files back has nothing of ours in it.
 
+### Gone to the theme (2026-11-25): the desk
+
+Upstream's again: `desk.bundle.js`, `frappe/desk.js`, `ui/page.js`, `ui/toolbar/toolbar.js`, `views/workspace/workspace.js`,
+`dom.js`, `router.js`, `utils/utils.js`, `utils/datetime.js`, `model/model.js`, `model/user_settings.js`,
+`model/indicator.js`, `translate.js`, `views/breadcrumbs.js`, `ui/toolbar/search_utils.js`, `ui/toolbar/fuzzy_match.js`,
+`ui/toolbar/search.js`, `ui/notifications/notifications.js`, `views/factory.js`, `views/workspace/blocks/block.js`,
+`blocks/paragraph.js`, `widgets/chart_widget.js`, `links_widget.js`, `quick_list_widget.js`,
+`views/dashboard/dashboard_view.js`, `views/file/file_view.js`, `views/kanban/kanban_view.js`, `views/treeview.js`,
+`utils/datatable.js`, `onboarding_tours/onboarding_tours.js` and `ui/chart.js`. What was ours in them is put on Frappe
+15's objects by `neoffice_theme/public/js/desk_model_15.js`, as we wrote it, with Frappe 15's fingerprints.
+
+Still ours here, on purpose: `socketio_client.js` (the backport of upstream develop 1940c3e301 and the reconnection after a
+restart; its client is the bundle's own import, and its test is here), `scanner/index.js` (its reader is the bundle's own
+import), `jquery-bootstrap.js` (the Bootstrap plugins registered on the one jQuery: a build matter),
+`views/kanban/kanban_board.bundle.js` (a lazy bundle) and `web_form/web_form_list.js` (the portal, where the theme's desk
+scripts are not loaded).
+
 ### Gone to the theme (2026-11-25): the form
 
 Upstream's again: `form/form.js`, `layout.js`, `tab.js`, `save.js`, `link_selector.js`, `quick_entry.js`,

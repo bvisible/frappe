@@ -37,9 +37,6 @@ import "./frappe/ui/field_group.js";
 import "./frappe/form/link_selector.js";
 import "./frappe/form/multi_select_dialog.js";
 import "./frappe/ui/dialog.js";
-//// Neoffice — the model of every window (design system §6.18) and its sentinel are the theme's since 24.11.2026
-//// (neoffice_theme public/js/dialog_model.js, dialog_sentinel.js, one copy for Frappe 15 and 16, neoffice-maintenance#3262):
-//// they were imported here.
 import "./frappe/ui/capture.js";
 import "./frappe/ui/app_icon.js";
 import "./frappe/ui/theme_switcher.js";

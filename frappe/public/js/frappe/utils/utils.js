@@ -2,11 +2,8 @@
 // MIT License. See license.txt
 
 import deep_equal from "fast-deep-equal";
-import cloneDeepWith from "lodash/cloneDeepWith";
-//// Neoffice — import order only: upstream has deep_equal / number_systems / cloneDeepWith,
-//// ours moved number_systems last (bd41f1e7a5, 2025-02-26 "Update neov2", a 40-file commit
-//// with no message). No behaviour change. TO REVIEW: take upstream's order at the merge.
 import number_systems from "./number_systems";
+import cloneDeepWith from "lodash/cloneDeepWith";
 
 frappe.provide("frappe.utils");
 
@@ -331,14 +328,7 @@ Object.assign(frappe.utils, {
 	) {
 		if (frappe.flags.disable_auto_scroll) return;
 
-		//// Neoffice — upstream: `element_to_be_scrolled = element_to_be_scrolled || $("html, body");` and
-		//// get_scroll_position(element, additional_offset). In the cockpit layout the document does not
-		//// scroll: <body> is overflow:hidden and the page scrolls inside .main-section, so every default
-		//// scroll_to (a row form opened low in a long table, a field in error, a section reached from a
-		//// link) was a silent no-op and the user had to scroll by hand. The scroller is found by
-		//// get_page_scroller(); anything outside .main-section (a dialog) keeps the upstream behaviour.
-		const page_scroller = element_to_be_scrolled ? null : this.get_page_scroller(element);
-		element_to_be_scrolled = element_to_be_scrolled || page_scroller || $("html, body");
+		element_to_be_scrolled = element_to_be_scrolled || $("html, body");
 		let scroll_top = 0;
 		if (element) {
 			// If a number is passed, just subtract the offset,
@@ -346,7 +336,7 @@ Object.assign(frappe.utils, {
 			scroll_top =
 				typeof element == "number"
 					? element - cint(additional_offset)
-					: this.get_scroll_position(element, additional_offset, page_scroller); //// Neoffice — 3rd argument added
+					: this.get_scroll_position(element, additional_offset);
 		}
 
 		if (scroll_top < 0) {
@@ -384,26 +374,7 @@ Object.assign(frappe.utils, {
 			element_to_be_scrolled.scrollTop(scroll_top);
 		}
 	},
-	//// Neoffice — added, no upstream equivalent: the element that scrolls the page, as a jQuery object,
-	//// or null when the document itself scrolls (upstream layout) or when `element` is not inside the
-	//// scrolling section (a dialog, the navbar). Remove together with the cockpit layout.
-	get_page_scroller: function (element) {
-		const main = document.querySelector(".main-section");
-		if (!main || getComputedStyle(document.body).overflowY !== "hidden") return null;
-		if (main.scrollHeight <= main.clientHeight) return null;
-		const target = element && typeof element !== "number" ? $(element)[0] : null;
-		if (target && !main.contains(target)) return null;
-		return $(main);
-	},
-	//// Neoffice — `scroller` added (see scroll_to): the sticky .page-head lives inside the scrolling
-	//// section, so the position is measured from the section, not from the document.
-	get_scroll_position: function (element, additional_offset, scroller) {
-		if (scroller && scroller.length) {
-			const head = $(".page-head:visible").height() || 0;
-			const el_top = $(element)[0].getBoundingClientRect().top;
-			const box_top = scroller[0].getBoundingClientRect().top;
-			return scroller.scrollTop() + el_top - box_top - head - cint(additional_offset);
-		}
+	get_scroll_position: function (element, additional_offset) {
 		let header_offset =
 			$(".navbar").height() + $(".page-head:visible").height() || $(".navbar").height();
 		return $(element).offset().top - header_offset - cint(additional_offset);
@@ -529,79 +500,38 @@ Object.assign(frappe.utils, {
 		var colour = "gray";
 		if (text) {
 			text = cstr(text);
-			//// Neoffice — guess_style, the status-word → colour table, rewritten (block runs to the closing
-			//// brace of this if/else chain, ~50 lines below).
-			//// Upstream v15 has four English-only branches in this order: warning (Pending, Review, Medium,
-			//// Not Approved) › danger (Open, Urgent, High, Failed, Rejected, Error) › success (Closed …
-			//// Paid, Success) › info (Submitted). A French site therefore fell through every branch and
-			//// every status pill came out grey — the fleet runs in French.
-			//// Ours (in order of application): danger › warning › yellow (partly-*) › success › info › gray,
-			//// each list carrying the EN and FR word for the same state, plus the ERPNext transaction states
-			//// upstream never had (To Deliver / To Bill / Ordered / Delivered / Invoiced / Credit Note
-			//// Issued …). Lineage: 2368c6341a (2025-11-30, first FR words) › 1e5d61ef19 (2026-03-16, full
-			//// FR+EN rewrite, the branch order and the yellow/gray branches) › 6dd4d68b40 (2026-07-06,
-			//// Draft moved out of red into gray and Submitted out of blue into green: a draft is not an
-			//// error and a submitted document is validated — same commit did docstatus 0/1 in
-			//// model/indicator.js). 9dd05d8736 (2025-12-02, Draft → blue) is superseded and leaves no line.
-			//// Matching is on the literal word, so a translation other than the one listed still falls
-			//// through. Kept, deliberately (neoffice-maintenance#205): upstream's four English-only branches
-			//// leave EVERY status pill grey on a French fleet, which is worse than an imperfect table. The
-			//// clean fix — key on docstatus / the Select value instead of on displayed text — belongs to
-			//// model/indicator.js, not to a helper whose whole job is to read a word.
-			//// v16 merge note: upstream develop still ships the four English branches with Submitted → blue
-			//// — expect a conflict on the whole chain; keep ours.
-			// Red/Danger statuses (English + French)
-			if (
-				has_words(["Open", "Urgent", "High", "Failed", "Rejected", "Error",
-					"Overdue", "Cancelled", "Expired",
-					"Ouvert", "Élevé", "Échoué", "Rejeté", "Erreur",
-					"En retard", "Échu", "Annulé", "Expiré"], text)
+			if (has_words(["Pending", "Review", "Medium", "Not Approved"], text)) {
+				style = "warning";
+				colour = "orange";
+			} else if (
+				has_words(["Open", "Urgent", "High", "Failed", "Rejected", "Error"], text)
 			) {
 				style = "danger";
 				colour = "red";
-			//// Neoffice — see the guess_style block marker above: warning now comes after danger, EN + FR.
-			// Orange/Warning statuses (English + French)
-			} else if (has_words(["Pending", "Review", "Medium", "Not Approved",
-				"Unpaid", "To Deliver", "To Bill", "To Deliver and Bill", "To Receive", "To Receive and Bill",
-				"En attente", "À revoir", "Moyen", "Non approuvé", "Impayé",
-				"À Livrer", "À Facturer", "À Livrer et Facturer", "À Recevoir", "À Recevoir et Facturer"], text)) {
-				style = "warning";
-				colour = "orange";
-			// Yellow statuses (English + French)
-			} else if (has_words(["Partly Paid", "Partially Ordered", "Partly Delivered", "Partly Billed",
-				"Partiellement payé", "Partiellement commandé", "Partiellement livré", "Partiellement facturé"], text)) {
-				style = "warning";
-				colour = "yellow";
-			// Green/Success statuses (English + French)
 			} else if (
 				has_words(
 					[
-						//// Neoffice — upstream's twelve words (one per line), plus transaction states, FR and Submitted.
-						"Closed", "Finished", "Converted", "Completed", "Complete",
-						"Confirmed", "Approved", "Yes", "Active", "Available",
-						"Paid", "Success", "Ordered", "Delivered", "Invoiced",
-						"Fermé", "Terminé", "Converti", "Complété", "Complet",
-						"Confirmé", "Approuvé", "Oui", "Actif", "Disponible",
-						"Payé", "Succès", "Commandé", "Livré", "Facturé",
-						"Submitted", "Soumis", "Validé",
+						"Closed",
+						"Finished",
+						"Converted",
+						"Completed",
+						"Complete",
+						"Confirmed",
+						"Approved",
+						"Yes",
+						"Active",
+						"Available",
+						"Paid",
+						"Success",
 					],
 					text
 				)
 			) {
 				style = "success";
 				colour = "green";
-			//// Neoffice — upstream's blue branch held only "Submitted" (now green, 6dd4d68b40); see above.
-			// Blue/Info statuses (English + French)
-			} else if (has_words(["In Payment Run", "In Progress",
-				"En cours de paiement", "En cours"], text)) {
+			} else if (has_words(["Submitted"], text)) {
 				style = "info";
 				colour = "blue";
-			//// Neoffice — added gray branch (1e5d61ef19, Draft moved here by 6dd4d68b40); see above.
-			// Gray statuses (English + French)
-			} else if (has_words(["Return", "Credit Note Issued", "Debit Note Issued", "Lost", "On Hold", "Draft",
-				"Retour", "Note de crédit émise", "Note de débit émise", "Perdu", "En attente", "Brouillon"], text)) {
-				style = "default";
-				colour = "gray";
 			}
 		}
 		return _colour ? colour : style;
@@ -1024,35 +954,20 @@ Object.assign(frappe.utils, {
 		return __(frappe.utils.to_title_case(__(route[0]), true));
 	},
 	report_column_total: function (values, column, type) {
-		//// Neoffice — report_column_total, two fixes (block runs to the end of the function).
-		//// 05fa2cfeb7 (2025-11-26): upstream reads column.column.fieldtype, which only exists on Query
-		//// Report columns; in Report View the fieldtype sits in column.column.docfield.fieldtype, so
-		//// every column looked non-numeric and no total was ever summed. Read both, docfield first.
-		//// 56eec2a31f (2025-11-26): upstream returns null for a non-numeric column and for an empty
-		//// dataset — the totals row printed the string "null" under Status / Select / Link columns.
-		//// Return "" instead. Consumer: the totals row of views/reports/report_view.js (marked there).
-		// Get fieldtype from docfield (for Report View) or directly from column (for Query Report)
-		const fieldtype = column.column.docfield?.fieldtype || column.column.fieldtype;
-
 		if (column.column.disable_total) {
 			return "";
 		} else if (values.length > 0) {
-			//// Neoffice — `fieldtype` instead of column.column.fieldtype in the tests below (05fa2cfeb7).
-			if (fieldtype == "Percent" || type === "mean") {
+			if (column.column.fieldtype == "Percent" || type === "mean") {
 				return values.reduce((a, b) => flt(a) + flt(b)) / values.length;
-			} else if (fieldtype == "Int") {
+			} else if (column.column.fieldtype == "Int") {
 				return values.reduce((a, b) => cint(a) + cint(b));
-				//// Neoffice — `fieldtype` instead of column.column.fieldtype (05fa2cfeb7).
-			} else if (frappe.model.is_numeric_field(fieldtype)) {
+			} else if (frappe.model.is_numeric_field(column.column.fieldtype)) {
 				return values.reduce((a, b) => flt(a) + flt(b));
 			} else {
-				//// Neoffice — upstream: `return null;` for a non-numeric column (56eec2a31f).
-				// Return empty string for non-numeric fields (e.g., Status, Select, Link)
-				return "";
+				return null;
 			}
 		} else {
-			//// Neoffice — upstream: `return null;` for an empty dataset (56eec2a31f).
-			return "";
+			return null;
 		}
 	},
 	setup_search($wrapper, el_class, text_class, data_attr) {
@@ -1359,12 +1274,6 @@ Object.assign(frappe.utils, {
 			}
 		}
 		frappe.utils.set_space_label_ratio(chart_args);
-		//// Neoffice — note added by fe363d6fd6 (2026-06-12 "fix(charts): destroy stranded frappe-charts
-		//// instances on re-create"): make_chart itself is upstream's, unchanged — the teardown was put
-		//// in the ManagedChart subclass in ui/chart.js (marked there) so every call site is covered,
-		//// not just this one.
-		// stale-instance cleanup lives in frappe.Chart itself (ui/chart.js
-		// ManagedChart) so every call site is covered, not just this one
 		return new frappe.Chart(wrapper, chart_args);
 	},
 
@@ -1887,13 +1796,6 @@ Object.assign(frappe.utils, {
 	 *
 	 * @param {Object} obj - The object to mask passwords in.
 	 */
-	//// Neoffice — backport of upstream develop's helper: erpnext version-15's CRM Settings calls
-	//// frappe.utils.get_installed_apps(), absent from this frappe, and its form threw "is not a function"
-	//// at every refresh (maintenance#2805). Upstream maps frappe.boot.app_data; here app_data is the apps
-	//// switcher built from App Customization (boot.py), so the installed apps are read from boot.versions.
-	get_installed_apps() {
-		return Object.keys(frappe.boot.versions || {});
-	},
 	mask_passwords(obj) {
 		const KEYWORDS_TO_MASK = ["password", "passphrase"];
 		for (const key of Object.keys(obj)) {

@@ -36,17 +36,13 @@ frappe.Application = class Application {
 
 		this.load_bootinfo();
 		this.load_user_permissions();
-		//// Neoffice — upstream calls this.make_nav_bar() here. make_chrome() mounts the NeoCockpit sidebar
-		//// instead and keeps the navbar + sidebar only behind the kill-switch (d0268ef91a 2026-06-10
-		//// "feat(cockpit): NeoCockpit is the default desk chrome — single menu, no navbar").
-		this.make_chrome();
+		this.make_nav_bar();
 		this.set_favicon();
 		this.set_fullwidth_if_enabled();
 		this.add_browser_class();
 		this.setup_energy_point_listeners();
 		this.setup_copy_doc_listener();
 		this.setup_broadcast_listeners();
-		this.setup_overlay_watchdog(); //// Neoffice — see setup_overlay_watchdog()
 
 		frappe.ui.keys.setup();
 
@@ -78,14 +74,23 @@ frappe.Application = class Application {
 
 		// page container
 		this.make_page_container();
-		//// Neoffice — removed upstream's onboarding-tour block (load onboarding_tours.bundle.js and
-		//// frappe.ui.init_onboarding_tour() when a tour is pending) (1014eb4426 2026-04-25
-		//// "feat(onboarding): disable Frappe legacy onboarding tours"). The tour code still ships. Upstream 15.125.0
-		//// only added `!navigator.webdriver` (Playwright) to that block's condition: nothing to take, the block stays out.
-		// Onboarding tours intentionally disabled for Neoffice — the new
-		// home workspace already provides a guided welcome (hero + tinted
-		// applications), so the legacy "Awesomebar / Form basics / ..."
-		// driver.js popovers only get in the way for new users.
+		if (
+			!window.Cypress &&
+			!navigator.webdriver &&
+			frappe.boot.onboarding_tours &&
+			frappe.boot.user.onboarding_status != null
+		) {
+			let pending_tours = !frappe.boot.onboarding_tours.every(
+				(tour) => frappe.boot.user.onboarding_status[tour[0]]?.is_complete
+			);
+			if (pending_tours && frappe.boot.onboarding_tours.length > 0) {
+				frappe.require("onboarding_tours.bundle.js", () => {
+					frappe.utils.sleep(1000).then(() => {
+						frappe.ui.init_onboarding_tour();
+					});
+				});
+			}
+		}
 		this.set_route();
 
 		// trigger app startup
@@ -356,287 +361,12 @@ frappe.Application = class Application {
 			frappe.container = new frappe.views.Container();
 		}
 	}
-	// //// NEOFFICE PATCH — NeoCockpit unified chrome (single menu, no navbar).
-	// Default chrome for every Neoffice desk: ONE React sidebar that absorbs the
-	// header (search, notifications bell, NORA, user menu). Frappe's navbar is NOT
-	// instantiated at all — no hidden DOM, no double chrome.
-	// Emergency kill-switch: site_config `neoffice_cockpit_disable` gives Frappe's navbar back, and the spaces page its
-	// own list of the spaces (workspace.js); so does the setup wizard.
-	make_chrome() {
-		if (frappe.boot.neoffice_cockpit_disable || frappe.boot.home_page === "setup-wizard") {
-			this.make_nav_bar();
-			return;
-		}
-		this.make_cockpit();
-	}
-
-	make_cockpit() {
-		document.body.classList.add("neoffice-cockpit");
-		const root = document.createElement("div");
-		root.id = "neoffice-cockpit-root";
-		root.style.display = "contents";
-		document.body.insertBefore(root, document.body.firstChild);
-
-		const mount = () => {
-			if (!window.NeoCockpit || !window.NeoCockpit.mount) {
-				setTimeout(mount, 50);
-				return;
-			}
-			// synk (Raven docked widget) and the help panel are optional apps:
-			// only wire their rail buttons when the app ships the feature.
-			const has_synk =
-				frappe.boot.show_raven_chat_on_desk && frappe.user.has_role("Raven User");
-			const has_help = !!(frappe.boot.versions && frappe.boot.versions.nora);
-			//// Neoffice — the answering bar (neoffice_theme, M5): with it on, the phone's loupe (the cockpit's strip
-			//// under 768 px) opens the palette in the tap itself, laid out as a sheet; it opened the navigation drawer,
-			//// whose own box opened the palette under the drawer. The bar off: the loupe opens the drawer as before.
-			//// Neoffice — a reader whose desk settings hide the search gets no palette (setup_cockpit_awesomebar):
-			//// the drawer then (independent review of M5).
-			const bar_on = !!(
-				frappe.boot.neoffice_bar &&
-				frappe.boot.neoffice_bar.enabled &&
-				frappe.boot.desk_settings &&
-				frappe.boot.desk_settings.search_bar
-			);
-
-			window.NeoCockpit.mount(root, {
-				env: "desk",
-				layout: "sidebar",
-				homeUrl: "/app/home",
-				onNavigate: (r) => {
-					frappe.set_route(String(r).replace(/^\/app\/?/, "") || "home");
-				},
-				// NORA Quick Chat is an OVERLAY, not a route
-				onNora: () => {
-					if (frappe.ui.NoraQuickChat && frappe.ui.NoraQuickChat.show) {
-						frappe.ui.NoraQuickChat.show();
-					} else {
-						frappe.set_route("nora-chat");
-					}
-				},
-				//// Neoffice — see bar_on above.
-				onSearch: bar_on
-					? () => frappe.search.open_palette && frappe.search.open_palette()
-					: undefined,
-				onBell: () => this.toggle_cockpit_notifications(),
-				onSynk: has_synk ? () => this.toggle_cockpit_synk() : undefined,
-				onHelp: has_help
-					? () => {
-							if (window.nora && nora.help_panel) nora.help_panel.toggle();
-							else window.open("/wiki", "_blank");
-					  }
-					: undefined,
-			});
-			//// Neoffice — the palette (setup_cockpit_awesomebar) is set up by the theme at app_ready (search_model.js)
-			this.setup_cockpit_notifications();
-			if (has_synk) this.setup_cockpit_synk();
-		};
-		mount();
-
-		// route flags for surface-specific chrome (relaxed head on
-		// workspaces, no head on the Home dashboard, flush container on
-		// lists & reports)
-		const update_route_class = () => {
-			const route = frappe.get_route() || [];
-			const is_ws = !route.length || route[0] === "Workspaces";
-			document.body.classList.toggle("nf-ws", is_ws);
-			document.body.classList.toggle(
-				"nf-ws-home",
-				is_ws && (route[1] || "Home") === "Home"
-			);
-			document.body.classList.toggle(
-				"nf-list",
-				["List", "query-report", "dashboard-view"].includes(route[0])
-			);
-		};
-		// Drive these body flags off "page-change" (fired by container.js
-		// AFTER the new page is shown and the old one hidden) rather than the
-		// router "change" event (fires the instant the route updates, while
-		// the OLD page is still on screen). The router-timed version stripped
-		// e.g. nf-list before the form had rendered, so the still-visible list
-		// briefly lost its flush padding — a padding flash on every row click.
-		$(document).on("page-change", update_route_class);
-		update_route_class();
-	}
-
-	setup_cockpit_synk() {
-		// The Raven widget mounts itself DOCKED under the cockpit (see
-		// raven.bundle.js) and reports its unread total — paint the rail badge.
-		window.addEventListener("raven-chat:unread-count", (e) => {
-			const badge = document.querySelector(".nc-synk .nc-count");
-			if (badge) badge.textContent = e.detail > 0 ? String(e.detail) : "";
-		});
-	}
-
-	toggle_cockpit_synk() {
-		// position the docked widget next to the rail's synk icon, then toggle
-		const anchor = document.querySelector(".nc-side .nc-synk") || document.querySelector(".nc-synk");
-		const docked = document.querySelector(".raven-chat-docked");
-		if (anchor && docked) {
-			const r = anchor.getBoundingClientRect();
-			docked.style.left = Math.round(r.right + 12) + "px";
-			docked.style.top = Math.max(10, Math.round(r.top - 6)) + "px";
-		}
-		window.dispatchEvent(new CustomEvent("raven-chat:toggle"));
-	}
-
-	setup_cockpit_notifications() {
-		// Reuse the NATIVE frappe.ui.Notifications (realtime, mark-read, events,
-		// changelog tabs). It binds on `.navbar .dropdown-notifications`, so we
-		// host that exact navbar markup in a hidden fixed shell the bell anchors.
-		if (!frappe.boot.desk_settings.notifications || frappe.session.user === "Guest") return;
-		this.$cockpit_notif_host = $(`
-			<nav class="navbar cockpit-notifications-host">
-				<li class="nav-item dropdown dropdown-notifications dropdown-mobile hidden">
-					<button class="btn-reset nav-link notifications-icon text-muted"
-						data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
-						style="width:1px;height:1px;overflow:hidden;opacity:0;"></button>
-					<div class="dropdown-menu notifications-list" role="menu">
-						<div class="notification-list-header">
-							<div class="header-items"></div>
-							<div class="header-actions"></div>
-						</div>
-						<div class="notification-list-body">
-							<div class="panel-notifications"></div>
-							<div class="panel-events"></div>
-							<div class="panel-changelog-feed"></div>
-						</div>
-					</div>
-				</li>
-			</nav>
-		`).appendTo("body");
-		this.cockpit_notifications = new frappe.ui.Notifications();
-
-		//// Neoffice — the list is shown and hidden by hand (toggle_cockpit_notifications), but Bootstrap's own
-		//// dropdown plugin wakes up on the hidden button the first time something in the panel is used (an item
-		//// opens its document). From then on its clearMenus(), run by every click that reaches the document - the
-		//// bell's own included - takes `show` off the list in the very tick the bell put it there: after one
-		//// notification followed, the bell never opened again until the page was reloaded (Jérémy, 15.10.2026:
-		//// « je ne peux plus recliquer dessus »). Bootstrap asks before it hides: it is refused, the cockpit
-		//// closes the list itself (outside click, change of page).
-		this.$cockpit_notif_host
-			.find(".dropdown-notifications")
-			.on("hide.bs.dropdown", (event) => event.preventDefault());
-
-		// realtime unseen indicator on the cockpit bell
-		frappe.realtime.on("notification", () => {
-			$(".nc-bell").addClass("has-unseen");
-		});
-
-		//// Neoffice — the bell says how many notifications wait unread, as the trainings icon beside it does (Jérémy,
-		//// 14.10.2026: « une petite pastille 1, 2, 3 »). The dot above came only for a notification heard during the
-		//// session: after a reload the bell said nothing, and on the hub 72 of the 73 notifications of six days were
-		//// never read. Neodesk counts them the same way (neoffice-mobile, hooks/useNotificationLog.ts).
-		this.setup_cockpit_bell_count();
-	}
-
-	//// Neoffice — added (no upstream equivalent): the count on the cockpit's bell, see setup_cockpit_notifications().
-	//// Counted on the person's own rows (`for_user`: our `frappe.client.get_count` applies the row rules, an
-	//// upstream one would not), at load, when one arrives, when one or all are read from the list, when the tab
-	//// comes back into view.
-	setup_cockpit_bell_count() {
-		const refresh = frappe.utils.debounce(() => this.refresh_cockpit_bell_count(), 600);
-		frappe.realtime.on("notification", refresh);
-		$(document).ajaxComplete((_event, _xhr, settings) => {
-			if (/notification_log\.mark_(all_)?as_read/.test(String(settings && settings.url)))
-				refresh();
-		});
-		document.addEventListener("visibilitychange", () => {
-			if (document.visibilityState === "visible") refresh();
-		});
-		// The cockpit draws its bells again when its rail folds or unfolds: the count goes back on them
-		const root = document.getElementById("neoffice-cockpit-root");
-		if (root && window.MutationObserver) {
-			new MutationObserver(() => this.paint_cockpit_bell_count()).observe(root, {
-				childList: true,
-				subtree: true,
-			});
-		}
-		refresh();
-	}
-
-	//// Neoffice — added (no upstream equivalent): see setup_cockpit_bell_count().
-	refresh_cockpit_bell_count() {
-		frappe
-			.xcall("frappe.client.get_count", {
-				doctype: "Notification Log",
-				filters: { for_user: frappe.session.user, read: 0 },
-			})
-			.then((count) => {
-				this.cockpit_bell_count = cint(count);
-				this.paint_cockpit_bell_count();
-			})
-			.catch(() => {});
-	}
-
-	//// Neoffice — added (no upstream equivalent): the count drawn as the trainings icon's (`.nc-count`), on every bell
-	//// the cockpit shows; the dot goes where the count says it.
-	paint_cockpit_bell_count() {
-		const count = this.cockpit_bell_count || 0;
-		const label = count > 99 ? "99+" : count > 0 ? String(count) : "";
-		document.querySelectorAll(".nc-bell").forEach((bell) => {
-			let badge = bell.querySelector(".nc-count");
-			if (!badge && !label) return;
-			if (!badge) {
-				badge = document.createElement("span");
-				badge.className = "nc-count";
-				bell.appendChild(badge);
-			}
-			if (badge.textContent !== label) badge.textContent = label;
-			if (label && bell.classList.contains("has-unseen"))
-				bell.classList.remove("has-unseen");
-		});
-	}
-
-	toggle_cockpit_notifications() {
-		// Manual show/hide: triggering bootstrap's dropdown("toggle") from the
-		// bell's own click gets undone by bootstrap's document clearMenus in the
-		// same tick. The tab views fetch their data at construction, so plain
-		// .show classes are all the dropdown needs.
-		if (!this.$cockpit_notif_host) return;
-		if (this.$cockpit_notif_host.find(".notifications-list").hasClass("show")) {
-			this.close_cockpit_notifications();
-			return;
-		}
-		const bell = document.querySelector(".nc-side .nc-bell") || document.querySelector(".nc-bell");
-		if (bell) {
-			const r = bell.getBoundingClientRect();
-			this.$cockpit_notif_host.css({ left: r.right + 10, top: Math.max(8, r.top - 4) });
-		}
-		$(".nc-bell").removeClass("has-unseen");
-		this.$cockpit_notif_host.find(".dropdown-notifications").addClass("show");
-		this.$cockpit_notif_host.find(".notifications-list").addClass("show");
-		setTimeout(() => {
-			$(document).on("mousedown.cockpit-notif", (e) => {
-				if (
-					!$(e.target).closest(".cockpit-notifications-host").length &&
-					!$(e.target).closest(".nc-bell").length
-				) {
-					this.close_cockpit_notifications();
-				}
-			});
-			$(document).one("page-change.cockpit-notif", () => this.close_cockpit_notifications());
-		}, 0);
-	}
-
-	close_cockpit_notifications() {
-		if (!this.$cockpit_notif_host) return;
-		this.$cockpit_notif_host.find(".dropdown-notifications").removeClass("show");
-		this.$cockpit_notif_host.find(".notifications-list").removeClass("show");
-		$(document).off("mousedown.cockpit-notif");
-		$(document).off("page-change.cockpit-notif");
-	}
-
-	//// Neoffice — setup_cockpit_awesomebar (the cockpit's palette) is the theme's since 24.11.2026 (search_model.js, #3262).
-	// //// END NEOFFICE PATCH
-
 	make_nav_bar() {
 		// toolbar
 		if (frappe.boot && frappe.boot.home_page !== "setup-wizard") {
 			frappe.frappe_toolbar = new frappe.ui.toolbar.Toolbar();
 		}
 	}
-
 	logout() {
 		var me = this;
 		me.logged_out = true;
@@ -653,42 +383,9 @@ frappe.Application = class Application {
 			});
 		});
 	}
-	//// Neoffice — upstream sent the person to the sign-in page at once, mid-sentence and without a word. A window of the
-	//// model (design system §6.18: a message, size small, eyebrow « Your session ») now says « You have been signed out »,
-	//// that what was not saved is still on the screen, and « Sign in again » goes to /login and back to this page (Jérémy,
-	//// 17.11: « il faut offrir une notion de login pour que les personnes puissent se reconnecter. Et puis dire, vous
-	//// avez été déconnecté »). ONE window however many requests are refused together; closed (to copy what was typed),
-	//// the next refusal opens it again. Above any window already open: the refused click may have come from one.
 	handle_session_expired() {
-		const shown = this.session_expired_dialog;
-		if (shown) {
-			if (!shown.display) shown.show();
-			frappe.ui.dialog_model?.stack_above?.(shown);
-			return;
-		}
-		if (!frappe.ui?.Dialog) return frappe.app.redirect_to_login();
-		const d = new frappe.ui.Dialog({
-			title: __("You have been signed out"),
-			// « Your session », not the bare « Session »: an app of the desk translates that one « Séance » (a workout).
-			eyebrow: __("Your session"),
-			size: "small",
-			primary_action_label: __("Sign in again"),
-			primary_action: () => frappe.app.redirect_to_login(),
-		});
-		d.confirm_dialog = true; // ui/keyboard.js: Enter signs in again
-		d.$wrapper.addClass("neo-session-expired");
-		$('<p class="dlg-question-text"></p>')
-			.text(
-				__(
-					"A session closes after a while without activity. What was not saved is still on the screen."
-				)
-			)
-			.appendTo(d.$body);
-		this.session_expired_dialog = d;
-		d.show();
-		frappe.ui.dialog_model?.stack_above?.(d);
+		frappe.app.redirect_to_login();
 	}
-	//// END Neoffice ////
 	redirect_to_login() {
 		window.location.href = `/login?redirect-to=${encodeURIComponent(
 			window.location.pathname + window.location.search
@@ -807,38 +504,6 @@ frappe.Application = class Application {
 	setup_energy_point_listeners() {
 		frappe.realtime.on("energy_point_alert", (message) => {
 			frappe.show_alert(message);
-		});
-	}
-
-	//// Neoffice — added (no upstream equivalent). A dialog's backdrop, or a
-	//// `#freeze` layer, can outlive what it belongs to and then covers the page
-	//// invisibly: every click and keystroke is swallowed and the user can only
-	//// reload ("the table comes up with the forbidden cursor, refresh fixes
-	//// it"). Individual leak paths were patched one by one (erpnext Quick
-	//// Journal Entry, twice) and it kept coming back, so the cure is here
-	//// instead: whenever the page settles with nothing displayed, drop whatever
-	//// is still covering it. See frappe.dom.sweep_orphan_overlays() for why it
-	//// is safe. The delays clear Bootstrap's 300ms hide transition — sweeping
-	//// during it would fight the teardown it is meant to finish.
-	setup_overlay_watchdog() {
-		const sweep = (reason) => {
-			setTimeout(() => frappe.dom.sweep_orphan_overlays(reason), 500);
-		};
-
-		// SPA navigation: the classic leak, a dialog left behind by the page
-		// it was opened from.
-		frappe.router.on("change", () => sweep("route change"));
-
-		// Any dialog closing: if Bootstrap did not finish its own teardown,
-		// this catches it half a second later.
-		$(document).on("hidden.bs.modal", () => sweep("dialog hidden"));
-
-		// Coming back to a tab that was suspended (laptop asleep, network
-		// dropped mid-save): timers and transitions that were supposed to clean
-		// up never ran while the tab was frozen.
-		$(window).on("focus", () => sweep("window focus"));
-		document.addEventListener("visibilitychange", () => {
-			if (document.visibilityState === "visible") sweep("tab visible");
 		});
 	}
 

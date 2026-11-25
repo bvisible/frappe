@@ -67,15 +67,7 @@ frappe.breadcrumbs = {
 				this.set_list_breadcrumb(breadcrumbs);
 				this.set_form_breadcrumb(breadcrumbs, view);
 			} else if (breadcrumbs.doctype && view === "list") {
-				//// Neoffice — added (730eb538f0, 2026-06-10 "fix(cockpit): no duplicate list crumb"): upstream
-				//// calls set_list_breadcrumb() unconditionally for a list route. Under the NeoCockpit chrome
-				//// the one-line page head shows the list name as its title (98b48e36ff), so the crumb repeated
-				//// it; skip it there. The NEOFFICE note below is from the same commit.
-				// NEOFFICE cockpit: the compact page title IS the list name —
-				// a list crumb would duplicate it
-				if (!document.body.classList.contains("neoffice-cockpit")) {
-					this.set_list_breadcrumb(breadcrumbs);
-				}
+				this.set_list_breadcrumb(breadcrumbs);
 			} else if (breadcrumbs.doctype && view == "dashboard-view") {
 				this.set_list_breadcrumb(breadcrumbs);
 				this.set_dashboard_breadcrumb(breadcrumbs);
@@ -193,18 +185,11 @@ frappe.breadcrumbs = {
 	},
 
 	set_form_breadcrumb(breadcrumbs, view) {
-		//// Neoffice — added (98b48e36ff, 2026-06-10 "feat(cockpit): compact one-line page head"): same
-		//// reason as the list crumb above — the compact head renders the document title right after the
-		//// trail, so the whole form breadcrumb is dropped under the cockpit chrome.
-		// NEOFFICE cockpit: the compact page head already shows the document
-		// title right after the trail — a name crumb would duplicate it.
-		if (document.body.classList.contains("neoffice-cockpit")) return;
 		const doctype = breadcrumbs.doctype;
 		let docname = frappe.get_route().slice(2).join("/");
 		let docname_title;
 		if (docname.startsWith("new-" + doctype.toLowerCase().replace(/ /g, "-"))) {
-			//// Neoffice — the doctype as the context: its own words when a catalogue has them (translate.js).
-			docname_title = __("New {0}", [__(doctype)], doctype);
+			docname_title = __("New {0}", [__(doctype)]);
 		} else {
 			docname_title = __(docname);
 		}
@@ -250,27 +235,7 @@ frappe.breadcrumbs = {
 	},
 
 	clear() {
-		//// Neoffice — clear() rewritten (98b48e36ff, 2026-06-10). Upstream: this.$breadcrumbs =
-		//// $("#navbar-breadcrumbs").empty() — a single host in the navbar. The cockpit chrome does not
-		//// build that navbar at all (d0268ef91a), so the trail moved into the CURRENT page's head:
-		//// ui/page.html now carries .page-breadcrumbs (marked there) and this resolves it per page,
-		//// falling back to the visible page container and finally to the legacy #navbar-breadcrumbs for
-		//// the kill-switch chrome. v16 merge note: upstream develop changed the same line to
-		//// $(".navbar-breadcrumbs") — expect a conflict here; keep ours, the host is not the navbar.
-		// NEOFFICE: with the NeoCockpit chrome the trail renders inside the
-		// CURRENT page's head (the navbar host is gone). Fall back to the
-		// legacy navbar slot for the kill-switch chrome.
-		let $el = $();
-		if (frappe.container && frappe.container.page) {
-			$el = $(frappe.container.page).find(".page-head .page-breadcrumbs").first();
-		}
-		if (!$el.length) {
-			$el = $(".page-container:visible .page-head .page-breadcrumbs").first();
-		}
-		if (!$el.length) {
-			$el = $("#navbar-breadcrumbs");
-		}
-		this.$breadcrumbs = $el.empty();
+		this.$breadcrumbs = $("#navbar-breadcrumbs").empty();
 	},
 
 	toggle(show) {
