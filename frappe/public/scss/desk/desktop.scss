@@ -973,9 +973,7 @@ body {
 						background-color: var(--bg-color) !important;
 					}
 
-					//// Neoffice — upstream: .workspace-footer. Renamed with the action-bar move (388383af3a,
-					//// 2026-03-12 "fix(workspace): move edit/new buttons from footer to header").
-					.workspace-header-actions {
+					.workspace-footer {
 						display: none;
 					}
 				}
@@ -999,15 +997,10 @@ body {
 		padding: var(--padding-sm);
 	}
 
-	//// Neoffice — replaces upstream .workspace-footer (height 30px, flex row-reverse) with a
-	//// header action bar (388383af3a, 2026-03-12 "fix(workspace): move edit/new buttons from
-	//// footer to header"): the Edit / New buttons were hidden behind chat widgets in the
-	//// footer, so desktop.js now renders them above the editor container.
-	.workspace-header-actions {
+	.workspace-footer {
+		height: 30px;
 		display: flex;
-		justify-content: flex-end;
-		gap: var(--margin-sm);
-		margin-bottom: var(--margin-sm);
+		flex-direction: row-reverse;
 	}
 
 	.block-menu-item-icon svg {

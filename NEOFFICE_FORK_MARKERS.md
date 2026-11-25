@@ -30,6 +30,27 @@ import order in `FileUploader.vue`; nothing is left to record.
 replaced that sidebar since 2026-06-10; `workspace.js` reads the spaces of the boot itself. A merge that brings one of
 these files back has nothing of ours in it.
 
+### Gone to the theme (2026-11-25): the desk's SCSS
+
+`scss/common/css_variables.scss`, `grid.scss`, `modal.scss`, `quill.scss`, `scss/desk/desktop.scss`, `global.scss`,
+`index.scss`, `navbar.scss`, `page.scss` and `sidebar.scss` are upstream's again; `scss/desk/form_sidebar.scss` and
+`list_sidebar.scss`, ours, are gone. What they added or changed is `neoffice_theme/public/css/desk_fork_15.css`, first of
+the sheets `www/app.py` puts right after Frappe's bundles (`app_include_css_first`), and what they took out of upstream's
+rules is written there as the value we left. `scss/login.bundle.scss` stays ours (the login page, outside the desk).
+
+What the fork's interface still carries, on purpose: `socketio_client.js`, `scanner/index.js`, `jquery-bootstrap.js`,
+`views/kanban/kanban_board.bundle.js`, `web_form/web_form_list.js`, `file_uploader/FileUploader.vue` (a component of the
+bundle) and `scss/login.bundle.scss`.
+
+### Gone to the theme (2026-11-25): the lists and reports
+
+Upstream's again: `list/base_list.js`, `list_factory.js`, `list_filter.js`, `list_sidebar.js`, `list_sidebar.html`,
+`list_view.js`, `views/reports/report_view.js`, `report_factory.js`, `report_utils.js`, `query_report.js`,
+`ui/filters/filter.js`, `filter_list.js` and `ui/group_by/group_by.js`. What was ours in them is put on Frappe 15's
+classes by `neoffice_theme/public/js/list_model_15.js`, which also says `frappe.neo_list_args_supported` as our
+list_view.js did. `list/list_settings.js` was ours only for « DocType required » translated, thrown without a doctype:
+upstream's, untranslated.
+
 ### Gone to the theme (2026-11-25): the desk
 
 Upstream's again: `desk.bundle.js`, `frappe/desk.js`, `ui/page.js`, `ui/toolbar/toolbar.js`, `views/workspace/workspace.js`,
@@ -38,7 +59,8 @@ Upstream's again: `desk.bundle.js`, `frappe/desk.js`, `ui/page.js`, `ui/toolbar/
 `ui/toolbar/search.js`, `ui/notifications/notifications.js`, `views/factory.js`, `views/workspace/blocks/block.js`,
 `blocks/paragraph.js`, `widgets/chart_widget.js`, `links_widget.js`, `quick_list_widget.js`,
 `views/dashboard/dashboard_view.js`, `views/file/file_view.js`, `views/kanban/kanban_view.js`, `views/treeview.js`,
-`utils/datatable.js`, `onboarding_tours/onboarding_tours.js` and `ui/chart.js`. What was ours in them is put on Frappe
+`utils/datatable.js`, `onboarding_tours/onboarding_tours.js`, `ui/chart.js`, `ui/page.html` and `ui/toolbar/navbar.html`. What
+was ours in them is put on Frappe
 15's objects by `neoffice_theme/public/js/desk_model_15.js`, as we wrote it, with Frappe 15's fingerprints.
 
 Still ours here, on purpose: `socketio_client.js` (the backport of upstream develop 1940c3e301 and the reconnection after a

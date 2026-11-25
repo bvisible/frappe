@@ -173,10 +173,7 @@ frappe.report_utils = {
 	get_export_dialog(report_name, extra_fields, callback) {
 		const fields = [
 			{
-				//// Neoffice — upstream passes the labels of this dialog (File Format, Settings, CSV Delimiter, CSV
-				//// Quoting, Non-numeric, CSV Preview…) as bare literals: no msgid is ever extracted for them, so
-				//// they stay English in a French UI. Wrapped in __() so the catalogue can carry them.
-				label: __("File Format"),
+				label: "File Format",
 				fieldname: "file_format",
 				fieldtype: "Select",
 				options: ["Excel", "CSV"],
@@ -191,15 +188,13 @@ frappe.report_utils = {
 			{
 				fieldtype: "Section Break",
 				fieldname: "csv_settings",
-				//// Neoffice — label through __() (see the File Format label above: no msgid exists upstream).
-				label: __("Settings"),
+				label: "Settings",
 				collapsible: 1,
 				depends_on: "eval:doc.file_format=='CSV'",
 			},
 			{
 				fieldtype: "Data",
-				//// Neoffice — label through __() (see the File Format label above: no msgid exists upstream).
-				label: __("CSV Delimiter"),
+				label: "CSV Delimiter",
 				fieldname: "csv_delimiter",
 				default: ",",
 				length: 1,
@@ -207,23 +202,20 @@ frappe.report_utils = {
 			},
 			{
 				fieldtype: "Select",
-				//// Neoffice — label through __() (see the File Format label above: no msgid exists upstream).
-				label: __("CSV Quoting"),
+				label: "CSV Quoting",
 				fieldname: "csv_quoting",
-				//// Neoffice — the option labels go through __() too, same reason.
 				options: [
-					{ value: 0, label: __("Minimal") },
-					{ value: 1, label: __("All") },
-					{ value: 2, label: __("Non-numeric") },
-					{ value: 3, label: __("None") },
+					{ value: 0, label: "Minimal" },
+					{ value: 1, label: "All" },
+					{ value: 2, label: "Non-numeric" },
+					{ value: 3, label: "None" },
 				],
 				default: 2,
 				depends_on: "eval:doc.file_format=='CSV'",
 			},
 			{
 				fieldtype: "Small Text",
-				//// Neoffice — label through __() (see the File Format label above: no msgid exists upstream).
-				label: __("CSV Preview"),
+				label: "CSV Preview",
 				fieldname: "csv_preview",
 				read_only: 1,
 				depends_on: "eval:doc.file_format=='CSV'",

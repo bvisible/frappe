@@ -83,46 +83,36 @@ frappe.ui.FilterGroup = class {
 			}
 		});
 
-	//// Neoffice — b807db2347 (2025-11-04 "fix: Corrections multiples pour sidebar et navigation tabs"; its
-	//// body: a setTimeout fallback for the popover init after the sidebar move): upstream wires the popover wrapper (this.wrapper = $(".filter-popover"),
-	//// set_filter_events, empty-filter toggle) inline in the shown.bs.popover handler. With the list
-	//// filter-section moved into the overlay sidebar (cc297ec402 / list.js), that event could fire
-	//// before the popover DOM was in place and the popover stayed without its events. The init now
-	//// lives in initialize_wrapper_and_events() (added below add_filters_to_popover) and a 100 ms
-	//// fallback after the click toggle runs it when the popover is visible but not wired yet. The
-	//// click / shown / hidden / router handlers are otherwise upstream's; the method body lost one
-	//// indentation level in that commit (cosmetic only).
-	this.filter_button.on("click", () => {
-		this.filter_button.popover("toggle");
+		this.filter_button.on("click", () => {
+			this.filter_button.popover("toggle");
+		});
 
-		// Fallback: wait for popover to be visible after toggle
-		setTimeout(() => {
-			if ($(".filter-popover").is(":visible") && !this.wrapper) {
-				this.initialize_wrapper_and_events();
+		this.filter_button.on("shown.bs.popover", () => {
+			let hide_empty_filters = this.filters && this.filters.length > 0;
+
+			if (!this.wrapper) {
+				this.wrapper = $(".filter-popover");
+				if (hide_empty_filters) {
+					this.toggle_empty_filters(false);
+					this.add_filters_to_popover(this.filters);
+				}
+				this.set_filter_events();
 			}
-		//// Neoffice — see the block marker above (b807db2347): the 100 ms fallback ends here.
-		}, 100);
-	});
+			this.toggle_empty_filters(false);
+			!hide_empty_filters && this.add_filter(this.doctype, "name");
+		});
 
-	//// Neoffice — upstream's shown.bs.popover handler held the wrapper init inline; it now calls
-	//// initialize_wrapper_and_events() (b807db2347, see the block marker above).
-	this.filter_button.on("shown.bs.popover", () => {
-		this.initialize_wrapper_and_events();
-	});
+		this.filter_button.on("hidden.bs.popover", () => {
+			this.apply();
+		});
 
-	//// Neoffice — the hidden / router handlers and the closing brace below are upstream's, one
-	//// indentation level out since b807db2347 (cosmetic only).
-	this.filter_button.on("hidden.bs.popover", () => {
-		this.apply();
-	});
-
-	// REDESIGN-TODO: (Temporary) Review and find best solution for this
-	frappe.router.on("change", () => {
-		if (this.wrapper && this.wrapper.is(":visible")) {
-			this.hide_popover();
-		}
-	});
-}
+		// REDESIGN-TODO: (Temporary) Review and find best solution for this
+		frappe.router.on("change", () => {
+			if (this.wrapper && this.wrapper.is(":visible")) {
+				this.hide_popover();
+			}
+		});
+	}
 
 	add_filters_to_popover(filters) {
 		filters.forEach((filter) => {
@@ -130,23 +120,6 @@ frappe.ui.FilterGroup = class {
 			filter.field = null;
 			filter.make();
 		});
-	}
-
-	//// Neoffice — added (b807db2347, 2025-11-04): the popover wrapper / events initialisation that
-	//// upstream keeps inline in make_popover's shown.bs.popover handler (see the marker there).
-	initialize_wrapper_and_events() {
-		let hide_empty_filters = this.filters && this.filters.length > 0;
-
-		if (!this.wrapper) {
-			this.wrapper = $(".filter-popover");
-			if (hide_empty_filters) {
-				this.toggle_empty_filters(false);
-				this.add_filters_to_popover(this.filters);
-			}
-			this.set_filter_events();
-		}
-		this.toggle_empty_filters(false);
-		!hide_empty_filters && this.add_filter(this.doctype, "name");
 	}
 
 	apply() {
@@ -167,14 +140,9 @@ frappe.ui.FilterGroup = class {
 		this.filter_button.find(".filter-icon").toggleClass("active", filters_applied);
 
 		this.filter_button.find(".button-label").html(button_label);
-		//// Neoffice — upstream builds this tooltip as an English template literal ("1 Filter Applied",
-		//// "3 Filters Applied") that never goes through __(). One msgid per plural form, so a language can
-		//// inflect each (a count appended to a word-for-word English sentence would not).
 		this.filter_button.attr(
 			"title",
-			this.filters.length > 1
-				? __("{0} Filters Applied", [this.filters.length])
-				: __("{0} Filter Applied", [this.filters.length])
+			`${this.filters.length} Filter${this.filters.length > 1 ? "s" : ""} Applied`
 		);
 	}
 
@@ -247,11 +215,7 @@ frappe.ui.FilterGroup = class {
 
 		let filter = this._push_new_filter(...args);
 
-		//// Neoffice — upstream waited for the filter's value only when it was truthy. A filter whose value is 0
-		//// (« docstatus = 0 », the « Brouillons » view of a list) resolved at once, add_filters() then ran
-		//// update_filters() before the control held the 0, found no value and dropped the filter: the list
-		//// reloaded unfiltered and the view fell back to « Tous ». Any given value is waited for now.
-		if (filter && ![undefined, null, ""].includes(filter.value)) {
+		if (filter && filter.value) {
 			// filter.setup_state(is_new_filter);
 			return filter._filter_value_set; // internal promise
 		}

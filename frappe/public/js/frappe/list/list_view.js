@@ -3,26 +3,6 @@ import ListSettings from "./list_settings";
 
 frappe.provide("frappe.views");
 
-//// Neoffice — added helper (no upstream equivalent), for the workspace tabs' panel (maintenance#822):
-//// does this <a> open the form of this very document? A list row's ID and title links do; a link
-//// to another document (the customer of an invoice) does not.
-frappe.neo_is_form_link = function (anchor, doctype, name) {
-	if (!anchor || !anchor.getAttribute("href") || !doctype || !name) return false;
-	try {
-		const path = decodeURIComponent(new URL(anchor.href, window.location.origin).pathname);
-		const own = decodeURIComponent(frappe.utils.get_form_link(doctype, name));
-		return path.replace(/\/$/, "") === own.replace(/\/$/, "");
-	} catch (e) {
-		return false;
-	}
-};
-
-//// Neoffice — added (no upstream equivalent): tells an app that this list asks
-//// frappe.neo_list_args(list) for extra arguments of its request (get_args in base_list.js, the
-//// count below). neoffice_theme only puts several views of a space on at once when it is set:
-//// with an upstream frappe, the union it asks for would never reach the server.
-frappe.neo_list_args_supported = true;
-
 frappe.views.ListView = class ListView extends frappe.views.BaseList {
 	static load_last_view() {
 		const route = frappe.get_route();
@@ -51,17 +31,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 			this.process_document_refreshes.bind(this),
 			this.is_large_table ? 15000 : 2000
 		);
-		//// Neoffice — upstream: `this.count_upper_bound = 1001;` (f1656d6600, 2025-06-17 "add trad and remove
-		//// +1000"): upstream stops counting at 1001 rows and displays "1000+", ours counts to 100000 so the
-		//// list shows a real total. The "+" formatting this made pointless is commented out further down
-		//// (marked there).
-		//// The bound exists to keep COUNT(*) cheap, so it was measured before keeping it
-		//// (neoffice-maintenance#205, on the busiest instance, `tabVersion`, 114 333 rows):
-		////     limit 1001    -> 0.49 ms       limit 100000 -> 34.5 ms warm, 2.7 s COLD
-		//// Kept: an ERP has to say 3 482 invoices, not "1000+", and 35 ms of that is invisible. Revisit if
-		//// a doctype ever passes ~500k rows, or if that cold read shows up in the slow query log.
-		////this.count_upper_bound = 1001;
-		this.count_upper_bound = 100000;
+		this.count_upper_bound = 1001;
 		this._element_factory = new ElementFactory(this.doctype);
 	}
 
@@ -125,19 +95,8 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		this.menu_items = this.menu_items.concat(this.get_menu_items());
 
 		// set filters from view_user_settings or list_settings
-		//// Neoffice — upstream goes straight to `if (Array.isArray(this.view_user_settings.filters))`
-		//// (af1a5030ff, 2025-11-26 "fix: prioritize route_options over saved filters in ListView", then
-		//// bd15343ac9, 2025-11-29 for the URL query params): saved filters were loaded here before
-		//// before_refresh() applied route_options, so a link from a dashboard (Customer -> Sales Invoices)
-		//// landed on the user's old saved filter instead of the requested one. Priority 0 clears them.
-		// Skip saved filters if route_options or URL params exist (e.g., navigating from dashboard)
-		const has_route_options = frappe.route_options && Object.keys(frappe.route_options).length > 0;
-		const has_url_params = window.location.search && window.location.search.length > 1;
-		if (has_route_options || has_url_params) {
-			// Priority 0: route_options or URL params - will be parsed in before_refresh()
-			this.filters = [];
-		} else if (Array.isArray(this.view_user_settings.filters)) {
-			// Priority 1: view_user_settings (only if no route_options)
+		if (Array.isArray(this.view_user_settings.filters)) {
+			// Priority 1: view_user_settings
 			const saved_filters = this.view_user_settings.filters;
 			this.filters = this.validate_filters(saved_filters);
 		} else {
@@ -542,10 +501,6 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		let help_link = this.get_documentation_link();
 		let filters = this.filter_area && this.filter_area.get();
 
-		//// Neoffice — the doctype's name as the first context (translate.js): « Vous n'avez pas encore créé de
-		//// Évaluation physique » and « Créez votre premier Évaluation physique » become the doctype's own words
-		//// when a catalogue has them; the list's own context comes next, then the bare phrase, as upstream.
-		const contexts = [this.doctype, "Create a new document from list view"];
 		let has_filters_set = filters && filters.length;
 		let no_result_message = has_filters_set
 			? __("No {0} found with matching filters. Clear filters to see all {0}.", [
@@ -553,11 +508,15 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 			  ])
 			: this.meta.description
 			? __(this.meta.description)
-			: __("You haven't created a {0} yet", [__(this.doctype)], this.doctype); //// Neoffice — see above
+			: __("You haven't created a {0} yet", [__(this.doctype)]);
 
 		let new_button_label = has_filters_set
-			? __("Create a new {0}", [__(this.doctype)], contexts) //// Neoffice — see above
-			: __("Create your first {0}", [__(this.doctype)], contexts); //// Neoffice — see above
+			? __("Create a new {0}", [__(this.doctype)], "Create a new document from list view")
+			: __(
+					"Create your first {0}",
+					[__(this.doctype)],
+					"Create a new document from list view"
+			  );
 		let empty_state_image =
 			this.settings.empty_state_image ||
 			"/assets/frappe/images/ui-states/list-empty-state.svg";
@@ -570,11 +529,9 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 			</button></p>`
 			: "";
 
-		//// Neoffice — upstream hard-codes this image's alt text in English, so it shows as a tooltip (and is
-		//// read out) in English in a French UI. Passed through __() so the catalogue can translate it.
 		return `<div class="msg-box no-border">
 			<div>
-				<img src="${empty_state_image}" alt="${__("Generic Empty State")}" class="null-state">
+				<img src="${empty_state_image}" alt="Generic Empty State" class="null-state">
 			</div>
 			<p>${no_result_message}</p>
 			${new_button}
@@ -603,15 +560,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 	}
 
 	before_refresh() {
-		//// Neoffice — upstream: `if (frappe.route_options && this.filter_area)` (bd15343ac9, 2025-11-29 "fix:
-		//// handle URL query params in list view filter navigation"): an EMPTY route_options object passed the
-		//// truthiness test, and filters carried in window.location.search were ignored entirely. Same test as
-		//// in setup_defaults() above.
-		// Check if there are route_options (programmatic) or URL query params
-		const has_route_options = frappe.route_options && Object.keys(frappe.route_options).length > 0;
-		const has_url_params = window.location.search && window.location.search.length > 1;
-
-		if ((has_route_options || has_url_params) && this.filter_area) {
+		if (frappe.route_options && this.filter_area) {
 			this.filters = this.parse_filters_from_route_options();
 			frappe.route_options = null;
 
@@ -1056,53 +1005,22 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		let current_count = this.data.length;
 		let count_without_children = this.data.uniqBy((d) => d.name).length;
 
-		//// Neoffice — the count carries the list's own extra arguments too (frappe.neo_list_args,
-		//// see get_args in base_list.js): the rows of a union counted without it read "20 of 1,647"
-		//// where the union holds 740. The same call as frappe.db.count, those arguments added;
-		//// without any, upstream's call, untouched.
-		const neo_args = typeof frappe.neo_list_args === "function" ? frappe.neo_list_args(this) : null;
-		let count_call;
-		if (neo_args) {
-			const neo_filters = this.get_filters_for_args();
-			count_call = frappe.xcall(
-				"frappe.desk.reportview.get_count",
-				Object.assign(
-					{
-						doctype: this.doctype,
-						filters: neo_filters,
-						fields: [],
-						distinct: neo_filters.some((filter) => filter[0] !== this.doctype),
-						limit: this.count_upper_bound,
-					},
-					neo_args
-				)
-			);
-		} else {
-			//// Neoffice — no extra arguments: upstream's own frappe.db.count call, unchanged.
-			count_call = frappe.db.count(this.doctype, {
+		return frappe.db
+			.count(this.doctype, {
 				filters: this.get_filters_for_args(),
 				limit: this.count_upper_bound,
-			});
-		}
-		//// Neoffice — upstream returned frappe.db.count(...) directly; either call chains the same.
-		return count_call
+			})
 			.then((total_count) => {
 				this.total_count = total_count || current_count;
 				this.count_without_children =
 					count_without_children !== current_count ? count_without_children : undefined;
 
-				//// Neoffice — upstream renders "1000+" once the count reaches count_upper_bound (f1656d6600 and
-				//// e71f51fc8a, 2025-06-17): with the bound raised to 100000 in the constructor (marked there) the
-				//// total is always a plain number. Upstream's branch is kept commented out just below.
-				let count_str = format_number(this.total_count, null, 0);
-				/* ////
 				let count_str;
 				if (this.total_count === this.count_upper_bound) {
 					count_str = `${format_number(this.total_count - 1, null, 0)}+`;
 				} else {
 					count_str = format_number(this.total_count, null, 0);
-				//// Neoffice — the next line ends this block comment (upstream's branch, commented out in f1656d6600).
-				}*/
+				}
 
 				let str = __("{0} of {1}", [format_number(current_count, null, 0), count_str]);
 				if (this.count_without_children) {
@@ -1402,54 +1320,11 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 				return;
 			}
 
-			//// Neoffice — the row's own document link (its ID, its title) shows the row in the
-			//// workspace tab's side panel, like a click anywhere else on the row; a double click opens
-			//// the document (neoffice_theme, maintenance#924), and so does the panel's first action.
-			//// Jérémy, 29.09: the ID "still opens" - the rule of 27.09 morning is back, now that a
-			//// double click opens (the afternoon had the ID open again, as a second click on the
-			//// panel was the only other way). A Ctrl/Cmd/Shift/Alt-click and the middle button still
-			//// open the document, a link to another document still navigates, and nothing changes
-			//// where frappe.neo_row_click is not defined or declines the click.
-			const $neo_link = $target.closest("a");
-			if (
-				$neo_link.length &&
-				!(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) &&
-				typeof frappe.neo_row_click === "function"
-			) {
-				const neo_row_name = $(e.currentTarget)
-					.find(".list-row-checkbox")
-					.attr("data-name");
-				if (
-					neo_row_name &&
-					frappe.neo_is_form_link($neo_link.get(0), this.doctype, neo_row_name) &&
-					frappe.neo_row_click(this, neo_row_name) === true
-				) {
-					e.preventDefault();
-					e.stopPropagation();
-					return false;
-				}
-			}
 			// link, let the event be handled via set_route
 			if ($target.is("a")) return;
 
 			// clicked on the row, open form
 			const $row = $(e.currentTarget);
-			//// Neoffice — one hook for the workspace tabs (neoffice_theme/public/js/workspace_tabs.js,
-			//// decision J9 of the workspace redesign, maintenance#822): a click on a row may show that
-			//// row in the tab's side panel instead of opening the form. The theme defines
-			//// frappe.neo_row_click(list_view, name) and returns true when it took the click; the
-			//// row's own title link goes there too (handled above), and a double click opens the
-			//// form. Upstream behaviour is unchanged when nothing is defined or it returns false.
-			//// Intercepting from the theme instead would depend on CSS classes and event order,
-			//// and break silently at an update: hence this line in the fork.
-			const neo_name = $row.find(".list-row-checkbox").attr("data-name");
-			if (
-				neo_name &&
-				typeof frappe.neo_row_click === "function" &&
-				frappe.neo_row_click(this, neo_name) === true
-			) {
-				return false;
-			}
 			const link = $row.find(".list-subject a").get(0);
 			if (link) {
 				frappe.set_route(link.pathname);
@@ -1631,10 +1506,6 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 	}
 
 	disable_realtime_updates() {
-		// //// Neoffice — backport of upstream develop c3a77201a0 (neoffice-maintenance#3104), as written there: a
-		// //// second leave would use up the count of another view; drop at the merge of a frappe that carries it.
-		// The handler stays bound, so later updates land here again.
-		if (!this.realtime_events_setup) return;
 		frappe.realtime.doctype_unsubscribe(this.doctype);
 		this.realtime_events_setup = false;
 	}
@@ -2038,9 +1909,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 			return {
 				label: __("Clear Assignment", null, "Button in list view actions menu"),
 				action: () => {
-					//// Neoffice — upstream passes the confirmation text untranslated
-					//// (frappe.confirm does not translate its message); we translate it.
-					frappe.confirm(__("Are you sure you want to clear the assignments?"), () => {
+					frappe.confirm("Are you sure you want to clear the assignments?", () => {
 						this.disable_list_update = true;
 						bulk_operations.clear_assignment(this.get_checked_items(true), () => {
 							this.disable_list_update = false;

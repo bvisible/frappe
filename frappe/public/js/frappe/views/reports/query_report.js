@@ -103,11 +103,9 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 	}
 
 	get_no_result_message() {
-		//// Neoffice — upstream hard-codes this image's alt text in English, so it shows as a tooltip (and is
-		//// read out) in English in a French UI. Passed through __() so the catalogue can translate it.
 		return `<div class="msg-box no-border">
 			<div>
-				<img src="/assets/frappe/images/ui-states/list-empty-state.svg" alt="${__("Generic Empty State")}" class="null-state">
+				<img src="/assets/frappe/images/ui-states/list-empty-state.svg" alt="Generic Empty State" class="null-state">
 			</div>
 			<p>${__("Nothing to show")}</p>
 		</div>`;
@@ -121,9 +119,6 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 				// then refresh the Prepared Report
 				// Otherwise show alert with the link to the Prepared Report
 				if (data.name == this.prepared_report_doc_name) {
-					//// Neoffice: socket beat the poll to it — drop the poll
-					this.stop_prepared_report_polling();
-					this.auto_background_report_running = false;
 					this.refresh();
 				} else {
 					let alert_message = `Report ${this.report_name} generated.
@@ -721,11 +716,6 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 						});
 					}
 					this.add_prepared_report_buttons(data.doc);
-					//// Neoffice: the result landed, stop the fallback poll
-					if (data.doc) {
-						this.stop_prepared_report_polling();
-						this.auto_background_report_running = false;
-					}
 				}
 
 				if (data.report_summary) {
@@ -982,19 +972,12 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 				const data = r.message;
 				// Rememeber the name of Prepared Report doc
 				this.prepared_report_doc_name = data.name;
-				//// Neoffice — when we queued it automatically the user never asked for
-				// this, and the in-page message already says it is running. The toast
-				// linking to the Prepared Report doc is developer noise — keep it only
-				// for an explicit "Rebuild". Upstream's wording (link only for who may
-				// read a Prepared Report) is kept inside the condition.
-				if (!this.auto_background_report_running) {
-					let alert_message = frappe.model.can_read("Prepared Report")
-						? `<a href='/app/prepared-report/${data.name}'>` +
-						  __("Report initiated, click to view status") +
-						  `</a>`
-						: __("Queued");
-					frappe.show_alert({ message: alert_message, indicator: "orange" }, 10);
-				}
+				let alert_message = frappe.model.can_read("Prepared Report")
+					? `<a href='/app/prepared-report/${data.name}'>` +
+					  __("Report initiated, click to view status") +
+					  `</a>`
+					: __("Queued");
+				frappe.show_alert({ message: alert_message, indicator: "orange" }, 10);
 				this.toggle_nothing_to_show(true);
 			});
 		}
@@ -1040,12 +1023,11 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 			this.datatable.options.showTotalRow === this.raw_data.add_total_row
 		) {
 			this.datatable.options.treeView = this.tree_report;
-			this.datatable.refresh(data.slice(0, this.get_filter_values().max_rows), columns); //// added .slice(0, this.get_filter_values().max_rows)
+			this.datatable.refresh(data, columns);
 		} else {
-			console.log(this.get_filter_values());
 			let datatable_options = {
 				columns: columns,
-				data: data.slice(0, this.get_filter_values().max_rows), //// added .slice(0, this.get_filter_values().max_rows)
+				data: data,
 				inlineFilters: true,
 				language: frappe.boot.lang,
 				translations: frappe.utils.datatable.get_translations(),
@@ -1071,30 +1053,12 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 		if (this.report_settings.after_datatable_render) {
 			this.report_settings.after_datatable_render(this.datatable);
 		}
-
-		// //// NEOFFICE PATCH — the report area is display:none during the
-		// loading screen (and flexed by the cockpit): DataTable can measure a
-		// 0px viewport and its virtual scroller then paints ZERO rows despite
-		// having data. Once the frame settles, re-measure and repaint.
-		// Pass data/columns explicitly: a bare refresh() falls back to
-		// options.data, which DataTable freezes at construction time and never
-		// updates, so it would repaint the very first render's rows underneath
-		// the current columns.
-		requestAnimationFrame(() => {
-			const sc = this.datatable && this.datatable.bodyScrollable;
-			if (sc && parseInt(sc.style.height, 10) === 0 && (this.data || []).length) {
-				this.datatable.setDimensions();
-				this.datatable.refresh(data.slice(0, this.get_filter_values().max_rows), columns);
-			}
-		});
 	}
 
 	show_loading_screen() {
-		//// Neoffice — upstream hard-codes this image's alt text in English, so it shows as a tooltip (and is
-		//// read out) in English in a French UI. Passed through __() so the catalogue can translate it.
 		const loading_state = `<div class="msg-box no-border">
 			<div>
-				<img src="/assets/frappe/images/ui-states/list-empty-state.svg" alt="${__("Generic Empty State")}" class="null-state">
+				<img src="/assets/frappe/images/ui-states/list-empty-state.svg" alt="Generic Empty State" class="null-state">
 			</div>
 			<p>${__("Loading")}...</p>
 		</div>`;
@@ -1508,7 +1472,7 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 			print_settings: print_settings,
 			landscape: landscape,
 			filters: this.get_filter_values(),
-			data: this.data, //// this.get_data_for_print(),
+			data: this.get_data_for_print(),
 			columns: this.get_columns_for_print(print_settings, custom_format),
 			original_data: this.data,
 			report: this,
@@ -1526,7 +1490,7 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 		await this.render_report_letterhead(print_settings);
 
 		const columns = this.get_columns_for_print(print_settings, custom_format);
-		const data = this.data; //// this.get_data_for_print();
+		const data = this.get_data_for_print();
 		const applied_filters = this.get_filter_values();
 		const filters_html = this.get_filters_html_for_print();
 		const template = this.get_print_template(print_settings, custom_format);
@@ -2230,34 +2194,6 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 	}
 
 	toggle_nothing_to_show(flag) {
-		//// Neoffice
-		// Upstream dead-ends here. When a report sits in Prepared Report mode and
-		// no completed run matches the current filters, it shows "This is a
-		// background report. Please set the appropriate filters and then generate
-		// a new one." plus a "Generate a New Report" button — and that is all the
-		// user ever gets. They have to click, and the result is then only ever
-		// displayed if the `report_generated` realtime event lands (there is no
-		// polling fallback). Socket down, worker saturated, or the user navigated
-		// away and back, and the report is never shown at all. Changing a single
-		// filter puts them straight back on the same empty screen.
-		//
-		// Instead: queue the job ourselves, say plainly that it is running, and
-		// poll until it is ready — then render it. No button, no dead end.
-		if (
-			flag &&
-			this.prepared_report &&
-			!this.prepared_report_document &&
-			!this.prepared_report_name
-		) {
-			if (this.auto_background_report_running) {
-				this.toggle_message(true, this.background_report_message());
-			} else {
-				this.auto_generate_background_report();
-			}
-			return;
-		}
-		//// Neoffice
-
 		let message =
 			this.prepared_report && !this.prepared_report_document
 				? __(
@@ -2273,108 +2209,6 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 			}
 		}
 	}
-
-	//// Neoffice
-	background_report_message() {
-		return `<div class="flex justify-center align-center" style="gap: 10px;">
-			<span class="text-muted">${__(
-				"This report is large, so it is being prepared in the background. It will appear here on its own — you can keep working."
-			)}</span>
-		</div>`;
-	}
-
-	auto_generate_background_report() {
-		// Mandatory filters still empty: nothing sensible to queue yet, fall back
-		// to the plain empty state rather than firing a job that cannot run.
-		const missing_mandatory = this.filters.filter((f) => f.df.reqd && !f.get_value());
-		if (missing_mandatory.length) {
-			this.toggle_message(true, this.get_no_result_message());
-			return;
-		}
-
-		this.auto_background_report_running = true;
-		this.hide_status();
-		this.toggle_message(true, this.background_report_message());
-		// The whole point is that the user never has to press this.
-		this.primary_button && this.primary_button.hide();
-
-		const queued = this.generate_background_report();
-		if (queued && queued.then) {
-			queued.then(() => this.start_prepared_report_polling());
-		} else {
-			this.abandon_background_report(__("The report could not be queued."));
-		}
-	}
-
-	start_prepared_report_polling() {
-		this.stop_prepared_report_polling();
-
-		const docname = this.prepared_report_doc_name;
-		if (!docname) {
-			// The job was never queued — do not leave the user on a spinner.
-			this.abandon_background_report(__("The report could not be queued."));
-			return;
-		}
-
-		const started_at = Date.now();
-		const TIMEOUT_MS = 10 * 60 * 1000;
-
-		this.prepared_report_poll = setInterval(() => {
-			// The user navigated elsewhere: stop hitting the server. The realtime
-			// event still fires, and coming back re-reads the completed report.
-			if (frappe.get_route()[1] !== this.report_name) {
-				this.stop_prepared_report_polling();
-				return;
-			}
-
-			if (Date.now() - started_at > TIMEOUT_MS) {
-				this.abandon_background_report(
-					__("The report is taking longer than expected. It will appear in {0}.", [
-						`<a href="/app/prepared-report/${docname}">${__("Prepared Report")}</a>`,
-					])
-				);
-				return;
-			}
-
-			frappe
-				.xcall(
-					"frappe.core.doctype.prepared_report.prepared_report.get_prepared_report_status",
-					{ docname }
-				)
-				.then((res) => {
-					const status = res && res.status;
-					if (status === "Completed") {
-						this.stop_prepared_report_polling();
-						this.auto_background_report_running = false;
-						this.refresh();
-					} else if (status === "Error" || status === "Missing") {
-						this.stop_prepared_report_polling();
-						this.abandon_background_report(
-							(res && res.error_message) || __("The report could not be generated.")
-						);
-					}
-				})
-				.catch(() => {
-					// Transient network/permission hiccup — keep polling, the timeout
-					// above is the backstop.
-				});
-		}, 3000);
-	}
-
-	stop_prepared_report_polling() {
-		if (this.prepared_report_poll) {
-			clearInterval(this.prepared_report_poll);
-			this.prepared_report_poll = null;
-		}
-	}
-
-	abandon_background_report(message) {
-		this.stop_prepared_report_polling();
-		this.auto_background_report_running = false;
-		this.toggle_message(true, `<span class="text-muted">${message}</span>`);
-		this.primary_button && this.primary_button.show();
-	}
-	//// Neoffice
 
 	toggle_message(flag, message) {
 		if (flag) {

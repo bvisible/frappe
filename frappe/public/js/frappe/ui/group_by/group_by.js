@@ -447,13 +447,9 @@ frappe.ui.GroupBy = class {
 		this.group_by_button.find(".group-by-icon").toggleClass("active", group_by_applied);
 
 		this.group_by_button.find(".button-label").html(button_label);
-		//// Neoffice — the tooltip was an English template literal that never went through __(), and said
-		//// « Results are Grouped by undefined » before any grouping was chosen (maintenance#2559).
 		this.group_by_button.attr(
 			"title",
-			group_by_applied
-				? __("Results are Grouped by {0}", [this.get_group_by_field_label()])
-				: __("Add Group")
+			`Results are Grouped by ${this.get_group_by_field_label()}`
 		);
 	}
 

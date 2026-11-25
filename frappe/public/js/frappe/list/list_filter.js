@@ -12,16 +12,11 @@ export default class ListFilter {
 
 	make() {
 		// init dom
-		//// Neoffice — the template below swaps upstream's two <li> for <div> (9999364ec6, 2025-10-28
-		//// "Refonte de l'interface utilisateur avec nouvelle sidebar et apps switcher"): the list sidebar is
-		//// no longer a <ul> (see list_sidebar.html), so list items would be invalid there. Markup only — and
-		//// a marker cannot live inside a template literal, hence this one.
 		this.wrapper.html(`
-			<div class="input-area"></div>
-			<div class="sidebar-action">
+			<li class="input-area"></li>
+			<li class="sidebar-action">
 				<a class="saved-filters-preview">${__("Show Saved")}</a>
-				<!-- //// Neoffice — the closing tag below was upstream's closing li: see the marker above the literal -->
-			</div>
+			</li>
 			<div class="saved-filters"></div>
 		`);
 
@@ -61,20 +56,9 @@ export default class ListFilter {
 
 	refresh() {
 		this.get_list_filters().then(() => {
-			//// Neoffice — upstream only shows or hides $saved_filters_preview here (9999364ec6, 2025-10-28): the
-			//// sidebar sections became collapsible (list_sidebar.js#setup_collapsible, marked there), so refresh()
-			//// also clicks the section title to expand it when saved filters exist and to collapse it when none
-			//// do. section_title is passed in by list_sidebar.js#setup_list_filter.
-			if (this.filters.length) {
-				// expand collapsible sections
-				this.wrapper.hasClass("hide") && this.section_title.trigger("click");
-				this.$saved_filters_preview.show();
-			} else {
-				// hide collapsible sections
-				!this.wrapper.hasClass("hide") && this.section_title.trigger("click");
-				this.$saved_filters_preview.hide();
-			}
-
+			this.filters.length
+				? this.$saved_filters_preview.show()
+				: this.$saved_filters_preview.hide();
 			const html = this.filters.map((filter) => this.filter_template(filter));
 			this.wrapper.find(".filter-pill").remove();
 			this.$saved_filters.append(html);

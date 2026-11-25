@@ -28,16 +28,10 @@ frappe.views.ListFactory = class ListFactory extends frappe.views.Factory {
 		frappe.provide("frappe.views.list_view." + doctype);
 
 		const hide_sidebar = view_class.no_sidebar || !frappe.boot.desk_settings.list_sidebar;
-		//// Neoffice — added, and passed to make_page below in place of hide_sidebar (cc297ec402, 2025-11-03
-		//// "Move sidebar to right and add mobile toggle"): the third argument of make_page became the sidebar
-		//// POSITION (views/factory.js and ui/page.js, marked there). null still means "no sidebar", "Right"
-		//// puts the list's side section on the right. Upstream v15 passes the boolean hide_sidebar.
-		const sidebar_position = hide_sidebar ? null : "Right";
 
 		frappe.views.list_view[me.page_name] = new view_class({
 			doctype: doctype,
-			//// Neoffice — sidebar_position, not upstream's hide_sidebar: see the marker above (cc297ec402).
-			parent: me.make_page(true, me.page_name, sidebar_position),
+			parent: me.make_page(true, me.page_name, hide_sidebar),
 		});
 
 		me.set_cur_list();

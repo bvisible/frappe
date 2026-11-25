@@ -6,47 +6,6 @@ import DataTable from "frappe-datatable";
 window.DataTable = DataTable;
 frappe.provide("frappe.views");
 
-//// Neoffice — added (16.11.2026, the views of documents, design system 6.17): the height of a row is the desk's token
-//// --ws-cell (neoffice_theme: 42 px in the Normal size, 35 in Compact). The table places its rows by this number
-//// (virtual scrolling), so a style sheet cannot change it; 35 px, upstream's, where no theme defines the token.
-function report_view_cell_height() {
-	const value = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ws-cell"));
-	return value > 20 ? Math.round(value) : 35;
-}
-//// Neoffice — the person switches the size (« Lisible » / « Compact »): the report on screen takes the new height.
-window.addEventListener("neo-size-change", () => {
-	const list = window.cur_list;
-	if (list && frappe.views.ReportView && list instanceof frappe.views.ReportView && list.datatable) list.render();
-});
-
-////////////////////////////////////////////////////////////////////////
-//// Neoffice — Report View rework: this file diverges heavily from upstream v15.89.0
-//// (~1070 added lines on 2800, 55 hunks). Every hunk carries its own marker below; this
-//// header is the map.
-//// Four layers, none of which exists upstream:
-////   4e23539603 2024-09-23 "last updates" (23 files, NO message) — the bulk: the Settings
-////     toolbar button (per-user column order + widths persisted through
-////     frappe.desk.reportview.{get,save}_user_report_settings, push-to-all-users, global
-////     default, push/pull to the NeoService reference), the Excel export button, the "meta"
-////     column (modified / assignees / comment count / like heart, i.e. the List view's right
-////     rail inside the datatable), sort-by-likes, an own render_count, page_length forced to
-////     100-500. Rationale has to be read off the code: the commit says nothing.
-////   2025-11-26 totals-row series — e0501e814e, 6a0cb32fb2, 8b00ad979c, 931e9229ce,
-////     e8a402e703, 75440d220e, dd8c7155b6, 374fc42e37, 42aa00fa98: totals become the LAST
-////     DATA ROW instead of the datatable footer (the footer row vanished on inline filtering),
-////     a sigma toolbar button replaces the "Show Totals" menu item, and the virtual Status
-////     column becomes a Select with indicator-pill rendering so it can be filtered.
-////   2025-03 fixes — 9ce3847ee8, e5382efca3 (export through frappe.call instead of
-////     open_url_post), 51b4366e39 (clear all active filters), 42065f26f9.
-////   cockpit era — a03d7f00db 2026-03-11 (Script Reports routed to query-report),
-////     6edddaf42a 2026-03-29 (dialog labels), 211b42bcc0 2026-06-23 (the like heart).
-//// Server side: frappe/desk/reportview.py carries the matching endpoints (marked there).
-//// Cross-app: the Settings dialog calls neoffice_custom_fields.events.* — a core →
-//// neoffice_custom_fields dependency.
-//// v16 merge note: upstream develop has none of these helpers (no btn-settings, no
-//// get_meta_html, no build_totals_row, no save_column_order_and_widths) and has itself moved
-//// on — expect a whole-file conflict; keep ours and re-apply upstream fixes by hand.
-////////////////////////////////////////////////////////////////////////
 frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	get view_name() {
 		return "Report";
@@ -58,51 +17,20 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 	setup_defaults() {
 		super.setup_defaults();
-		//// Neoffice — upstream prefixes the page title with __("Report:"); commented out and replaced
-		//// by a self-assignment (4e23539603, 2024-09-23, no message in the commit): the cockpit page
-		//// head shows the doctype name alone. The `this.page_title = this.page_title;` line below is a
-		//// no-op left behind. TO REVIEW at the merge: delete both lines rather than keep the no-op.
-		////this.page_title = __("Report:") + " " + this.page_title;
-		this.page_title = this.page_title;
+		this.page_title = __("Report:") + " " + this.page_title;
 		this.view = "Report";
 
 		this.link_title_doctype_fields = [];
 
 		const route = frappe.get_route();
-		//// Neoffice — upstream: `if (route.length === 4) this.report_name = route[3];`, i.e. the 4th
-		//// route segment is always a saved Report name. That is false for /app/<dt>/view/report/Report
-		//// and for the Calendar / Kanban routes that also reach this view, and the view then tried to
-		//// load a Report doc that does not exist. Rewritten by 4e23539603 (2024-09-23, no message):
-		//// Calendar and Kanban are excluded, "Report"/"List" fall back to the per-user list-view
-		//// settings (add_totals_row + chart_args), anything else is a real report name. The bare ////
-		//// lines fencing the block are the original author's.
-		////
-		if (route.length === 4 && (route[3] !== "Calendar" && route[3] !== "Kanban")) {
-			if (route[3] === "Report" || route[3] === "List") {
-				this.add_totals_row = this.view_user_settings.add_totals_row || 0;
-				this.chart_args = this.view_user_settings.chart_args;
-				return this.get_list_view_settings();
-			} else {
-				this.report_name = route[3];
-			}
+		if (route.length === 4) {
+			this.report_name = route[3];
 		}
-		////
+
 		if (this.report_name) {
 			return this.get_report_doc().then((doc) => {
 				this.report_doc = doc;
-
-				//// Neoffice — added (a03d7f00db, 2026-03-11 "fix: null-safety guards for app_data and
-				//// report_view"): a Script Report reached through this route rendered an empty Report Builder
-				//// (upstream assumes report_type == "Report Builder" here); it is now redirected to the
-				//// query-report route. Same commit made the JSON.parse below tolerate an empty json field —
-				//// upstream JSON.parse(this.report_doc.json) threw and took the whole view down.
-				// Script Reports should open via query-report, not Report View
-				if (this.report_doc.report_type !== "Report Builder") {
-					frappe.set_route("query-report", this.report_name);
-					return;
-				}
-
-				this.report_doc.json = JSON.parse(this.report_doc.json || "{}");
+				this.report_doc.json = JSON.parse(this.report_doc.json);
 
 				this.filters = [
 					...(Array.isArray(this.report_doc.json.filters)
@@ -114,13 +42,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				this.order_by = this.report_doc.json.order_by;
 				this.add_totals_row = this.report_doc.json.add_totals_row;
 				this.page_title = __(this.report_name);
-				//// Neoffice — upstream reads the saved report's page_length (default 20); pinned to 500
-				//// (4e23539603, 2024-09-23, no message). Same intent as the two `page_length: 100` overrides
-				//// further down: our users scroll a full table instead of paging. TO REVIEW at the merge: this
-				//// silently ignores what the user saved on the report, and 500 rows is a hard-coded fleet-wide
-				//// choice — it belongs in a setting.
-				////this.page_length = this.report_doc.json.page_length || 20;
-				this.page_length = 500;
+				this.page_length = this.report_doc.json.page_length || 20;
 				this.order_by = this.report_doc.json.order_by || "modified desc";
 				this.chart_args = this.report_doc.json.chart_args;
 			});
@@ -132,11 +54,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	}
 
 	setup_view() {
-		//// Neoffice — the user's column settings are read here, without blocking, before the first
-		//// setup_columns() (see neo_prefetch_report_settings below); upstream has no such call.
-		if (!this.neo_report_settings_asked) {
-			return this.neo_prefetch_report_settings().then(() => this.setup_view());
-		}
 		this.setup_columns();
 		super.setup_new_doc_event();
 		this.setup_events();
@@ -222,489 +139,13 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		return args;
 	}
 
-	//// Neoffice — added method (upstream inherits BaseList.get_call_args): the fields an app wants with each row without a
-	//// column of their own (frappe.neo_row_fields(view) -> fieldnames of the view's doctype), for what it draws before the
-	//// ID (the name column's format, below): a customer's or a supplier's logo and the name its initials are read from
-	//// (neoffice_theme gallery.js; 17.11, « un petit logo devant le nom »). Added to the rows' request only - the export
-	//// reads get_args and keeps the reader's columns -, and never to a grouped view, whose rows are groups. No function,
-	//// or nothing returned: upstream's request.
-	get_call_args() {
-		const call = super.get_call_args();
-		const group = this.group_by_control;
-		const grouped = group && group.aggregate_function && group.group_by;
-		if (typeof frappe.neo_row_fields === "function" && !grouped && Array.isArray(call.args.fields)) {
-			for (const fieldname of frappe.neo_row_fields(this) || []) {
-				const column = frappe.model.get_full_column_name(fieldname, this.doctype);
-				if (!call.args.fields.includes(column)) call.args.fields.push(column);
-			}
-		}
-		return call;
-	}
-
 	before_refresh() {
-		//// Neoffice — added block, ~355 lines down to the closing //// before `if (this.report_doc)`.
-		//// Upstream before_refresh() only re-reads route_options for a Custom Report; everything here
-		//// is ours. Four things, in order:
-		////   1. the filter section is moved into .layout-side-section and each filter-x-button also
-		////      clears the datatable's own .dt-filter inputs and the dt-filters-* localStorage key —
-		////      upstream's "clear filters" left the inline column filters set, so the list came back
-		////      filtered by something invisible (51b4366e39, 2025-03-19 "Feat remove all filtre
-		////      active");
-		////   2. the Settings toolbar button (4e23539603, 2024-09-23; labels reworded by 6edddaf42a,
-		////      2026-03-29): add column, push my column layout to all users, delete personal settings,
-		////      and for Administrator save-as-global-default plus push/pull to the NeoService reference
-		////      (neoffice_custom_fields.events.push_table_to_reference /
-		////      pull_report_view_defaults_now — a core → neoffice_custom_fields dependency);
-		////   3. the Σ totals toggle (75440d220e, 2025-11-26), which replaces upstream's "Show Totals"
-		////      menu item (removed in report_menu_items below);
-		////   4. the Excel export button (e5382efca3, 2025-03-18 "Fix bug export"): exports through
-		////      frappe.call and follows response.message.file_url instead of upstream's open_url_post
-		////      form POST, which produced an empty download behind our nginx.
-		//// All four guard on `if (!this.page.wrapper.find('.btn-x').length)` because before_refresh
-		//// runs on every refresh. The bare //// lines fencing the block are the original author's.
-		////
-		if (this.$page.find('.layout-side-section').length > 0 ) {
-			this.$filter_section.prependTo(this.$page.find('.layout-side-section'));
-
-			// Select all buttons with class "filter-x-button"
-			const filterButtons = this.$filter_section.find('.filter-x-button');
-    
-			// Convert jQuery collection to array and add event listeners
-			Array.from(filterButtons).forEach((button) => {
-			  button.addEventListener('click', function() {
-				// Select all input fields with class "dt-filter"
-				const filterInputs = document.querySelectorAll('.dt-filter');
-				
-				// Clear the value of each input field
-				filterInputs.forEach(input => {
-				  input.value = '';
-				  
-				  // Trigger input event to simulate user interaction
-				  const event = new Event('input', { bubbles: true });
-				  input.dispatchEvent(event);
-				});
-				
-				// Function to get document type from URL
-				const getDocTypeFromURL = function() {
-				  const path = window.location.pathname;
-				  if (path.includes('/app/')) {
-					// Format: /app/doctype or /app/doctype/name
-					const parts = path.split('/');
-					// Find index after "/app/"
-					const appIndex = parts.findIndex(part => part === 'app');
-					if (appIndex !== -1 && parts.length > appIndex + 1) {
-					  return parts[appIndex + 1]; // Return doctype part
-					}
-				  }
-				  return null;
-				};
-				
-				// Get current doctype
-				const doctype = getDocTypeFromURL() || 
-							  (window.cur_frm && window.cur_frm.doctype) || 
-							  (window.cur_list && window.cur_list.doctype) ||
-							  'undefined';
-				
-				// Get instance name if available
-				const instanceName = (window.cur_list && window.cur_list.name) || '';
-				
-				// Build localStorage key and remove the item
-				const localStorageKey = 'dt-filters-' + (instanceName ? instanceName + '-' : '') + doctype;
-				localStorage.removeItem(localStorageKey);
-				
-				// Refresh the list if possible
-				if (window.cur_list && typeof window.cur_list.refresh === 'function') {
-				  window.cur_list.refresh();
-				}
-			  });
-			});
-		}
-		let doctype = this.doctype;
-		let me = this;
-
-		if (!this.page.wrapper.find('.btn-settings').length) {
-			this.page.add_button(__("Settings"), function() {
-				let dialog = new frappe.ui.Dialog({
-					title: __("Table and Column Settings"),
-					fields: [
-						{
-							fieldtype: "HTML",
-							fieldname: "actions",
-							options: `
-								<div style="display: flex; flex-direction: column; gap: 20px; max-width: 250px; margin: auto;">
-									<button class="btn btn-primary btn-add-column">${__("Add Column")}</button>
-									<button class="btn btn-default btn-push-settings">${__("Push Settings to All Users")}</button>
-									<button class="btn btn-default btn-delete-settings">${__("Delete Personal Settings")}</button>
-									${frappe.session.user === "Administrator" ? `
-										<button class="btn btn-danger btn-save-global-settings">${__("Save as Global Default")}</button>
-										<button class="btn btn-default btn-push-reference">${__("Push this table to the reference")}</button>
-										<button class="btn btn-default btn-pull-reference">${__("Pull from the reference")}</button>
-									` : ''}
-								</div>
-							`
-						}
-					],
-					primary_action_label: __("Close"),
-					primary_action: function() {
-						dialog.hide();
-					}
-				});
-
-				// Attach event listeners to the buttons
-				dialog.fields_dict.actions.$wrapper.find(".btn-delete-settings").on("click", function() {
-					frappe.confirm(
-						__('Are you sure you want to delete the settings for this report?'),
-						() => {
-							frappe.call({
-								method: "frappe.desk.reportview.delete_user_report_settings",
-								args: {
-									doctype: doctype
-								},
-								callback: function(r) {
-									if (r.message) {
-										frappe.show_alert({
-											//// Neoffice — the sentence was cut into pieces around the doctype name
-											//// (no space between them, untranslated name): one template, name translated.
-											message: __("Settings for {0} deleted successfully", [__(doctype)]),
-											indicator: 'green'
-										});
-										// Refresh the page
-										setTimeout(() => {
-											frappe.ui.toolbar.clear_cache()
-										}, 1000);
-									}
-								}
-							});
-							dialog.hide();
-						}
-					);
-				});
-
-				dialog.fields_dict.actions.$wrapper.find(".btn-push-settings").on("click", function() {
-					frappe.confirm(
-						__('Are you sure you want to push the settings for this report to all users?'),
-						() => {
-							frappe.call({
-								method: "frappe.desk.reportview.push_user_report_settings_to_all",
-								args: {
-									doctype: doctype
-								},
-								callback: function(r) {
-									if (r.message) {
-										frappe.show_alert({
-											//// Neoffice — same as above: one template, with the translated doctype name.
-											message: __("Settings for {0} pushed to all users successfully", [__(doctype)]),
-											indicator: 'green'
-										});
-									}
-								}
-							});
-							dialog.hide();
-						}
-					);
-				});
-
-				dialog.fields_dict.actions.$wrapper.find(".btn-save-global-settings").on("click", function() {
-					frappe.confirm(
-						__('Are you sure you want to save these settings as the global default?'),
-						() => {
-							let column_order = me.fields.map(field => `${field[1]}:${field[0]}`);
-							let column_widths = {};
-				
-							setTimeout(() => {
-								if (me.datatable && me.datatable.datamanager) {
-									column_widths = me.datatable.datamanager.getColumns(true).reduce((acc, curr) => {
-										acc[curr.id] = parseInt(curr.width);
-										return acc;
-									}, {});
-				
-								} else {
-									console.error("Datatable or datamanager is not initialized.");
-								}
-				
-								const settings = {
-									order: column_order,
-									widths: column_widths
-								};
-				
-								//// Neoffice — the next drawing reads the settings again (see neo_prefetch_report_settings).
-								me.neo_report_settings_cache = undefined;
-								frappe.call({
-									method: "frappe.desk.reportview.save_global_report_settings",
-									args: {
-										doctype: me.doctype,
-										settings: JSON.stringify(settings)  // Sauvegarder en JSON string pour garder la même structure
-									},
-									callback: function(response) {				
-										if (response.message) {
-											frappe.show_alert({
-												//// Neoffice — same as above: one template, with the translated doctype name.
-												message: __("Global default settings for {0} saved successfully", [__(me.doctype)]),
-												indicator: 'green'
-											});
-										}
-									}
-								});
-								dialog.hide();
-							}, 20);
-						}
-					);
-				});				
-
-				// Push this table's column config UP to the central reference (NeoService hub).
-				dialog.fields_dict.actions.$wrapper.find(".btn-push-reference").on("click", function() {
-					frappe.confirm(
-						__('Push this table configuration to the central reference (NeoService)?'),
-						() => {
-							let column_order = me.fields.map(field => `${field[1]}:${field[0]}`);
-							setTimeout(() => {
-								let column_widths = {};
-								if (me.datatable && me.datatable.datamanager) {
-									column_widths = me.datatable.datamanager.getColumns(true).reduce((acc, curr) => {
-										acc[curr.id] = parseInt(curr.width);
-										return acc;
-									}, {});
-								}
-								frappe.call({
-									method: "neoffice_custom_fields.events.push_table_to_reference",
-									args: {
-										doctype: me.doctype,
-										settings: JSON.stringify({ order: column_order, widths: column_widths })
-									},
-									callback: function(r) {
-										frappe.show_alert({
-											message: __("Table pushed to the reference") + ": " + me.doctype,
-											indicator: 'green'
-										});
-									}
-								});
-								dialog.hide();
-							}, 20);
-						}
-					);
-				});
-
-				// Pull the reference (NeoService master) into this instance now.
-				dialog.fields_dict.actions.$wrapper.find(".btn-pull-reference").on("click", function() {
-					frappe.confirm(
-						__('Replace this instance table defaults with the reference (NeoService)?'),
-						() => {
-							frappe.call({
-								method: "neoffice_custom_fields.events.pull_report_view_defaults_now",
-								callback: function(r) {
-									frappe.show_alert({
-										message: __("Table defaults pulled from the reference"),
-										indicator: 'green'
-									});
-									setTimeout(() => { frappe.ui.toolbar.clear_cache() }, 1000);
-								}
-							});
-							dialog.hide();
-						}
-					);
-				});
-
-				dialog.fields_dict.actions.$wrapper.find(".btn-add-column").on("click", () => {
-					dialog.hide();
-					me.showAddColumnDialog();
-				});
-
-				dialog.show();
-			}).addClass('btn-settings')
-			//// Neoffice — the alt text of this icon-only button was an English literal (it never went through
-			//// __()), so the tooltip stayed English in a French UI. Not upstream's: the button is ours.
-			.html(`<img src="/assets/frappe/icons/timeless/icon-settings.svg" alt="${__("Settings")}" style="height: 15px; vertical-align: middle;">`);
-		}
-		// Totals toggle button
-		if (!this.page.wrapper.find('.btn-totals').length) {
-			this.page.add_button('', () => {
-				this.add_totals_row = !this.add_totals_row;
-				this.save_view_user_settings({
-					add_totals_row: this.add_totals_row,
-				});
-				// Refresh with totals row as last data row
-				this.datatable.refresh(this.get_data(this.data));
-				this.style_totals_row();
-				// Update button appearance
-				this.update_totals_button();
-			}).addClass('btn-totals')
-			//// Neoffice — the alt text of this icon-only button was an English literal (it never went through
-			//// __()), so the tooltip stayed English in a French UI. Not upstream's: the button is ours.
-			.html(`<img src="/assets/frappe/icons/timeless/sigma.svg" alt="${__("Totals")}" style="height: 15px; vertical-align: middle;">`);
-			// Set initial button state
-			this.update_totals_button();
-		}
-		if (!this.page.wrapper.find('.btn-export-excel').length) {
-			this.page.add_button('', () => {
-				const selected_items = this.get_checked_items(true);
-				const args = this.get_args();
-				let extra_fields = [];
-				
-				if (this.list_view_settings && this.list_view_settings.disable_count) {
-					extra_fields = [
-						{
-							fieldtype: "Check",
-							fieldname: "export_all_rows",
-							label: __("Export all matching rows?"),
-						},
-					];
-				} else if (this.total_count > (this.count_without_children || args.page_length)) {
-					extra_fields = [
-						{
-							fieldtype: "Check",
-							fieldname: "export_all_rows",
-							label: __("Export all {0} rows?", [`<b>${this.total_count}</b>`]),
-						},
-					];
-				}
-				
-				if (frappe.boot.lang !== "en") {
-					extra_fields.push({
-						fieldtype: "Check",
-						fieldname: "translate_values",
-						label: __("Translate values"),
-						default: 1,
-					});
-				}
-				
-				const d = frappe.report_utils.get_export_dialog(
-					__(this.doctype),
-					extra_fields,
-					(data) => {
-						let export_args = {
-							cmd: "frappe.desk.reportview.export_query",
-							doctype: this.doctype,
-							file_format_type: data.file_format || 'Excel',
-							title: this.report_name || this.doctype,
-							translate_values: data.translate_values
-						};
-						
-						// Si des données sont explicitement disponibles, les utiliser
-						if (this.data && this.data.length) {
-							export_args.data = this.data;
-						} else {
-							// Sinon, passer les filtres et autres paramètres
-							export_args = Object.assign({}, export_args, args);
-						}
-						
-						if (data.file_format === "CSV") {
-							export_args.csv_delimiter = data.csv_delimiter;
-							export_args.csv_quoting = data.csv_quoting;
-						}
-						
-						if (this.add_totals_row) {
-							export_args.add_totals_row = 1;
-						}
-						
-						if (selected_items.length > 0) {
-							export_args.selected_items = selected_items;
-						}
-						
-						if (!data.export_all_rows) {
-							export_args.start = 0;
-							export_args.page_length = this.data ? this.data.length : args.page_length;
-						} else {
-							delete export_args.start;
-							delete export_args.page_length;
-						}
-						
-						frappe.call({
-							method: export_args.cmd,
-							args: export_args,
-							callback: function(response) {
-								if (response.message && response.message.file_url) {
-									window.location.href = response.message.file_url;
-								} else {
-									console.error("Failed to generate export file.");
-								}
-							}
-						});
-						
-						d.hide();
-					}
-				);
-				
-				d.show();
-			}).addClass('btn-export-excel')
-			//// Neoffice — the alt text of this icon-only button was an English literal (it never went through
-			//// __()), so the tooltip stayed English in a French UI. Not upstream's: the button is ours.
-			.html(`<img src="/assets/frappe/icons/timeless/icon-excel.svg" alt="${__("Export Excel")}" style="height: 20px; vertical-align: middle;">`);
-		}		
-		////
 		if (this.report_doc) {
 			// don't parse frappe.route_options if this is a Custom Report
 			return Promise.resolve();
 		}
 		return super.before_refresh();
 	}
-
-	//// Neoffice — added method (4e23539603, 2024-09-23, no message): the "Add Column" entry of the
-	//// Settings dialog above. Upstream only offers add-column from the datatable's own column
-	//// dropdown. Body is a trimmed copy of upstream's add-column picker (no insert_before field).
-	////
-	showAddColumnDialog() {
-		let columns_in_picker = [];
-		const columns = this.get_columns_for_picker();
-
-		columns_in_picker = columns[this.doctype]
-			.filter((df) => !this.is_column_added(df))
-			.map((df) => ({
-				label: __(df.label),
-				value: df.fieldname,
-			}));
-
-		delete columns[this.doctype];
-
-		for (let cdt in columns) {
-			columns[cdt]
-				.filter((df) => !this.is_column_added(df))
-				.map((df) => ({
-					label: __(df.label) + ` (${cdt})`,
-					value: df.fieldname + "," + cdt,
-				}))
-				.forEach((df) => columns_in_picker.push(df));
-		}
-
-		const d = new frappe.ui.Dialog({
-			title: __("Add Column"),
-			fields: [
-				{
-					label: __("Select Column"),
-					fieldname: "column",
-					fieldtype: "Autocomplete",
-					options: columns_in_picker,
-				}
-			],
-			//// Neoffice — see the block marker below: dropped dead insert_before param
-			primary_action: ({ column }) => {
-				if (!columns_in_picker.map((col) => col.value).includes(column)) {
-					frappe.show_alert({
-						message: __("Invalid column"),
-						indicator: "orange",
-					});
-					d.hide();
-					return;
-				}
-
-				let doctype = this.doctype;
-				if (column.includes(",")) {
-					[column, doctype] = column.split(",");
-				}
-
-				//// Neoffice — the column goes at the end. This dialog offers ONE field (the column),
-				//// so the `insert_before` branch that used to sit here could never run — and it named
-				//// `datatabe_col`, a variable that exists nowhere in its scope: the day someone added
-				//// the field it would have been a ReferenceError, not an insertion
-				//// (neoffice-maintenance#205). Inserting at a position is the datatable column
-				//// dropdown's job, upstream, where `datatabe_col` IS the clicked column.
-				this.add_column_to_datatable(column, doctype, this.columns.length);
-				d.hide();
-			},
-		});
-
-		d.show();
-	}
-	////
 
 	after_render() {
 		if (!this.report_doc) {
@@ -735,8 +176,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			if (link_title === undefined) return;
 
 			// update visible DOM elements and cell tooltip
-			//// Neoffice — :not([data-neo-id]): the ID column keeps the name (see format above).
-			document.querySelectorAll(`a[data-name="${key}"]:not([data-neo-id])`).forEach((el) => {
+			document.querySelectorAll(`a[data-name="${key}"]`).forEach((el) => {
 				if (el.textContent === link_title) return;
 				el.textContent = link_title;
 
@@ -769,11 +209,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			fields: this.fields,
 			order_by: this.sort_selector.get_sql_string(),
 			add_totals_row: this.add_totals_row,
-			//// Neoffice — upstream saves the live this.page_length in the view's user settings; pinned to
-			//// 100 (4e23539603, 2024-09-23, no message). Same hard-coded choice as page_length = 500 in
-			//// setup_defaults and as the second copy of this line further down. TO REVIEW at the merge.
-			////page_length: this.page_length,
-			page_length: 100,
+			page_length: this.page_length,
 			column_widths: this.get_column_widths(),
 			group_by: this.group_by_control.get_settings(),
 			chart_args: this.get_chart_settings(),
@@ -784,10 +220,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			fields: this.report_doc.json.fields,
 			order_by: this.report_doc.json.order_by,
 			add_totals_row: this.report_doc.json.add_totals_row,
-			//// Neoffice — same override as above, for a saved Report's settings (4e23539603): the report's
-			//// own page_length is ignored and 100 is written back.
-			////page_length: this.report_doc.json.page_length,
-			page_length: 100,
+			page_length: this.report_doc.json.page_length,
 			column_widths: this.report_doc.json.column_widths,
 			group_by: this.report_doc.json.group_by,
 			chart_args: this.report_doc.json.chart_args,
@@ -826,12 +259,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		} else {
 			this.data = this.data.concat(data);
 		}
-		//// Neoffice — added call + method (4e23539603, 2024-09-23, no message): rows the current user
-		//// has liked (_liked_by) are floated to the top of the page of data upstream just fetched.
-		//// Client-side only, so it reorders the CURRENT page, not the query — a liked row on page 3
-		//// stays on page 3. No upstream equivalent. It runs before upstream's remap of the checked rows
-		//// (15.127.0) below, so the remap follows the order the rows are drawn in.
-		this.sort_data_by_likes();
 
 		// datatable tracks checked rows by index; remap them so new row order keeps the same rows
 		if (checked) {
@@ -847,50 +274,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		return (d) => JSON.stringify([d.name, ...cdts.map((cdt) => d[`${cdt}:name`])]);
 	}
 
-	//// Neoffice — added method (see the call in prepare_data above).
-	sort_data_by_likes() {
-		this.data.sort((a, b) => {
-			const aLiked = JSON.parse(a._liked_by || "[]").includes(frappe.session.user);
-			const bLiked = JSON.parse(b._liked_by || "[]").includes(frappe.session.user);
-
-			if (aLiked && !bLiked) {
-				return -1;
-			} else if (!aLiked && bLiked) {
-				return 1;
-			}
-			return 0;
-		});
-	}
-
-	//// Neoffice — added method + render() made async (4e23539603, 2024-09-23, no message; the
-	//// commented-out `////render(force) {` below is upstream's signature). The "meta" column
-	//// renders a comment badge like the List view, but the report query does not return
-	//// _comment_count, so every render fetches it in one round-trip through
-	//// frappe.desk.reportview.get_comment_count and merges it into this.data before drawing.
-	//// The two this.style_totals_row() calls further down are from the 2025-11-26 totals series
-	//// (6a0cb32fb2 / 8b00ad979c): the totals row is a normal data row, so its CSS class has to be
-	//// re-applied after every datatable refresh.
-	//// TO REVIEW at the merge: render() became async and awaits a server call before painting —
-	//// one extra request per refresh, and callers that do not await it now race the paint.
-	async fetch_comment_counts(docnames) {
-		let comment_counts = {};
-		await frappe.call({
-			method: 'frappe.desk.reportview.get_comment_count',
-			args: {
-				doctype: this.doctype,
-				docnames: docnames
-			},
-			callback: function(r) {
-				if (r.message) {
-					comment_counts = r.message;
-				}
-			}
-		});
-		return comment_counts;
-	}	
-
-	////render(force) {
-	async render(force) {
+	render(force) {
 		if (this.data.length === 0) return;
 		this.render_count();
 		this.setup_columns();
@@ -901,51 +285,12 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			this.refresh_charts();
 		}
 
-		////
-		const docnames = this.data.map(d => d.name);
-    	const comment_counts = await this.fetch_comment_counts(docnames);
-
-		this.data = this.data.map(d => {
-			d._comment_count = comment_counts[d.name] || 0;
-			return d;
-		});
-		////
-
-		//// Neoffice — a table drawn at another row height (the size changed) is drawn again (report_view_cell_height).
-		if (this.datatable && !force && this.datatable.options.cellHeight === report_view_cell_height()) {
+		if (this.datatable && !force) {
 			this.datatable.refresh(this.get_data(this.data), this.columns);
-			//// Neoffice — re-style the totals data row after a refresh (8b00ad979c 2025-11-26; see the marker above fetch_comment_counts).
-			this.style_totals_row();
 			return;
 		}
 		this.setup_datatable(this.data);
-		//// Neoffice — same after the first draw (8b00ad979c 2025-11-26).
-		this.style_totals_row();
 	}
-
-	//// Neoffice — added override (4e23539603, 2024-09-23, no message): a copy of
-	//// list/base_list.js render_count() plus a 200 ms `this.isLoading = false` reset. Upstream
-	//// ReportView does not override render_count at all. The copy will not follow upstream fixes
-	//// to base_list — TO REVIEW at the merge: keep only the isLoading reset and call super.
-	////
-	render_count() {
-		if (this.list_view_settings?.disable_count) {
-			return;
-		}
-		let $list_count = this.$paging_area.find(".list-count");
-		if (!$list_count.length) {
-			$list_count = $("<span>")
-				.addClass("text-muted list-count")
-				.prependTo(this.$paging_area.find(".level-right"));
-		}
-		this.get_count_str().then((str) => {
-			$list_count.text(str);
-		});
-		setTimeout(() => {
-			this.isLoading = false;
-		}, 200);
-	}
-	////
 
 	get_count_element() {
 		let $count = this.$paging_area.find(".list-count");
@@ -971,61 +316,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				this.refresh();
 			}
 		}
-	}
-
-	//// Neoffice — added override (neoffice-maintenance#377). ListView.setup_realtime_updates
-	//// removes every "list_update" handler before adding its own, so the on_update() above never
-	//// runs (upstream v15.89.0 and develop alike): ListView.process_document_refreshes answers the
-	//// event and ends in this.render_list(), which builds LIST rows. In a report view that throws —
-	//// get_column_html reads this.link_field_title_fields, set only by ListView's own
-	//// setup_columns — so a record created through QuickEntry never showed until a reload.
-	//// Same query as the list, then the report's own paths: a row that only changed is repainted
-	//// in place (update_row keeps a cell edit's focus and flashes another user's change); a new
-	//// row, one that left the filters or was deleted, a grouped or totalled view re-queries the
-	//// page through refresh(). Drop this once upstream routes the event to the report view again.
-	process_document_refreshes() {
-		if (!this.pending_document_refreshes.length) return;
-
-		const route = frappe.get_route() || [];
-		if (!cur_list || route[0] != "List" || cur_list.doctype != route[1]) {
-			// same guard as ListView: wait till the user is back on the view
-			this.pending_document_refreshes = [];
-			this.disable_realtime_updates();
-			return;
-		}
-
-		const pending = this.pending_document_refreshes;
-		this.pending_document_refreshes = [];
-		const names = [...new Set(pending.map((d) => d.name))];
-
-		const call_args = this.get_call_args();
-		call_args.args.filters.push([this.doctype, "name", "in", names]);
-		call_args.args.start = 0;
-
-		frappe.call(call_args).then(({ message }) => {
-			const rows = message ? frappe.utils.dict(message.keys, message.values) : [];
-			const shown_once = (name) => this.data.filter((d) => d.name === name).length === 1;
-			const in_place =
-				this.datatable &&
-				!this.group_by &&
-				!this.add_totals_row &&
-				rows.length === names.length &&
-				rows.every(
-					(row) =>
-						shown_once(row.name) && !Object.keys(row).some((key) => key.includes(":"))
-				);
-
-			if (!in_place) {
-				this.refresh();
-				return;
-			}
-			rows.forEach((row) => {
-				const by_other_user = pending.some(
-					(d) => d.name === row.name && d.user !== frappe.session.user
-				);
-				this.update_row(row, by_other_user);
-			});
-		});
 	}
 
 	update_row(doc, flash_row) {
@@ -1076,42 +366,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 	setup_datatable(values) {
 		this.$datatable_wrapper.empty();
-		//// Neoffice — the workspace tabs' panel (neoffice_theme/public/js/workspace_tabs.js, decision J9 of the
-		//// workspace redesign, maintenance#822): a single click on a cell shows its row in the tab's side panel,
-		//// through frappe.neo_row_click(view, name) - the same hook as the list view's row click. A single click
-		//// only focuses a datatable cell (editing starts on Enter; a double click opens the document, see
-		//// neoffice_theme), the ID link shows the row as well, the checkbox still selects, and nothing changes
-		//// when the theme defines no hook. Bound once per wrapper (namespaced), since setup_datatable runs
-		//// again at every refresh.
-		this.$datatable_wrapper
-			.off("click.neo_row")
-			.on("click.neo_row", ".dt-row .dt-cell", (e) => {
-				if (typeof frappe.neo_row_click !== "function") return;
-				//// A Ctrl/Cmd/Shift/Alt-click follows any link, the row's own ID link included. A plain
-				//// click on the ID shows the row like any other cell (Jérémy, 29.09: one click shows,
-				//// a double click opens - the 27.09 exception that let the ID open is gone).
-				const $link = $(e.target).closest("a");
-				if ($link.length && (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey)) {
-					return;
-				}
-				if ($(e.target).closest("input, button, .dt-cell--editing, .dt-cell__resize-handle").length) {
-					return;
-				}
-				//// Only a body cell names a row: header and inline-filter cells carry no row index,
-				//// and cint() of a missing index is 0, which opened the first row on a header click.
-				const row_index = $(e.currentTarget).attr("data-row-index");
-				if (!/^\d+$/.test(row_index || "")) return;
-				const doc = (this.data || [])[+row_index];
-				if (!doc || !doc.name) return;
-				//// Every cell shows the row in the panel - its ID, and a link to another document too
-				//// (the supplier of an invoice), which reads like the text around it.
-				if (frappe.neo_row_click(this, doc.name) === true && $link.length) {
-					e.preventDefault();
-					e.stopPropagation();
-				}
-				//// Neoffice — one panel call only: the one in the condition above replaces the separate
-				//// call that followed it until 27.09.
-			});
 		this.datatable = new DataTable(this.$datatable_wrapper[0], {
 			columns: this.columns,
 			data: this.get_data(values),
@@ -1120,14 +374,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			translations: frappe.utils.datatable.get_translations(),
 			checkboxColumn: true,
 			inlineFilters: true,
-			//// Neoffice — was 35: the views' token (report_view_cell_height above).
-			cellHeight: report_view_cell_height(),
+			cellHeight: 35,
 			direction: frappe.utils.is_rtl() ? "rtl" : "ltr",
-			//// Neoffice — added (6a0cb32fb2, 2025-11-26 "show totals as last data row instead of footer"):
-			//// frappe-datatable's own footer total row is switched OFF because the totals are built as a
-			//// real last data row in get_data()/build_totals_row() below — the footer row disappeared as
-			//// soon as the user typed in an inline column filter.
-			showTotalRow: false, // We handle totals row manually as last data row
 			events: {
 				onRemoveColumn: (column) => {
 					this.remove_column_from_datatable(column);
@@ -1216,70 +464,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				},
 			],
 		});
-		//// Neoffice — added call + the two methods below, addResizeEvent and
-		//// save_column_order_and_widths (4e23539603, 2024-09-23, no message). Upstream keeps column
-		//// widths in the view's user settings, written only when the view is saved; ours persists the
-		//// order AND the widths server-side (frappe.desk.reportview.save_user_report_settings) on every
-		//// column resize, add, remove and reorder, so a user's table layout survives across sessions
-		//// and can be pushed to other users from the Settings dialog. setup_columns below reads it
-		//// back. The bare //// fences are the original author's.
-		////
-		this.addResizeEvent();
-
 	}
-
-	////
-	async addResizeEvent() {
-		this.$datatable_wrapper.on('mouseup', '.dt-cell .dt-cell__resize-handle', async (e) => {
-			const $resizingCell = e.target.closest('.dt-cell');
-			const colIndex = parseInt($resizingCell.getAttribute('data-col-index'));
-			const col = this.datatable.datamanager.columns[colIndex];
-	
-			if (col) {
-				const newWidth = col.width;
-				await this.save_column_order_and_widths();
-			}
-		});
-	}
-	
-	save_column_order_and_widths(fields = this.fields) {
-		const column_order = fields.map(field => `${field[1]}:${field[0]}`);
-		var column_widths = {};
-		setTimeout(() => {
-			if (this.datatable && this.datatable.datamanager) {
-				column_widths = this.datatable.datamanager.getColumns(true).reduce((acc, curr) => {
-					acc[curr.id] = parseInt(curr.width);
-					return acc;
-				}, {});
-
-			} else {
-				console.error("Datatable or datamanager is not initialized.");
-			}
-			const settings = {
-				order: column_order,
-				widths: column_widths
-			};
-			
-			//// Neoffice — the settings kept for the view are the ones just saved (see neo_prefetch_report_settings).
-			this.neo_report_settings_cache = { message: settings };
-			frappe.call({
-				method: 'frappe.desk.reportview.save_user_report_settings',
-				args: {
-					doctype: this.doctype,
-					settings: JSON.stringify(settings)
-				},
-				callback: function(response) {
-					/*if (response.message) {
-						frappe.show_alert({
-							message: __("Settings saved"),
-							indicator: "green"
-						});
-					}*/
-				}
-			});
-		}, 20);		
-	}
-	////
 
 	toggle_charts() {
 		// add
@@ -1702,14 +887,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		this.fields = [...fields_already_in_table, ...fields_to_add];
 	}
 
-	//// Neoffice — added method, see the marker in setup_columns: true only when the doctype's meta is here and says
-	//// the field does not exist. A child table not loaded yet proves nothing, and `_`-fields are the view's own.
-	is_saved_column_gone(fieldname, doctype) {
-		const known = frappe.meta.docfield_map[doctype];
-		if (!known || fieldname.startsWith("_")) return false;
-		return !known[fieldname] && !frappe.model.std_fields_list.includes(fieldname);
-	}
-
 	get_fields() {
 		let fields = this.fields.map((f) => {
 			let column_name = frappe.model.get_full_column_name(f[0], f[1]);
@@ -1723,24 +900,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			(cdt) => frappe.model.get_full_column_name("name", cdt) + " as " + `'${cdt}:name'`
 		);
 		fields = fields.concat(cdt_name_fields);
-
-		//// Neoffice — added (4e23539603, 2024-09-23, no message): when the synthetic "meta" column is
-		//// present, the query must also fetch the fields it renders (modified, _assign,
-		//// _comment_count, _liked_by) — upstream never asks for them in Report View.
-		//// `this.columns` may not exist yet (2026-10-08): a list refreshed before the
-		//// Report View has set its columns (the theme's workspace tabs do, on a page whose
-		//// last view was Report) reaches here first, and `.some` on undefined left the
-		//// page empty. Upstream's own lines above read only `this.fields`, which exists.
-		if ((this.columns || []).some(col => col.field === 'meta')) {
-			fields.push(
-				'name',
-				'modified', 
-				'_assign',
-				'_comment_count',
-				'_liked_by'
-			);
-		}
-		////
 
 		return fields;
 	}
@@ -1757,11 +916,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		this.fields.splice(col_index, 0, field);
 
 		this.add_currency_column(fieldname, doctype, col_index);
-
-		//// Neoffice — added (4e23539603): persist order + widths as soon as a column is added.
-		////
-		this.save_column_order_and_widths(this.fields);
-		////
 
 		this.build_fields();
 		this.setup_columns();
@@ -1818,12 +972,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		}
 
 		this.fields.splice(index, 1);
-
-		//// Neoffice — added (4e23539603): same persistence when a column is removed.
-		////
-		this.save_column_order_and_widths(this.fields);
-		////
-
 		this.build_fields();
 		this.setup_columns();
 		this.refresh();
@@ -1839,12 +987,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		_fields[index2] = temp;
 
 		this.fields = _fields;
-
-		//// Neoffice — added (4e23539603): same persistence when the columns are reordered.
-		////
-		this.save_column_order_and_widths(_fields);
-		////
-
 		this.build_fields();
 		this.setup_columns();
 		this.refresh();
@@ -1866,31 +1008,11 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 		// add status field derived from docstatus, if status is not a standard field
 		if (!frappe.meta.has_field(this.doctype, "status") && frappe.has_indicator(this.doctype)) {
-			//// Neoffice — added (dd8c7155b6, 2025-11-26 "make Status column use Select filter with dynamic
-			//// options"): for a doctype with no real `status` field, upstream declares the virtual Status
-			//// column as Data, so its column filter was a free-text box that never matched the rendered
-			//// indicator label. The possible values are collected from the loaded rows through
-			//// frappe.get_indicator and the column becomes a Select (with is_virtual_status so the
-			//// fieldtype is not overwritten downstream). Collected from the LOADED page only, so a value
-			//// absent from it is missing from the dropdown — TO REVIEW.
-			// Collect all possible status values from the data
-			let statusOptions = new Set();
-			if (this.data && this.data.length) {
-				this.data.forEach(d => {
-					let status = frappe.get_indicator(d, this.doctype);
-					if (status && status[0]) {
-						statusOptions.add(status[0]);
-					}
-				});
-			}
 			doctype_fields = [
 				{
 					label: __("Status"),
 					fieldname: "docstatus",
-					//// Neoffice — Select with the collected options instead of upstream's Data (dd8c7155b6; see the marker above).
-					fieldtype: "Select",
-					options: Array.from(statusOptions).join("\n"),
-					is_virtual_status: true,
+					fieldtype: "Data",
 				},
 			].concat(doctype_fields);
 		}
@@ -1980,329 +1102,39 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		return Boolean(this.fields.find((f) => f[0] === df.fieldname && df.parent === f[1]));
 	}
 
-	//// Neoffice — added: setup_columns() below reads the user's saved columns with a SYNCHRONOUS call (see its
-	//// block marker), and render() calls setup_columns() at every drawing (a filter, a page, a live update). A
-	//// synchronous call holds the whole tab until the server answers: opened while the list's other requests
-	//// (its count, the stock of its rows) took every worker, the Item list froze the tab 14 s and more
-	//// (maintenance#2804). The answer is now fetched asynchronously as the view is set up and kept for the
-	//// view (neo_report_settings_cache): every setup_columns() takes it without the network. Saving the
-	//// columns puts the saved settings in it; saving the global settings empties it, and the next drawing
-	//// asks the server, synchronously as before, and keeps that answer.
-	neo_prefetch_report_settings() {
-		this.neo_report_settings_asked = true;
-		return frappe
-			.call({
-				method: "frappe.desk.reportview.get_user_report_settings",
-				args: { doctype: this.doctype },
-			})
-			.then((response) => {
-				//// Neoffice — see the block marker above: cache kept for the view
-				if (response) this.neo_report_settings_cache = response;
-			})
-			//// Neoffice — see the block marker above: a failed fetch leaves the cache empty, asked again later
-			.catch(() => {});
-	}
-
 	setup_columns() {
 		// apply previous column width
 		let column_widths = null;
-		//// Neoffice — setup_columns rewritten (4e23539603, 2024-09-23, no message; block runs ~90 lines
-		//// to the end of the method). Upstream reads the widths from this.get_column_widths() (the
-		//// in-memory columns) and builds this.columns straight from this.fields. Ours first fetches the
-		//// user's saved layout from the server (frappe.desk.reportview.get_user_report_settings) and
-		//// rebuilds this.fields from settings.order and the widths from settings.widths, then appends
-		//// the synthetic "meta" column. Upstream's two lines are kept commented out just below.
-		//// The object-response bug is fixed below (neoffice-maintenance#205).
-		//// The `async: false` stays, on purpose and only until the merge: it is what makes
-		//// setup_columns() SYNCHRONOUS for its five callers (group_by.js x2, and three here) —
-		//// they read this.columns on the next line. Making the call async without turning all
-		//// five into awaits would hand them an empty this.columns, which is worse than a blocked
-		//// frame. It goes away with the whole method when upstream's setup_columns() is taken
-		//// back at the version bump (#138); do not half-fix it before then.
-		////
-		let doctype = this.doctype;
-		const default_settings = {
-			order: this.fields.map(field => `${field[1]}:${field[0]}`), // default order based on this.fields
-			widths: {} // empty widths, will calculate widths later
-		};
+		if (this.columns) {
+			column_widths = this.get_column_widths();
+		}
 
-		////if (this.columns) {
-		////	column_widths = this.get_column_widths();
-		////}
+		this.columns = [];
+		this.columns_map = {};
 
-		////
-		//// Neoffice — the settings kept for the view (neo_prefetch_report_settings) are taken without the
-		//// network; otherwise the synchronous call below, as before, whose answer is kept.
-		const neo_cached = this.neo_report_settings_cache;
-		const neo_settings_call = neo_cached
-			? (options) => options.callback(neo_cached)
-			: (options) =>
-					frappe.call({
-						...options,
-						callback: (response) => {
-							this.neo_report_settings_cache = response;
-							options.callback(response);
-						},
-					});
-		neo_settings_call({
-			method: 'frappe.desk.reportview.get_user_report_settings',
-			args: {
-				doctype: doctype
-			},
-			async: false,
-			callback: (response) => {	
-				//// Neoffice — an OBJECT response is honoured too. The original only parsed
-				//// response.message when it was a string, so the day get_user_report_settings
-				//// hands back settings already decoded, every user silently gets the default
-				//// column order and widths (neoffice-maintenance#205).
-				let settings = default_settings;
-				if (response.message) {
-					if (typeof response.message === 'string') {
-						try {
-							settings = JSON.parse(response.message);
-						} catch (e) {
-							console.error("Failed to parse user report settings. Using default settings.", e);
-						}
-					//// Neoffice — see the block marker above: object response now honoured
-					} else if (typeof response.message === 'object') {
-						settings = response.message;
-					}
+		for (let f of this.fields) {
+			let column;
+			if (f[0] !== "docstatus") {
+				column = this.build_column(f);
+			} else {
+				// if status is not in fields append status column derived from docstatus
+				if (
+					!frappe.meta.has_field(this.doctype, "status") &&
+					frappe.has_indicator(this.doctype)
+				) {
+					column = this.build_column(["docstatus", this.doctype]);
 				}
-				//// Neoffice — setup_columns rewrite (see the block marker above): the saved order rebuilds this.fields.
-	
-				if (settings.order) {
-					this.fields = settings.order.map(field => {
-						const [parenttype, fieldname] = field.split(":");
-						return [fieldname, parenttype];
-					//// Neoffice — a saved column whose field is gone is left out. The saved order rebuilds
-					//// this.fields past the check of _add_field, and the query names every field: one
-					//// custom field an app retired refused the whole view (« Field not permitted in
-					//// query ») at each opening, and nobody can take a column off a view that never draws.
-					}).filter(([fieldname, parenttype]) => !this.is_saved_column_gone(fieldname, parenttype));
-					//// Neoffice — upstream's `if (column) { column.width = … }` no longer sits here: it moved into
-					//// the loop below, which reads the saved settings.widths (see the block marker above).
-
-				}
-				if (settings.widths) {
-					column_widths = settings.widths;
-				}
-				////
-				this.columns = [];
-				this.columns_map = {};
-
-				for (let f of this.fields) {
-					let column;
-					if (f[0] !== "docstatus") {
-						column = this.build_column(f);
-					} else {
-						// if status is not in fields append status column derived from docstatus
-						//// Neoffice — upstream's condition (has_indicator, 15.1xx), carried into our rewritten loop.
-						if (
-							!frappe.meta.has_field(this.doctype, "status") &&
-							frappe.has_indicator(this.doctype)
-						) {
-							column = this.build_column(["docstatus", this.doctype]);
-						}
-					}
-
-					if (column) {
-						////if (column_widths) {
-						////	column.width = column_widths[column.id] || column.width || 120;
-						////}
-						//// Apply saved column widths
-						if (column_widths && column_widths[column.id] !== undefined) {
-							column.width = column_widths[column.id];
-						} else {
-							//column.width = column.width || this.calculateColumnWidth(column);
-							column.width = column.width || 140;
-						}
-						////
-
-						this.columns.push(column);
-						this.columns_map[column.id] = column;
-					}
-				}
-
-				////
-				this.columns.push({
-					id: "meta",
-					field: "meta",
-					name: __("Meta"),
-					content: __("Meta"),
-					docfield: { fieldtype: "Data" },
-					editable: false,
-					align: "left",
-					//// Neoffice — 150 px did not hold the cell (neoffice-maintenance#1122): the relative date,
-					//// the comment count and the like heart take ~155 px (« maintenant »), and a row button
-					//// (listview_settings.button) ~70 more, so 200 px, and 260 with a row button.
-					width: this.settings.button ? 260 : 200,
-				});
-				////
 			}
-		});
-	}		
-	
 
-	//// Neoffice — added method (4e23539603, 2024-09-23, no message): renders the synthetic "meta"
-	//// column — the List view's right rail (settings button or assignee avatars, relative modified
-	//// date, comment count, like heart, mobile indicator dot) inside a datatable cell. Adapted copy
-	//// of list/list_view.js get_meta_html; upstream Report View has no such column.
-	////
-	get_meta_html(doc) {
-		let html = "";
-		let settings_button = null;
-		if (this.settings.button && this.settings.button.show(doc)) {
-			settings_button = `
-				<span class="list-actions">
-					<button class="btn btn-action btn-default btn-xs"
-						data-name="${doc.name}" data-idx="${doc._idx}"
-						title="${this.settings.button.get_description(doc)}">
-						${this.settings.button.get_label(doc)}
-					</button>
-				</span>
-			`;
-		}
-	
-		const modified = comment_when(doc.modified, true);
-	
-		let assigned_to = ``;
-	
-		let assigned_users = JSON.parse(doc._assign || "[]");
-		if (assigned_users.length) {
-			assigned_to = `<div class="list-assignments d-flex align-items-center">
-					${frappe.avatar_group(assigned_users, 3, { filterable: true })[0].outerHTML}
-				</div>`;
-		}
-	
-		let comment_count = null;
-		if (this.list_view_settings && !this.list_view_settings.disable_comment_count) {
-			comment_count = $(`<span class="comment-count d-flex align-items-center"></span>`);
-			$(comment_count).append(`
-				${frappe.utils.icon("es-line-chat-alt")}
-				${doc._comment_count > 99 ? "99+" : doc._comment_count || 0}`);
-		}
-	
-		//// Neoffice — the cell's content keeps to its right edge, and only the row button or the
-		//// assignees' avatars give way when it does not fit: centred (.level-item), the overflow was cut
-		//// on both sides, « Console » read « ole » and the like heart vanished (neoffice-maintenance#1122).
-		html += `
-			<div class="level-item list-row-activity hidden-xs" style="gap: 5px; justify-content: flex-end;">
-				<div class="hidden-md hidden-xs" style="min-width: 0; overflow: hidden;">
-					${settings_button || assigned_to}
-				</div>
-				<span class="modified">${modified} </span>
-				${comment_count ? $(comment_count).prop("outerHTML") : ""}
-				${comment_count ? '<span class="mx-2">·</span>' : ""}
-				<span class="list-row-like hidden-xs" style="margin-bottom: 1px;">
-					${this.neo_get_like_html(doc)}
-				</span>
-			</div>
-			<div class="level-item visible-xs text-right">
-				${this.get_indicator_dot(doc)}
-			</div>
-		`;
-	
-		return html;
-	}
-
-	//// Neoffice — added method (4e23539603, 2024-09-23, no message): the like heart for a datatable
-	//// cell. Upstream's frappe.ui.like renders into live DOM and binds handlers; a datatable cell is
-	//// an HTML STRING, so this builds the markup with an inline onclick and defines
-	//// window.toggle_like once, which calls frappe.desk.like.toggle_like and updates the DOM in
-	//// place. TO REVIEW at the merge: a global function + inline onclick with the doctype and name
-	//// interpolated into the attribute — a document name containing a quote breaks the cell; prefer
-	//// a delegated listener on the wrapper. The French comments inside are the original author's.
-	neo_get_like_html(doc) {
-		const liked_by = JSON.parse(doc._liked_by || "[]");
-		const heart_class = liked_by.includes(frappe.session.user)
-			? "liked-by liked"
-			: "not-liked";
-		const title = liked_by.map((u) => frappe.user_info(u).fullname).join(", ");
-	
-		const div = document.createElement("div");
-		div.innerHTML = `
-			<span class="like-action ${heart_class}" data-liked-by="${doc._liked_by || '[]'}" data-doctype="${this.doctype}" data-name="${doc.name}" title="${title}" onclick="toggle_like(this, '${this.doctype}', '${doc.name}')">
-				${frappe.utils.icon("es-solid-heart", "sm", "like-icon")}
-			</span>
-			<span class="likes-count">
-				${liked_by.length > 99 ? __("99") + "+" : __(liked_by.length || "")}
-			</span>
-		`;
-	
-		// Assurez-vous que toggle_like est défini une seule fois
-		if (typeof window.toggle_like !== "function") {
-			window.toggle_like = function(element, doctype, name) {
-				const liked_by_str = element.getAttribute("data-liked-by") || "[]";
-				let liked_by;
-				try {
-					liked_by = JSON.parse(liked_by_str);
-				} catch (e) {
-					liked_by = [];
+			if (column) {
+				if (column_widths) {
+					column.width = column_widths[column.id] || column.width || 120;
 				}
-				const user = frappe.session.user;
-				const liked = liked_by.includes(user);
-	
-				// Mettre à jour l'interface utilisateur
-				if (liked) {
-					element.classList.remove("liked-by", "liked");
-					element.classList.add("not-liked");
-					liked_by.splice(liked_by.indexOf(user), 1);
-				} else {
-					element.classList.remove("not-liked");
-					element.classList.add("liked-by", "liked");
-					liked_by.push(user);
-				}
-	
-				// Mettre à jour les attributs de l'élément
-				element.setAttribute("data-liked-by", JSON.stringify(liked_by));
-				element.setAttribute("title", liked_by.map((u) => frappe.user_info(u).fullname).join(", "));
-	
-				// Mettre à jour le compteur de likes
-				const likes_count_element = element.nextElementSibling;
-				likes_count_element.textContent = liked_by.length > 99 ? __("99") + "+" : __(liked_by.length || "");
-	
-				// Déterminer si l'utilisateur a aimé ou non
-				let add = liked ? "No" : "Yes";
-	
-				frappe.call({
-					method: "frappe.desk.like.toggle_like",
-					args: {
-						doctype: doctype,
-						name: name,
-						add: add,
-					},
-					callback: function(r) {
-						if (r.exc) {
-							console.log("Error updating like status.");
-						}
-					}
-				});
-			};
-		}
-	
-		return div.innerHTML;
-	}
-	
-	//// Neoffice — added method (4e23539603, 2024-09-23, no message): character-count width estimate,
-	//// capped at 250px. Currently DEAD — the only call site is commented out in setup_columns above
-	//// (a flat 140px default is used instead). TO REVIEW at the merge: drop it or wire it back.
-	calculateColumnWidth(column) {
-		const charWidth = 10; // Approximate width of a character in pixels
-		let maxLength = column.content.length;
-	
-		this.data.forEach(row => {
-			const value = row[column.id];
-			if (value && value.length > maxLength) {
-				maxLength = value.length;
+				this.columns.push(column);
+				this.columns_map[column.id] = column;
 			}
-		});
-	
-		// Add some padding to the calculated width
-		let calculatedWidth = (maxLength + 2) * charWidth;
-		// Limit to a maximum of 250 pixels
-		return Math.min(calculatedWidth, 250);
+		}
 	}
-	////
 
 	build_column(c) {
 		let [fieldname, doctype] = c;
@@ -2338,30 +1170,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				}
 				if (fieldname == "docstatus" && !frappe.meta.has_field(this.doctype, "status")) {
 					docfield.label = "Status";
+					docfield.fieldtype = "Data";
 					docfield.name = "status";
-					//// Neoffice — added (374fc42e37, 2025-11-26 "set Status column fieldtype to Select in
-					//// build_column"); the line it replaces, upstream's `docfield.fieldtype = "Data";`, is gone.
-					//// get_column_docfields (marked above) was not enough: build_column builds its docfield from
-					//// another source, so the Select fieldtype and its options have to be set here too. Falls back
-					//// to Data when no rows are loaded yet.
-					// Collect status options from data for Select filter
-					if (this.data && this.data.length) {
-						let statusOptions = new Set();
-						this.data.forEach(d => {
-							let status = frappe.get_indicator(d, this.doctype);
-							if (status && status[0]) {
-								statusOptions.add(status[0]);
-							}
-						});
-						if (statusOptions.size > 0) {
-							docfield.fieldtype = "Select";
-							docfield.options = Array.from(statusOptions).join("\n");
-						} else {
-							docfield.fieldtype = "Data";
-						}
-					} else {
-						docfield.fieldtype = "Data";
-					}
 				}
 			}
 		}
@@ -2422,27 +1232,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			align,
 			compareValue: compareFn,
 			format: (value, row, column, data) => {
-				//// Neoffice — the ID column always shows the record's NAME (18.09). Upstream
-				//// formats it as a Link to its own doctype, so on a doctype with « show title
-				//// field in link » (Project, Task…) the ID was swapped for the title as soon as
-				//// titles were cached — the column « ID » then repeated « Project name » and the
-				//// PROJ-2026-… number was nowhere. Still a link (hover preview kept); marked so
-				//// set_link_title_field_value below leaves it alone.
-				if (column.docfield && column.docfield.fieldname === "name" && value && typeof value === "string") {
-					const dt = column.docfield.options || column.docfield.parent || this.doctype;
-					const v = frappe.utils.escape_html(value);
-					//// Neoffice — on a translated doctype (`translated_doctype`) the ID reads in the user's language, as a
-					//// Link field shows it: a fitness club's coach read the test catalogue as « Sit and reach », « Wall sit »
-					//// in a French desk (09.11). Only the text: the link and its data keep the record's real name.
-					const shown = (frappe.boot?.translated_doctypes || []).includes(dt) ? frappe.utils.escape_html(__(value)) : v;
-					//// Neoffice — what an app draws before the ID of a row of the view's own doctype (frappe.neo_row_lead(view,
-					//// name) -> HTML, escaped by the app): a customer's or a supplier's logo, else its initials (get_call_args
-					//// above). Nothing defined or returned: the cell as it was.
-					const neo_lead =
-						dt === this.doctype && typeof frappe.neo_row_lead === "function" ? frappe.neo_row_lead(this, value) || "" : "";
-					return `${neo_lead}<a href="${frappe.utils.get_form_link(dt, value)}" data-doctype="${frappe.utils.escape_html(dt)}" data-name="${v}" data-value="${v}" data-neo-id="1">${shown}</a>`;
-				}
-				////
 				let doc = null;
 				if (Array.isArray(row)) {
 					doc = row.reduce((acc, curr) => {
@@ -2463,21 +1252,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 					doc = row;
 				}
 
-				//// Neoffice — the report view ignores `listview_settings.formatters`, which the list
-				//// view honours. A doctype opts in with `report_formatters`, so a formatter written
-				//// for the list never changes this view by surprise. First user: the subject of the
-				//// Activity Log (activity_log_list.js). A datatable cell is HTML, the formatter
-				//// returns plain text: escaped here.
-				const report_formatters =
-					(frappe.listview_settings[this.doctype] || {}).report_formatters || {};
-				if (column.docfield && report_formatters[column.docfield.fieldname]) {
-					const out = report_formatters[column.docfield.fieldname](
-						value,
-						column.docfield,
-						doc
-					);
-					return out == null ? "" : frappe.utils.escape_html(String(out));
-				}
 				return frappe.format(value, column.docfield, { always_show_decimals: true }, doc);
 			},
 		};
@@ -2486,194 +1260,32 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	build_rows(data) {
 		const out = data.map((d) => this.build_row(d));
 
-		//// Neoffice — totals rework (block runs to the end of build_totals_row below). Upstream builds
-		//// the totals row inline here and hands it to frappe-datatable as a FOOTER row. Rewritten by
-		//// the 2025-11-26 series — e0501e814e then 6a0cb32fb2 "show totals as last data row instead of
-		//// footer": the footer row vanished as soon as the user typed in an inline column filter, and
-		//// non-numeric columns printed the string "null" (fixed with utils.js report_column_total,
-		//// marked there). Totals are now an ordinary last data row flagged isTotalRow, labelled
-		//// "Totals" in the name column, empty for the meta and non-numeric columns.
-		// Add totals row as last data row if enabled
-		if (this.add_totals_row && data.length > 0) {
-			const totals_row = this.build_totals_row(data);
-			out.push(totals_row);
-		}
-
-		return out;
-	}
-
-	build_totals_row(data) {
-		// Calculate totals for each column
-		const totals = this.get_columns_totals(data);
-
-		return this.columns.map((col, index) => {
-			// First column (after checkbox and row index) shows "Totals" label
-			if (col.field === "name") {
-				return {
-					content: __("Totals"),
-					editable: false,
-					isTotalRow: true,
-					format: () => `<strong>${__("Totals")}</strong>`,
-				};
-			}
-
-			// Meta column - empty
-			if (col.field === "meta") {
-				return {
-					content: "",
-					editable: false,
-					isTotalRow: true,
-					format: () => "",
-				};
-			}
-
-			// Numeric fields - show formatted total
-			if (frappe.model.is_numeric_field(col.docfield)) {
-				const value = totals[col.id] || 0;
-				return {
-					content: value,
-					editable: false,
-					isTotalRow: true,
-					format: (val) => {
-						return `<strong>${frappe.format(val, col.docfield, { always_show_decimals: true })}</strong>`;
-					},
-				};
-			}
-
-			// Non-numeric fields - empty
-			return {
-				content: "",
-				editable: false,
-				isTotalRow: true,
-				format: () => "",
-			};
-		});
-	}
-
-	//// Neoffice — added methods, style_totals_row / update_totals_button /
-	//// add_totals_to_filtered_rows (2025-11-26: 8b00ad979c, 931e9229ce, 75440d220e, e8a402e703).
-	//// Because the totals row is a normal data row it needs the .dt-row--totals class re-applied
-	//// after every render (the CSS lives in scss/desk/frappe_datatable.scss, marked there) — hence
-	//// style_totals_row, which finds it by the data-is-total-row="true" attribute (the value was
-	//// '1' until 931e9229ce). update_totals_button syncs the Σ toolbar button.
-	//// add_totals_to_filtered_rows is a HOOK CALLED BY OUR frappe-datatable FORK (filterRows.js):
-	//// inline filtering rebuilds the row list and would drop the totals row, so the fork calls back
-	//// here to append one recomputed over the filtered data. It hand-builds the datatable's
-	//// internal cell structure (attributes, contentAttributes, meta) — TO REVIEW at the merge: it
-	//// breaks silently if either frappe-datatable or its fork changes that shape.
-	style_totals_row() {
-		// Add special styling to the totals row after DataTable renders
-		if (!this.add_totals_row || !this.$datatable_wrapper) return;
-
-		// Find cells with isTotalRow attribute and add CSS class to the row
-		requestAnimationFrame(() => {
-			const $totalsCell = this.$datatable_wrapper.find('.dt-cell[data-is-total-row="true"]').first();
-			if ($totalsCell.length) {
-				const $totalsRow = $totalsCell.closest('.dt-row');
-				$totalsRow.addClass('dt-row--totals');
-			}
-		});
-	}
-
-	update_totals_button() {
-		// Update the totals button appearance based on current state
-		const $btn = this.page.wrapper.find('.btn-totals');
-		if (!$btn.length) return;
-
 		if (this.add_totals_row) {
-			//// Neoffice — part of the added totals methods (see the block marker above style_totals_row).
-			$btn.addClass('btn-primary-light').attr('title', __('Hide Totals'));
-		} else {
-			$btn.removeClass('btn-primary-light').attr('title', __('Show Totals'));
-		}
-	}
-
-	add_totals_to_filtered_rows(formattedRows, columns) {
-		// Hook called by filterRows.js to add totals row after filtering
-		if (!this.add_totals_row || formattedRows.length === 0) return null;
-
-		// Calculate totals from filtered data (this.data is updated by prepare_data)
-		const totals = this.get_columns_totals(this.data);
-		const rowIndex = formattedRows.length;
-
-		// Build formatted row compatible with DataTable structure
-		const totalsRow = columns
-			.filter(column => column.visible !== false)
-			.map((column, colIndex) => {
-				const cellClass = `dt-cell dt-cell--col-${colIndex} dt-cell--${colIndex}-${rowIndex} dt-cell--row-${rowIndex}`;
-				const contentClass = `dt-cell__content dt-cell__content--col-${colIndex}`;
-
-				let cellData = "";
-				let formattedContent = "";
-
-				// Checkbox column - empty
-				if (column.id === '_checkbox') {
-					cellData = "";
-				}
-				// Row index column - empty
-				else if (column.id === '_rowIndex') {
-					cellData = "";
-				}
-				// Name field - shows "Totals" label
-				else if (column.field === "name") {
-					cellData = __("Totals");
-					formattedContent = `<strong>${__("Totals")}</strong>`;
-				}
-				// Meta column - empty
-				else if (column.field === "meta") {
-					cellData = "";
-				}
-				// Numeric fields - show formatted total
-				else if (column.docfield && frappe.model.is_numeric_field(column.docfield)) {
-					const value = totals[column.id] || 0;
-					cellData = value;
-					formattedContent = `<strong>${frappe.format(value, column.docfield, { always_show_decimals: true })}</strong>`;
-				}
-
+			const totals = this.get_columns_totals(data);
+			const totals_row = this.columns.map((col, i) => {
 				return {
-					//// Neoffice — part of the added totals methods (see the block marker above style_totals_row).
-					content: cellData,
-					html: formattedContent || cellData,
-					rowIndex: rowIndex,
-					colIndex: colIndex,
-					column: column,
-					sortOrder: column.sortOrder,
-					editable: false,
-					focusable: column.focusable,
-					dropdown: column.dropdown,
-					width: column.width,
-					name: column.name,
-					docfield: column.docfield || {},
-					isTotalRow: true,
-					attributes: {
-						class: cellClass,
-						'data-row-index': rowIndex,
-						'data-col-index': colIndex,
-						'data-is-total-row': 'true',
-						'tabindex': 0
+					name: __("Totals Row"),
+					content: totals[col.id],
+					format: (value) => {
+						let formatted_value = frappe.format(
+							value,
+							col.docfield,
+							{
+								always_show_decimals: true,
+							},
+							data[0]
+						);
+						if (i === 0) {
+							return this.format_total_cell(formatted_value, col);
+						}
+						return formatted_value;
 					},
-					//// Neoffice — part of the added totals methods (see the block marker above style_totals_row).
-					contentAttributes: {
-						class: contentClass,
-						title: cellData ? cellData.toString() : ''
-					}
 				};
 			});
 
-		//// Neoffice — part of the added totals methods (see the block marker above style_totals_row).
-		// Add meta to totals row
-		totalsRow.meta = {
-			rowIndex: rowIndex,
-			indent: 0,
-			isLeaf: true,
-			isTreeNodeClose: false,
-			isTotalRow: true
-		};
-
-		// Apply styling after render
-		setTimeout(() => this.style_totals_row(), 100);
-
-		return totalsRow;
+			out.push(totals_row);
+		}
+		return out;
 	}
 
 	format_total_cell(formatted_value, df) {
@@ -2688,26 +1300,10 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 	build_row(d) {
 		return this.columns.map((col) => {
-			//// Neoffice — added branch (4e23539603, 2024-09-23, no message): the synthetic "meta" column has
-			//// no docfield, so it has to be answered before upstream's `col.docfield.parent !== this.doctype`
-			//// test, which is also why that test gained a `col.docfield &&` guard. The empty line added a
-			//// dozen lines below inside the child-table branch is a whitespace-only artifact of bd41f1e7a5
-			//// (2025-02-26 "Update neov2") — take upstream at the merge.
-			////
-			if (col.field === "meta") {
-				return {
-					name: d.name,
-					doctype: this.doctype,
-					content: this.get_meta_html(d),
-					editable: false,
-				};
-			}
-			////
-			if (col.docfield && col.docfield.parent !== this.doctype) {
+			if (col.docfield.parent !== this.doctype) {
 				// child table field
 				const cdt_field = (f) => `${col.docfield.parent}:${f}`;
 				const name = d[cdt_field("name")];
-
 				return {
 					name: name,
 					doctype: col.docfield.parent,
@@ -2736,16 +1332,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 						doctype: col.docfield.parent,
 						content: status[0],
 						editable: false,
-						//// Neoffice — added (42aa00fa98, 2025-11-26 "add indicator-pill formatting to Status column"):
-						//// upstream puts the bare status text in the cell, so Report View showed "Paid" as plain text
-						//// where the List view shows a coloured pill. Renders the same .indicator-pill markup, with
-						//// data-filter so a click filters on it.
-						format: () => {
-							return `<span class="indicator-pill ${status[1]} filterable no-indicator-dot ellipsis"
-								data-filter='${status[2]}'>
-								<span class="ellipsis">${status[0]}</span>
-							</span>`;
-						},
 					};
 				} else {
 					// no status values found
@@ -2789,10 +1375,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				fields: this.fields,
 				order_by: this.sort_selector.get_sql_string(),
 				add_totals_row: this.add_totals_row,
-				//// Neoffice — the second copy of the page_length override (4e23539603): see the marker on the
-				//// first one, in get_args above.
-				////page_length: this.page_length,
-				page_length: 100,
+				page_length: this.page_length,
 				column_widths: this.get_column_widths(),
 				group_by: this.group_by_control.get_settings(),
 				chart_args: this.get_chart_settings(),
@@ -2961,24 +1544,11 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		const row_totals = {};
 
 		this.columns.forEach((col, i) => {
-			//// Neoffice — rewritten (e0501e814e, 2025-11-26 "fix status display and filter behaviour"):
-			//// upstream tests is_numeric_field INSIDE the reduce and returns nothing on the non-numeric
-			//// branch — the accumulator became undefined and the totals row printed a value under Status.
-			//// The type test is hoisted out (non-numeric columns get "") and the reduce always returns its
-			//// accumulator.
-			// Only calculate totals for numeric fields
-			if (!frappe.model.is_numeric_field(col.docfield)) {
-				row_totals[col.id] = "";
-				return;
-			}
-
 			const totals = data.reduce((totals, d) => {
-				//// Neoffice — upstream also tests is_numeric_field here; hoisted out above (e0501e814e).
-				if (col.id in d) {
+				if (col.id in d && frappe.model.is_numeric_field(col.docfield)) {
 					totals += flt(d[col.id]);
-					//// Neoffice — upstream returns the accumulator only here; ours returns it on every path, below (e0501e814e).
+					return totals;
 				}
-				return totals;
 			}, 0);
 
 			row_totals[col.id] = totals;
@@ -2987,11 +1557,18 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		return row_totals;
 	}
 
-	//// Neoffice — upstream's first menu entry here is "Show Totals" (toggling add_totals_row and
-	//// refreshing the datatable); REMOVED by 75440d220e (2025-11-26) in favour of the Σ toolbar
-	//// button added in before_refresh above — nothing replaces it in this list.
 	report_menu_items() {
 		let items = [
+			{
+				label: __("Show Totals"),
+				action: () => {
+					this.add_totals_row = !this.add_totals_row;
+					this.save_view_user_settings({
+						add_totals_row: this.add_totals_row,
+					});
+					this.datatable.refresh(this.get_data(this.data));
+				},
+			},
 			{
 				label: __("Print"),
 				condition: () => frappe.model.can_print(this.doctype),
@@ -3056,12 +1633,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 							this.fields.map((f) => this.add_currency_column(f[0], f[1]));
 
-							//// Neoffice — added (4e23539603): persist order + widths after the "Pick Columns" dialog
-							//// reorders the fields, like the three call sites further up.
-							////
-							this.save_column_order_and_widths();
-							////
-
 							this.reorder_fields();
 							this.build_fields();
 							this.setup_columns();
@@ -3104,7 +1675,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 								label: __("Export all matching rows?"),
 							},
 						];
-					//// Neoffice — see the removal marker below: duplicate else-if dropped (745560e409)
 					} else if (
 						this.total_count > (this.count_without_children || args.page_length)
 					) {
@@ -3116,7 +1686,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 							},
 						];
 					}
-					//// Neoffice — removed a duplicate `else if` block here (745560e409 "fix(report-view): drop the export branch that could never run"): a merge-conflict resolution had kept two byte-identical `else if (this.total_count > ...)` blocks back to back, so the second one could never run; only the reachable copy above remains.
 					if (frappe.boot.lang !== "en") {
 						extra_fields.push({
 							fieldtype: "Check",
@@ -3155,13 +1724,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 								delete args.start;
 								delete args.page_length;
 							}
-
-							//// Neoffice — export path rewritten (e5382efca3, 2025-03-18 "Fix bug export"). Upstream's
-							//// foreground branch is `open_url_post(frappe.request.url, args)`, a synthesised form POST whose
-							//// response our nginx returned as an empty download. It now goes through frappe.call and follows
-							//// response.message.file_url. The background branch is upstream's. Same fix as the Excel export
-							//// button in before_refresh. The bare //// fences are the original author's.
-							////
 							args.export_in_background = data.export_in_background;
 							if (data.export_in_background) {
 								frappe.call({
@@ -3169,20 +1731,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 									args,
 								});
 							} else {
-								//// Neoffice — frappe.call instead of upstream's open_url_post (e5382efca3; see the marker above).
-								frappe.call({
-									method: args.cmd,
-									args: args,
-									callback: function(response) {
-										if (response.message && response.message.file_url) {
-											window.location.href = response.message.file_url;
-										} else {
-											console.error("Failed to generate export file.");
-										}
-									}
-								});
+								open_url_post(frappe.request.url, args);
 							}
-							////
 
 							d.hide();
 						}
@@ -3232,9 +1782,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			items.push({
 				label: __("Delete"),
 				action: () =>
-					//// Neoffice — upstream passes the confirmation text untranslated
-					//// (frappe.confirm does not translate its message); we translate it.
-					frappe.confirm(__("Are you sure you want to delete this report?"), () =>
+					frappe.confirm("Are you sure you want to delete this report?", () =>
 						this.delete_report()
 					),
 				shortcut: "Shift+Ctrl+D",
