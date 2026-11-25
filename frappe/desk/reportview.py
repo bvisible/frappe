@@ -113,6 +113,10 @@ def validate_args(data):
 		validate_filters(data, data.filters)
 	if data.or_filters:
 		validate_filters(data, data.or_filters)
+	# //// Neoffice — a filter on a field the user may not read is refused where an app asks (check_filters_permlevel)
+	for filters in (data.filters, data.or_filters):
+		if filters:
+			check_filters_permlevel(data, filters)
 
 	data.strict = None
 
@@ -191,6 +195,63 @@ def validate_filters(data, filters):
 			meta, df = get_meta_and_docfield(fieldname, data)
 			if not df:
 				raise_invalid_field(fieldname)
+
+
+# //// Neoffice — added (neoffice-maintenance#3382). On the doctypes an app names in the hook
+# //// `permlevel_guarded_filters`, a filter is refused on a field the user may not read at its permission
+# //// level. v15 strips such a field from the columns (validate_fields above) and, since 15.114, from
+# //// order_by and group_by (DatabaseQuery.validate_fieldlevel_permissions_for_sort), not from the filters:
+# //// « target_weight > 68 », then « > 69 », read a member's hidden value by bisection, and « like %x% »
+# //// guessed a text. Every door a client sends filters through reaches validate_args (the list and report
+# //// views, their count and export, frappe.client.get_list / get_value / get_count, the REST list), and
+# //// the link search calls it (frappe.desk.search); the server's own get_list calls do not.
+# //// Opt-in, not for every doctype: on v15 the desk itself filters by fields some readers cannot read (a
+# //// seller picks the company's address by `is_your_company_address`, the HR app lists an employee's
+# //// leaves by `status`), and refusing those would break them. Upstream develop refuses it for every
+# //// doctype in the query builder (frappe/database/query.py, check_filter_field_permission): drop both,
+# //// and the hook, at Frappe 16.
+def check_filters_permlevel(data, filters):
+	guarded = set(frappe.get_hooks("permlevel_guarded_filters"))
+	if not guarded or frappe.session.user == "Administrator":
+		return
+	if isinstance(filters, dict):
+		conditions = [[fieldname] for fieldname in filters]
+	elif isinstance(filters, list | tuple):
+		conditions = [condition for condition in filters if isinstance(condition, list | tuple) and condition]
+	else:
+		return
+	for condition in conditions:
+		try:
+			if len(condition) > 3:
+				doctype, fieldname = condition[0], condition[1]
+			elif isinstance(condition[0], str):
+				# « `tabNote`.`public` » names the same column as « tabNote.public »
+				doctype, fieldname = get_parenttype_and_fieldname(condition[0].replace("`", ""), data)
+			else:
+				continue
+			if isinstance(fieldname, str):
+				fieldname = fieldname.strip("`")
+			if not isinstance(fieldname, str) or not isinstance(doctype, str) or is_standard(fieldname):
+				continue
+			if doctype not in guarded and data.doctype not in guarded:
+				continue
+			meta = frappe.get_meta(doctype)
+		except (AttributeError, frappe.DoesNotExistError):
+			# A field this cannot resolve is validate_filters' to refuse, or the query's
+			continue
+		check_filter_permlevel(data, meta, meta.get_field(fieldname))
+
+
+# //// Neoffice — added (neoffice-maintenance#3382): see check_filters_permlevel. A child table's field is
+# //// read through its parent's rules, as get_permitted_fields does for the columns.
+def check_filter_permlevel(data, meta, df):
+	if not df or not df.permlevel:
+		return
+	parenttype = data.doctype if meta.name != data.doctype else data.get("parent_doctype")
+	if df.fieldname not in get_permitted_fields(meta.name, parenttype=parenttype, ignore_virtual=True):
+		raise frappe.PermissionError(
+			_("No permission to read {0}").format(frappe.bold(_(df.label or df.fieldname)))
+		)
 
 
 def setup_group_by(data):

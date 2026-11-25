@@ -106,6 +106,14 @@ def search_widget(
 	if isinstance(filters, str):
 		filters = json.loads(filters)
 
+	# //// Neoffice — the filters a client sends with a link search are refused on a field it may not read,
+	# //// on the doctypes an app guards (neoffice-maintenance#3382, frappe.desk.reportview.check_filters_permlevel):
+	# //// the search would otherwise read a hidden value by bisection. Drop at Frappe 16, which refuses it itself.
+	if filters:
+		from frappe.desk.reportview import check_filters_permlevel
+
+		check_filters_permlevel(frappe._dict(doctype=doctype), filters)
+
 	if searchfield:
 		sanitize_searchfield(searchfield)
 
