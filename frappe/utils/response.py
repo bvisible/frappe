@@ -7,6 +7,8 @@ import json
 import mimetypes
 import os
 import sys
+# //// Neoffice — unicodedata: add_content_disposition puts a download's name together (NFC).
+import unicodedata
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -108,12 +110,34 @@ def build_response(response_type=None):
 	return response_type_map[frappe.response.get("type") or response_type]()
 
 
+# //// Neoffice — the file name a download is sent under, written so that the server can send it. gunicorn 23 refuses a
+# //// header with a character above U+00FF (« Invalid HTTP Header ») and closes the connection: the browser shows a
+# //// 502. A name written on a Mac carries its accents apart (« a » and U+0300 for « à »), so a PDF of a webmail named
+# //// « Scanner … à 15.09.pdf » could never be opened. The name is put together first (NFC); one that still has such a
+# //// character goes as `filename*` (RFC 6266, UTF-8, as werkzeug's send_file writes it) beside a plain ASCII
+# //// `filename` for an old client. A name of Latin-1 alone is written as before.
+def add_content_disposition(response, kind, filename):
+	filename = unicodedata.normalize("NFC", filename or "")
+	try:
+		filename.encode("latin-1")
+	except UnicodeEncodeError:
+		simple = unicodedata.normalize("NFKD", filename).encode("ascii", "ignore").decode("ascii").strip()
+		names = {
+			"filename": simple or "download",
+			"filename*": "UTF-8''" + quote(filename, safe="!#$&+-.^_`|~"),
+		}
+	else:
+		names = {"filename": filename}
+	response.headers.add("Content-Disposition", kind, **names)
+
+
 def as_csv():
 	response = Response()
 	response.mimetype = "text/csv"
 	filename = f"{frappe.response['doctype']}.csv"
 	filename = filename.encode("utf-8").decode("unicode-escape", "ignore")
-	response.headers.add("Content-Disposition", "attachment", filename=filename)
+	# //// Neoffice — a name the server can send (add_content_disposition).
+	add_content_disposition(response, "attachment", filename)
 	response.data = frappe.response["result"]
 	return response
 
@@ -123,7 +147,8 @@ def as_txt():
 	response.mimetype = "text"
 	filename = f"{frappe.response['doctype']}.txt"
 	filename = filename.encode("utf-8").decode("unicode-escape", "ignore")
-	response.headers.add("Content-Disposition", "attachment", filename=filename)
+	# //// Neoffice — a name the server can send (add_content_disposition).
+	add_content_disposition(response, "attachment", filename)
 	response.data = frappe.response["result"]
 	return response
 
@@ -136,11 +161,8 @@ def as_raw():
 		or "application/unknown"
 	)
 	filename = frappe.response["filename"].encode("utf-8").decode("unicode-escape", "ignore")
-	response.headers.add(
-		"Content-Disposition",
-		frappe.response.get("display_content_as", "attachment"),
-		filename=filename,
-	)
+	# //// Neoffice — a name the server can send (add_content_disposition).
+	add_content_disposition(response, frappe.response.get("display_content_as", "attachment"), filename)
 	response.data = frappe.response["filecontent"]
 	return response
 
@@ -162,7 +184,8 @@ def as_pdf():
 	response = Response()
 	response.mimetype = "application/pdf"
 	filename = frappe.response["filename"].encode("utf-8").decode("unicode-escape", "ignore")
-	response.headers.add("Content-Disposition", "inline", filename=filename)
+	# //// Neoffice — a name the server can send (add_content_disposition).
+	add_content_disposition(response, "inline", filename)
 	response.data = frappe.response["filecontent"]
 	return response
 
@@ -172,7 +195,8 @@ def as_binary():
 	response.mimetype = "application/octet-stream"
 	filename = frappe.response["filename"]
 	filename = filename.encode("utf-8").decode("unicode-escape", "ignore")
-	response.headers.add("Content-Disposition", "attachment", filename=filename)
+	# //// Neoffice — a name the server can send (add_content_disposition).
+	add_content_disposition(response, "attachment", filename)
 	response.data = frappe.response["filecontent"]
 	return response
 
