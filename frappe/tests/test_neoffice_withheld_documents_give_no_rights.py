@@ -33,6 +33,7 @@ class TestWhatTheRequestHoldsBack(FrappeTestCase):
 	@staticmethod
 	def _forget_the_table():
 		frappe.local.flags.pop("what_was_given", None)
+		frappe.local.flags.pop("what_was_given_refused", None)
 		frappe.local.role_permissions = {}
 
 	def _hold_back(self, table):
@@ -100,3 +101,19 @@ class TestWhatTheRequestHoldsBack(FrappeTestCase):
 		self.assertEqual(rights(HELD)["read"], 1)  # the right is now in the cache
 		frappe.local.flags.what_was_given = {PERSON: {HELD}}
 		self.assertEqual(rights(HELD)["read"], 0)
+
+	def test_the_first_document_refused_is_kept_on_the_request(self):
+		self._hold_back({PERSON: {HELD, FREE}})
+		self.assertIsNone(frappe.local.flags.get("what_was_given_refused"))
+		rights(HELD)
+		rights(FREE)
+		self.assertEqual(frappe.local.flags.get("what_was_given_refused"), HELD)
+
+	def test_nothing_is_kept_when_no_document_is_refused(self):
+		self._hold_back({PERSON: {HELD}})
+		rights(FREE)
+		rights(HELD, OTHER)
+		self.assertIsNone(frappe.local.flags.get("what_was_given_refused"))
+		self._hold_back({})
+		rights(HELD)
+		self.assertIsNone(frappe.local.flags.get("what_was_given_refused"))

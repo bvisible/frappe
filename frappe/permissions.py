@@ -786,9 +786,13 @@ def allow_everything():
 # //// request (frappe.flags is reset with it), is per account (the service account the identity is given back to is not
 # //// concerned) and is empty unless the site's key `nora_what_was_given` is on: see nora/utils/what_was_given.py.
 def _withheld_for(doctype: str, user: str) -> bool:
-	"""Whether this request holds `doctype` back from `user`."""
+	"""Whether this request holds `doctype` back from `user`. The first document refused is kept on the request
+	(`what_was_given_refused`), so that whoever asked can tell a refusal that comes from here from one of the roles."""
 	table = getattr(frappe.local, "flags", None) and frappe.local.flags.get("what_was_given")
-	return bool(table) and doctype in (table.get(user) or ())
+	held = bool(table) and doctype in (table.get(user) or ())
+	if held and not frappe.local.flags.get("what_was_given_refused"):
+		frappe.local.flags.what_was_given_refused = doctype
+	return held
 
 
 def no_rights():
