@@ -7,8 +7,7 @@ import json
 import mimetypes
 import os
 import sys
-# //// Neoffice — unicodedata: add_content_disposition puts a download's name together (NFC).
-import unicodedata
+import unicodedata  # //// Neoffice — add_content_disposition puts a download's name together (NFC)
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
