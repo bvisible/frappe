@@ -287,6 +287,18 @@ def get_role_permissions(doctype_meta, user=None, is_owner=None, debug=False):
 		debug and _debug_log("all permissions granted because user is Administrator")
 		return allow_everything()
 
+	# //// Neoffice — neoffice-maintenance#3421: a document the account was not given has no right, whatever its roles allow.
+	# //// Every right of a doctype is read here (has_permission, get_doc_permissions, the permission checks of a list, of a
+	# //// report), so one test closes them all, and a check written tomorrow is closed too. It answers before the cache
+	# //// below and never writes in it. Only a request that names what it withholds is concerned (see _withheld_for): the
+	# //// desk, the portal and every other caller read the rights they read before.
+	if _withheld_for(doctype_meta.name, user):
+		debug and _debug_log(
+			"no permission because this request withholds " + doctype_meta.name + " from the account"
+		)
+		return no_rights()
+	# //// END Neoffice ////
+
 	if not frappe.local.role_permissions.get(cache_key) or debug:
 		perms = frappe._dict(if_owner={})
 
@@ -765,6 +777,28 @@ def allow_everything():
 	eg. {"read": 1, "write": 1, ...}
 	"""
 	return {ptype: 1 for ptype in rights}
+
+
+# //// Neoffice — added block (no upstream equivalent): neoffice-maintenance#3421.
+# //// The documents a request holds back from an account. NORA asks for it when she answers for a person (she acts as that
+# //// person, so the rights of the roles apply, and the roles allow what the workspaces of the account never gave): she sets
+# //// `frappe.flags.what_was_given = {account: {doctype, ...}}` and reads nothing else from here. The table lives as long as the
+# //// request (frappe.flags is reset with it), is per account (the service account the identity is given back to is not
+# //// concerned) and is empty unless the site's key `nora_what_was_given` is on: see nora/utils/what_was_given.py.
+def _withheld_for(doctype: str, user: str) -> bool:
+	"""Whether this request holds `doctype` back from `user`."""
+	table = getattr(frappe.local, "flags", None) and frappe.local.flags.get("what_was_given")
+	return bool(table) and doctype in (table.get(user) or ())
+
+
+def no_rights():
+	"""returns a dict with access to nothing
+	eg. {"read": 0, "write": 0, ...}
+	"""
+	return {ptype: 0 for ptype in rights}
+
+
+# //// END Neoffice ////
 
 
 def get_allowed_docs_for_doctype(user_permissions, doctype):
